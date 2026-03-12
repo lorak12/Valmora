@@ -1,0 +1,6 @@
+name: Valmora
+version: '0.1'
+main: org.nakii.valmora.Valmora
+api-version: '1.21'
+authors: [ nakii ]
+description: Player Stats is a plugin made to practise making plugins in general
