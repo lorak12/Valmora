@@ -4,8 +4,10 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.nakii.valmora.DataStore;
+import org.nakii.valmora.Valmora;
+import org.nakii.valmora.database.DataStore;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -19,28 +21,31 @@ public class PlayerManager {
     }
 
     public void handleJoin(UUID uuid){
-        ValmoraPlayer player = dataStore.loadPlayer(uuid);
-        if (player == null){
-            player = new ValmoraPlayer(uuid);
-        }
+        dataStore.loadPlayer(uuid).thenAcceptAsync(player -> {
+            ValmoraPlayer finalPlayer = player != null ? player : new ValmoraPlayer(uuid);
 
-        if (player.getProfiles().isEmpty()){
-            ValmoraProfile defaultProfile = new ValmoraProfile("Default");
-            player.addProfile(defaultProfile);
-            System.out.println("Created default profile for " + uuid);
-        }
+            if (finalPlayer.getProfiles().isEmpty()){
+                ValmoraProfile defaultProfile = new ValmoraProfile("Default");
+                finalPlayer.addProfile(defaultProfile);
+                System.out.println("Created default profile for " + uuid);
+            }
 
-        activeSession.put(uuid, player);
-
-        player.getActiveProfile().getStatManager().recalculateAttributes(Bukkit.getPlayer(uuid));
-
-        dataStore.savePlayer(player);
+            // Sync back to main thread to modify server cache and Bukkit entities safely
+            Bukkit.getScheduler().runTask(Valmora.getInstance(), () -> {
+                activeSession.put(uuid, finalPlayer);
+                Player bukkitPlayer = Bukkit.getPlayer(uuid);
+                if (bukkitPlayer != null) {
+                    finalPlayer.getActiveProfile().getStatManager().recalculateAttributes(bukkitPlayer);
+                }
+            });
+        });
     }
 
     public void handleQuit(UUID uuid){
         ValmoraPlayer player = activeSession.remove(uuid);
         if (player != null) {
             dataStore.savePlayer(player);
+            // Async execution handles the save seamlessly without lag spikes!
         }
     }
 
@@ -50,7 +55,7 @@ public class PlayerManager {
         for (ValmoraProfile profile: vp.getProfiles().values()){
             if (profile.getName().equalsIgnoreCase(profileName)){
                 vp.setActiveProfile(profile.getId());
-                vp.getActiveProfile().getStatManager().recalculateAttributes(player);
+                vp.getActiveProfile().getStatManager().recalculateStats(player);
                 return;
             }
         }
@@ -75,6 +80,10 @@ public class PlayerManager {
             vp.removeProfile(activeProfile.getId());
             dataStore.savePlayer(vp);
         }
+    }
+
+    public Collection<ValmoraPlayer> getAllSessions() {
+        return activeSession.values();
     }
 
 }

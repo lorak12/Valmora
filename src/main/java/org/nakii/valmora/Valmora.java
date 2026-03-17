@@ -8,10 +8,13 @@ import org.nakii.valmora.mob.MobManager;
 import org.nakii.valmora.profile.PlayerConnectionListener;
 import org.nakii.valmora.profile.PlayerManager;
 import org.nakii.valmora.profile.ProfileCommand;
+import org.nakii.valmora.profile.ValmoraPlayer;
 import org.nakii.valmora.stat.PlayerListener;
 import org.nakii.valmora.combat.CombatListener;
 import org.nakii.valmora.combat.DamageCalculator;
 import org.nakii.valmora.combat.DamageIndicatorManager;
+import org.nakii.valmora.database.DataStore;
+import org.nakii.valmora.database.DatabaseFactory;
 import org.nakii.valmora.stat.StatCommand;
 import org.nakii.valmora.stat.StatStorage;
 
@@ -19,6 +22,8 @@ import org.nakii.valmora.stat.StatStorage;
 public final class Valmora extends JavaPlugin {
 
     private static Valmora instance;
+
+    private DataStore dataStore;
 
     private PlayerManager playerManager;
     private ItemManager itemManager;
@@ -30,12 +35,15 @@ public final class Valmora extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
+        saveDefaultConfig();
         saveResource("items/example.yml", true);
         saveResource("mobs/test_mobs.yml", true);
 
-        DataStore mockDb = new MockDataStore();
+         // Initialize Database
+        this.dataStore = DatabaseFactory.createDataStore(this);
+        this.dataStore.init();
 
-        this.playerManager = new PlayerManager(mockDb);
+        this.playerManager = new PlayerManager(dataStore);
         this.itemManager = new ItemManager(this);
         this.itemManager.initialize();
         this.statStorage = new StatStorage(this);
@@ -60,8 +68,16 @@ public final class Valmora extends JavaPlugin {
 
     }
 
-    @Override
+     @Override
     public void onDisable() {
+        // Save all currently online players before shutting down
+        for (ValmoraPlayer player : playerManager.getAllSessions()) {
+            dataStore.savePlayer(player).join(); // .join() blocks the main thread temporarily to ensure it saves before the server dies
+        }
+        
+        if (dataStore != null) {
+            dataStore.close();
+        }
     }
 
     public static Valmora getInstance() {

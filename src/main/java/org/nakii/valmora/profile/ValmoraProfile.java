@@ -11,6 +11,11 @@ public class ValmoraProfile {
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
 
+    public ValmoraProfile(UUID id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
     public ValmoraProfile(String name) {
         this.id = UUID.randomUUID();
         this.name = name;

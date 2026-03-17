@@ -21,6 +21,14 @@ public class StatManager {
         }
     }
 
+    public Map<Stat, Double> getSaveData() {
+        return new HashMap<>(stats);
+    }
+
+    public void loadData(Map<Stat, Double> savedData) {
+        this.stats.putAll(savedData);
+    }
+
     public void addStat(Player player , Stat stat, Double value) {
         if (value < 0) {
             throw new IllegalArgumentException("Value must be non-negative");

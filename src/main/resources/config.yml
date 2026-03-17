@@ -1,0 +1,30 @@
+# ========================================================== #
+#                    Valmora Configuration                   #
+# ========================================================== #
+
+database:
+  # Which database engine should Valmora use?
+  # Supported types: sqlite, mysql
+  #
+  # SQLite is highly recommended for most servers as it requires
+  # zero setup and stores data locally in the plugin folder (database.db).
+  # MySQL is recommended for large networks syncing data across multiple servers.
+  type: sqlite
+
+  # ========================================================== #
+  # MySQL Settings (Only used if type is set to 'mysql')       #
+  # ========================================================== #
+  # To use MySQL, set 'type: mysql' above and uncomment the lines
+  # below (remove the '#' symbol) to configure your connection.
+  #
+  # mysql:
+  #   host: "127.0.0.1"
+  #   port: 3306
+  #   database: "valmora"
+  #   username: "root"
+  #   password: "password123"
+
+# ========================================================== #
+#                      Other Settings                        #
+# ========================================================== #
+# TODO: Add more settings here
