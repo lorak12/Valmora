@@ -8,12 +8,6 @@ import org.nakii.valmora.mob.MobManager;
 import org.nakii.valmora.profile.PlayerConnectionListener;
 import org.nakii.valmora.profile.PlayerManager;
 import org.nakii.valmora.profile.ProfileCommand;
-import org.nakii.valmora.skill.SkillRegistry;
-import org.nakii.valmora.skill.XpAccumulator;
-import org.nakii.valmora.skill.command.SkillAdminCommand;
-import org.nakii.valmora.skill.command.SkillCommand;
-import org.nakii.valmora.skill.listener.SkillMechanicListener;
-import org.nakii.valmora.skill.listener.SkillTriggerListener;
 import org.nakii.valmora.stat.PlayerListener;
 import org.nakii.valmora.combat.CombatListener;
 import org.nakii.valmora.combat.DamageCalculator;
@@ -31,8 +25,6 @@ public final class Valmora extends JavaPlugin {
     private StatStorage statStorage;
     private DamageIndicatorManager damageIndicatorManager;
     private MobManager mobManager;
-    private SkillRegistry skillRegistry;
-    private XpAccumulator xpAccumulator;
 
     @Override
     public void onEnable() {
@@ -52,17 +44,13 @@ public final class Valmora extends JavaPlugin {
         this.mobManager = new MobManager(this);
         this.mobManager.initialize();
 
-        // ── Skill system ────────────────────────────────────────────────────
-        this.skillRegistry = new SkillRegistry(this);
-        this.skillRegistry.initialize();
-        this.xpAccumulator = new XpAccumulator(this);
+        
 
         // ── Listeners ───────────────────────────────────────────────────────
         getServer().getPluginManager().registerEvents(new PlayerConnectionListener(playerManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
-        getServer().getPluginManager().registerEvents(new SkillTriggerListener(this), this);
-        getServer().getPluginManager().registerEvents(new SkillMechanicListener(), this);
+        
 
         // ── Commands ────────────────────────────────────────────────────────
         getCommand("profile").setExecutor(new ProfileCommand(playerManager));
@@ -70,15 +58,6 @@ public final class Valmora extends JavaPlugin {
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
 
-        SkillCommand skillCommand = new SkillCommand(this);
-        getCommand("skill").setExecutor(skillCommand);
-        getCommand("skill").setTabCompleter(skillCommand);
-        getCommand("skills").setExecutor(skillCommand);
-        getCommand("skills").setTabCompleter(skillCommand);
-
-        SkillAdminCommand skillAdminCommand = new SkillAdminCommand(this);
-        getCommand("skilladmin").setExecutor(skillAdminCommand);
-        getCommand("skilladmin").setTabCompleter(skillAdminCommand);
     }
 
     @Override
@@ -109,11 +88,4 @@ public final class Valmora extends JavaPlugin {
         return mobManager;
     }
 
-    public SkillRegistry getSkillRegistry() {
-        return skillRegistry;
-    }
-
-    public XpAccumulator getXpAccumulator() {
-        return xpAccumulator;
-    }
 }
