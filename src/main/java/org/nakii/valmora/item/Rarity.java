@@ -6,18 +6,21 @@ public enum Rarity {
     RARE("Rare", "<blue>"),
     EPIC("Epic", "<dark_purple>"),
     LEGENDARY("Legendary", "<gold>"),
-    DIVINE("Divine", "<aqua>"),
-    SPECIAL("Special", "<red>");
+    MYTHIC("Mythic", "<light_purple>");
 
-    private final String displayName;
+    private final String name;
     private final String color;
 
-    Rarity(String displayName, String color) {
-        this.displayName = displayName;
+    Rarity(String name, String color) {
+        this.name = name;
         this.color = color;
     }
 
-    public String getDisplayName() {
-        return color + displayName;
+    public String getName() {
+        return name;
+    }
+
+    public String getColor() {
+        return color;
     }
 }

@@ -1,0 +1,22 @@
+test_zombie:
+  name: "<red>Test Zombie</red>"
+  type: ZOMBIE
+  health: 50.0
+  damage: 10.0
+  speed: 0.3
+  equipment:
+    helmet: IRON_HELMET
+    chestplate: LEATHER_CHESTPLATE
+    leggings: DIAMOND_LEGGINGS
+    boots: GOLDEN_BOOTS
+    main-hand: IRON_SWORD
+    off-hand: SHIELD
+
+test_skeleton:
+  name: "<gray>Test Skeleton</gray>"
+  type: SKELETON
+  health: 30.0
+  damage: 8.0
+  equipment:
+    helmet: LEATHER_HELMET
+    main-hand: BOW

@@ -1,4 +1,4 @@
-package org.nakii.valmora;
+package org.nakii.valmora.profile;
 
 import java.util.HashMap;
 import java.util.Map;

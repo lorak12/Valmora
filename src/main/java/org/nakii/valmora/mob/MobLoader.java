@@ -1,27 +1,28 @@
-package org.nakii.valmora.item;
+package org.nakii.valmora.mob;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.item.LoadResult;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ItemLoader {
+public class MobLoader {
     
     private final Valmora plugin;
-    private final ItemRegistry registry;
+    private final MobRegistry registry;
 
-    public ItemLoader(Valmora plugin, ItemRegistry registry) {
+    public MobLoader(Valmora plugin, MobRegistry registry) {
         this.plugin = plugin;
         this.registry = registry;
     }
 
-    // Loads all items from the items folder
-    public void loadItems() {
+    // Loads all mobs from the mobs folder
+    public void loadMobs() {
         registry.clear();
-        File folder = new File(plugin.getDataFolder(), "items");
+        File folder = new File(plugin.getDataFolder(), "mobs");
         if(!folder.exists()){
             folder.mkdirs();
         }
@@ -37,9 +38,9 @@ public class ItemLoader {
                         for (String key : config.getKeys(false)) {
                             ConfigurationSection section = config.getConfigurationSection(key);
                             if (section != null) {
-                                LoadResult<ItemDefinition, String> result = ItemDefinitionParser.parse(key, section, "items/" + file.getName());
+                                LoadResult<MobDefinition, String> result = MobDefinitionParser.parse(key, section, "mobs/" + file.getName(), plugin.getItemManager());
                                 if (result.isSuccess()) {
-                                    registry.registerItem(result.getValue());
+                                    registry.registerMob(result.getValue());
                                     loadedCount++;
                                 } else {
                                     errors.add(result.getError());
@@ -47,20 +48,20 @@ public class ItemLoader {
                             }
                         }
                     } catch(Exception e) {
-                        errors.add("[items/" + file.getName() + "] Failed to parse YAML: " + e.getMessage());
+                        errors.add("[mobs/" + file.getName() + "] Failed to parse YAML: " + e.getMessage());
                     }
                 }
             }
         }   
 
         if (!errors.isEmpty()) {
-            plugin.getLogger().warning("Failed to load some items. Please check your configuration files.");
+            plugin.getLogger().warning("Failed to load some mobs. Please check your configuration files.");
             plugin.getLogger().warning("------------------------------");
             for (String error : errors) {
                 plugin.getLogger().warning("- " + error);
             }
             plugin.getLogger().warning("------------------------------");
         }
-        plugin.getLogger().info("Successfully loaded " + loadedCount + " items.");
+        plugin.getLogger().info("Successfully loaded " + loadedCount + " mobs.");
     }
 }

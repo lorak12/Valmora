@@ -1,8 +1,10 @@
-package org.nakii.valmora;
+package org.nakii.valmora.profile;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.nakii.valmora.DataStore;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +32,8 @@ public class PlayerManager {
 
         activeSession.put(uuid, player);
 
+        player.getActiveProfile().getStatManager().recalculateAttributes(Bukkit.getPlayer(uuid));
+
         dataStore.savePlayer(player);
     }
 
@@ -46,6 +50,7 @@ public class PlayerManager {
         for (ValmoraProfile profile: vp.getProfiles().values()){
             if (profile.getName().equalsIgnoreCase(profileName)){
                 vp.setActiveProfile(profile.getId());
+                vp.getActiveProfile().getStatManager().recalculateAttributes(player);
                 return;
             }
         }

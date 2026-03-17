@@ -1,30 +1,37 @@
-package org.nakii.valmora;
+package org.nakii.valmora.stat;
 
 public enum Stat {
-    HEALTH("Health", 100.0, Double.MAX_VALUE),
-    STRENGTH("Strength", 10.0, Double.MAX_VALUE),
-    DEFENSE("Defense", 10.0, Double.MAX_VALUE),
-    SPEED("Speed", 100.0, Double.MAX_VALUE);
+    DAMAGE("Damage", 5.0, Double.MAX_VALUE, "<red>"),
+    HEALTH("Health", 100.0, Double.MAX_VALUE, "<red>"),
+    STRENGTH("Strength", 0.0, Double.MAX_VALUE, "<red>"),
+    DEFENSE("Defense", 0.0, Double.MAX_VALUE, "<green>"),
+    CRIT_CHANCE("Crit Chance", 30.0, 100.0, "<yellow>"),
+    CRIT_DAMAGE("Crit Damage", 50.0, Double.MAX_VALUE, "<yellow>"),
+    SPEED("Speed", 100.0, Double.MAX_VALUE, "<white>");
 
     private final String displayName;
     private final double defaultValue;
     private final double maxValue;
+    private final String color;
 
-    Stat(String displayName, double defaultValue, double maxValue) {
+    Stat(String displayName, double defaultValue, double maxValue, String color) {
         this.displayName = displayName;
         this.defaultValue = defaultValue;
         this.maxValue = maxValue;
+        this.color = color;
     }
 
     public String getDisplayName() {
-        return displayName;
+        return color + displayName;
     }
-    public double getDefaultValue(Stat speed) {
+    public double getDefaultValue() {
         return defaultValue;
     }
     public double getMaxValue() {
         return maxValue;
     }
 
-
+    public String format(double value) {
+        return color + displayName + ": " + (value > 0 ? "+" : "-") + value;
+    }
 }

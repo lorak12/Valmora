@@ -1,4 +1,4 @@
-package org.nakii.valmora;
+package org.nakii.valmora.stat;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -7,12 +7,13 @@ import org.bukkit.entity.Player;
 import org.nakii.valmora.profile.PlayerManager;
 import org.nakii.valmora.profile.ValmoraPlayer;
 import org.nakii.valmora.profile.ValmoraProfile;
+import org.nakii.valmora.util.Formatter;
 
 import java.util.List;
 
 public class StatCommand implements TabExecutor {
 
-    private PlayerManager playerManager;
+    private final PlayerManager playerManager;
 
     public StatCommand(PlayerManager playerManager) {
         this.playerManager = playerManager;
@@ -27,29 +28,26 @@ public class StatCommand implements TabExecutor {
             return true;
         }
         String subCommand = args[0];
+        ValmoraPlayer player = playerManager.getSession(((Player) sender).getUniqueId());
+        ValmoraProfile profile = player.getActiveProfile();
+        StatManager statManager = profile.getStatManager();
+
         switch (subCommand.toLowerCase()) {
             case "list":
                 // List all stats for the current profile
-                ValmoraPlayer player = playerManager.getSession(((Player) sender).getUniqueId());
-                ValmoraProfile profile = player.getActiveProfile();
-
-                StatManager statManager = profile.getStatManager();
                 sender.sendMessage("Stats for profile: " + profile.getName());
                 for (Stat stat : Stat.values()) {
-                    sender.sendMessage(stat.name() + ": " + statManager.getStat(stat));
+                    sender.sendMessage(Formatter.format(stat.getDisplayName() + ": <white>" + statManager.getStat(stat)));
                 }
                 break;
             case "add":
                 if (args.length < 3) {
-                    sender.sendMessage("Usage: /stat add <statName> <value>");
+                    sender.sendMessage(Formatter.format("<white>Usage: /stat add <statName> <value>"));
                     return true;
                 }
                 String statName = args[1];
-                Double value = Double.parseDouble(args[2]);
+                double value = Double.parseDouble(args[2]);
                 // Add value to the specified stat
-                player = playerManager.getSession(((Player) sender).getUniqueId());
-                profile = player.getActiveProfile();
-                statManager = profile.getStatManager();
                 statManager.addStat((Player) sender,Stat.valueOf(statName), value);
                 sender.sendMessage("Stat added");
                 break;
@@ -61,9 +59,6 @@ public class StatCommand implements TabExecutor {
                 statName = args[1];
                 value = Double.parseDouble(args[2]);
                 // Remove value from the specified stat
-                player = playerManager.getSession(((Player) sender).getUniqueId());
-                profile = player.getActiveProfile();
-                statManager = profile.getStatManager();
                 statManager.reduceStat((Player) sender,Stat.valueOf(statName), value);
                 sender.sendMessage("Stat removed");
                 break;
@@ -81,15 +76,7 @@ public class StatCommand implements TabExecutor {
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .toList();
         }
-        if (args.length == 2) {
-            if  (!args[0].equalsIgnoreCase("list")) {
-                for (Stat stat : Stat.values()) {
-                    if (stat.name().toLowerCase().startsWith(args[1].toLowerCase())) {
-                        return List.of(stat.name());
-                    }
-                }
-            }
-        }
+
         return List.of();
     }
 }

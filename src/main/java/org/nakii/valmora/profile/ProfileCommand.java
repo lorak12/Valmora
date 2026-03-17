@@ -1,4 +1,4 @@
-package org.nakii.valmora;
+package org.nakii.valmora.profile;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -74,7 +74,7 @@ public class ProfileCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("create", "delete", "switch").stream()
+            return List.of("create", "delete", "switch", "list").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .toList();
         }
