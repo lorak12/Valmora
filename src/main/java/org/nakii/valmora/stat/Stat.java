@@ -7,7 +7,10 @@ public enum Stat {
     DEFENSE("Defense", 0.0, Double.MAX_VALUE, "<green>"),
     CRIT_CHANCE("Crit Chance", 30.0, 100.0, "<yellow>"),
     CRIT_DAMAGE("Crit Damage", 50.0, Double.MAX_VALUE, "<yellow>"),
-    SPEED("Speed", 100.0, Double.MAX_VALUE, "<white>");
+    SPEED("Speed", 100.0, Double.MAX_VALUE, "<white>"),
+    MANA("Mana", 100.0, Double.MAX_VALUE, "<aqua>"),
+    HEALTH_REGEN("Health Regen", 1.0, Double.MAX_VALUE, "<red>"),
+    MANA_REGEN("Mana Regen", 2.0, Double.MAX_VALUE, "<aqua>");
 
     private final String displayName;
     private final double defaultValue;

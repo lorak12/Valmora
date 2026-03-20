@@ -10,6 +10,7 @@ public class ValmoraProfile {
     private final String name;
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
+    private final PlayerState playerState = new PlayerState();
 
     public ValmoraProfile(UUID id, String name) {
         this.id = id;
@@ -30,6 +31,10 @@ public class ValmoraProfile {
 
     public SkillManager getSkillManager() {
         return skillManager;
+    }
+
+    public PlayerState getPlayerState() {
+        return playerState;
     }
 
     

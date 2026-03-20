@@ -57,8 +57,6 @@ public class CombatListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player) return; // Player getting hurt is out-of-scope for now
-
         // If it's a direct entity hit, we already handle it in onEntityDamageByEntity.
         if (event instanceof EntityDamageByEntityEvent) {
              return; 

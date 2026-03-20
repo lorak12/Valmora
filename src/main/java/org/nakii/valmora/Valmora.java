@@ -9,14 +9,18 @@ import org.nakii.valmora.profile.PlayerConnectionListener;
 import org.nakii.valmora.profile.PlayerManager;
 import org.nakii.valmora.profile.ProfileCommand;
 import org.nakii.valmora.profile.ValmoraPlayer;
+import org.nakii.valmora.skill.SkillListener;
+import org.nakii.valmora.skill.SkillManager;
 import org.nakii.valmora.stat.PlayerListener;
 import org.nakii.valmora.combat.CombatListener;
 import org.nakii.valmora.combat.DamageCalculator;
 import org.nakii.valmora.combat.DamageIndicatorManager;
+import org.nakii.valmora.combat.RegenTask;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.database.DatabaseFactory;
 import org.nakii.valmora.stat.StatCommand;
 import org.nakii.valmora.stat.StatStorage;
+import org.nakii.valmora.ui.UIManager;
 
 
 public final class Valmora extends JavaPlugin {
@@ -30,6 +34,9 @@ public final class Valmora extends JavaPlugin {
     private StatStorage statStorage;
     private DamageIndicatorManager damageIndicatorManager;
     private MobManager mobManager;
+    private SkillManager skillManager;
+
+    private UIManager uiManager;
 
     @Override
     public void onEnable() {
@@ -43,6 +50,8 @@ public final class Valmora extends JavaPlugin {
         this.dataStore = DatabaseFactory.createDataStore(this);
         this.dataStore.init();
 
+        this.uiManager = new UIManager(this);
+
         this.playerManager = new PlayerManager(dataStore);
         this.itemManager = new ItemManager(this);
         this.itemManager.initialize();
@@ -51,13 +60,16 @@ public final class Valmora extends JavaPlugin {
         new DamageCalculator(this); // Initialize static plugin field
         this.mobManager = new MobManager(this);
         this.mobManager.initialize();
+        this.skillManager = new SkillManager();
 
-        
+        // Start the Regen Task
+        new RegenTask(this).start();
 
         // ── Listeners ───────────────────────────────────────────────────────
         getServer().getPluginManager().registerEvents(new PlayerConnectionListener(playerManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
+        getServer().getPluginManager().registerEvents(new SkillListener(skillManager, this), this);
         
 
         // ── Commands ────────────────────────────────────────────────────────
@@ -102,6 +114,10 @@ public final class Valmora extends JavaPlugin {
 
     public MobManager getMobManager() {
         return mobManager;
+    }
+
+    public UIManager getUIManager() {
+        return uiManager;
     }
 
 }

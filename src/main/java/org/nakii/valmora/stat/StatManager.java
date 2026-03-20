@@ -5,6 +5,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.profile.ValmoraProfile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -95,6 +96,11 @@ public class StatManager {
             }
         }
         recalculateAttributes(player);
+        ValmoraProfile profile = plugin.getPlayerManager().getSession(player.getUniqueId()).getActiveProfile();
+        // TODO: If in combat then don't cap the stats (or maybe add only health)
+        if (profile != null) {
+            profile.getPlayerState().capToMax(this);
+        }
     }
 
    

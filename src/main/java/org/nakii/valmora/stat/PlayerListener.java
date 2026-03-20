@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
@@ -14,6 +15,7 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.profile.ValmoraPlayer;
+import org.nakii.valmora.profile.ValmoraProfile;
 
 import java.util.Set;
 
@@ -58,9 +60,33 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            ValmoraProfile profile = plugin.getPlayerManager().getSession(player.getUniqueId()).getActiveProfile();
+
+            double maxHealth = profile.getStatManager().getStat(Stat.HEALTH);
+            profile.getPlayerState().heal(maxHealth, profile.getStatManager());
+
+            plugin.getPlayerManager().syncVisualHealth(player, profile.getPlayerState(), profile.getStatManager());
+        });
         // Delay is crucial here to allow the player to fully respawn with their new inventory.
-        recalculate(event.getPlayer());
+        recalculate(player);
     }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onVanillaRegen(EntityRegainHealthEvent event) {
+        if (event.getEntity() instanceof Player) {
+            // We only cancel SATIATED (full hunger) and REGEN (potions/beacons)
+            // We allow CUSTOM so plugin developers can still heal players via API if needed.
+            EntityRegainHealthEvent.RegainReason reason = event.getRegainReason();
+            if (reason == EntityRegainHealthEvent.RegainReason.SATIATED || 
+            reason == EntityRegainHealthEvent.RegainReason.MAGIC_REGEN ||
+            reason == EntityRegainHealthEvent.RegainReason.REGEN) {
+            
+            event.setCancelled(true);
+        }
+    }
+}
 
 
     // --- Inventory Interaction Events ---

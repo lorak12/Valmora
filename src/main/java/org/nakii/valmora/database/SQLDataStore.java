@@ -3,6 +3,8 @@ package org.nakii.valmora.database;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariDataSource;
+
+import org.nakii.valmora.profile.PlayerState;
 import org.nakii.valmora.profile.ValmoraPlayer;
 import org.nakii.valmora.profile.ValmoraProfile;
 import org.nakii.valmora.skill.Skill;
@@ -53,6 +55,7 @@ public class SQLDataStore implements DataStore {
                     name VARCHAR(255),
                     stats TEXT,
                     skills TEXT
+                    player_state TEXT
                 )
             """).execute();
         } catch (SQLException e) {
@@ -81,6 +84,7 @@ public class SQLDataStore implements DataStore {
 
                 Type statsType = new TypeToken<Map<Stat, Double>>() {}.getType();
                 Type skillsType = new TypeToken<Map<Skill, Double>>() {}.getType();
+                Type playerStateType = new TypeToken<PlayerState>() {}.getType();
 
                 while (rsProfiles.next()) {
                     ValmoraProfile profile = new ValmoraProfile(
@@ -94,6 +98,12 @@ public class SQLDataStore implements DataStore {
 
                     Map<Skill, Double> skills = gson.fromJson(rsProfiles.getString("skills"), skillsType);
                     if (skills != null) profile.getSkillManager().loadData(skills);
+
+                    String stateJson = rsProfiles.getString("player_state");
+                    if (stateJson != null) {
+                        double[] stateData = gson.fromJson(stateJson, double[].class);
+                        profile.getPlayerState().loadData(stateData);
+                    }
 
                     player.addProfile(profile);
                 }
@@ -131,8 +141,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?";
                 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -142,6 +152,8 @@ public class SQLDataStore implements DataStore {
                         
                         String statsJson = gson.toJson(profile.getStatManager().getSaveData());
                         String skillsJson = gson.toJson(profile.getSkillManager().getSaveData());
+                        String stateJson = gson.toJson(profile.getPlayerState().getSaveData());
+
                         
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -150,6 +162,7 @@ public class SQLDataStore implements DataStore {
                         ps.setString(6, profile.getName());
                         ps.setString(7, statsJson);
                         ps.setString(8, skillsJson);
+                        ps.setString(9, stateJson);
                         
                         ps.addBatch();
                     }

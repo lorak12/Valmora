@@ -6,6 +6,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.database.DataStore;
+import org.nakii.valmora.stat.Stat;
+import org.nakii.valmora.stat.StatManager;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -23,12 +25,16 @@ public class PlayerManager {
     public void handleJoin(UUID uuid){
         dataStore.loadPlayer(uuid).thenAcceptAsync(player -> {
             ValmoraPlayer finalPlayer = player != null ? player : new ValmoraPlayer(uuid);
-
-            if (finalPlayer.getProfiles().isEmpty()){
+            if (finalPlayer.getProfiles().isEmpty()) {
                 ValmoraProfile defaultProfile = new ValmoraProfile("Default");
+                
+                // Initialize their starting health to their Max Health
+                double maxHealth = defaultProfile.getStatManager().getStat(Stat.HEALTH);
+                defaultProfile.getPlayerState().heal(maxHealth, defaultProfile.getStatManager());
+                
                 finalPlayer.addProfile(defaultProfile);
-                System.out.println("Created default profile for " + uuid);
-            }
+                Valmora.getInstance().getLogger().info("Created default profile for " + uuid);
+            }   
 
             // Sync back to main thread to modify server cache and Bukkit entities safely
             Bukkit.getScheduler().runTask(Valmora.getInstance(), () -> {
@@ -85,5 +91,31 @@ public class PlayerManager {
     public Collection<ValmoraPlayer> getAllSessions() {
         return activeSession.values();
     }
+
+    public void syncVisualHealth(org.bukkit.entity.Player player, PlayerState state, StatManager stats) {
+        double maxHealth = stats.getStat(Stat.HEALTH);
+        double current = state.getCurrentHealth();
+
+        // Calculate percentage of health remaining
+        double percentage = current / maxHealth;
+        
+        // Map it to 20 vanilla HP (10 hearts)
+        double visualHealth = percentage * 20.0;
+
+        // Prevent vanilla death if they still have custom health > 0
+        if (current > 0 && visualHealth < 0.5) {
+            visualHealth = 0.5; // Half a heart minimum if alive
+        }
+
+        // Use Paper's health scaling so the UI is always locked to 10 hearts
+        player.setHealthScale(20.0); 
+        player.setHealthScaled(true);
+
+        if (current <= 0) {
+            player.setHealth(0); // Trigger actual vanilla death event!
+        } else {
+            player.setHealth(visualHealth);
+        }
+}
 
 }
