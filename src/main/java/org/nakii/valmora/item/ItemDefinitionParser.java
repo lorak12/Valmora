@@ -1,12 +1,21 @@
 package org.nakii.valmora.item;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.MemoryConfiguration;
+import org.nakii.valmora.item.ability.AbilityDefinition;
+import org.nakii.valmora.item.ability.AbilityMechanic;
+import org.nakii.valmora.item.ability.AbilityTrigger;
+import org.nakii.valmora.item.ability.ConfiguredMechanic;
+import org.nakii.valmora.item.ability.MechanicRegistry;
 import org.nakii.valmora.stat.Stat;
 
 public class ItemDefinitionParser {
 
-    public static LoadResult<ItemDefinition, String> parse(String sectionId, ConfigurationSection section, String fileName) {
+    public static LoadResult<ItemDefinition, String> parse(String sectionId, ConfigurationSection section, String fileName, MechanicRegistry mechanicRegistry) {
         ItemDefinition.Builder builder = new ItemDefinition.Builder(sectionId);
 
         // Name
@@ -62,6 +71,60 @@ public class ItemDefinitionParser {
                     builder.stat(stat, statsSection.getDouble(statKey));
                 } catch (IllegalArgumentException e) {
                     return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Unknown stat '" + statKey + "'.");
+                }
+            }
+        }
+
+        if (section.contains("abilities")) {
+            ConfigurationSection abilitiesSec = section.getConfigurationSection("abilities");
+            if (abilitiesSec != null) {
+                for (String abKey : abilitiesSec.getKeys(false)) {
+                    ConfigurationSection abSec = abilitiesSec.getConfigurationSection(abKey);
+                    if (abSec == null) continue;
+
+                    AbilityDefinition.Builder abBuilder = new AbilityDefinition.Builder(abKey);
+                    
+                    if (abSec.contains("name")) abBuilder.name(abSec.getString("name"));
+                    
+                    if (abSec.contains("trigger")) {
+                        try {
+                            abBuilder.trigger(AbilityTrigger.valueOf(abSec.getString("trigger").toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            return LoadResult.failure("[" + fileName + "] Invalid trigger '" + abSec.getString("trigger") + "' in ability '" + abKey + "'.");
+                        }
+                    }
+
+                    abBuilder.targetRange(abSec.getDouble("target-range", 0.0));
+                    abBuilder.cooldown(abSec.getDouble("cooldown", 0.0));
+                    abBuilder.manaCost(abSec.getDouble("mana-cost", 0.0));
+                    
+                    if (abSec.contains("description")) {
+                        abBuilder.description(abSec.getStringList("description"));
+                    }
+
+                    // Parse Mechanics List
+                    if (abSec.contains("mechanics")) {
+                        for (Map<?, ?> map : abSec.getMapList("mechanics")) {
+                            String type = (String) map.get("type");
+                            if (type == null) continue;
+
+                            Optional<AbilityMechanic> mechOpt = mechanicRegistry.getMechanic(type);
+                            if (mechOpt.isEmpty()) {
+                                return LoadResult.failure("[" + fileName + "] Unknown mechanic type '" + type + "' in ability '" + abKey + "'.");
+                            }
+
+                            // Convert the "params" map into a ConfigurationSection for easy Java reading
+                            MemoryConfiguration params = new MemoryConfiguration();
+                            if (map.containsKey("params")) {
+                                Map<?, ?> paramsMap = (Map<?, ?>) map.get("params");
+                                for (Map.Entry<?, ?> entry : paramsMap.entrySet()) {
+                                    params.set(entry.getKey().toString(), entry.getValue());
+                                }
+                            }
+                            abBuilder.addMechanic(new ConfiguredMechanic(mechOpt.get(), params));
+                        }
+                    }
+                    builder.ability(abKey, abBuilder.build());
                 }
             }
         }

@@ -3,6 +3,8 @@ package org.nakii.valmora;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.nakii.valmora.item.ItemCommand;
 import org.nakii.valmora.item.ItemManager;
+import org.nakii.valmora.item.ability.AbilityListener;
+import org.nakii.valmora.item.ability.AbilityManager;
 import org.nakii.valmora.mob.MobCommand;
 import org.nakii.valmora.mob.MobManager;
 import org.nakii.valmora.profile.PlayerConnectionListener;
@@ -35,6 +37,7 @@ public final class Valmora extends JavaPlugin {
     private DamageIndicatorManager damageIndicatorManager;
     private MobManager mobManager;
     private SkillManager skillManager;
+    private AbilityManager abilityManager;
 
     private UIManager uiManager;
 
@@ -46,38 +49,47 @@ public final class Valmora extends JavaPlugin {
         saveResource("items/example.yml", true);
         saveResource("mobs/test_mobs.yml", true);
 
-         // Initialize Database
+        // 1. Initialize Database first (Profiles depend on this)
         this.dataStore = DatabaseFactory.createDataStore(this);
         this.dataStore.init();
 
+        // 2. Initialize UI (Used by almost everything)
         this.uiManager = new UIManager(this);
 
+        // 3. Initialize Player Manager (Stores the sessions)
         this.playerManager = new PlayerManager(dataStore);
+
+        // 4. Initialize Ability Manager BEFORE Item Manager
+        this.abilityManager = new AbilityManager(this);
+        this.abilityManager.initialize(); 
+
+        // 5. Initialize Item Manager
         this.itemManager = new ItemManager(this);
         this.itemManager.initialize();
-        this.statStorage = new StatStorage(this);
-        this.damageIndicatorManager = new DamageIndicatorManager(this);
-        new DamageCalculator(this); // Initialize static plugin field
+
+        // 6. Initialize Mob Manager (Depends on items for equipment)
         this.mobManager = new MobManager(this);
         this.mobManager.initialize();
+
+        // 7. Initialize remaining systems
+        this.statStorage = new StatStorage(this);
+        this.damageIndicatorManager = new DamageIndicatorManager(this);
+        new DamageCalculator(this); 
         this.skillManager = new SkillManager();
 
-        // Start the Regen Task
+        // 8. Tasks and Listeners
         new RegenTask(this).start();
-
-        // ── Listeners ───────────────────────────────────────────────────────
         getServer().getPluginManager().registerEvents(new PlayerConnectionListener(playerManager), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new CombatListener(this), this);
         getServer().getPluginManager().registerEvents(new SkillListener(skillManager, this), this);
-        
+        getServer().getPluginManager().registerEvents(new AbilityListener(this), this);
 
-        // ── Commands ────────────────────────────────────────────────────────
+        // 9. Commands
         getCommand("profile").setExecutor(new ProfileCommand(playerManager));
         getCommand("stat").setExecutor(new StatCommand(playerManager));
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
-
     }
 
      @Override
@@ -118,6 +130,10 @@ public final class Valmora extends JavaPlugin {
 
     public UIManager getUIManager() {
         return uiManager;
+    }
+
+    public AbilityManager getAbilityManager() {
+        return abilityManager;
     }
 
 }

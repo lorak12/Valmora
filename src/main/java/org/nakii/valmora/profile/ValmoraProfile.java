@@ -1,5 +1,6 @@
 package org.nakii.valmora.profile;
 
+import org.nakii.valmora.item.ability.CooldownManager;
 import org.nakii.valmora.skill.SkillManager;
 import org.nakii.valmora.stat.StatManager;
 
@@ -11,6 +12,7 @@ public class ValmoraProfile {
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
     private final PlayerState playerState = new PlayerState();
+    private final CooldownManager cooldownManager = new CooldownManager();
 
     public ValmoraProfile(UUID id, String name) {
         this.id = id;
@@ -35,6 +37,10 @@ public class ValmoraProfile {
 
     public PlayerState getPlayerState() {
         return playerState;
+    }
+
+    public CooldownManager getCooldownManager() {
+        return cooldownManager;
     }
 
     

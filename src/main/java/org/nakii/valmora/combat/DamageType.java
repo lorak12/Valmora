@@ -22,4 +22,6 @@ public enum DamageType {
     public String getColor() {
         return color;
     }
+
+    
 }

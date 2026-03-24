@@ -5,6 +5,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Keys;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.item.ability.AbilityDefinition;
 import org.nakii.valmora.stat.Stat;
 import org.nakii.valmora.util.Formatter;
 
@@ -44,13 +45,38 @@ public class ItemFactory {
             if (!definition.getStats().isEmpty()) {
                 if (!loreLines.isEmpty()) loreLines.add(""); // Spacer
                 for (Map.Entry<Stat, Double> entry : definition.getStats().entrySet()) {
-                    // Cool format for stats
                     loreLines.add("<gray> ◈ " + entry.getKey().format(entry.getValue()));
                 }
             }
 
+            if (definition.getAbilities() != null && !definition.getAbilities().isEmpty()) {
+                loreLines.add(""); // Spacer below stats
+                
+                for (AbilityDefinition ability : definition.getAbilities().values()) {
+                    // Format trigger (e.g., RIGHT_CLICK -> RIGHT CLICK)
+                    String triggerText = ability.getTrigger().name().replace("_", " ");
+                    
+                    // Header: Ability: Blood Hunter RIGHT CLICK
+                    loreLines.add("<gold>Ability: " + ability.getName() + " <yellow><bold>" + triggerText);
+                    
+                    // Description lines
+                    if (!ability.getDescription().isEmpty()) {
+                        loreLines.addAll(ability.getDescription());
+                    }
+                    
+                    // Mana & Cooldown
+                    if (ability.getManaCost() > 0) {
+                        loreLines.add("<dark_gray>Mana Cost: <aqua>" + (int) ability.getManaCost());
+                    }
+                    if (ability.getCooldown() > 0) {
+                        loreLines.add("<dark_gray>Cooldown: <green>" + ability.getCooldown() + "s");
+                    }
+                    
+                    loreLines.add(""); // Spacer between multiple abilities
+                }
+            }
+
             // 3. Rarity Tag at the end
-            loreLines.add("");
             loreLines.add(rarityColor + "<bold>" + rarity.getName().toUpperCase());
 
             meta.lore(Formatter.formatList(loreLines));

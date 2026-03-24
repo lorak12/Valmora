@@ -37,7 +37,7 @@ public class ItemLoader {
                         for (String key : config.getKeys(false)) {
                             ConfigurationSection section = config.getConfigurationSection(key);
                             if (section != null) {
-                                LoadResult<ItemDefinition, String> result = ItemDefinitionParser.parse(key, section, "items/" + file.getName());
+                                LoadResult<ItemDefinition, String> result = ItemDefinitionParser.parse(key, section, "items/" + file.getName(), plugin.getAbilityManager().getMechanicRegistry());
                                 if (result.isSuccess()) {
                                     registry.registerItem(result.getValue());
                                     loadedCount++;

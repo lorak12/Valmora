@@ -17,6 +17,8 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.profile.ValmoraPlayer;
 import org.nakii.valmora.profile.ValmoraProfile;
 
+import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+
 import java.util.Set;
 
 public class PlayerListener implements Listener {
@@ -159,6 +161,14 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onHandSwap(PlayerSwapHandItemsEvent event) {
+        recalculate(event.getPlayer());
+    }
+
+    /**
+     * Recalculates stats when the player changes their armor.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEquipmentChange(PlayerArmorChangeEvent event){
         recalculate(event.getPlayer());
     }
 }

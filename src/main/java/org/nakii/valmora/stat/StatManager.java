@@ -4,7 +4,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.nakii.valmora.Keys;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.item.ability.AbilityDefinition;
+import org.nakii.valmora.item.ability.AbilityTrigger;
+import org.nakii.valmora.item.ability.ConfiguredMechanic;
 import org.nakii.valmora.profile.ValmoraProfile;
 
 import java.util.HashMap;
@@ -31,9 +36,6 @@ public class StatManager {
     }
 
     public void addStat(Player player , Stat stat, Double value) {
-        if (value < 0) {
-            throw new IllegalArgumentException("Value must be non-negative");
-        }
         stats.put(stat, getStat(stat) + value);
         // Logic to add the stat value to the player's profile
         if (stat.equals(Stat.SPEED)) {
@@ -42,9 +44,6 @@ public class StatManager {
     }
 
     public void reduceStat(Player player, Stat stat, Double value) {
-        if (value < 0) {
-            throw new IllegalArgumentException("Value must be non-negative");
-        }
         stats.put(stat, getStat(stat) - value);
         // Logic to reduce the stat value from the player's profile
         if (stat.equals(Stat.SPEED)) {
@@ -79,6 +78,12 @@ public class StatManager {
             stats.put(stat, stat.getDefaultValue());
         }
 
+        for(PotionEffect effect : player.getActivePotionEffects()){
+            if (effect.getDuration() > 20 * 60 * 60){
+                player.removePotionEffect(effect.getType());
+            }
+        }
+
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         ItemStack offHand = player.getInventory().getItemInOffHand();
         ItemStack[] armor = player.getInventory().getArmorContents();
@@ -93,14 +98,32 @@ public class StatManager {
                         addStat(player, entry.getKey(), entry.getValue());
                     }
                 }
+
+                String itemId = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+                if (itemId != null) {
+                    plugin.getItemManager().getItemRegistry().getItem(itemId).ifPresent(definition -> {
+                        if (definition.getAbilities() != null) {
+                            for (AbilityDefinition ability : definition.getAbilities().values()) {
+                                if (ability.getTrigger() == AbilityTrigger.PASSIVE) {
+                                    for (ConfiguredMechanic mechanic : ability.getMechanics()) {
+                                        // Passives don't have targets usually, so we pass the player as the target
+                                        mechanic.execute(player, player);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
             }
         }
         recalculateAttributes(player);
         ValmoraProfile profile = plugin.getPlayerManager().getSession(player.getUniqueId()).getActiveProfile();
-        // TODO: If in combat then don't cap the stats (or maybe add only health)
+        // TODO: If not in combat and they changed armor/equipement (specific) then cap the stats to the max value
         if (profile != null) {
             profile.getPlayerState().capToMax(this);
         }
+        //Sync visual health
+        plugin.getPlayerManager().syncVisualHealth(player, profile.getPlayerState(), this);
     }
 
    

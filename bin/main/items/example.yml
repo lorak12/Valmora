@@ -18,3 +18,154 @@ testBow:
     STRENGTH: 5
     CRIT_CHANCE: 20
     CRIT_DAMAGE: 50
+
+glacial_staff:
+  name: "Staff of Glacial Flux"
+  material: BLAZE_ROD
+  item-type: "NONE"
+  rarity: "EPIC"
+  stats:
+    MANA: 250
+    MANA_REGEN: 15
+  abilities:
+    frost_bolt:
+      name: "Frost Bolt"
+      trigger: "RIGHT_CLICK"
+      target-range: 15.0
+      cooldown: 2.5
+      mana-cost: 45.0
+      description:
+        - "<gray>Shoots a freezing bolt of ice,"
+        - "<gray>dealing <aqua>80 Magic Damage <gray>and"
+        - "<gray>slowing the target for 3 seconds."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 80.0
+            damage-type: "MAGIC"
+            target: "@target"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 3.0
+            amplifier: 2
+            target: "@target"
+
+sanguine_carver:
+  name: "Sanguine Carver"
+  material: IRON_SWORD
+  item-type: "SWORD"
+  rarity: "RARE"
+  stats:
+    DAMAGE: 45
+    STRENGTH: 20
+    CRIT_CHANCE: 15
+  abilities:
+    life_tap:
+      name: "Life Tap"
+      trigger: "RIGHT_CLICK"
+      target-range: 4.0
+      cooldown: 8.0
+      mana-cost: 30.0
+      description:
+        - "<gray>Drain the life force of your victim."
+        - "<gray>Deals <red>60 True Damage <gray>and"
+        - "<gray>heals you for <green>30 Health<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 60.0
+            damage-type: "TRUE"
+            target: "@target"
+        - type: "HEAL"
+          params:
+            heal: 30.0
+            target: "@player"
+
+fallen_aegis:
+  name: "Aegis of the Fallen"
+  material: NETHERITE_CHESTPLATE
+  item-type: "ARMOR"
+  rarity: "LEGENDARY"
+  stats:
+    HEALTH: 500
+    DEFENSE: 150
+    SPEED: -10 # Heavy armor makes you slightly slower
+  abilities:
+    undying_will:
+      name: "Undying Will"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While worn, you gain <blue>Resistance I"
+        - "<gray>due to the heavy reinforced plates."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "resistance"
+            duration: -1 # Infinite while worn
+            amplifier: 1
+            hide-particles: true
+            target: "@player"
+
+mercury_treads:
+  name: "Mercury's Treads"
+  material: GOLDEN_BOOTS
+  item-type: "ARMOR"
+  rarity: "EPIC"
+  stats:
+    SPEED: 50
+    HEALTH_REGEN: 5
+  abilities:
+    light_feet:
+      name: "Light Feet"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants permanent <white>Speed I<gray>."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "speed"
+            duration: -1
+            amplifier: 1
+            target: "@player"
+    tailwind:
+      name: "Tailwind"
+      trigger: "RIGHT_CLICK"
+      cooldown: 20.0
+      mana-cost: 100.0
+      description:
+        - "<gray>A sudden burst of wind grants you"
+        - "<white>Speed III <gray>for 5 seconds."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "speed"
+            duration: 5.0
+            amplifier: 3
+            target: "@player"
+
+venom_bow:
+  name: "Venomous Longbow"
+  material: BOW
+  item-type: "BOW"
+  rarity: "RARE"
+  stats:
+    DAMAGE: 120
+    CRIT_DAMAGE: 40
+  abilities:
+    viper_sting:
+      name: "Viper Sting"
+      trigger: "RIGHT_CLICK"
+      target-range: 25.0
+      cooldown: 5.0
+      mana-cost: 20.0
+      description:
+        - "<gray>Injects a lethal toxin into the target,"
+        - "<gray>dealing <green>Poison II <gray>for 6 seconds."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "poison"
+            duration: 6.0
+            amplifier: 2
+            target: "@target"
