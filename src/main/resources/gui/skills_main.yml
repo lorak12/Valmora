@@ -1,0 +1,33 @@
+title: "Valmora Skills"
+layout:
+  - "BBBBBBBBB"
+  - "B M F B B"
+  - "B B B B B"
+  - "BBBBCBBBB"
+
+components:
+  B:
+    item: "BLACK_STAINED_GLASS_PANE"
+    name: " "
+  C:
+    item: "BARRIER"
+    name: "<red>Close"
+    click:
+      - action: "CLOSE"
+
+  # Skill Buttons
+  M:
+    item: "IRON_PICKAXE"
+    name: "<gold>Mining"
+    lore:
+      - "<gray>Level: <white>%player_skill_level_mining%"
+      - "<gray>Progress: <yellow>%player_skill_xp_mining% XP"
+    click:
+      - action: "OPEN_GUI"
+        args: "skill_detail_mining" # Note: We will use one generic detail file or specific ones
+  F:
+    item: "IRON_HOE"
+    name: "<green>Farming"
+    lore: ["<gray>Level: <white>%player_skill_level_farming%"]
+    click: { action: "OPEN_GUI", args: "skill_detail_farming" }
+  # ... Add others (Combat, Fishing, Foraging) similarly

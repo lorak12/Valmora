@@ -24,7 +24,7 @@ public class UIManager {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 actionBar.tick(player);
-                scoreboard.tick(player);
+                // scoreboard.tick(player);
             }
         }, 0L, 2L);
     }

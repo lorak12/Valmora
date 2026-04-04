@@ -48,6 +48,7 @@ public final class Valmora extends JavaPlugin {
         saveDefaultConfig();
         saveResource("items/example.yml", true);
         saveResource("mobs/test_mobs.yml", true);
+        saveResource("gui/forge.yml", true);
 
         // 1. Initialize Database first (Profiles depend on this)
         this.dataStore = DatabaseFactory.createDataStore(this);
@@ -90,6 +91,7 @@ public final class Valmora extends JavaPlugin {
         getCommand("stat").setExecutor(new StatCommand(playerManager));
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
+        getCommand("skill").setExecutor(new org.nakii.valmora.skill.SkillCommand(this, playerManager));
     }
 
      @Override

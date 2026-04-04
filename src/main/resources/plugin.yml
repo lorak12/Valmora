@@ -14,13 +14,9 @@ commands:
     usage: /item help
   mob:
     usage: /mob help
-  skills:
-    usage: /skills
-    description: View all your skills and their progress.
   skill:
-    usage: /skill <name> [level]
-    description: View detailed info about a specific skill.
-  skilladmin:
-    usage: /skilladmin <givexp|setlevel> <player> <skill> <value>
-    description: Admin commands for managing player skill data.
-    permission: valmora.admin
+    usage: /skill help
+    description: Master command for skills interactions.
+  gui:
+    usage: /gui help
+    description: Gui debugging and opening commands.

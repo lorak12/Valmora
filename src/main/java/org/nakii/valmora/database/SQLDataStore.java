@@ -54,7 +54,7 @@ public class SQLDataStore implements DataStore {
                     player_uuid VARCHAR(36),
                     name VARCHAR(255),
                     stats TEXT,
-                    skills TEXT
+                    skills TEXT,
                     player_state TEXT
                 )
             """).execute();

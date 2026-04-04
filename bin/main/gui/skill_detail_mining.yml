@@ -1,0 +1,62 @@
+title: "Mining Progression"
+layout:
+  - "XBXBXBXBX"
+  - "XBXBXBXBX"
+  - "XBXBXBXBX"
+  - "XBXBXBXBX"
+  - "XXXBXXXBX"
+  - "B<B^BBBFB"
+
+components:
+  B:
+    item: "GRAY_STAINED_GLASS_PANE"
+    name: " "
+
+  ^:
+    item: "ARROW"
+    name: "<yellow>Back to Skills"
+    click:
+      - action: "BACK"
+
+  # Navigation
+  <:
+    type: "PREVIOUS_PAGE"
+    item: "PAPER"
+    name: "<yellow>Previous Page"
+    fallback: { item: "GRAY_STAINED_GLASS_PANE", name: " " }
+  F:
+    type: "NEXT_PAGE"
+    item: "PAPER"
+    name: "<yellow>Next Page"
+    fallback: { item: "GRAY_STAINED_GLASS_PANE", name: " " }
+
+  # The Progression Snake
+  X:
+    type: "PAGINATED"
+    list: "%list_1_to_60%" # You'll need to provide this in VariableEngine
+    iterator: "lv"
+    states:
+      # STATE 1: Already Unlocked
+      - condition: "%player_skill_level_mining% > {lv}"
+        item: "GOLD_BLOCK"
+        name: "<green>Level {lv}"
+        lore:
+          - "<gray>Status: <green>UNLOCKED"
+          - "<gray>Reward: <white>+2 Mining Speed"
+
+      # STATE 2: Current Level (The one they are working on)
+      - condition: "%player_skill_level_mining% == {lv}"
+        item: "GOLD_INGOT"
+        name: "<yellow>Level {lv} (Current)"
+        lore:
+          - "<gray>Status: <yellow>IN PROGRESS"
+          - "<gray>Progress: <white>%player_skill_xp_mining%/%xp_required_{lv}%"
+        custom-model-data: 1 # Maybe a glowing texture
+
+      # STATE 3: Locked
+      - condition: "default"
+        item: "COAL_ORE"
+        name: "<red>Level {lv}"
+        lore:
+          - "<gray>Status: <red>LOCKED"
+          - "<gray>Requirement: Reach level {lv-1}"
