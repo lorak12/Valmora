@@ -1,31 +1,29 @@
 package org.nakii.valmora;
 
 import org.bukkit.plugin.java.JavaPlugin;
-import org.nakii.valmora.item.ItemCommand;
-import org.nakii.valmora.item.ItemManager;
-import org.nakii.valmora.item.ability.AbilityListener;
-import org.nakii.valmora.item.ability.AbilityManager;
-import org.nakii.valmora.mob.MobCommand;
-import org.nakii.valmora.mob.MobManager;
-import org.nakii.valmora.profile.PlayerConnectionListener;
-import org.nakii.valmora.profile.PlayerManager;
-import org.nakii.valmora.profile.ProfileCommand;
-import org.nakii.valmora.profile.ValmoraPlayer;
-import org.nakii.valmora.skill.SkillListener;
-import org.nakii.valmora.skill.SkillManager;
-import org.nakii.valmora.stat.PlayerListener;
-import org.nakii.valmora.combat.CombatListener;
-import org.nakii.valmora.combat.DamageCalculator;
-import org.nakii.valmora.combat.DamageIndicatorManager;
-import org.nakii.valmora.combat.RegenTask;
+import org.nakii.valmora.module.item.ItemCommand;
+import org.nakii.valmora.module.item.ItemManager;
+import org.nakii.valmora.module.item.AbilityManager;
+import org.nakii.valmora.module.mob.MobCommand;
+import org.nakii.valmora.module.mob.MobManager;
+import org.nakii.valmora.module.profile.PlayerManager;
+import org.nakii.valmora.module.profile.ProfileCommand;
+import org.nakii.valmora.module.combat.CombatModule;
+import org.nakii.valmora.module.combat.DamageIndicatorManager;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.database.DatabaseFactory;
-import org.nakii.valmora.stat.StatCommand;
-import org.nakii.valmora.stat.StatStorage;
-import org.nakii.valmora.ui.UIManager;
+import org.nakii.valmora.module.stat.StatCommand;
+import org.nakii.valmora.module.stat.StatModule;
+import org.nakii.valmora.module.ui.UIManager;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.module.ModuleManager;
+import org.nakii.valmora.module.skill.SkillCommand;
+import org.nakii.valmora.module.skill.SkillManager;
+import org.nakii.valmora.module.skill.SkillModule;
+import org.nakii.valmora.util.Keys;
 
 
-public final class Valmora extends JavaPlugin {
+public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     private static Valmora instance;
 
@@ -33,75 +31,77 @@ public final class Valmora extends JavaPlugin {
 
     private PlayerManager playerManager;
     private ItemManager itemManager;
-    private StatStorage statStorage;
-    private DamageIndicatorManager damageIndicatorManager;
+    private StatModule statModule;
     private MobManager mobManager;
-    private SkillManager skillManager;
+    private SkillModule skillModule;
     private AbilityManager abilityManager;
+    private CombatModule combatModule;
 
     private UIManager uiManager;
+
+    private ModuleManager moduleManager;
 
     @Override
     public void onEnable() {
         instance = this;
+        ValmoraAPI.setProvider(this);
+        
+        this.moduleManager = new ModuleManager(this);
 
         saveDefaultConfig();
         saveResource("items/example.yml", true);
         saveResource("mobs/test_mobs.yml", true);
         saveResource("gui/forge.yml", true);
 
-        // 1. Initialize Database first (Profiles depend on this)
+        // Initialize Keys
+        Keys.init(this);
+
+        // 1. Initialize Database first
         this.dataStore = DatabaseFactory.createDataStore(this);
         this.dataStore.init();
 
-        // 2. Initialize UI (Used by almost everything)
+        // 2. Initialize Managers/Modules
+        this.playerManager = new PlayerManager(this, dataStore);
+        this.statModule = new StatModule(this);
+        this.abilityManager = new AbilityManager(this);
+        this.itemManager = new ItemManager(this);
+        this.mobManager = new MobManager(this);
+        this.skillModule = new SkillModule(this);
+        this.combatModule = new CombatModule(this);
         this.uiManager = new UIManager(this);
 
-        // 3. Initialize Player Manager (Stores the sessions)
-        this.playerManager = new PlayerManager(dataStore);
+        // 3. Register Modules in Order
+        moduleManager.registerModule(playerManager);
+        moduleManager.registerModule(statModule);
+        moduleManager.registerModule(uiManager);
+        moduleManager.registerModule(abilityManager);
+        moduleManager.registerModule(itemManager);
+        moduleManager.registerModule(mobManager);
+        moduleManager.registerModule(skillModule);
+        moduleManager.registerModule(combatModule);
 
-        // 4. Initialize Ability Manager BEFORE Item Manager
-        this.abilityManager = new AbilityManager(this);
-        this.abilityManager.initialize(); 
+        // 4. Enable Modules
+        moduleManager.enableModules();
 
-        // 5. Initialize Item Manager
-        this.itemManager = new ItemManager(this);
-        this.itemManager.initialize();
-
-        // 6. Initialize Mob Manager (Depends on items for equipment)
-        this.mobManager = new MobManager(this);
-        this.mobManager.initialize();
-
-        // 7. Initialize remaining systems
-        this.statStorage = new StatStorage(this);
-        this.damageIndicatorManager = new DamageIndicatorManager(this);
-        new DamageCalculator(this); 
-        this.skillManager = new SkillManager();
-
-        // 8. Tasks and Listeners
-        new RegenTask(this).start();
-        getServer().getPluginManager().registerEvents(new PlayerConnectionListener(playerManager), this);
-        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        getServer().getPluginManager().registerEvents(new CombatListener(this), this);
-        getServer().getPluginManager().registerEvents(new SkillListener(skillManager, this), this);
-        getServer().getPluginManager().registerEvents(new AbilityListener(this), this);
-
-        // 9. Commands
+        // 5. Commands
+        getCommand("valmora").setExecutor(new ValmoraCommand(this));
         getCommand("profile").setExecutor(new ProfileCommand(playerManager));
         getCommand("stat").setExecutor(new StatCommand(playerManager));
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
-        getCommand("skill").setExecutor(new org.nakii.valmora.skill.SkillCommand(this, playerManager));
+        getCommand("skill").setExecutor(new SkillCommand(this, playerManager));
     }
 
      @Override
     public void onDisable() {
-        // Save all currently online players before shutting down
-        for (ValmoraPlayer player : playerManager.getAllSessions()) {
-            dataStore.savePlayer(player).join(); // .join() blocks the main thread temporarily to ensure it saves before the server dies
+        if (moduleManager != null) {
+            moduleManager.disableModules();
         }
-        
-        if (dataStore != null) {
+
+        if (playerManager != null && dataStore != null) {
+            for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
+                dataStore.savePlayer(player).join(); 
+            }
             dataStore.close();
         }
     }
@@ -110,32 +110,48 @@ public final class Valmora extends JavaPlugin {
         return instance;
     }
 
+    @Override
     public ItemManager getItemManager() {
         return itemManager;
     }
 
-    public StatStorage getStatStorage() {
-        return statStorage;
+    @Override
+    public StatModule getStatModule() {
+        return statModule;
     }
 
+    @Override
     public PlayerManager getPlayerManager() {
         return playerManager;
     }
 
+    @Override
     public DamageIndicatorManager getDamageIndicatorManager() {
-        return damageIndicatorManager;
+        return combatModule.getDamageIndicatorManager();
     }
 
+    @Override
     public MobManager getMobManager() {
         return mobManager;
     }
 
+    @Override
     public UIManager getUIManager() {
         return uiManager;
     }
 
+    @Override
     public AbilityManager getAbilityManager() {
         return abilityManager;
     }
 
+    @Override
+    public SkillManager getSkillManager() {
+        return skillModule.getSkillManager();
+    }
+
+    @Override
+    public ModuleManager getModuleManager() {
+        return moduleManager;
+    }
 }

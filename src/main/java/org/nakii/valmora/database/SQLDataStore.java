@@ -4,11 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariDataSource;
 
-import org.nakii.valmora.profile.PlayerState;
-import org.nakii.valmora.profile.ValmoraPlayer;
-import org.nakii.valmora.profile.ValmoraProfile;
-import org.nakii.valmora.skill.Skill;
-import org.nakii.valmora.stat.Stat;
+import org.nakii.valmora.module.profile.PlayerState;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
+import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.module.skill.Skill;
+import org.nakii.valmora.module.stat.Stat;
 
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -178,9 +178,18 @@ public class SQLDataStore implements DataStore {
 
     @Override
     public void close() {
+        dbExecutor.shutdown();
+        try {
+            if (!dbExecutor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                dbExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            dbExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
         if (hikari != null && !hikari.isClosed()) {
             hikari.close();
         }
-        dbExecutor.shutdown();
     }
 }

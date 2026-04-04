@@ -1,6 +1,6 @@
 package org.nakii.valmora.database;
 
-import org.nakii.valmora.profile.ValmoraPlayer;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 

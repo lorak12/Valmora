@@ -20,3 +20,7 @@ commands:
   gui:
     usage: /gui help
     description: Gui debugging and opening commands.
+  valmora:
+    usage: /valmora reload
+    permission: valmora.admin
+    description: Master engine administrative command.
