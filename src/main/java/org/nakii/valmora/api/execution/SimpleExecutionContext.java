@@ -3,6 +3,10 @@ package org.nakii.valmora.api.execution;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.scripting.TagService;
+import org.nakii.valmora.api.scripting.VariableResolver;
+import org.nakii.valmora.module.script.tag.TagServiceImpl;
 
 import java.util.Optional;
 
@@ -42,5 +46,15 @@ public class SimpleExecutionContext implements ExecutionContext {
     @Override
     public ConfigurationSection getParams() {
         return params;
+    }
+
+    @Override
+    public VariableResolver getVariableResolver() {
+        return ValmoraAPI.getInstance().getScriptModule().getVariableResolver();
+    }
+
+    @Override
+    public TagService getTagService() {
+        return new TagServiceImpl(this);
     }
 }

@@ -20,6 +20,7 @@ import org.nakii.valmora.module.ModuleManager;
 import org.nakii.valmora.module.skill.SkillCommand;
 import org.nakii.valmora.module.skill.SkillManager;
 import org.nakii.valmora.module.skill.SkillModule;
+import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.util.Keys;
 
 
@@ -36,6 +37,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private SkillModule skillModule;
     private AbilityManager abilityManager;
     private CombatModule combatModule;
+    private ScriptModule scriptModule;
 
     private UIManager uiManager;
 
@@ -68,6 +70,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.mobManager = new MobManager(this);
         this.skillModule = new SkillModule(this);
         this.combatModule = new CombatModule(this);
+        this.scriptModule = new ScriptModule(this);
         this.uiManager = new UIManager(this);
 
         // 3. Register Modules in Order
@@ -79,6 +82,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(mobManager);
         moduleManager.registerModule(skillModule);
         moduleManager.registerModule(combatModule);
+        moduleManager.registerModule(scriptModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -153,5 +157,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public ModuleManager getModuleManager() {
         return moduleManager;
+    }
+
+    @Override
+    public ScriptModule getScriptModule() {
+        return scriptModule;
     }
 }

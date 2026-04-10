@@ -1,5 +1,6 @@
 {
   "yaml.schemas": {
     "https://www.schemastore.org/paper-plugin.json": "file:///c%3A/Users/karol/IdeaProjects/Valmora/src/main/resources/plugin.yml"
-  }
+  },
+  "java.compile.nullAnalysis.mode": "disabled"
 }

@@ -2,6 +2,7 @@ package org.nakii.valmora.api;
 
 import org.nakii.valmora.module.ModuleManager;
 import org.nakii.valmora.module.item.AbilityManager;
+import org.nakii.valmora.module.script.ScriptModule;
 
 /**
  * The public interface for Valmora plugin.
@@ -70,7 +71,12 @@ public interface ValmoraAPI {
      * Returns the damage indicator manager.
      */
     org.nakii.valmora.module.combat.DamageIndicatorManager getDamageIndicatorManager();
+    /**
+     * Returns the script engine module.
+     */
+    ScriptModule getScriptModule();
 }
+
 
 class Holder {
     static ValmoraAPI provider;

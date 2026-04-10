@@ -4,6 +4,8 @@ import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.nakii.valmora.api.scripting.TagService;
+import org.nakii.valmora.api.scripting.VariableResolver;
 
 import java.util.Optional;
 
@@ -34,10 +36,19 @@ public interface ExecutionContext {
     Optional<LivingEntity> getTarget();
 
     /**
-     * Returns the location where the execution is occurring.
-     * @return execution location
+     * Returns the execution location.
      */
     Location getLocation();
+
+    /**
+     * @return resolver for script variables
+     */
+    VariableResolver getVariableResolver();
+
+    /**
+     * @return service for player tags
+     */
+    TagService getTagService();
 
     /**
      * Returns the parameters associated with this specific execution (from YAML).
