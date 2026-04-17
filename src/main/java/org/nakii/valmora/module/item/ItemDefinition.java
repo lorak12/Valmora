@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.item;
 
 import org.bukkit.Material;
-import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.stat.Stat;
 
 import java.util.HashMap;

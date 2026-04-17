@@ -1,97 +1,61 @@
-id: crafting_table
-title: "Crafting Table"
-size: 54
-# ffffiffff
-# fiiifffff
-# fiiif>fof
-# fiiifffff
-# fffffffff
-# ffflcffff
-slots:
-  filter:
-    slots:
-      [
-        0,
-        1,
-        2,
-        3,
-        5,
-        6,
-        7,
-        8,
-        9,
-        13,
-        14,
-        15,
-        16,
-        17,
-        21,
-        23,
-        25,
-        26,
-        30,
-        31,
-        32,
-        33,
-        34,
-        35,
-        36,
-        37,
-        38,
-        39,
-        40,
-        41,
-        42,
-        43,
-        44,
-        45,
-        46,
-        47,
-        50,
-        51,
-        52,
-        53,
-      ]
-    role: STATIC #autofiled so not required
-    item:
-      material: GRAY_STAINED_GLASS_PANE
-      display-name: " "
-  info:
-    slots: 4
-    item:
-      material: PAPER
-      display-name: "<b><gold>Crafting Table"
-      lore:
-        - "<gray>Use this table to craft items"
-  close:
-    slots: 49
-    role: CLOSE
-    item:
-      material: BARRIER
-      display-name: "<b><red>Close"
-  list:
-    slots: 48
-    role: CLICKABLE
-    item:
-      material: RECIPE_BOOK
-      display-name: "<yellow>Recipe book"
-      lore:
-        - "<gray>Opens a new window with every single unlocked recipe"
-    on-click:
-      event: "gui open recipe_book"
+# =====================================================================
+# Valmora Crafting Table GUI  - 54 slots (6x9)
+#
+# Layout:
+#  B = Black glass border
+#  I = Input slot (ingredient)
+#  O = Output slot (result)
+#  H = Help button
+#  ' ' = Empty (player inventory access)
+# =====================================================================
 
-  arrow:
-    slots: 22
-    item:
-      material: crafting_table
-      display-name: "<green>Craft the items"
-  output:
-    slots: 24
-    role: OUTPUT
-    item:
-      material: AIR
-  input:
-    slots: [10, 11, 12, 19, 20, 21, 28, 29, 30]
-    role: INPUT
-    item:
-      material: AIR
+crafting_table:
+  title: "<gold><bold>⚒ Crafting Table</bold></gold>"
+  rows: 6
+  update-interval: 10
+
+  layout:
+    - "BBBBBBBBB"
+    - "BIIIBIBBB"
+    - "BIIIBIBBB"
+    - "BIIIBOBBB"
+    - "BBBBBHBBB"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    I:
+      type: INPUT
+      id: ingredient
+
+    O:
+      type: OUTPUT
+      id: result
+
+    H:
+      type: DISPLAY
+      display-item:
+        material: KNOWLEDGE_BOOK
+        name: "<aqua><bold>✦ How to Craft</bold></aqua>"
+        lore:
+          - "<gray>Place your ingredients in the"
+          - "<gray>nine input slots on the left."
+          - ""
+          - "<gray>If a valid recipe is matched,"
+          - "<gray>the result will appear on the right."
+          - ""
+          - "<gray>Click the result to collect it."
+          - ""
+          - "<yellow>Supports shaped & shapeless recipes."
+        amount: 1
+
+  on-open:
+    actions:
+      - "sound player block.note_block.pling"
+  on-close: {}

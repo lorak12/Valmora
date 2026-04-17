@@ -1,0 +1,74 @@
+# =====================================================================
+# Valmora Anvil GUI  - 54 slots (6x9)
+#
+# Layout:
+#  B = Black glass border
+#  G = Grey glass filler
+#  I = Base item input
+#  M = Material input
+#  O = Output slot
+#  A = Anvil info button
+# =====================================================================
+
+anvil:
+  title: "<dark_gray><bold>⚙ Valmora Anvil</bold></dark_gray>"
+  rows: 6
+  update-interval: 10
+
+  layout:
+    - "BBBBBBBBB"
+    - "BGGGGGGGB"
+    - "BGIBMBOGB"
+    - "BGGGAGGGB"
+    - "BGGGGGGGB"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    G:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    I:
+      type: INPUT
+      id: base_item
+
+    M:
+      type: INPUT
+      id: material
+
+    O:
+      type: OUTPUT
+      id: result
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: ANVIL
+        name: "<gold><bold>⚙ Anvil Guide</bold></gold>"
+        lore:
+          - "<gray>Place your <yellow>item to upgrade</yellow>"
+          - "<gray>in the left slot."
+          - ""
+          - "<gray>Place the <aqua>upgrade material</aqua>"
+          - "<gray>in the middle slot."
+          - ""
+          - "<gray>Collect the upgrade from the"
+          - "<gray><green>right output slot</green>."
+          - ""
+          - "<dark_gray>Recipes are defined server-side."
+        amount: 1
+
+  on-open:
+    actions:
+      - "sound player block.anvil.place"
+  on-close: {}

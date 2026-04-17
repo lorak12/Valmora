@@ -44,6 +44,21 @@ public class PlayerVariableProvider implements VariableProvider {
             }
         }
 
+        if (key.equalsIgnoreCase("skill") && path.length > 1) {
+            String skillName = path[1];
+            try {
+                org.nakii.valmora.module.skill.Skill skill = org.nakii.valmora.module.skill.Skill.valueOf(skillName.toUpperCase());
+                return profile.getSkillManager().getLevel(skill);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+
+        if (key.equalsIgnoreCase("hp")) return profile.getPlayerState().getCurrentHealth();
+        if (key.equalsIgnoreCase("max_hp")) return profile.getStatManager().getStat(Stat.HEALTH);
+        if (key.equalsIgnoreCase("mana")) return profile.getPlayerState().getCurrentMana();
+        if (key.equalsIgnoreCase("max_mana")) return profile.getStatManager().getStat(Stat.MANA);
+
         if (key.equalsIgnoreCase("var") && path.length > 1) {
             return profile.getVariables().get(path[1]);
         }

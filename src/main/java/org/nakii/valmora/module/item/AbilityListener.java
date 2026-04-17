@@ -10,7 +10,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
-import org.nakii.valmora.module.item.ItemDefinition;
 import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.util.Keys;

@@ -7,11 +7,6 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.nakii.valmora.api.config.LoadResult;
-import org.nakii.valmora.module.item.AbilityDefinition;
-import org.nakii.valmora.module.item.AbilityMechanic;
-import org.nakii.valmora.module.item.AbilityTrigger;
-import org.nakii.valmora.module.item.ConfiguredMechanic;
-import org.nakii.valmora.module.item.MechanicRegistry;
 import org.nakii.valmora.module.stat.Stat;
 
 public class ItemDefinitionParser {

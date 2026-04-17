@@ -7,6 +7,7 @@ import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.script.variable.VariableResolverImpl;
 import org.nakii.valmora.module.script.variable.providers.PlayerVariableProvider;
+import org.nakii.valmora.module.script.variable.providers.ServerVariableProvider;
 import org.nakii.valmora.module.script.variable.providers.SystemVariableProvider;
 import org.nakii.valmora.module.script.variable.providers.WorldVariableProvider;
 import org.nakii.valmora.module.script.event.EventFactory;
@@ -54,6 +55,7 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new PlayerVariableProvider());
         registerProvider(new SystemVariableProvider());
         registerProvider(new WorldVariableProvider());
+        registerProvider(new ServerVariableProvider());
 
         // Register default events
         registerEvent(new GiveEvent());
@@ -61,11 +63,11 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new TagEvent());
     }
 
-    private void registerProvider(VariableProvider provider) {
+    public void registerProvider(VariableProvider provider) {
         variableProviderRegistry.register(provider.getNamespace(), provider);
     }
 
-    private void registerEvent(EventFactory factory) {
+    public void registerEvent(EventFactory factory) {
         eventFactoryRegistry.register(factory.getName(), factory);
     }
 

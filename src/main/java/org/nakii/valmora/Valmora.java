@@ -8,8 +8,11 @@ import org.nakii.valmora.module.mob.MobCommand;
 import org.nakii.valmora.module.mob.MobManager;
 import org.nakii.valmora.module.profile.PlayerManager;
 import org.nakii.valmora.module.profile.ProfileCommand;
+import org.nakii.valmora.module.recipe.RecipeModule;
 import org.nakii.valmora.module.combat.CombatModule;
 import org.nakii.valmora.module.combat.DamageIndicatorManager;
+import org.nakii.valmora.module.gui.GuiCommand;
+import org.nakii.valmora.module.gui.GuiModule;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.database.DatabaseFactory;
 import org.nakii.valmora.module.stat.StatCommand;
@@ -40,6 +43,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private ScriptModule scriptModule;
 
     private UIManager uiManager;
+    private org.nakii.valmora.module.gui.GuiModule guiModule;
+    private org.nakii.valmora.module.recipe.RecipeModule recipeModule;
 
     private ModuleManager moduleManager;
 
@@ -53,7 +58,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         saveDefaultConfig();
         saveResource("items/example.yml", true);
         saveResource("mobs/test_mobs.yml", true);
-        saveResource("gui/forge.yml", true);
+        saveResource("guis/stats.yml", true);
+        saveResource("guis/anvil.yml", true);
+        saveResource("guis/crafting.yml", true);
+        saveResource("guis/skills.yml", true);
 
         // Initialize Keys
         Keys.init(this);
@@ -72,6 +80,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.combatModule = new CombatModule(this);
         this.scriptModule = new ScriptModule(this);
         this.uiManager = new UIManager(this);
+        this.guiModule = new GuiModule(this);
+        this.recipeModule = new RecipeModule(this);
 
         // 3. Register Modules in Order
         moduleManager.registerModule(playerManager);
@@ -83,6 +93,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(skillModule);
         moduleManager.registerModule(combatModule);
         moduleManager.registerModule(scriptModule);
+        moduleManager.registerModule(guiModule);
+        moduleManager.registerModule(recipeModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -94,6 +106,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
         getCommand("skill").setExecutor(new SkillCommand(this, playerManager));
+        getCommand("gui").setExecutor(new GuiCommand(this));
     }
 
      @Override
@@ -162,5 +175,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public ScriptModule getScriptModule() {
         return scriptModule;
+    }
+
+    public org.nakii.valmora.module.gui.GuiModule getGuiModule() {
+        return guiModule;
+    }
+
+    public org.nakii.valmora.module.recipe.RecipeModule getRecipeModule() {
+        return recipeModule;
     }
 }

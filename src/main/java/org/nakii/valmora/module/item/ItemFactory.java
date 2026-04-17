@@ -4,7 +4,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
