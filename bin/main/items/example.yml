@@ -169,3 +169,36 @@ venom_bow:
             duration: 6.0
             amplifier: 2
             target: "@target"
+
+# =====================================================================
+# Forge Items
+# =====================================================================
+
+enchanted_diamond:
+  name: "Enchanted Diamond"
+  material: DIAMOND
+  item-type: "NONE"
+  rarity: "RARE"
+  stats:
+    DAMAGE: 0
+    STRENGTH: 10
+
+reinforced_ingot:
+  name: "Reinforced Iron Ingot"
+  material: IRON_INGOT
+  item-type: "NONE"
+  rarity: "EPIC"
+  stats:
+    DAMAGE: 5
+    DEFENSE: 25
+
+forged_blade:
+  name: "Forged Blade"
+  material: IRON_SWORD
+  item-type: "SWORD"
+  rarity: "EPIC"
+  stats:
+    DAMAGE: 75
+    STRENGTH: 30
+    CRIT_CHANCE: 10
+    CRIT_DAMAGE: 25

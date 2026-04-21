@@ -113,7 +113,7 @@ public class SQLDataStore implements DataStore {
                 }
 
                 return player;
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
                 return null;
             }
@@ -157,12 +157,13 @@ public class SQLDataStore implements DataStore {
                         
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
+                        ps.setString(6, stateJson);
                         
                         // Update values
-                        ps.setString(6, profile.getName());
-                        ps.setString(7, statsJson);
-                        ps.setString(8, skillsJson);
-                        ps.setString(9, stateJson);
+                        ps.setString(7, profile.getName());
+                        ps.setString(8, statsJson);
+                        ps.setString(9, skillsJson);
+                        ps.setString(10, stateJson);
                         
                         ps.addBatch();
                     }

@@ -29,7 +29,8 @@ public class GuiDefinitionParser {
             int updateInterval = section.getInt("update-interval", 0);
             List<String> layoutRows = section.getStringList("layout");
             int rows = layoutRows.size();
-            
+            String machine = section.getString("machine", id);
+
             List<List<Character>> layout = new ArrayList<>();
             for (String rowStr : layoutRows) {
                 List<Character> rowChars = new ArrayList<>();
@@ -56,7 +57,7 @@ public class GuiDefinitionParser {
             GuiEventBlock onOpen = parseEventBlock(section.getConfigurationSection("on-open"));
             GuiEventBlock onClose = parseEventBlock(section.getConfigurationSection("on-close"));
 
-            GuiDefinition def = new GuiDefinition(id, Formatter.format(titleStr), updateInterval, rows, layout, components, onOpen, onClose);
+            GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose);
             return LoadResult.success(def);
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Error parsing GUI " + id + ": " + e.getMessage());
@@ -76,31 +77,27 @@ public class GuiDefinitionParser {
             case "OUTPUT" -> new OutputComponent(section.getString("id"));
             case "PAGINATED" -> {
                 String list = section.getString("list");
+                String iterator = section.getString("iterator", "loop_item");
                 boolean destructure = section.getBoolean("destructure", false);
                 List<PaginatedState> states = new ArrayList<>();
-                
+
                 ConfigurationSection statesSection = section.getConfigurationSection("states");
                 if (statesSection != null) {
                     for (String key : statesSection.getKeys(false)) {
                         ConfigurationSection stateSec = statesSection.getConfigurationSection(key);
                         if (stateSec == null) continue;
-                        
+
                         String condition = stateSec.getString("condition", "default");
-                        GuiItemStack displayItem = parseItemStack(stateSec.getConfigurationSection("display-item"));
+                        ConfigurationSection itemSec = stateSec.getConfigurationSection("display-item");
+                        if (itemSec == null) {
+                            itemSec = stateSec;
+                        }
+                        GuiItemStack displayItem = parseItemStack(itemSec);
                         Map<ClickType, ClickHandler> actions = parseActions(stateSec.getConfigurationSection("actions"));
                         states.add(new PaginatedState(condition, displayItem, actions));
                     }
-                } else {
-                    // Backwards compatibility or alternative format: list of maps
-                    List<? extends Map<?, ?>> stateList = section.getMapList("states");
-                    for (Map<?, ?> stateMap : stateList) {
-                        Object condObj = stateMap.get("condition");
-                        String condition = condObj instanceof String s ? s : "default";
-                        // ItemStack and actions are harder to parse from raw map,
-                        // usually we'd want ConfigurationSection
-                    }
                 }
-                yield new PaginatedComponent(list, destructure, states);
+                yield new PaginatedComponent(list, iterator, destructure, states);
             }
             case "PREVIOUS_PAGE" -> {
                 GuiItemStack item = parseItemStack(section.getConfigurationSection("display-item"));
@@ -118,12 +115,12 @@ public class GuiDefinitionParser {
 
     private GuiItemStack parseItemStack(ConfigurationSection section) {
         if (section == null) return null;
-        Material mat = Material.matchMaterial(section.getString("material", "AIR"));
+        String matStr = section.getString("material", section.getString("item", "AIR"));
         String name = section.getString("name", "");
         List<String> lore = section.getStringList("lore");
         int cmd = section.getInt("custom-model-data", 0);
         int amount = section.getInt("amount", 1);
-        return new GuiItemStack(mat, name, lore, cmd, amount);
+        return new GuiItemStack(matStr, name, lore, cmd, amount);
     }
 
     private Map<ClickType, ClickHandler> parseActions(ConfigurationSection section) {

@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.gui.renderer;
 
+import com.google.gson.Gson;
+import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -7,14 +9,19 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.scripting.VariableResolver;
 import org.nakii.valmora.module.gui.*;
 import org.nakii.valmora.module.gui.components.*;
+import org.nakii.valmora.module.recipe.RecipeDefinition;
+import org.nakii.valmora.module.recipe.RecipeEngine;
+import org.nakii.valmora.module.recipe.RecipeIngredient;
 import org.nakii.valmora.util.Formatter;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GuiRenderer {
 
     private final Valmora plugin;
+    private int paginatedItemCounter = 0;
 
     public GuiRenderer(Valmora plugin) {
         this.plugin = plugin;
@@ -23,10 +30,94 @@ public class GuiRenderer {
     public void render(GuiSession session) {
         GuiDefinition def = session.getDefinition();
         Inventory inv = session.getInventory();
+
+        Map<Integer, ItemStack> savedInputItems = saveInputItems(session);
+        Map<Integer, ItemStack> savedOutputItems = saveOutputItems(session);
+
         inv.clear();
         this.paginatedItemCounter = 0;
 
+        renderLayout(session, inv);
+
+        restoreInputItems(session, savedInputItems);
+        updateOutputSlot(session, savedOutputItems);
+    }
+
+    private Map<Integer, ItemStack> saveInputItems(GuiSession session) {
+        Map<Integer, ItemStack> saved = new HashMap<>();
+        GuiDefinition def = session.getDefinition();
+        Inventory inv = session.getInventory();
+
+        for (InputComponent input : getInputComponents(def)) {
+            for (int slot : findAllSlotsForComponent(def, input)) {
+                saved.put(slot, inv.getItem(slot));
+            }
+        }
+        return saved;
+    }
+
+    private Map<Integer, ItemStack> saveOutputItems(GuiSession session) {
+        Map<Integer, ItemStack> saved = new HashMap<>();
+        GuiDefinition def = session.getDefinition();
+        Inventory inv = session.getInventory();
+
+        for (OutputComponent output : getOutputComponents(def)) {
+            for (int slot : findAllSlotsForComponent(def, output)) {
+                saved.put(slot, inv.getItem(slot));
+            }
+        }
+        return saved;
+    }
+
+    private void restoreInputItems(GuiSession session, Map<Integer, ItemStack> savedItems) {
+        Inventory inv = session.getInventory();
+        for (Map.Entry<Integer, ItemStack> entry : savedItems.entrySet()) {
+            inv.setItem(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void updateOutputSlot(GuiSession session, Map<Integer, ItemStack> previousOutput) {
+        GuiDefinition def = session.getDefinition();
+        Inventory inv = session.getInventory();
+
+        for (OutputComponent output : getOutputComponents(def)) {
+            for (int slot : findAllSlotsForComponent(def, output)) {
+                Optional<RecipeDefinition> match = matchRecipe(session);
+                if (match.isPresent()) {
+                    RecipeDefinition recipe = match.get();
+                    RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
+
+                    Material mat = Material.matchMaterial(firstOutput.item());
+                    if (mat == null) {
+                        ItemStack custom = plugin.getItemManager().createItemStack(firstOutput.item());
+                        if (custom != null) {
+                            custom.setAmount(firstOutput.amount());
+                            inv.setItem(slot, custom);
+                            continue;
+                        }
+                        mat = Material.BARRIER;
+                    }
+                    inv.setItem(slot, new ItemStack(mat, firstOutput.amount()));
+                } else {
+                    inv.setItem(slot, null);
+                }
+            }
+        }
+    }
+
+    private Optional<RecipeDefinition> matchRecipe(GuiSession session) {
+        RecipeEngine engine = plugin.getRecipeModule().getRecipeEngine();
+        if (engine == null) return Optional.empty();
+
+        // Use the centralized snapshot method from GuiSession
+        Map<String, ItemStack> inputSnapshot = session.getInputSnapshot();
+        return engine.match(session.getDefinition().getMachine(), inputSnapshot);
+    }
+
+    private void renderLayout(GuiSession session, Inventory inv) {
+        GuiDefinition def = session.getDefinition();
         List<List<Character>> layout = def.getLayout();
+
         for (int row = 0; row < layout.size(); row++) {
             List<Character> rowChars = layout.get(row);
             for (int col = 0; col < rowChars.size(); col++) {
@@ -36,7 +127,7 @@ public class GuiRenderer {
 
                 GuiComponent component = def.getComponents().get(c);
                 if (component instanceof DisplayComponent display) {
-                    inv.setItem(slot, createItemStack(display.getDisplayItem(), session, null));
+                    inv.setItem(slot, createItemStack(display.getDisplayItem(), session, null, null));
                 } else if (component instanceof PaginatedComponent paginated) {
                     renderPaginatedSlot(session, inv, slot, paginated);
                 } else if (component instanceof PageButtonComponent button) {
@@ -46,7 +137,49 @@ public class GuiRenderer {
         }
     }
 
-    private int paginatedItemCounter = 0;
+    private List<Integer> findAllSlotsForComponent(GuiDefinition def, GuiComponent target) {
+        List<Integer> slots = new ArrayList<>();
+        List<List<Character>> layout = def.getLayout();
+        char targetChar = findComponentChar(def, target);
+        for (int r = 0; r < layout.size(); r++) {
+            List<Character> row = layout.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                if (row.get(c) == targetChar) {
+                    slots.add(r * 9 + c);
+                }
+            }
+        }
+        return slots;
+    }
+
+    private char findComponentChar(GuiDefinition def, GuiComponent target) {
+        for (Map.Entry<Character, GuiComponent> entry : def.getComponents().entrySet()) {
+            if (entry.getValue() == target) {
+                return entry.getKey();
+            }
+        }
+        return 0;
+    }
+
+    private List<InputComponent> getInputComponents(GuiDefinition def) {
+        List<InputComponent> inputs = new ArrayList<>();
+        for (GuiComponent component : def.getComponents().values()) {
+            if (component instanceof InputComponent input) {
+                inputs.add(input);
+            }
+        }
+        return inputs;
+    }
+
+    private List<OutputComponent> getOutputComponents(GuiDefinition def) {
+        List<OutputComponent> outputs = new ArrayList<>();
+        for (GuiComponent component : def.getComponents().values()) {
+            if (component instanceof OutputComponent output) {
+                outputs.add(output);
+            }
+        }
+        return outputs;
+    }
 
     private void renderPaginatedSlot(GuiSession session, Inventory inv, int slot, PaginatedComponent paginated) {
         List<?> items = resolveList(paginated.getListExpression(), session);
@@ -54,12 +187,12 @@ public class GuiRenderer {
 
         int itemsPerPage = countSlotsForComponent(session.getDefinition(), paginated);
         int itemIndex = session.getCurrentPage() * itemsPerPage + paginatedItemCounter;
-        
+
         if (itemIndex < items.size()) {
             Object loopItem = items.get(itemIndex);
             PaginatedState state = findMatchingState(paginated.getStates(), session, loopItem);
             if (state != null) {
-                inv.setItem(slot, createItemStack(state.displayItem(), session, loopItem));
+                inv.setItem(slot, createItemStack(state.displayItem(), session, loopItem, paginated.getIteratorName()));
             }
             paginatedItemCounter++;
         }
@@ -68,26 +201,35 @@ public class GuiRenderer {
     private void renderPageButton(GuiSession session, Inventory inv, int slot, PageButtonComponent button) {
         boolean hasNext = hasNextPage(session);
         boolean hasPrev = session.getCurrentPage() > 0;
-        
+
         boolean active = button.isNext() ? hasNext : hasPrev;
         GuiItemStack itemDef = active ? button.getDisplayItem() : button.getFallbackItem();
-        
+
         if (itemDef != null) {
-            inv.setItem(slot, createItemStack(itemDef, session, null));
+            inv.setItem(slot, createItemStack(itemDef, session, null, null));
         }
     }
 
-    public ItemStack createItemStack(GuiItemStack def, GuiSession session, Object loopItem) {
+    public ItemStack createItemStack(GuiItemStack def, GuiSession session, Object loopItem, String iteratorName) {
         if (def == null) return null;
-        ItemStack item = new ItemStack(def.material(), def.amount());
+
+        String matStr = resolveVariables(def.material(), session, loopItem, iteratorName);
+        Material mat = Material.matchMaterial(matStr);
+        if (mat == null) mat = Material.BARRIER;
+
+        ItemStack item = new ItemStack(mat, def.amount());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            String name = resolveVariables(def.name(), session, loopItem);
+            if (mat == Material.PLAYER_HEAD && meta instanceof org.bukkit.inventory.meta.SkullMeta skull) {
+                skull.setOwningPlayer(session.getPlayer());
+            }
+
+            String name = resolveVariables(def.name(), session, loopItem, iteratorName);
             meta.displayName(Formatter.format(name));
 
             List<String> lore = new ArrayList<>();
             for (String line : def.lore()) {
-                lore.add(resolveVariables(line, session, loopItem));
+                lore.add(resolveVariables(line, session, loopItem, iteratorName));
             }
             meta.lore(Formatter.formatList(lore));
 
@@ -99,28 +241,43 @@ public class GuiRenderer {
         return item;
     }
 
-    private String resolveVariables(String text, GuiSession session, Object loopItem) {
+    public String resolveVariables(String text, GuiSession session, Object loopItem, String iteratorName) {
         if (text == null) return null;
-        
+
         VariableResolver resolver = plugin.getScriptModule().getVariableResolver();
         GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
-        // If loopItem is present, we should ideally inject it into the context
-        // But for now let's use a simple replacement if available
-        
+
         String processed = text;
         if (loopItem != null) {
-            // Simplified destructuring: if loopItem is a Map or has fields
-            // For now let's just support $loop_item$ as the object itself
+            if (iteratorName != null && loopItem instanceof Map<?, ?> map) {
+                Pattern pattern = Pattern.compile("\\$" + Pattern.quote(iteratorName) + "\\.([^$]+)\\$");
+                Matcher matcher = pattern.matcher(processed);
+                StringBuilder sb = new StringBuilder();
+                int lastMatch = 0;
+                while (matcher.find()) {
+                    sb.append(processed, lastMatch, matcher.start());
+                    String key = matcher.group(1);
+                    Object value = map.get(key);
+                    sb.append(value != null ? value.toString() : matcher.group(0));
+                    lastMatch = matcher.end();
+                }
+                sb.append(processed.substring(lastMatch));
+                processed = sb.toString();
+            }
+
             processed = processed.replace("$loop_item$", loopItem.toString());
+            if (iteratorName != null) {
+                processed = processed.replace("$" + iteratorName + "$", loopItem.toString());
+            }
         }
-        
+
         if (!processed.contains("$")) return processed;
-        
+
         StringBuilder sb = new StringBuilder();
         int lastMatch = 0;
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\$([^$]+)\\$");
-        java.util.regex.Matcher matcher = pattern.matcher(processed);
-        
+        Pattern pattern = Pattern.compile("\\$([^$]+)\\$");
+        Matcher matcher = pattern.matcher(processed);
+
         while (matcher.find()) {
             sb.append(processed, lastMatch, matcher.start());
             Object resolved = resolver.resolve(matcher.group(1), context);
@@ -128,15 +285,27 @@ public class GuiRenderer {
             lastMatch = matcher.end();
         }
         sb.append(processed.substring(lastMatch));
-        
+
         return sb.toString();
     }
 
     private List<?> resolveList(String path, GuiSession session) {
         if (path == null) return null;
-        Object resolved = plugin.getScriptModule().getVariableResolver().resolve(path.replace("$", ""), 
+        Object resolved = plugin.getScriptModule().getVariableResolver().resolve(path.replace("$", ""),
             new GuiExecutionContext(session.getPlayer(), session));
+
         if (resolved instanceof List<?> list) return list;
+
+        if (resolved instanceof String json) {
+            String trimmed = json.trim();
+            if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+                try {
+                    return new Gson().fromJson(trimmed, List.class);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
         return null;
     }
 
@@ -153,17 +322,13 @@ public class GuiRenderer {
     private PaginatedState findMatchingState(List<PaginatedState> states, GuiSession session, Object loopItem) {
         for (PaginatedState state : states) {
             if (state.condition().equalsIgnoreCase("default")) return state;
-            
-            // For now, since we don't have a sub-context provider for loop items, 
-            // we'll treat the condition as a string equality check if it's not a complex condition.
-            // In a full implementation, we'd register a temporary "loop_item" provider.
+
             if (state.condition().equalsIgnoreCase(loopItem.toString())) return state;
         }
         return null;
     }
 
     private boolean hasNextPage(GuiSession session) {
-        // Logic to check if more items exist
-        return false; 
+        return false;
     }
 }

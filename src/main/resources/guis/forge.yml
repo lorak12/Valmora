@@ -1,28 +1,26 @@
 # =====================================================================
-# Valmora Anvil GUI  - 54 slots (6x9)
+# Valmora Forge GUI  - 36 slots (4x9)
 #
 # Layout:
 #  B = Black glass border
 #  G = Grey glass filler
-#  I = Base item input
-#  M = Material input
-#  O = Output slot
-#  A = Anvil info button
+#  I = Input slot 1 (base item)
+#  M = Input slot 2 (material)
+#  O = Output slot (result)
+#  F = Forge info button
 # =====================================================================
 
-anvil:
-  title: "<dark_gray><bold>⚙ Valmora Anvil</bold></dark_gray>"
-  rows: 6
-  machine: anvil
+forge:
+  title: "<dark_red><bold>⚒ Valmora Forge</bold></dark_red>"
+  rows: 4
+  machine: forge
   update-interval: 10
 
   layout:
     - "BBBBBBBBB"
     - "BGGGGGGGB"
-    - "BGIBMBOGB"
-    - "BGGGAGGGB"
-    - "BGGGGGGGB"
-    - "BBBBBBBBB"
+    - "BGIBMOGBB"
+    - "BBBBFBBBB"
 
   components:
     B:
@@ -41,35 +39,35 @@ anvil:
 
     I:
       type: INPUT
-      id: base_item
+      id: input1
 
     M:
       type: INPUT
-      id: material
+      id: input2
 
     O:
       type: OUTPUT
       id: result
 
-    A:
+    F:
       type: DISPLAY
       display-item:
-        material: ANVIL
-        name: "<gold><bold>⚙ Anvil Guide</bold></gold>"
+        material: BLAST_FURNACE
+        name: "<red><bold>⚒ Forge Guide</bold></red>"
         lore:
-          - "<gray>Place your <yellow>item to upgrade</yellow>"
-          - "<gray>in the left slot."
+          - "<gray>Place your <yellow>base item</yellow>"
+          - "<gray>in the left input slot."
           - ""
-          - "<gray>Place the <aqua>upgrade material</aqua>"
+          - "<gray>Place the <aqua>material</aqua>"
           - "<gray>in the middle slot."
           - ""
-          - "<gray>Collect the upgrade from the"
+          - "<gray>Collect the result from the"
           - "<gray><green>right output slot</green>."
           - ""
-          - "<dark_gray>Recipes are defined server-side."
+          - "<dark_gray>Forge-specific recipes only."
         amount: 1
 
   on-open:
     actions:
-      - "sound player block.anvil.place"
+      - "sound player block.blast_furnace.crack"
   on-close: {}

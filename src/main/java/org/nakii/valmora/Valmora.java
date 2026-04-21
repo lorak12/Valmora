@@ -62,6 +62,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         saveResource("guis/anvil.yml", true);
         saveResource("guis/crafting.yml", true);
         saveResource("guis/skills.yml", true);
+        saveResource("recipes/crafting_table.yml", true);
+        saveResource("recipes/forge.yml", true);
 
         // Initialize Keys
         Keys.init(this);

@@ -6,21 +6,24 @@ import java.util.Map;
 
 public class GuiDefinition {
     private final String id;
-    private final Component title;
+    private final String title;
     private final int updateIntervalTicks;
     private final int rows;
+    private final String machine;
     private final List<List<Character>> layout;
     private final Map<Character, GuiComponent> components;
     private final GuiEventBlock onOpen;
     private final GuiEventBlock onClose;
 
-    public GuiDefinition(String id, Component title, int updateIntervalTicks, int rows, 
-                         List<List<Character>> layout, Map<Character, GuiComponent> components, 
+    public GuiDefinition(String id, String title, int updateIntervalTicks, int rows,
+                         String machine,
+                         List<List<Character>> layout, Map<Character, GuiComponent> components,
                          GuiEventBlock onOpen, GuiEventBlock onClose) {
         this.id = id;
         this.title = title;
         this.updateIntervalTicks = updateIntervalTicks;
         this.rows = rows;
+        this.machine = machine;
         this.layout = layout;
         this.components = components;
         this.onOpen = onOpen;
@@ -28,9 +31,10 @@ public class GuiDefinition {
     }
 
     public String getId() { return id; }
-    public Component getTitle() { return title; }
+    public String getTitle() { return title; }
     public int getUpdateIntervalTicks() { return updateIntervalTicks; }
     public int getRows() { return rows; }
+    public String getMachine() { return machine; }
     public List<List<Character>> getLayout() { return layout; }
     public Map<Character, GuiComponent> getComponents() { return components; }
     public GuiEventBlock getOnOpen() { return onOpen; }

@@ -39,13 +39,22 @@ public class GuiSession {
     public Map<String, ItemStack> getInputSnapshot() {
         Map<String, ItemStack> snapshot = new HashMap<>();
         List<List<Character>> layout = definition.getLayout();
+
+        int inputIndex = 0; // Tracks normalized grid position (0-8)
+
         for (int r = 0; r < layout.size(); r++) {
             List<Character> row = layout.get(r);
             for (int c = 0; c < row.size(); c++) {
                 char ch = row.get(c);
                 GuiComponent comp = definition.getComponents().get(ch);
                 if (comp instanceof org.nakii.valmora.module.gui.components.InputComponent input) {
-                    snapshot.put(input.getId(), inventory.getItem(r * 9 + c));
+                    int slot = r * 9 + c;
+                    ItemStack item = inventory.getItem(slot);
+
+                    snapshot.put(input.getId(), item);
+                    snapshot.put(String.valueOf(inputIndex), item); // Maps to "0", "1", "2"
+                    
+                    inputIndex++;
                 }
             }
         }

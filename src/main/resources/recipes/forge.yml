@@ -1,0 +1,38 @@
+# =====================================================================
+# Forge Recipes
+# Machine: forge
+#
+# This is a 2-input machine (like anvil)
+# input1 = left slot (base item)
+# input2 = middle slot (material)
+# =====================================================================
+
+# Example: Create Reinforced Ingot (material upgrade)
+reinforced_ingot:
+  machine: forge
+  type: EXACT_SLOT
+  inputs:
+    "input1": { item: IRON_INGOT, amount: 2 }
+    "input2": { item: enchanted_diamond, amount: 1 }
+  outputs:
+    result: { item: reinforced_ingot, amount: 1 }
+
+# Example: Upgrade to Forged Blade
+forged_blade:
+  machine: forge
+  type: EXACT_SLOT
+  inputs:
+    "input1": { item: IRON_SWORD, amount: 1 }
+    "input2": { item: reinforced_ingot, amount: 2 }
+  outputs:
+    result: { item: forged_blade, amount: 1 }
+
+# Example: Enchant Diamond (simple material conversion)
+enchant_diamond:
+  machine: forge
+  type: EXACT_SLOT
+  inputs:
+    "input1": { item: DIAMOND, amount: 1 }
+    "input2": { item: emerald, amount: 3 }
+  outputs:
+    result: { item: enchanted_diamond, amount: 1 }

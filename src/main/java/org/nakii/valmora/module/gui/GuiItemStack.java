@@ -1,10 +1,9 @@
 package org.nakii.valmora.module.gui;
 
-import org.bukkit.Material;
 import java.util.List;
 
 public record GuiItemStack(
-    Material material,
+    String material,
     String name,
     List<String> lore,
     int customModelData,

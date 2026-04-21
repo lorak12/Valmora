@@ -1,0 +1,73 @@
+# =====================================================================
+# Crafting Table Recipes
+# Machine: crafting_table
+#
+# Key format for 3x3 grid (SHAPED):
+#   0 1 2
+#   3 4 5
+#   6 7 8
+#
+# For 2x2 recipes, use only the 4 slots needed (e.g., 0,1,3,4 for top-left corner)
+# =====================================================================
+
+# Example: Diamond Sword (shaped with amount per slot)
+diamond_sword:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "1": { item: DIAMOND, amount: 2 }
+    "4": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: DIAMOND_SWORD, amount: 1 }
+
+# Example: Iron Pickaxe
+iron_pickaxe:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: IRON_INGOT, amount: 3 }
+    "4": { item: STICK, amount: 2 }
+  outputs:
+    result: { item: IRON_PICKAXE, amount: 1 }
+
+# Example: Wood planks (shapeless - any 3x logs anywhere)
+wood_planks:
+  machine: crafting_table
+  type: SHAPELESS
+  inputs:
+    - { item: LOG, amount: 1 }
+  outputs:
+    result: { item: PLANKS, amount: 4 }
+
+# Example: Crafting Table (shaped)
+crafting_table_block:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: PLANKS, amount: 4 }
+    "1": { item: PLANKS, amount: 4 }
+    "3": { item: PLANKS, amount: 4 }
+    "4": { item: PLANKS, amount: 4 }
+  outputs:
+    result: { item: CRAFTING_TABLE, amount: 1 }
+
+# Example: Stone Sword
+stone_sword:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "1": { item: COBBLESTONE, amount: 2 }
+    "4": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: STONE_SWORD, amount: 1 }
+
+# Example: Custom Item - Test Sword (using Valmora custom item)
+test_sword_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: reinforced_ingot, amount: 1 }
+    "3": { item: reinforced_ingot, amount: 1 }
+    "6": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: testSword, amount: 1 }

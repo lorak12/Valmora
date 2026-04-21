@@ -10,7 +10,8 @@ public enum Stat {
     SPEED("Speed", 100.0, Double.MAX_VALUE, "<white>"),
     MANA("Mana", 100.0, Double.MAX_VALUE, "<aqua>"),
     HEALTH_REGEN("Health Regen", 1.0, Double.MAX_VALUE, "<red>"),
-    MANA_REGEN("Mana Regen", 2.0, Double.MAX_VALUE, "<aqua>");
+    MANA_REGEN("Mana Regen", 2.0, Double.MAX_VALUE, "<aqua>"),
+    LUCK("Luck", 0.0, 100.0, "<gold>");
 
     private final String displayName;
     private final double defaultValue;

@@ -22,10 +22,10 @@ public class RecipeDefinitionParser {
         try {
             String machine = section.getString("machine");
             RecipeType type = RecipeType.valueOf(section.getString("type", "EXACT_SLOT").toUpperCase());
-            
+
             Map<String, RecipeIngredient> inputMap = new HashMap<>();
             List<RecipeIngredient> inputList = new ArrayList<>();
-            
+
             if (type == RecipeType.SHAPELESS) {
                 List<? extends Map<?, ?>> inputs = section.getMapList("inputs");
                 for (Map<?, ?> input : inputs) {
@@ -36,7 +36,16 @@ public class RecipeDefinitionParser {
                 if (inputs != null) {
                     for (String key : inputs.getKeys(false)) {
                         ConfigurationSection inputSec = inputs.getConfigurationSection(key);
-                        inputMap.put(key, new RecipeIngredient(inputSec.getString("item"), inputSec.getInt("amount")));
+                        if (inputSec != null) {
+                            inputMap.put(key, new RecipeIngredient(inputSec.getString("item"), inputSec.getInt("amount")));
+                        } else {
+                            Object itemObj = inputs.get(key + ".item");
+                            Object amountObj = inputs.get(key + ".amount");
+                            if (itemObj != null) {
+                                int amount = amountObj instanceof Number ? ((Number) amountObj).intValue() : 1;
+                                inputMap.put(key, new RecipeIngredient(String.valueOf(itemObj), amount));
+                            }
+                        }
                     }
                 }
             }
@@ -46,11 +55,23 @@ public class RecipeDefinitionParser {
             if (outputsSec != null) {
                 for (String key : outputsSec.getKeys(false)) {
                     ConfigurationSection outSec = outputsSec.getConfigurationSection(key);
-                    outputs.put(key, new RecipeIngredient(outSec.getString("item"), outSec.getInt("amount")));
+                    if (outSec != null) {
+                        outputs.put(key, new RecipeIngredient(outSec.getString("item"), outSec.getInt("amount")));
+                    } else {
+                        Object itemObj = outputsSec.get(key + ".item");
+                        Object amountObj = outputsSec.get(key + ".amount");
+                        if (itemObj != null) {
+                            int amount = amountObj instanceof Number ? ((Number) amountObj).intValue() : 1;
+                            outputs.put(key, new RecipeIngredient(String.valueOf(itemObj), amount));
+                        }
+                    }
                 }
             }
 
-            CompiledEvent onCraft = plugin.getScriptModule().getEventParser().parseList(section.getStringList("on-craft"));
+            CompiledEvent onCraft = null;
+            if (section.contains("on-craft")) {
+                onCraft = plugin.getScriptModule().getEventParser().parseList(section.getStringList("on-craft"));
+            }
 
             RecipeDefinition def = new RecipeDefinition(id, machine, type, inputMap, inputList, outputs, onCraft);
             return LoadResult.success(def);

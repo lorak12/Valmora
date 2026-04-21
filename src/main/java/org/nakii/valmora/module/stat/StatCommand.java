@@ -22,14 +22,31 @@ public class StatCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player bukkitPlayer)) {
+            sender.sendMessage("This command is for players only.");
+            return true;
+        }
+
         // /stat <list|add|remove> [statName] [value]
         if (args.length == 0) {
             sender.sendMessage("Usage: /stat <list|add|remove> [statName] [value]");
             return true;
         }
         String subCommand = args[0];
-        ValmoraPlayer player = playerManager.getSession(((Player) sender).getUniqueId());
+        ValmoraPlayer player = playerManager.getSession(bukkitPlayer.getUniqueId());
+        
+        if (player == null) {
+            sender.sendMessage("Your player data is not loaded yet.");
+            return true;
+        }
+
         ValmoraProfile profile = player.getActiveProfile();
+        
+        if (profile == null) {
+            sender.sendMessage("You do not have an active profile.");
+            return true;
+        }
+
         StatManager statManager = profile.getStatManager();
 
         switch (subCommand.toLowerCase()) {
@@ -45,22 +62,30 @@ public class StatCommand implements TabExecutor {
                     sender.sendMessage(Formatter.format("<white>Usage: /stat add <statName> <value>"));
                     return true;
                 }
-                String statName = args[1];
+                String statName = args[1].toUpperCase();
                 double value = Double.parseDouble(args[2]);
                 // Add value to the specified stat
-                statManager.addStat((Player) sender,Stat.valueOf(statName), value);
-                sender.sendMessage("Stat added");
+                try {
+                    statManager.addStat(bukkitPlayer, Stat.valueOf(statName), value);
+                    sender.sendMessage("Stat added");
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage("Unknown stat: " + statName);
+                }
                 break;
             case "remove":
                 if (args.length < 3) {
                     sender.sendMessage("Usage: /stat remove <statName> <value>");
                     return true;
                 }
-                statName = args[1];
+                statName = args[1].toUpperCase();
                 value = Double.parseDouble(args[2]);
                 // Remove value from the specified stat
-                statManager.reduceStat((Player) sender,Stat.valueOf(statName), value);
-                sender.sendMessage("Stat removed");
+                try {
+                    statManager.reduceStat(bukkitPlayer, Stat.valueOf(statName), value);
+                    sender.sendMessage("Stat removed");
+                } catch (IllegalArgumentException e) {
+                    sender.sendMessage("Unknown stat: " + statName);
+                }
                 break;
             default:
                 sender.sendMessage("Unknown subcommand. Usage: /stat <list|add|remove> [statName] [value]");

@@ -18,7 +18,7 @@ public class CombatListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        if (event.getEntity() instanceof Player) return; 
+ 
         
         if (!(event.getEntity() instanceof LivingEntity victim)) {
              return;

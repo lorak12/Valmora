@@ -1,8 +1,13 @@
 test_zombie:
+  category: UNDEAD
   name: "<red>Test Zombie</red>"
   type: ZOMBIE
-  health: 50.0
-  damage: 10.0
+  level: 5
+  base-damage: 5
+  health: 30.0
+  damage-type: MELEE
+  base-xp: 2
+  gold-reward: 5
   speed: 0.3
   equipment:
     helmet: IRON_HELMET
@@ -11,12 +16,41 @@ test_zombie:
     boots: GOLDEN_BOOTS
     main-hand: IRON_SWORD
     off-hand: SHIELD
+  loot-table:
+    drops:
+      - item: ROTTEN_FLESH
+        min-amount: 1
+        max-amount: 3
+        chance: 1.0
+        luck-affected: false
+      - item: DIAMOND
+        min-amount: 1
+        max-amount: 1
+        chance: 0.01
+        luck-affected: true
 
 test_skeleton:
+  category: UNDEAD
   name: "<gray>Test Skeleton</gray>"
   type: SKELETON
-  health: 30.0
-  damage: 8.0
+  level: 3
+  base-damage: 4
+  health: 20.0
+  damage-type: PROJECTILE
+  base-xp: 3
+  gold-reward: 3
   equipment:
     helmet: LEATHER_HELMET
     main-hand: BOW
+  loot-table:
+    drops:
+      - item: BONE
+        min-amount: 1
+        max-amount: 2
+        chance: 1.0
+        luck-affected: false
+      - item: ARROW
+        min-amount: 5
+        max-amount: 10
+        chance: 0.8
+        luck-affected: false

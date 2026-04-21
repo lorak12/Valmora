@@ -7,6 +7,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
+import org.nakii.valmora.module.gui.components.InputComponent;
 import org.nakii.valmora.module.gui.parser.GuiDefinitionParser;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 
@@ -60,11 +61,14 @@ public class GuiModule implements ReloadableModule {
             def.getOnOpen().actions().execute(context);
         }
 
-        Inventory inv = Bukkit.createInventory(null, def.getRows() * 9, def.getTitle());
+        GuiRenderer renderer = new GuiRenderer(plugin);
+        GuiSession tempSession = new GuiSession(player, def, null);
+        String resolvedTitle = renderer.resolveVariables(def.getTitle(), tempSession, null, null);
+
+        Inventory inv = Bukkit.createInventory(null, def.getRows() * 9, org.nakii.valmora.util.Formatter.format(resolvedTitle));
         GuiSession session = new GuiSession(player, def, inv);
         openSessions.put(player.getUniqueId(), session);
         
-        GuiRenderer renderer = new GuiRenderer(plugin);
         renderer.render(session);
         
         player.openInventory(inv);
@@ -84,6 +88,35 @@ public class GuiModule implements ReloadableModule {
             GuiExecutionContext context = new GuiExecutionContext(player, session);
             if (session.getDefinition().getOnClose() != null && session.getDefinition().getOnClose().actions() != null) {
                 session.getDefinition().getOnClose().actions().execute(context);
+            }
+
+            // --- BEST PRACTICE ITEM REFUND LOGIC ---
+            org.bukkit.inventory.Inventory inv = session.getInventory();
+            java.util.List<java.util.List<Character>> layout = session.getDefinition().getLayout();
+
+            for (int r = 0; r < layout.size(); r++) {
+                java.util.List<Character> row = layout.get(r);
+                for (int c = 0; c < row.size(); c++) {
+                    char ch = row.get(c);
+                    // Only target valid InputComponents. Outputs and Displays are ignored.
+                    if (session.getDefinition().getComponents().get(ch) instanceof InputComponent) {
+                        int slot = r * 9 + c;
+                        org.bukkit.inventory.ItemStack item = inv.getItem(slot);
+                        
+                        if (item != null && item.getType() != org.bukkit.Material.AIR) {
+                            // 1. Clear slot FIRST to prevent race-condition dupes
+                            inv.setItem(slot, null);
+                            
+                            // 2. Add to player inventory
+                            java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> leftover = player.getInventory().addItem(item);
+                            
+                            // 3. If inventory is full, drop leftovers at player's location
+                            for (org.bukkit.inventory.ItemStack drop : leftover.values()) {
+                                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -12,9 +12,9 @@ skills:
 
   layout:
     - "BBBBBBBBB"
-    - "BCBFBSBBB"
+    - "BCBHBOBFB"
     - "BBBBBBBBB"
-    - "BHBOBBBBB"
+    - "BSBRBABEB"
     - "BBBBBBBBB"
     - "BBBBBBBBB"
 
@@ -90,6 +90,11 @@ skills:
           - "<dark_gray>Forage herbs and mushrooms for XP."
           - "<dark_gray>Max Level: <white>60"
         amount: 1
+    R:
+      type: DISPLAY
+      display-item:
+        material: CRAFTING_TABLE
+        name:
 
   on-open:
     actions:

@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.mob;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.persistence.PersistentDataType;
@@ -13,17 +14,20 @@ public class MobManager implements ReloadableModule {
     private final MobRegistry mobRegistry;
     private final MobFactory mobFactory;
     private final MobLoader mobLoader;
+    private final MobDeathListener deathListener;
 
     public MobManager(Valmora plugin) {
         this.plugin = plugin;
         this.mobFactory = new MobFactory(plugin);
         this.mobRegistry = new MobRegistry();
         this.mobLoader = new MobLoader(plugin, mobRegistry);
+        this.deathListener = new MobDeathListener(plugin);
     }
 
     @Override
     public void onEnable() {
         plugin.getLogger().info("Starting Mob Module...");
+        Bukkit.getPluginManager().registerEvents(deathListener, plugin);
         mobLoader.loadMobs();
     }
 
@@ -52,6 +56,7 @@ public class MobManager implements ReloadableModule {
     }
 
     public MobDefinition getMobDefinition(String id) {
+        if (id == null) return null;
         return mobRegistry.getMob(id).orElse(null);
     }
 

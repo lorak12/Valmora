@@ -1,14 +1,21 @@
 package org.nakii.valmora.module.gui;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.nakii.valmora.Valmora;
 
-public class GuiCommand implements CommandExecutor {
+public class GuiCommand implements TabExecutor {
 
     private final Valmora plugin;
 
@@ -44,4 +51,19 @@ public class GuiCommand implements CommandExecutor {
         sender.sendMessage("Opened GUI '" + guiId + "' for " + target.getName());
         return true;
     }
+    
+    @Override
+    public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
+        if (args.length == 1) {
+            return Arrays.asList("open");
+        }
+        if (args.length == 2) {
+            return Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList());
+        }
+        if (args.length == 3) {
+            return plugin.getGuiModule().getGuiRegistry().keySet().stream().collect(Collectors.toList());
+        }
+        return null;
+    }
+    
 }

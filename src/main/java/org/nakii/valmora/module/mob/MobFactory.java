@@ -31,10 +31,10 @@ public class MobFactory {
             entity.setHealth(definition.getHealth());
         }
 
-        // Set damage
+        // Set scaled damage
         AttributeInstance damageAttribute = entity.getAttribute(Attribute.ATTACK_DAMAGE);
         if (damageAttribute != null) {
-            damageAttribute.setBaseValue(definition.getDamage());
+            damageAttribute.setBaseValue(definition.getScaledDamage());
         }
 
         // Set speed
@@ -62,8 +62,8 @@ public class MobFactory {
 
     public void applyVisuals(LivingEntity entity, MobDefinition definition) {
         if (definition == null) return;
-        // Format: <gray>[<white>Lv.</white>" + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getId()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>
-        String name = "<gray>[<white>Lv." + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getId()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>";
+        // Format: <gray>[<white>Lv.</white>" + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getName()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>
+        String name = "<gray>[<white>Lv." + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getName()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>";
         entity.customName(Formatter.format(name));
         entity.setCustomNameVisible(true);  
     }

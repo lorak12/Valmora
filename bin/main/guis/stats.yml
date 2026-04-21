@@ -2,7 +2,7 @@
 # Valmora Stats GUI  - 54 slots (6x9)
 #
 # Shows live player stats using $player.stat.X$ variables.
-# Refreshes every second (20 ticks).
+# Refreshes every second (200 ticks).
 #
 # Layout key:
 #  B = Black glass border
@@ -19,134 +19,68 @@
 # =====================================================================
 
 stats:
-  title: "<red><bold>❤ Character Sheet</bold></red>"
+  title: "<yellow>Character Profile - <green>$player.name$"
   rows: 6
   update-interval: 20
 
   layout:
-    - "BBBBBBBBB"
-    - "BHDFSTBBB"
-    - "BMNKRBGBB"
-    - "BGGGGGBBB"
-    - "BGGGGGBBB"
-    - "BBBBBBBBB"
+    - "BGGGGGGGB"
+    - "GXXXGXXXG"
+    - "GXXXGXXXG"
+    - "GXXXPXXXG"
+    - "GXXXGXXXG"
+    - "BGGGCGGGB"
 
   components:
-    B:
-      type: DISPLAY
-      display-item:
-        material: BLACK_STAINED_GLASS_PANE
-        name: " "
-        amount: 1
-
     G:
       type: DISPLAY
       display-item:
-        material: GRAY_STAINED_GLASS_PANE
+        item: GRAY_STAINED_GLASS_PANE
         name: " "
-        amount: 1
-
-    H:
+    B:
       type: DISPLAY
       display-item:
-        material: REDSTONE
-        name: "<red><bold>❤ Health</bold></red>"
-        lore:
-          - "<gray>Current:  <green>$player.hp$"
-          - "<gray>Maximum: <green>$player.max_hp$"
-          - ""
-          - "<dark_gray>Your total hit points."
-        amount: 1
-
-    D:
+        item: BLUE_STAINED_GLASS_PANE
+        name: " "
+    C:
       type: DISPLAY
       display-item:
-        material: IRON_SWORD
-        name: "<yellow><bold>⚔ Damage</bold></yellow>"
+        item: BARRIER
+        name: "<red><bold>CLOSE SHEET"
         lore:
-          - "<gray>Damage: <yellow>$player.stat.DAMAGE$"
-          - ""
-          - "<dark_gray>Base damage dealt to enemies."
-        amount: 1
-
-    F:
+          - "<gray>Click to return to world."
+      actions:
+        left:
+          actions:
+            - "close"
+    P:
       type: DISPLAY
       display-item:
-        material: SHIELD
-        name: "<green><bold>🛡 Defense</bold></green>"
+        item: PLAYER_HEAD
+        name: "<blue><bold>$player.name$"
         lore:
-          - "<gray>Defense: <green>$player.stat.DEFENSE$"
+          - "<gray>━━━━━━━━━━━━━━━━━━━━━━━━"
+          - " <gray>Location: <white>$player.world$"
+          - " <gray>Biome: <white>$player.biome$"
+          - " <gray>Ping: <green>$player.ping$ms"
           - ""
-          - "<dark_gray>Reduces incoming damage."
-        amount: 1
-
-    S:
-      type: DISPLAY
-      display-item:
-        material: SUGAR
-        name: "<white><bold>⚡ Speed</bold></white>"
-        lore:
-          - "<gray>Speed: <white>$player.stat.SPEED$"
-          - ""
-          - "<dark_gray>Movement speed modifier."
-        amount: 1
-
-    T:
-      type: DISPLAY
-      display-item:
-        material: BLAZE_POWDER
-        name: "<dark_red><bold>💢 Strength</bold></dark_red>"
-        lore:
-          - "<gray>Strength: <dark_red>$player.stat.STRENGTH$"
-          - ""
-          - "<dark_gray>Boosts melee damage output."
-        amount: 1
-
-    M:
-      type: DISPLAY
-      display-item:
-        material: LAPIS_LAZULI
-        name: "<aqua><bold>✦ Mana</bold></aqua>"
-        lore:
-          - "<gray>Current:  <aqua>$player.mana$"
-          - "<gray>Maximum: <aqua>$player.max_mana$"
-          - ""
-          - "<dark_gray>Used to cast abilities."
-        amount: 1
-
-    N:
-      type: DISPLAY
-      display-item:
-        material: CYAN_DYE
-        name: "<dark_aqua><bold>♻ Mana Regen</bold></dark_aqua>"
-        lore:
-          - "<gray>Regen: <dark_aqua>$player.stat.MANA_REGEN$/s"
-          - ""
-          - "<dark_gray>Mana restored per second."
-        amount: 1
-
-    K:
-      type: DISPLAY
-      display-item:
-        material: GOLD_NUGGET
-        name: "<gold><bold>☆ Critical Strike</bold></gold>"
-        lore:
-          - "<gray>Crit Chance: <gold>$player.stat.CRIT_CHANCE$%"
-          - "<gray>Crit Damage: <gold>$player.stat.CRIT_DAMAGE$%"
-          - ""
-          - "<dark_gray>Chance to deal bonus damage."
-        amount: 1
-
-    R:
-      type: DISPLAY
-      display-item:
-        material: GLISTERING_MELON_SLICE
-        name: "<light_purple><bold>♥ Health Regen</bold></light_purple>"
-        lore:
-          - "<gray>Regen: <light_purple>$player.stat.HEALTH_REGEN$/s"
-          - ""
-          - "<dark_gray>Health restored per second."
-        amount: 1
+          - " <red>Health: <white>$player.hp$/$player.max_hp$ <gray>($player.health_percent$%)"
+          - " <aqua>Mana: <white>$player.mana$/$player.max_mana$"
+          - "<gray>━━━━━━━━━━━━━━━━━━━━━━━━"
+    X:
+      type: PAGINATED
+      list: "$player.stat.list$"
+      iterator: "x"
+      states:
+        default:
+          item: "$x.material$"
+          name: "$x.name$"
+          lore:
+            - "<gray>━━━━━━━━━━━━━━━━━━━━━━━━"
+            - " <gray>Value: <white>$x.display_value$"
+            - ""
+            - " <italic><gray>$x.description$"
+            - "<gray>━━━━━━━━━━━━━━━━━━━━━━━━"
 
   on-open:
     actions:

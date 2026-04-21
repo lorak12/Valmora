@@ -10,19 +10,32 @@
 # =====================================================================
 
 crafting_table:
-  title: "<gold><bold>⚒ Crafting Table</bold></gold>"
+  title: "<yellow>⚒ Crafting Table</yellow>"
   rows: 6
-  update-interval: 10
+  machine: crafting_table
+  update-interval: 1000
 
   layout:
     - "BBBBBBBBB"
-    - "BIIIBIBBB"
-    - "BIIIBIBBB"
-    - "BIIIBOBBB"
-    - "BBBBBHBBB"
+    - "BIIIBBBBB"
+    - "BIIIBHBOB"
+    - "BIIIBBBBB"
     - "BBBBBBBBB"
+    - "BBBRCBBBB"
 
   components:
+    R:
+      type: DISPLAY
+      display-item:
+        material: KNOWLEDGE_BOOK
+        name: "<white>Recipe list"
+        amount: 1
+    C:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+        amount: 1
     B:
       type: DISPLAY
       display-item:
@@ -41,7 +54,7 @@ crafting_table:
     H:
       type: DISPLAY
       display-item:
-        material: KNOWLEDGE_BOOK
+        material: CRAFTING_TABLE
         name: "<aqua><bold>✦ How to Craft</bold></aqua>"
         lore:
           - "<gray>Place your ingredients in the"
@@ -51,8 +64,6 @@ crafting_table:
           - "<gray>the result will appear on the right."
           - ""
           - "<gray>Click the result to collect it."
-          - ""
-          - "<yellow>Supports shaped & shapeless recipes."
         amount: 1
 
   on-open:

@@ -1,5 +1,6 @@
 # User-specific stuff
 .idea/
+.vscode/
 
 *.iml
 *.ipr
@@ -7,6 +8,7 @@
 
 # IntelliJ
 out/
+bin/
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 

@@ -55,7 +55,7 @@ public class DamageCalculator {
             String mobId = attacker.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
             MobDefinition mob = api.getMobManager().getMobDefinition(mobId);
             if (mob != null) {
-                damage = mob.getDamage();
+                damage = mob.getScaledDamage();
             }
         }
 
