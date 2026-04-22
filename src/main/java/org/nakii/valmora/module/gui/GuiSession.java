@@ -17,13 +17,16 @@ public class GuiSession {
     private int currentPage = 0;
     private @Nullable BukkitTask updateTask;
     private @Nullable GuiSession parent;
+    private final Map<String, Object> props;
 
-    public GuiSession(Player player, GuiDefinition definition, Inventory inventory) {
+    public GuiSession(Player player, GuiDefinition definition, Inventory inventory, Map<String, Object> props) {
         this.player = player;
         this.definition = definition;
         this.inventory = inventory;
+        this.props = props != null ? props : new HashMap<>();
     }
 
+    public Map<String, Object> getProps() { return props; }
     public Player getPlayer() { return player; }
     public GuiDefinition getDefinition() { return definition; }
     public Inventory getInventory() { return inventory; }

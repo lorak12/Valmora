@@ -1,0 +1,37 @@
+id: "foraging"
+name: "<green><bold>🪓 Foraging</bold></green>"
+description:
+  - "<gray>Chop down trees and gather resources from the forest."
+material: DIAMOND_AXE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  BLOCK_BREAK:
+    OAK_LOG: 15.0
+    BIRCH_LOG: 15.0
+    SPRUCE_LOG: 15.0
+    JUNGLE_LOG: 15.0
+    ACACIA_LOG: 15.0
+    DARK_OAK_LOG: 15.0
+    MANGROVE_LOG: 15.0
+    CHERRY_LOG: 15.0
+    OAK_WOOD: 15.0
+    BIRCH_WOOD: 15.0
+    SPRUCE_WOOD: 15.0
+    JUNGLE_WOOD: 15.0
+    ACACIA_WOOD: 15.0
+    DARK_OAK_WOOD: 15.0
+    MANGROVE_WOOD: 15.0
+    CHERRY_WOOD: 15.0
+
+rewards:
+  per-level:
+    - "variable add player.var.strength 0.2"
+    - "variable add player.var.coins $param.level$*12"
+
+  milestones:
+    "10":
+      - "give IRON_AXE:1 notify"
+    "30":
+      - "give DIAMOND_AXE:1 notify"

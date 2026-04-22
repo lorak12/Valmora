@@ -8,8 +8,6 @@ import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
-import org.nakii.valmora.module.skill.Skill;
-import org.nakii.valmora.module.skill.SkillXpGainEvent;
 import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.util.Keys;
@@ -54,8 +52,7 @@ public class MobDeathListener implements Listener {
                     luck = statManager.getStat(Stat.LUCK);
 
                     int xpReward = definition.getXpReward();
-                    SkillXpGainEvent xpEvent = new SkillXpGainEvent(killer, Skill.COMBAT, xpReward);
-                    xpEvent.callEvent();
+                    profile.getSkillManager().addXp("combat", (double) xpReward, killer);
 
                     int goldReward = definition.getGoldReward();
                     if (goldReward > 0) {

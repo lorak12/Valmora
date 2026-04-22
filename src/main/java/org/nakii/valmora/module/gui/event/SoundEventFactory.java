@@ -18,12 +18,15 @@ public class SoundEventFactory implements EventFactory {
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return context -> {};
         
-        try {
-            Sound sound = Registry.SOUNDS.get(NamespacedKey.fromString(args[0].toUpperCase()));
-            return context -> context.getPlayerCaster().ifPresent(player -> 
-                player.playSound(player.getLocation(), sound, 1.0f, 1.0f));
-        } catch (IllegalArgumentException e) {
-            return context -> {};
-        }
+        String soundId = args.length > 1 ? args[1] : args[0];
+        
+        NamespacedKey key = NamespacedKey.fromString(soundId.toLowerCase());
+        if (key == null) return context -> {};
+
+        Sound sound = Registry.SOUNDS.get(key);
+        if (sound == null) return context -> {};
+
+        return context -> context.getPlayerCaster().ifPresent(player -> 
+            player.playSound(player.getLocation(), sound, 1.0f, 1.0f));
     }
 }

@@ -4,6 +4,7 @@ import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.nakii.valmora.Valmora;
 
 public class SkillListener implements Listener {
@@ -25,19 +26,48 @@ public class SkillListener implements Listener {
     
     @EventHandler
     public void onSkillLevelUp(SkillLevelUpEvent event){
-        plugin.getUIManager().getChat().sendLevelUp(event.getPlayer(), event.getSkill(), event.getNewLevel());
+        plugin.getUIManager().getChat().sendLevelUp(event.getPlayer(), event.getSkill().getName(), event.getNewLevel());
     }
 
     @EventHandler
-    public void onBlockBreak(BlockBreakEvent event){
-        if (event.getBlock().getType() == Material.STONE){
-            skillManager.addXp(Skill.MINING, 1, event.getPlayer());
+    public void onBlockBreak(BlockBreakEvent event) {
+        String blockId = event.getBlock().getType().name();
+        for (SkillDefinition skill : plugin.getSkillManager().getSkillRegistry().values()) {
+            Double xp = skill.getSourceXp("BLOCK_BREAK", blockId);
+            if (xp != null && xp > 0) {
+                skillManager.addXp(skill.getId(), xp, event.getPlayer());
+            }
         }
-        if(event.getBlock().getType() == Material.OAK_LOG){
-            skillManager.addXp(Skill.FORAGING, 1, event.getPlayer());
+    }
+
+    @EventHandler
+    public void onEntityDeath(EntityDeathEvent event) {
+        if (event.getEntity().getKiller() == null) return;
+        String mobId = event.getEntityType().name();
+        for (SkillDefinition skill : plugin.getSkillManager().getSkillRegistry().values()) {
+            Double xp = skill.getSourceXp("MOB_KILL", mobId);
+            if (xp != null && xp > 0) {
+                skillManager.addXp(skill.getId(), xp, event.getEntity().getKiller());
+            }
         }
-        if(event.getBlock().getType() == Material.WHEAT){
-            skillManager.addXp(Skill.FARMING, 1, event.getPlayer());
+    }
+
+    @EventHandler
+    public void onFish(org.bukkit.event.player.PlayerFishEvent event) {
+        if (event.getState() != org.bukkit.event.player.PlayerFishEvent.State.CAUGHT_FISH) return;
+        if (event.getCaught() == null) return;
+
+        String caughtId = "COD"; // Default
+        if (event.getCaught() instanceof org.bukkit.entity.Item) {
+            caughtId = ((org.bukkit.entity.Item) event.getCaught()).getItemStack().getType().name();
+        }
+
+        for (SkillDefinition skill : plugin.getSkillManager().getSkillRegistry().values()) {
+            Double xp = skill.getSourceXp("FISHING", caughtId);
+            if (xp != null && xp > 0) {
+                skillManager.addXp(skill.getId(), xp, event.getPlayer());
+            }
         }
     }
 }
+

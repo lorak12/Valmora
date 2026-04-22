@@ -26,6 +26,13 @@ import org.nakii.valmora.module.skill.SkillModule;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.util.Keys;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
 
 public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
@@ -56,14 +63,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.moduleManager = new ModuleManager(this);
 
         saveDefaultConfig();
-        saveResource("items/example.yml", true);
-        saveResource("mobs/test_mobs.yml", true);
-        saveResource("guis/stats.yml", true);
-        saveResource("guis/anvil.yml", true);
-        saveResource("guis/crafting.yml", true);
-        saveResource("guis/skills.yml", true);
-        saveResource("recipes/crafting_table.yml", true);
-        saveResource("recipes/forge.yml", true);
+        saveAllResources();
+
 
         // Initialize Keys
         Keys.init(this);
@@ -86,15 +87,18 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.recipeModule = new RecipeModule(this);
 
         // 3. Register Modules in Order
-        moduleManager.registerModule(playerManager);
+        // Foundational Modules (No dependencies)
+        moduleManager.registerModule(scriptModule);
         moduleManager.registerModule(statModule);
+        moduleManager.registerModule(playerManager);
+        
+        // Dependent Modules
         moduleManager.registerModule(uiManager);
         moduleManager.registerModule(abilityManager);
         moduleManager.registerModule(itemManager);
         moduleManager.registerModule(mobManager);
         moduleManager.registerModule(skillModule);
         moduleManager.registerModule(combatModule);
-        moduleManager.registerModule(scriptModule);
         moduleManager.registerModule(guiModule);
         moduleManager.registerModule(recipeModule);
 
@@ -169,6 +173,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return skillModule.getSkillManager();
     }
 
+    public SkillModule getSkillModule() {
+        return skillModule;
+    }
+
     @Override
     public ModuleManager getModuleManager() {
         return moduleManager;
@@ -185,5 +193,29 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     public org.nakii.valmora.module.recipe.RecipeModule getRecipeModule() {
         return recipeModule;
+    }
+
+    private void saveAllResources() {
+        try {
+            File jarFile = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
+            if (!jarFile.isFile()) return;
+
+            try (ZipInputStream zip = new ZipInputStream(new FileInputStream(jarFile))) {
+                ZipEntry entry;
+                while ((entry = zip.getNextEntry()) != null) {
+                    String name = entry.getName();
+                    if (entry.isDirectory() || name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
+                        continue;
+                    }
+
+                    if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
+                            name.startsWith("recipes/") || name.startsWith("skills/")) {
+                        saveResource(name, true);
+                    }
+                }
+            }
+        } catch (IOException | URISyntaxException e) {
+            getLogger().warning("Failed to auto-save resources: " + e.getMessage());
+        }
     }
 }

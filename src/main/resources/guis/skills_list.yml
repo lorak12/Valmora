@@ -1,0 +1,38 @@
+skills_list:
+  title: "<gold><bold>✦ Your Skills</bold></gold>"
+  rows: 6
+  update-interval: 40
+
+  layout:
+    - "BBBBBBBBB"
+    - "BBSBSBSBB" # Spreads items nicely
+    - "BBSBSBSBB"
+    - "BBSBSBSBB"
+    - "BBBBBBBBB"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+    S:
+      type: PAGINATED
+      list: "$player.skill.list$"
+      iterator: "skill"
+      states:
+        default:
+          item: "$skill.material$"
+          name: "$skill.name$"
+          lore:
+            - "<gray>Level: <yellow>$skill.level$ <dark_gray>/ $skill.max_level$"
+            - ""
+            - "$skill.description$"
+            - ""
+            - "<yellow>Click to view rewards!"
+          actions:
+            left:
+              actions:
+                # ROUTING OCCURS HERE: Passes the skill object as a prop!
+                - "open_gui skill_details target_skill=$skill$"

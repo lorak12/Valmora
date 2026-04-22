@@ -14,10 +14,7 @@ import org.nakii.valmora.util.Keys;
 
 public class MobFactory {
 
-    private final Valmora plugin;
-
     public MobFactory(Valmora plugin) {
-        this.plugin = plugin;
     }
     
     public void applyData(LivingEntity entity, MobDefinition definition) {

@@ -8,6 +8,7 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.variable.VariableProvider;
+import org.nakii.valmora.module.skill.SkillDefinition;
 import org.nakii.valmora.module.stat.Stat;
 
 import java.util.Optional;
@@ -86,13 +87,52 @@ public class PlayerVariableProvider implements VariableProvider {
         }
 
         if (key.equalsIgnoreCase("skill") && path.length > 1) {
-            String skillName = path[1];
-            try {
-                org.nakii.valmora.module.skill.Skill skill = org.nakii.valmora.module.skill.Skill.valueOf(skillName.toUpperCase());
-                return profile.getSkillManager().getLevel(skill);
-            } catch (IllegalArgumentException e) {
-                return null;
+            String subKey = path[1];
+            
+            // JSON Array generation for Pagination GUI
+            if (subKey.equalsIgnoreCase("list")) {
+                JsonArray array = new JsonArray();
+                for (SkillDefinition skill : ValmoraAPI.getInstance().getSkillManager().getSkillRegistry().values()) {
+                    JsonObject obj = new JsonObject();
+                    double xp = profile.getSkillManager().getXp(skill.getId());
+                    org.nakii.valmora.module.skill.SkillRegistry.ProgressData data = 
+                        ValmoraAPI.getInstance().getSkillManager().getSkillRegistry().getProgressData(skill.getXpCurve(), xp);
+                    
+                    obj.addProperty("id", skill.getId());
+                    obj.addProperty("name", skill.getName());
+                    obj.addProperty("description", skill.getDescription());
+                    obj.addProperty("material", skill.getMaterial().name());
+                    obj.addProperty("level", data.currentLevel());
+                    obj.addProperty("next_level", data.nextLevel());
+                    obj.addProperty("xp", (int) xp);
+                    obj.addProperty("xp_in_level", data.xpInLevel());
+                    obj.addProperty("xp_required", data.xpRequired());
+                    obj.addProperty("progress", data.percent());
+                    obj.addProperty("max_level", skill.getMaxLevel());
+                    array.add(obj);
+                }
+                return new Gson().toJson(array);
             }
+            
+            // Fetch individual skill info
+            Optional<SkillDefinition> maybeSkill = ValmoraAPI.getInstance().getSkillManager().getSkillRegistry().get(subKey);
+            if (maybeSkill.isEmpty()) return null;
+            
+            double xp = profile.getSkillManager().getXp(subKey);
+            org.nakii.valmora.module.skill.SkillRegistry.ProgressData data = 
+                ValmoraAPI.getInstance().getSkillManager().getSkillRegistry().getProgressData(maybeSkill.get().getXpCurve(), xp);
+
+            if (path.length > 2) {
+                String trait = path[2].toLowerCase();
+                if (trait.equals("xp")) return (int) xp;
+                if (trait.equals("level")) return data.currentLevel();
+                if (trait.equals("next_level")) return data.nextLevel();
+                if (trait.equals("progress")) return data.percent();
+                if (trait.equals("xp_in_level")) return data.xpInLevel();
+                if (trait.equals("xp_required")) return data.xpRequired();
+            }
+
+            return data.currentLevel();
         }
 
         if (key.equalsIgnoreCase("hp")) return profile.getPlayerState().getCurrentHealth();

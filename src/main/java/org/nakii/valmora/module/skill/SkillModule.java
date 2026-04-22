@@ -8,9 +8,13 @@ public class SkillModule implements ReloadableModule {
     private final Valmora plugin;
     private final SkillManager skillManager;
     private final SkillListener skillListener;
+    private final SkillRegistry skillRegistry;
+    private final SkillLoader skillLoader;
 
     public SkillModule(Valmora plugin) {
         this.plugin = plugin;
+        this.skillRegistry = new SkillRegistry();
+        this.skillLoader = new SkillLoader(plugin, skillRegistry);
         this.skillManager = new SkillManager();
         this.skillListener = new SkillListener(skillManager, plugin);
     }
@@ -18,6 +22,7 @@ public class SkillModule implements ReloadableModule {
     @Override
     public void onEnable() {
         plugin.getLogger().info("Enabling Skill Module...");
+        this.skillLoader.loadSkills();
         plugin.getServer().getPluginManager().registerEvents(skillListener, plugin);
     }
 
@@ -39,5 +44,9 @@ public class SkillModule implements ReloadableModule {
 
     public SkillManager getSkillManager() {
         return skillManager;
+    }
+
+    public SkillRegistry getSkillRegistry() {
+        return skillRegistry;
     }
 }

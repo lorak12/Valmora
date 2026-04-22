@@ -8,11 +8,11 @@ public class SkillLevelUpEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
     
     private final Player player;
-    private final Skill skill;
+    private final SkillDefinition skill;
     private final int oldLevel;
     private final int newLevel;
     
-    public SkillLevelUpEvent(Player player, Skill skill, int oldLevel, int newLevel) {
+    public SkillLevelUpEvent(Player player, SkillDefinition skill, int oldLevel, int newLevel) {
         this.player = player;
         this.skill = skill;
         this.oldLevel = oldLevel;
@@ -23,7 +23,7 @@ public class SkillLevelUpEvent extends Event {
         return player;
     }
 
-    public Skill getSkill() {
+    public SkillDefinition getSkill() {
         return skill;
     }
 

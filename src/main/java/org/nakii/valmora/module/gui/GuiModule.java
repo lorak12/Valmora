@@ -28,13 +28,14 @@ public class GuiModule implements ReloadableModule {
 
     @Override
     public void onEnable() {
-        loadGuis();
         plugin.getServer().getPluginManager().registerEvents(new GuiListener(plugin, this), plugin);
         
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.SoundEventFactory());
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.OpenGuiEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.CloseEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GiveXpEventFactory(plugin));
+
+        loadGuis();
     }
 
     @Override
@@ -45,7 +46,7 @@ public class GuiModule implements ReloadableModule {
         }
     }
 
-    public void openGui(Player player, String id) {
+    public void openGui(Player player, String id, Map<String, Object> props) {
         GuiDefinition def = guiRegistry.get(id);
         if (def == null) return;
 
@@ -62,11 +63,11 @@ public class GuiModule implements ReloadableModule {
         }
 
         GuiRenderer renderer = new GuiRenderer(plugin);
-        GuiSession tempSession = new GuiSession(player, def, null);
+        GuiSession tempSession = new GuiSession(player, def, null, props);
         String resolvedTitle = renderer.resolveVariables(def.getTitle(), tempSession, null, null);
 
         Inventory inv = Bukkit.createInventory(null, def.getRows() * 9, org.nakii.valmora.util.Formatter.format(resolvedTitle));
-        GuiSession session = new GuiSession(player, def, inv);
+        GuiSession session = new GuiSession(player, def, inv, props);
         openSessions.put(player.getUniqueId(), session);
         
         renderer.render(session);
@@ -78,6 +79,10 @@ public class GuiModule implements ReloadableModule {
                 def.getUpdateIntervalTicks(), def.getUpdateIntervalTicks());
             session.setUpdateTask(task);
         }
+    }
+
+    public void openGui(Player player, String id) {
+        openGui(player, id, new HashMap<>());
     }
 
     public void closeGuiSession(Player player) {

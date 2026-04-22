@@ -21,6 +21,9 @@ import org.nakii.valmora.module.script.condition.ConditionParser;
 import org.nakii.valmora.module.script.event.EventParser;
 import org.nakii.valmora.api.scripting.VariableResolver;
 
+import org.nakii.valmora.module.script.variable.providers.ParamVariableProvider;
+import org.nakii.valmora.module.script.variable.providers.PropVariableProvider;
+
 /**
  * Core module for the Valmora Scripting System.
  * Manages variables, expressions, conditions, and events.
@@ -56,6 +59,8 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new SystemVariableProvider());
         registerProvider(new WorldVariableProvider());
         registerProvider(new ServerVariableProvider());
+        registerProvider(new PropVariableProvider());
+        registerProvider(new ParamVariableProvider());
 
         // Register default events
         registerEvent(new GiveEvent());

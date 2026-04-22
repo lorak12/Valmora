@@ -1,59 +1,128 @@
 package org.nakii.valmora.module.skill;
 
-import java.util.EnumMap;
-import java.util.Map;
-
+import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.Player;
+import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class SkillManager {
     
-    private final Map<Skill, Double> skillXp = new EnumMap<>(Skill.class);
+    // Maps Skill ID (String) to XP amount
+    private final Map<String, Double> skillXp = new HashMap<>();
 
     public SkillManager() {
-        for (Skill skill : Skill.values()) {
-            skillXp.put(skill, 0.0);
+    }
+
+    public void loadData(Map<String, Double> savedData) {
+        this.skillXp.clear();
+        if (savedData != null) {
+            for (Map.Entry<String, Double> entry : savedData.entrySet()) {
+                this.skillXp.put(entry.getKey().toLowerCase(), entry.getValue());
+            }
         }
     }
 
-    public void loadData(Map<Skill, Double> savedData) {
-        for (Map.Entry<Skill, Double> entry : savedData.entrySet()) {
-            skillXp.put(entry.getKey(), entry.getValue());
+    public Map<String, Double> getSaveData() {
+        return new HashMap<>(skillXp);
+    }
+
+    public SkillRegistry getSkillRegistry() {
+        return Valmora.getInstance().getSkillModule().getSkillRegistry();
+    }
+
+    public double getXp(String skillId) {
+        return skillXp.getOrDefault(skillId.toLowerCase(), 0.0);
+    }
+
+    public double getXp(Skill skill) {
+        return getXp(skill.name());
+    }
+
+    public int getLevel(String skillId) {
+        SkillRegistry registry = getSkillRegistry();
+        SkillDefinition skill = registry.getSkill(skillId).orElse(null);
+        
+        if (skill == null) return 0;
+        
+        return registry.getLevelFromXp(skill.getXpCurve(), getXp(skillId));
+    }
+
+    public int getLevel(Skill skill) {
+        return getLevel(skill.name());
+    }
+
+    public int getLevelFromXp(String curveId, double xp) {
+        return getSkillRegistry().getLevelFromXp(curveId, xp);
+    }
+
+    public void setXp(String skillId, double amount) {
+        skillXp.put(skillId.toLowerCase(), amount);
+    }
+
+    public void setXp(Skill skill, double amount) {
+        setXp(skill.name(), amount);
+    }
+
+    public void addXp(String skillId, double amount, Player player) {
+        SkillRegistry registry = getSkillRegistry();
+        SkillDefinition skill = registry.getSkill(skillId).orElse(null);
+        
+        if (skill == null) return;
+
+        double currentXp = getXp(skillId);
+        int oldLevel = registry.getLevelFromXp(skill.getXpCurve(), currentXp);
+
+        // Stop adding XP if they are already at the max level
+        if (oldLevel >= skill.getMaxLevel()) {
+            return;
         }
-    }
-
-    public Map<Skill, Double> getSaveData() {
-        return new EnumMap<>(skillXp);
-    }
-
-    public double getXp(Skill skill){
-        return skillXp.get(skill);
-    }
-
-    public int getLevel(Skill skill){
-        return skill.getLevelFromXp(getXp(skill));
-    }
-
-    public void setXp(Skill skill, double amount){
-        skillXp.put(skill, amount);
-    }
-
-    public void addXp(Skill skill, double amount, Player player){
-        double currentXp = getXp(skill);
-        int oldLevel = getLevel(skill);
 
         double newXp = currentXp + amount;
-        skillXp.put(skill, newXp);
+        skillXp.put(skillId.toLowerCase(), newXp);
 
+        // Call XP Gain Event
         SkillXpGainEvent event = new SkillXpGainEvent(player, skill, newXp);
         event.callEvent();
 
-        int newLevel = skill.getLevelFromXp(newXp);
-        if (newLevel > oldLevel){
-            // call an event for level up
+        int newLevel = registry.getLevelFromXp(skill.getXpCurve(), newXp);
+        
+        // Cap to the skill's max level
+        if (newLevel > skill.getMaxLevel()) {
+            newLevel = skill.getMaxLevel();
+        }
+
+        if (newLevel > oldLevel) {
+            // Call Level Up Event
             SkillLevelUpEvent levelUpEvent = new SkillLevelUpEvent(player, skill, oldLevel, newLevel);
             levelUpEvent.callEvent();
+
+            // Prepare ExecutionContext for Script Engine rewards
+            MemoryConfiguration params = new MemoryConfiguration();
+            ExecutionContext context = new SimpleExecutionContext(player, player, player.getLocation(), params);
+
+            // Execute rewards for EVERY level gained (in case they gained multiple levels at once)
+            for (int lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+                // Update the dynamic $param.level$ variable
+                params.set("level", lvl); 
+
+                // Execute Per-Level Reward (if defined)
+                if (skill.getPerLevelReward() != null) {
+                    skill.getPerLevelReward().execute(context);
+                }
+
+                // Execute Milestone Reward (if defined for this specific level)
+                if (skill.getMilestoneRewards() != null && skill.getMilestoneRewards().containsKey(lvl)) {
+                    skill.getMilestoneRewards().get(lvl).execute(context);
+                }
+            }
         }
     }
 
-    
-}
+    public void addXp(Skill skill, double amount, Player player) {
+        addXp(skill.name(), amount, player);
+    }
+}

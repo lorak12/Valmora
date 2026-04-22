@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.gui.parser;
 
-import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.inventory.ClickType;
 import org.nakii.valmora.Valmora;
@@ -9,7 +8,6 @@ import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.gui.*;
 import org.nakii.valmora.module.gui.components.*;
-import org.nakii.valmora.util.Formatter;
 
 import java.util.*;
 
@@ -71,7 +69,21 @@ public class GuiDefinitionParser {
             case "DISPLAY" -> {
                 GuiItemStack item = parseItemStack(section.getConfigurationSection("display-item"));
                 Map<ClickType, ClickHandler> actions = parseActions(section.getConfigurationSection("actions"));
-                yield new DisplayComponent(item, actions);
+                
+                List<PaginatedState> states = new ArrayList<>();
+                ConfigurationSection statesSection = section.getConfigurationSection("states");
+                if (statesSection != null) {
+                    for (String key : statesSection.getKeys(false)) {
+                        ConfigurationSection stateSec = statesSection.getConfigurationSection(key);
+                        if (stateSec == null) continue;
+                        String condition = stateSec.getString("condition", "default");
+                        GuiItemStack displayItem = parseItemStack(stateSec.getConfigurationSection("display-item"));
+                        if (displayItem == null) displayItem = parseItemStack(stateSec);
+                        Map<ClickType, ClickHandler> stateActions = parseActions(stateSec.getConfigurationSection("actions"));
+                        states.add(new PaginatedState(condition, displayItem, stateActions));
+                    }
+                }
+                yield new DisplayComponent(item, actions, states);
             }
             case "INPUT" -> new InputComponent(section.getString("id"));
             case "OUTPUT" -> new OutputComponent(section.getString("id"));

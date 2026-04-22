@@ -2,7 +2,6 @@ package org.nakii.valmora.module.combat;
 
 import org.bukkit.event.Listener;
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;

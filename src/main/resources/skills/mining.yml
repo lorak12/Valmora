@@ -1,0 +1,32 @@
+id: "mining"
+name: "<gold><bold>⛏ Mining</bold></gold>"
+description:
+  - "<gray>Extract precious metals and gemstones from the depths."
+material: DIAMOND_PICKAXE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  BLOCK_BREAK:
+    STONE: 1.0
+    DEEPSLATE: 1.2
+    COAL_ORE: 10.0
+    DEEPSLATE_COAL_ORE: 12.0
+    IRON_ORE: 25.0
+    DEEPSLATE_IRON_ORE: 30.0
+    GOLD_ORE: 50.0
+    DEEPSLATE_GOLD_ORE: 60.0
+    DIAMOND_ORE: 150.0
+    DEEPSLATE_DIAMOND_ORE: 180.0
+    ANCIENT_DEBRIS: 500.0
+
+rewards:
+  per-level:
+    - "variable add player.var.defense 0.5"
+    - "variable add player.var.coins $param.level$*15"
+
+  milestones:
+    "10":
+      - "give IRON_PICKAXE:1 notify"
+    "30":
+      - "give DIAMOND_PICKAXE:1 notify"

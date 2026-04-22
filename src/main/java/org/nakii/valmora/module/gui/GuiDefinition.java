@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.gui;
 
-import net.kyori.adventure.text.Component;
 import java.util.List;
 import java.util.Map;
 

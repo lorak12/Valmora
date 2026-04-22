@@ -15,10 +15,14 @@ public class ChatUI {
     }
 
     public void sendLevelUp(Player player, Skill skill, int newLevel) {
+        sendLevelUp(player, skill.getName(), newLevel);
+    }
+
+    public void sendLevelUp(Player player, String skillName, int newLevel) {
         // A big, multi-line level up sequence
         player.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));
         player.sendMessage(Formatter.format(" <gold><bold>SKILL LEVEL UP!"));
-        player.sendMessage(Formatter.format(" <gray>Your <aqua>" + skill.getName() + " <gray>is now level <yellow>" + newLevel + "<gray>!"));
+        player.sendMessage(Formatter.format(" <gray>Your <aqua>" + skillName + " <gray>is now level <yellow>" + newLevel + "<gray>!"));
         player.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));
     }
 

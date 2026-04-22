@@ -1,0 +1,799 @@
+# =====================================================================
+# Dynamic Skill path GUI
+# Supports any skill passed via 'target_skill' parameter.
+# =====================================================================
+
+skill_details:
+  title: "<dark_gray>$prop.target_skill.name$ Skill</dark_gray>"
+  rows: 6
+  update-interval: 20
+
+  layout:
+    - "S.hij.rst"
+    - "a.g.k.q.u"
+    - "b.f.l.p.v"
+    - "cde.mno.w"
+    - "...X.Y..x"
+    - "....Z>..y"
+
+  components:
+    ".":
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+    S:
+      type: DISPLAY
+      display-item:
+        material: "$prop.target_skill.material$"
+        name: "<green>$prop.target_skill.name$ Skill"
+        lore:
+          - "<gray>$prop.target_skill.description$"
+          - "<gray>Progress to Level $prop.target_skill.next_level$: <yellow>$prop.target_skill.progress$%"
+          - "<white>-------------------- <yellow>$prop.target_skill.xp_in_level$<gold>/</gold><yellow>$prop.target_skill.xp_required$"
+          - ""
+          - "<dark_gray>Increase your $prop.target_skill.name$ Level to"
+          - "<dark_gray>unlock Perks, statistic bonuses, and"
+          - "<dark_gray>more!"
+
+    # Levels 1-25 dynamic path
+    a:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 1",
+            item: LIME_STAINED_GLASS_PANE,
+            name: "<green>$prop.target_skill.name$ Level I",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 1",
+            item: YELLOW_STAINED_GLASS_PANE,
+            name: "<yellow>$prop.target_skill.name$ Level I",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            name: "<red>$prop.target_skill.name$ Level I",
+          }
+    b:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 2",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 2,
+            name: "<green>$prop.target_skill.name$ Level II",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 2",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 2,
+            name: "<yellow>$prop.target_skill.name$ Level II",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 2,
+            name: "<red>$prop.target_skill.name$ Level II",
+          }
+    c:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 3",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 3,
+            name: "<green>$prop.target_skill.name$ Level III",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 3",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 3,
+            name: "<yellow>$prop.target_skill.name$ Level III",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 3,
+            name: "<red>$prop.target_skill.name$ Level III",
+          }
+    d:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 4",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 4,
+            name: "<green>$prop.target_skill.name$ Level IV",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 4",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 4,
+            name: "<yellow>$prop.target_skill.name$ Level IV",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 4,
+            name: "<red>$prop.target_skill.name$ Level IV",
+          }
+    e:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 5",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 5,
+            name: "<green>$prop.target_skill.name$ Level V",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 5",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 5,
+            name: "<yellow>$prop.target_skill.name$ Level V",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 5,
+            name: "<red>$prop.target_skill.name$ Level V",
+          }
+    f:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 6",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 6,
+            name: "<green>$prop.target_skill.name$ Level VI",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 6",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 6,
+            name: "<yellow>$prop.target_skill.name$ Level VI",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 6,
+            name: "<red>$prop.target_skill.name$ Level VI",
+          }
+    g:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 7",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 7,
+            name: "<green>$prop.target_skill.name$ Level VII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 7",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 7,
+            name: "<yellow>$prop.target_skill.name$ Level VII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 7,
+            name: "<red>$prop.target_skill.name$ Level VII",
+          }
+    h:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 8",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 8,
+            name: "<green>$prop.target_skill.name$ Level VIII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 8",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 8,
+            name: "<yellow>$prop.target_skill.name$ Level VIII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 8,
+            name: "<red>$prop.target_skill.name$ Level VIII",
+          }
+    i:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 9",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 9,
+            name: "<green>$prop.target_skill.name$ Level IX",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 9",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 9,
+            name: "<yellow>$prop.target_skill.name$ Level IX",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 9,
+            name: "<red>$prop.target_skill.name$ Level IX",
+          }
+    j:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 10",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 10,
+            name: "<green>$prop.target_skill.name$ Level X",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 10",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 10,
+            name: "<yellow>$prop.target_skill.name$ Level X",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 10,
+            name: "<red>$prop.target_skill.name$ Level X",
+          }
+    k:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 11",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 11,
+            name: "<green>$prop.target_skill.name$ Level XI",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 11",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 11,
+            name: "<yellow>$prop.target_skill.name$ Level XI",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 11,
+            name: "<red>$prop.target_skill.name$ Level XI",
+          }
+    l:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 12",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 12,
+            name: "<green>$prop.target_skill.name$ Level XII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 12",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 12,
+            name: "<yellow>$prop.target_skill.name$ Level XII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 12,
+            name: "<red>$prop.target_skill.name$ Level XII",
+          }
+    m:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 13",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 13,
+            name: "<green>$prop.target_skill.name$ Level XIII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 13",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 13,
+            name: "<yellow>$prop.target_skill.name$ Level XIII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 13,
+            name: "<red>$prop.target_skill.name$ Level XIII",
+          }
+    n:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 14",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 14,
+            name: "<green>$prop.target_skill.name$ Level XIV",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 14",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 14,
+            name: "<yellow>$prop.target_skill.name$ Level XIV",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 14,
+            name: "<red>$prop.target_skill.name$ Level XIV",
+          }
+    o:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 15",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 15,
+            name: "<green>$prop.target_skill.name$ Level XV",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 15",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 15,
+            name: "<yellow>$prop.target_skill.name$ Level XV",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 15,
+            name: "<red>$prop.target_skill.name$ Level XV",
+          }
+    p:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 16",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 16,
+            name: "<green>$prop.target_skill.name$ Level XVI",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 16",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 16,
+            name: "<yellow>$prop.target_skill.name$ Level XVI",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 16,
+            name: "<red>$prop.target_skill.name$ Level XVI",
+          }
+    q:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 17",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 17,
+            name: "<green>$prop.target_skill.name$ Level XVII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 17",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 17,
+            name: "<yellow>$prop.target_skill.name$ Level XVII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 17,
+            name: "<red>$prop.target_skill.name$ Level XVII",
+          }
+    r:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 18",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 18,
+            name: "<green>$prop.target_skill.name$ Level XVIII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 18",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 18,
+            name: "<yellow>$prop.target_skill.name$ Level XVIII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 18,
+            name: "<red>$prop.target_skill.name$ Level XVIII",
+          }
+    s:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 19",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 19,
+            name: "<green>$prop.target_skill.name$ Level XIX",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 19",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 19,
+            name: "<yellow>$prop.target_skill.name$ Level XIX",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 19,
+            name: "<red>$prop.target_skill.name$ Level XIX",
+          }
+    t:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 20",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 20,
+            name: "<green>$prop.target_skill.name$ Level XX",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 20",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 20,
+            name: "<yellow>$prop.target_skill.name$ Level XX",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 20,
+            name: "<red>$prop.target_skill.name$ Level XX",
+          }
+    u:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 21",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 21,
+            name: "<green>$prop.target_skill.name$ Level XXI",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 21",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 21,
+            name: "<yellow>$prop.target_skill.name$ Level XXI",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 21,
+            name: "<red>$prop.target_skill.name$ Level XXI",
+          }
+    v:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 22",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 22,
+            name: "<green>$prop.target_skill.name$ Level XXII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 22",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 22,
+            name: "<yellow>$prop.target_skill.name$ Level XXII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 22,
+            name: "<red>$prop.target_skill.name$ Level XXII",
+          }
+    w:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 23",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 23,
+            name: "<green>$prop.target_skill.name$ Level XXIII",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 23",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 23,
+            name: "<yellow>$prop.target_skill.name$ Level XXIII",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 23,
+            name: "<red>$prop.target_skill.name$ Level XXIII",
+          }
+    x:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 24",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 24,
+            name: "<green>$prop.target_skill.name$ Level XXIV",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 24",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 24,
+            name: "<yellow>$prop.target_skill.name$ Level XXIV",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 24,
+            name: "<red>$prop.target_skill.name$ Level XXIV",
+          }
+    y:
+      type: DISPLAY
+      states:
+        completed:
+          {
+            condition: "$prop.target_skill.level$ > 25",
+            item: LIME_STAINED_GLASS_PANE,
+            amount: 25,
+            name: "<green>$prop.target_skill.name$ Level XXV",
+          }
+        current:
+          {
+            condition: "$prop.target_skill.level$ == 25",
+            item: YELLOW_STAINED_GLASS_PANE,
+            amount: 25,
+            name: "<yellow>$prop.target_skill.name$ Level XXV",
+          }
+        locked:
+          {
+            condition: "default",
+            item: RED_STAINED_GLASS_PANE,
+            amount: 25,
+            name: "<red>$prop.target_skill.name$ Level XXV",
+          }
+
+    # Bestiary, Slayer and Nav buttons
+    X:
+      type: DISPLAY
+      display-item:
+        {
+          material: BOOK_AND_QUILL,
+          name: "<aqua>Bestiary",
+          lore: ["<gray>Compendium of mobs...", "<yellow>Click to view!"],
+        }
+    Y:
+      type: DISPLAY
+      display-item:
+        {
+          material: LEVER,
+          name: "<dark_purple>Slayer",
+          lore: ["<gray>Take on a <dark_purple>Slayer Quest..."],
+        }
+    Z:
+      type: DISPLAY
+      display-item: { material: ARROW, name: "<gray>To Your Skills" }
+      actions: { left: { actions: ["open_gui skills_list"] } }
+    ">":
+      type: DISPLAY
+      display-item:
+        {
+          material: ARROW,
+          name: "<green>Next Levels",
+          lore: ["<yellow>Click to view!"],
+        }
+      actions:
+        {
+          left:
+            {
+              actions:
+                ["open_gui combat_skill_two target_skill=$prop.target_skill$"],
+            },
+        }
+
+# PAGE 2 (26-50)
+combat_skill_two:
+  title: "<dark_gray>$prop.target_skill.name$ Skill (26-50)</dark_gray>"
+  rows: 6
+  update-interval: 20
+  layout:
+    - "S.hij.rst"
+    - "a.g.k.q.u"
+    - "b.f.l.p.v"
+    - "cde.mno.w"
+    - "...X.Y..x"
+    - "....Z>..y"
+  components:
+    ".":
+      {
+        type: DISPLAY,
+        display-item: { material: GRAY_STAINED_GLASS_PANE, name: " " },
+      }
+    S:
+      {
+        type: DISPLAY,
+        display-item:
+          {
+            material: "$prop.target_skill.material$",
+            name: "<green>$prop.target_skill.name$ Skill",
+            lore: ["<gray>Levels 26-50"],
+          },
+      }
+    a:
+      {
+        type: DISPLAY,
+        states:
+          [
+            {
+              condition: "$prop.target_skill.level$ > 26",
+              item: LIME_STAINED_GLASS_PANE,
+              amount: 26,
+              name: "<green>$prop.target_skill.name$ Level XXVI",
+            },
+            {
+              condition: "$prop.target_skill.level$ == 26",
+              item: YELLOW_STAINED_GLASS_PANE,
+              amount: 26,
+              name: "<yellow>$prop.target_skill.name$ Level XXVI",
+            },
+            {
+              condition: "default",
+              item: RED_STAINED_GLASS_PANE,
+              amount: 26,
+              name: "<red>$prop.target_skill.name$ Level XXVI",
+            },
+          ],
+      }
+    # ... (rest of Page 2 should follow same pattern, but user mainly wanted Page 1 for now)
+    ">":
+      {
+        type: DISPLAY,
+        display-item: { material: ARROW, name: "<green>Next Levels" },
+        actions:
+          {
+            left:
+              {
+                actions:
+                  [
+                    "open_gui combat_skill_three target_skill=$prop.target_skill$",
+                  ],
+              },
+          },
+      }
+    Z:
+      {
+        type: DISPLAY,
+        display-item: { material: ARROW, name: "<gray>Back to 1 - 25" },
+        actions:
+          {
+            left:
+              {
+                actions:
+                  ["open_gui skill_details target_skill=$prop.target_skill$"],
+              },
+          },
+      }
+
+# PAGE 3 (51-60)
+combat_skill_three:
+  title: "<dark_gray>$prop.target_skill.name$ Skill (51-60)</dark_gray>"
+  rows: 6
+  update-interval: 20
+  layout:
+    - "S.hij.rst"
+    - "a.g.k.q.u"
+    - "b.f.l.p.v"
+    - "cde.mno.w"
+    - "...X.Y..x"
+    - "....Z>..y"
+  components:
+    Z:
+      {
+        type: DISPLAY,
+        display-item: { material: ARROW, name: "<gray>Back to 26 - 50" },
+        actions:
+          {
+            left:
+              {
+                actions:
+                  [
+                    "open_gui combat_skill_two target_skill=$prop.target_skill$",
+                  ],
+              },
+          },
+      }
+    ">":
+      {
+        type: DISPLAY,
+        display-item: { material: ARROW, name: "<green>Back to 1 - 25" },
+        actions:
+          {
+            left:
+              {
+                actions:
+                  ["open_gui skill_details target_skill=$prop.target_skill$"],
+              },
+          },
+      }

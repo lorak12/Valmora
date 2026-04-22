@@ -35,6 +35,46 @@ public class VariableResolverImpl implements VariableResolver {
 
         return module.getVariableProviderRegistry().get(namespace)
                 .map(provider -> provider.resolve(remainingPath, context))
-                .orElse(null);
+                .orElseGet(() -> {
+                    if (context instanceof org.nakii.valmora.module.gui.GuiExecutionContext guiCtx) {
+                        Object loopVar = guiCtx.getLoopVars().get(namespace);
+                        if (loopVar != null) {
+                            Object current = loopVar;
+                            for (String key : remainingPath) {
+                                if (current == null) break;
+                                if (current instanceof java.util.Map<?, ?> map) {
+                                    current = map.get(key);
+                                } else if (current instanceof org.bukkit.configuration.ConfigurationSection section) {
+                                    current = section.get(key);
+                                } else {
+                                    current = null;
+                                    break;
+                                }
+                            }
+                            if (current != null || remainingPath.length == 0) return current;
+                        }
+                    }
+                    
+                    // Legacy: fall back to ConfigurationSection params (useful for simple dynamic execution contexts)
+                    if (context.getParams() != null) {
+                        Object cfgParam = context.getParams().get(namespace);
+                        if (cfgParam != null) {
+                            Object current = cfgParam;
+                            for (String key : remainingPath) {
+                                if (current == null) break;
+                                if (current instanceof java.util.Map<?, ?> map) {
+                                    current = map.get(key);
+                                } else if (current instanceof org.bukkit.configuration.ConfigurationSection section) {
+                                    current = section.get(key);
+                                } else {
+                                    current = null;
+                                    break;
+                                }
+                            }
+                            if (current != null || remainingPath.length == 0) return current;
+                        }
+                    }
+                    return null;
+                });
     }
 }

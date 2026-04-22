@@ -1,0 +1,26 @@
+id: "fishing"
+name: "<blue><bold>🎣 Fishing</bold></blue>"
+description:
+  - "<gray>Reel in treasures and rare fish from the deep sea."
+material: FISHING_ROD
+max-level: 60
+xp-curve: "default"
+
+sources:
+  FISHING:
+    COD: 50.0
+    SALMON: 70.0
+    PUFFERFISH: 150.0
+    TROPICAL_FISH: 150.0
+    TREASURE: 1000.0
+
+rewards:
+  per-level:
+    - "variable add player.var.mana 0.3"
+    - "variable add player.var.coins $param.level$*25"
+
+  milestones:
+    "15":
+      - "tag add master_angler"
+    "25":
+      - "give ENCHANTED_BOOK:1 notify"

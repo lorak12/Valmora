@@ -69,6 +69,48 @@ public class YamlLoader<T> {
             }
         }
 
+        reportErrors(errors, loadedCount);
+    }
+
+    /**
+     * Loads each file in the folder as a single section, using the filename as the ID.
+     */
+    public void loadFilesAsSections(SectionParser<T> parser, Consumer<T> registerAction) {
+        File folder = new File(plugin.getDataFolder(), folderName);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+
+        File[] files = folder.listFiles();
+        List<String> errors = new ArrayList<>();
+        int loadedCount = 0;
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile() && file.getName().endsWith(".yml")) {
+                    String relativePath = folderName + "/" + file.getName();
+                    try {
+                        String id = file.getName().replace(".yml", "");
+                        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                        
+                        LoadResult<T, String> result = parser.parse(id, (ConfigurationSection) config, relativePath);
+                        if (result.isSuccess()) {
+                            registerAction.accept(result.getValue());
+                            loadedCount++;
+                        } else {
+                            errors.add(result.getError());
+                        }
+                    } catch (Exception e) {
+                        errors.add("[" + relativePath + "] Failed to parse YAML: " + e.getMessage());
+                    }
+                }
+            }
+        }
+
+        reportErrors(errors, loadedCount);
+    }
+
+    private void reportErrors(List<String> errors, int loadedCount) {
         if (!errors.isEmpty()) {
             logger.warning("Failed to load some " + typeName + ". Please check your configuration files.");
             logger.warning("------------------------------");

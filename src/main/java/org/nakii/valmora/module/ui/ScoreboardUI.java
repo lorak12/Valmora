@@ -9,21 +9,16 @@ import java.util.Map;
 import java.util.UUID;
 
 public class ScoreboardUI {
-    private final Valmora plugin;
-
     // Stores the current dynamic section for each player
     private final Map<UUID, DynamicSection> dynamicSections = new HashMap<>();
 
     public ScoreboardUI(Valmora plugin) {
-        this.plugin = plugin;
     }
 
     private static class DynamicSection {
-        List<String> lines;
         boolean locked;
 
         DynamicSection(List<String> lines, boolean locked) {
-            this.lines = lines;
             this.locked = locked;
         }
     }

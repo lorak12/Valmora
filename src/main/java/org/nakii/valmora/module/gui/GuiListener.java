@@ -10,16 +10,12 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.module.gui.components.DisplayComponent;
-import org.nakii.valmora.module.gui.components.InputComponent;
-import org.nakii.valmora.module.gui.components.OutputComponent;
+import org.nakii.valmora.module.gui.components.*;
+import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
-import org.nakii.valmora.module.recipe.RecipeType;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public class GuiListener implements Listener {
@@ -39,23 +35,134 @@ public class GuiListener implements Listener {
         GuiSession session = guiModule.getSession(player.getUniqueId());
         if (session == null) return;
         
-        // Block clicks if they affect display items
-        int slot = event.getRawSlot();
-        if (slot >= 0 && slot < event.getInventory().getSize()) {
-            GuiComponent component = getComponentAt(session, slot);
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+
+        // Prevent double-click from stealing items across inventories
+        if (event.getAction() == org.bukkit.event.inventory.InventoryAction.COLLECT_TO_CURSOR) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 1. Click is in the Top Inventory
+        if (rawSlot >= 0 && rawSlot < topSize) {
+            // Default: Cancel ALL clicks in the top inventory to prevent item theft
+            event.setCancelled(true);
+
+            GuiComponent component = getComponentAt(session, rawSlot);
+            if (component == null) return;
+
             if (component instanceof DisplayComponent display) {
-                event.setCancelled(true);
-                ClickHandler handler = display.getActions().get(event.getClick());
+                ClickHandler handler = null;
+                
+                // First check if current state has a handler
+                if (!display.getStates().isEmpty()) {
+                    GuiRenderer renderer = new GuiRenderer(plugin);
+                    PaginatedState state = renderer.findMatchingState(display.getStates(), session, null);
+                    if (state != null && state.actions() != null) {
+                        handler = state.actions().get(event.getClick());
+                    }
+                }
+                
+                // Fallback to base actions
+                if (handler == null) {
+                    handler = display.getActions().get(event.getClick());
+                }
+
                 if (handler != null) {
                     executeHandler(session, handler);
                 }
             } else if (component instanceof OutputComponent output) {
                 handleOutputClick(event, session, output);
             } else if (component instanceof InputComponent) {
-                // Schedule a tick delay to re-evaluate recipe after the item actually moves
+                // ALLOW clicks in input slots
+                event.setCancelled(false);
                 Bukkit.getScheduler().runTask(plugin, () -> updateRecipeOutput(session));
+            } else if (component instanceof PaginatedComponent paginated) {
+                handlePaginatedClick(event, session, paginated, rawSlot);
+            } else if (component instanceof PageButtonComponent button) {
+                handlePageButtonClick(event, session, button);
+            }
+        } 
+        // 2. Click is in Bottom Inventory (Player's inventory)
+        else if (event.isShiftClick()) {
+            // Block shift-clicking into the GUI to prevent depositing items
+            event.setCancelled(true);
+        }
+    }
+
+    private void handlePaginatedClick(InventoryClickEvent event, GuiSession session, 
+                                     PaginatedComponent paginated, int slot) {
+        GuiRenderer renderer = new GuiRenderer(plugin);
+        java.util.List<?> items = renderer.resolveList(paginated.getListExpression(), session);
+        if (items == null) return;
+
+        int itemsPerPage = renderer.countSlotsForComponent(session.getDefinition(), paginated);
+        int indexInPage = getPaginatedIndex(session, paginated, slot);
+        if (indexInPage == -1) return;
+
+        int itemIndex = session.getCurrentPage() * itemsPerPage + indexInPage;
+
+        if (itemIndex < items.size()) {
+            Object loopItem = items.get(itemIndex);
+            PaginatedState state = 
+                renderer.findMatchingState(paginated.getStates(), session, loopItem);
+            
+            if (state != null && state.actions() != null) {
+                ClickHandler handler = state.actions().get(event.getClick());
+                if (handler != null) {
+                    // Create context and inject the loop item as a param
+                    GuiExecutionContext context = new GuiExecutionContext((Player) event.getWhoClicked(), session);
+                    if (paginated.getIteratorName() != null) {
+                        context.setLoopVar(paginated.getIteratorName(), loopItem);
+                    }
+                    
+                    if (handler.conditions() == null || handler.conditions().evaluate(context)) {
+                        if (handler.actions() != null) handler.actions().execute(context);
+                    } else {
+                        if (handler.failActions() != null) handler.failActions().execute(context);
+                    }
+                }
             }
         }
+    }
+
+    private void handlePageButtonClick(InventoryClickEvent event, GuiSession session, 
+                                       PageButtonComponent button) {
+        GuiRenderer renderer = new GuiRenderer(plugin);
+        if (button.isNext()) {
+            if (renderer.hasNextPage(session)) {
+                session.setCurrentPage(session.getCurrentPage() + 1);
+                renderer.render(session);
+            }
+        } else {
+            if (session.getCurrentPage() > 0) {
+                session.setCurrentPage(session.getCurrentPage() - 1);
+                renderer.render(session);
+            }
+        }
+    }
+
+    private int getPaginatedIndex(GuiSession session, PaginatedComponent target, int clickedSlot) {
+        java.util.List<java.util.List<Character>> layout = session.getDefinition().getLayout();
+        char targetChar = 0;
+        for (java.util.Map.Entry<Character, GuiComponent> entry : session.getDefinition().getComponents().entrySet()) {
+            if (entry.getValue() == target) {
+                targetChar = entry.getKey();
+                break;
+            }
+        }
+        
+        int counter = 0;
+        for (int r = 0; r < layout.size(); r++) {
+            java.util.List<Character> row = layout.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                int slot = r * 9 + c;
+                if (slot == clickedSlot) return counter;
+                if (row.get(c) == targetChar) counter++;
+            }
+        }
+        return -1;
     }
 
     private void handleOutputClick(InventoryClickEvent event, GuiSession session, OutputComponent output) {
@@ -163,18 +270,6 @@ public class GuiListener implements Listener {
         }
     }
 
-    private boolean isSameItem(ItemStack stack, String targetId) {
-        if (stack == null || targetId == null) return false;
-
-        if (stack.hasItemMeta()) {
-            String valmoraId = stack.getItemMeta().getPersistentDataContainer().get(org.nakii.valmora.util.Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-            if (valmoraId != null && valmoraId.equalsIgnoreCase(targetId)) return true;
-        }
-
-        Material mat = Material.matchMaterial(targetId);
-        return mat != null && stack.getType() == mat;
-    }
-
     private void updateRecipeOutput(GuiSession session) {
         String machineId = session.getDefinition().getMachine();
         Optional<RecipeDefinition> match = plugin.getRecipeModule().getRecipeEngine().match(machineId, session.getInputSnapshot());
@@ -237,7 +332,10 @@ public class GuiListener implements Listener {
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
-        guiModule.closeGuiSession(player);
+        GuiSession session = guiModule.getSession(player.getUniqueId());
+        if (session != null && session.getInventory().equals(event.getInventory())) {
+            guiModule.closeGuiSession(player);
+        }
     }
 
    @EventHandler
@@ -253,7 +351,7 @@ public class GuiListener implements Listener {
                 GuiComponent component = getComponentAt(session, slot);
                 
                 // Strict whitelist: Only allow dragging into Input Components
-                if (!(component instanceof org.nakii.valmora.module.gui.components.InputComponent)) {
+                if (!(component instanceof InputComponent)) {
                     event.setCancelled(true);
                     return;
                 } else {

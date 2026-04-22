@@ -9,10 +9,10 @@ public class SkillXpGainEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
     
     private final Player player;
-    private final Skill skill;
+    private final SkillDefinition skill;
     private final double xp;
     
-    public SkillXpGainEvent(Player player, Skill skill, double xp) {
+    public SkillXpGainEvent(Player player, SkillDefinition skill, double xp) {
         this.player = player;
         this.skill = skill;
         this.xp = xp;
@@ -22,7 +22,7 @@ public class SkillXpGainEvent extends Event {
         return player;
     }
 
-    public Skill getSkill() {
+    public SkillDefinition getSkill() {
         return skill;
     }
 

@@ -1,0 +1,25 @@
+id: "combat"
+name: "<red><bold>⚔ Combat</bold></red>"
+description:
+  - "<dark_gray>Slay monsters to increase your power."
+material: IRON_SWORD
+max-level: 60
+xp-curve: "default"
+
+sources:
+  MOB_KILL:
+    ZOMBIE: 5.0
+    test_zombie: 15.0
+    ENDER_DRAGON: 1000.0
+
+rewards:
+  per-level:
+    # Uses $param.level$ to scale rewards infinitely!
+    - "variable add player.var.strength 1"
+    - "variable add player.var.coins $param.level$*10"
+
+  milestones:
+    "10":
+      - "give IRON_SWORD:1 notify"
+    "25":
+      - "tag add tier2_combat_unlocked"
