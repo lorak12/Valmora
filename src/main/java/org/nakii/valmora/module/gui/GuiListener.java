@@ -58,7 +58,7 @@ public class GuiListener implements Listener {
                 // First check if current state has a handler
                 if (!display.getStates().isEmpty()) {
                     GuiRenderer renderer = new GuiRenderer(plugin);
-                    PaginatedState state = renderer.findMatchingState(display.getStates(), session, null);
+                    PaginatedState state = renderer.findMatchingState(display.getStates(), session, null, null);
                     if (state != null && state.actions() != null) {
                         handler = state.actions().get(event.getClick());
                     }
@@ -79,8 +79,9 @@ public class GuiListener implements Listener {
                 event.setCancelled(false);
                 Bukkit.getScheduler().runTask(plugin, () -> updateRecipeOutput(session));
             } else if (component instanceof PaginatedComponent paginated) {
-                handlePaginatedClick(event, session, paginated, rawSlot);
-            } else if (component instanceof PageButtonComponent button) {
+                char clickedChar = session.getDefinition().getLayout().get(rawSlot / 9).get(rawSlot % 9);
+                handlePaginatedClick(event, session, paginated, rawSlot, clickedChar);
+            }else if (component instanceof PageButtonComponent button) {
                 handlePageButtonClick(event, session, button);
             }
         } 
@@ -91,14 +92,17 @@ public class GuiListener implements Listener {
         }
     }
 
-    private void handlePaginatedClick(InventoryClickEvent event, GuiSession session, 
-                                     PaginatedComponent paginated, int slot) {
+   private void handlePaginatedClick(InventoryClickEvent event, GuiSession session, 
+                                     PaginatedComponent paginated, int slot, char clickedChar) {
         GuiRenderer renderer = new GuiRenderer(plugin);
         java.util.List<?> items = renderer.resolveList(paginated.getListExpression(), session);
         if (items == null) return;
 
-        int itemsPerPage = renderer.countSlotsForComponent(session.getDefinition(), paginated);
-        int indexInPage = getPaginatedIndex(session, paginated, slot);
+        int itemsPerPage = (paginated.getPath() != null && !paginated.getPath().isEmpty()) ?
+                           paginated.getPath().length() :
+                           renderer.countSlotsForComponent(session.getDefinition(), paginated);
+
+        int indexInPage = getPaginatedIndex(session, paginated, slot, clickedChar);
         if (indexInPage == -1) return;
 
         int itemIndex = session.getCurrentPage() * itemsPerPage + indexInPage;
@@ -106,7 +110,7 @@ public class GuiListener implements Listener {
         if (itemIndex < items.size()) {
             Object loopItem = items.get(itemIndex);
             PaginatedState state = 
-                renderer.findMatchingState(paginated.getStates(), session, loopItem);
+                renderer.findMatchingState(paginated.getStates(), session, loopItem, paginated.getIteratorName());
             
             if (state != null && state.actions() != null) {
                 ClickHandler handler = state.actions().get(event.getClick());
@@ -143,7 +147,10 @@ public class GuiListener implements Listener {
         }
     }
 
-    private int getPaginatedIndex(GuiSession session, PaginatedComponent target, int clickedSlot) {
+    private int getPaginatedIndex(GuiSession session, PaginatedComponent target, int clickedSlot, char clickedChar) {
+        if (target.getPath() != null && !target.getPath().isEmpty()) {
+            return target.getPath().indexOf(clickedChar);
+        }
         java.util.List<java.util.List<Character>> layout = session.getDefinition().getLayout();
         char targetChar = 0;
         for (java.util.Map.Entry<Character, GuiComponent> entry : session.getDefinition().getComponents().entrySet()) {

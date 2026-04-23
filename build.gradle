@@ -25,6 +25,14 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.46.0.0")
     implementation("com.mysql:mysql-connector-j:8.3.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 tasks {

@@ -24,6 +24,7 @@ import org.nakii.valmora.module.skill.SkillCommand;
 import org.nakii.valmora.module.skill.SkillManager;
 import org.nakii.valmora.module.skill.SkillModule;
 import org.nakii.valmora.module.script.ScriptModule;
+import org.nakii.valmora.module.enchant.EnchantModule;
 import org.nakii.valmora.util.Keys;
 
 import java.io.File;
@@ -52,6 +53,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private UIManager uiManager;
     private org.nakii.valmora.module.gui.GuiModule guiModule;
     private org.nakii.valmora.module.recipe.RecipeModule recipeModule;
+    private org.nakii.valmora.module.enchant.EnchantModule enchantModule;
 
     private ModuleManager moduleManager;
 
@@ -85,6 +87,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this);
         this.recipeModule = new RecipeModule(this);
+        this.enchantModule = new EnchantModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -101,6 +104,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(combatModule);
         moduleManager.registerModule(guiModule);
         moduleManager.registerModule(recipeModule);
+        moduleManager.registerModule(enchantModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -195,6 +199,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return recipeModule;
     }
 
+    public org.nakii.valmora.module.enchant.EnchantModule getEnchantModule() {
+        return enchantModule;
+    }
+
     private void saveAllResources() {
         try {
             File jarFile = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -209,7 +217,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                     }
 
                     if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
-                            name.startsWith("recipes/") || name.startsWith("skills/")) {
+                            name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/")) {
                         saveResource(name, true);
                     }
                 }

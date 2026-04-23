@@ -6,10 +6,7 @@ import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.script.variable.VariableResolverImpl;
-import org.nakii.valmora.module.script.variable.providers.PlayerVariableProvider;
-import org.nakii.valmora.module.script.variable.providers.ServerVariableProvider;
-import org.nakii.valmora.module.script.variable.providers.SystemVariableProvider;
-import org.nakii.valmora.module.script.variable.providers.WorldVariableProvider;
+import org.nakii.valmora.module.script.variable.providers.*;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.impl.GiveEvent;
 import org.nakii.valmora.module.script.event.impl.TagEvent;
@@ -20,9 +17,6 @@ import org.nakii.valmora.api.scripting.ExpressionEvaluator;
 import org.nakii.valmora.module.script.condition.ConditionParser;
 import org.nakii.valmora.module.script.event.EventParser;
 import org.nakii.valmora.api.scripting.VariableResolver;
-
-import org.nakii.valmora.module.script.variable.providers.ParamVariableProvider;
-import org.nakii.valmora.module.script.variable.providers.PropVariableProvider;
 
 /**
  * Core module for the Valmora Scripting System.
@@ -61,6 +55,7 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new ServerVariableProvider());
         registerProvider(new PropVariableProvider());
         registerProvider(new ParamVariableProvider());
+        registerProvider(new RangeVariableProvider());
 
         // Register default events
         registerEvent(new GiveEvent());

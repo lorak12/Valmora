@@ -8,12 +8,14 @@ public final class PaginatedComponent extends GuiComponent {
     private final String iteratorName;
     private final boolean destructure;
     private final List<PaginatedState> states;
+    private final String path;
 
-    public PaginatedComponent(String listExpression, String iteratorName, boolean destructure, List<PaginatedState> states) {
+    public PaginatedComponent(String listExpression, String iteratorName, boolean destructure, List<PaginatedState> states, String path) {
         this.listExpression = listExpression;
         this.iteratorName = iteratorName;
         this.destructure = destructure;
         this.states = states;
+        this.path = path;
     }
 
     public String getListExpression() {
@@ -30,5 +32,9 @@ public final class PaginatedComponent extends GuiComponent {
 
     public List<PaginatedState> getStates() {
         return states;
+    }
+
+    public String getPath() {
+        return path;
     }
 }

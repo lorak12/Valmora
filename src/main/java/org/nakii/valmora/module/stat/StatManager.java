@@ -7,8 +7,8 @@ import org.bukkit.potion.PotionEffect;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.item.AbilityTrigger;
-import org.nakii.valmora.module.item.ConfiguredMechanic;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.util.Keys;
 
 import java.util.HashMap;
@@ -100,13 +100,22 @@ public class StatManager {
                             for (AbilityDefinition ability : definition.getAbilities().values()) {
                                 if (ability.getTrigger() == AbilityTrigger.PASSIVE) {
                                     for (ConfiguredMechanic mechanic : ability.getMechanics()) {
-                                        // Passives don't have targets usually, so we pass the player as the target
                                         mechanic.execute(player, player);
                                     }
                                 }
                             }
                         }
                     });
+                }
+
+                Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(item);
+                if (!enchants.isEmpty()) {
+                    for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
+                        var enchantDef = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                        if (enchantDef != null && enchantDef.getLogic() != null) {
+                            enchantDef.getLogic().applyStats(player, entry.getValue(), this);
+                        }
+                    }
                 }
             }
         }

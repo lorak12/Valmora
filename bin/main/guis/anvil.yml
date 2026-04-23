@@ -14,7 +14,7 @@ anvil:
   title: "<dark_gray><bold>⚙ Valmora Anvil</bold></dark_gray>"
   rows: 6
   machine: anvil
-  update-interval: 10
+  update-interval: 0
 
   layout:
     - "BBBBBBBBB"

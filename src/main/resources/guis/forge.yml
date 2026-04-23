@@ -14,7 +14,7 @@ forge:
   title: "<dark_red><bold>⚒ Valmora Forge</bold></dark_red>"
   rows: 4
   machine: forge
-  update-interval: 10
+  update-interval: 0
 
   layout:
     - "BBBBBBBBB"

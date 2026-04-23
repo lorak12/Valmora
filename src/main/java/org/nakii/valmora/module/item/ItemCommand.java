@@ -1,12 +1,14 @@
 package org.nakii.valmora.module.item;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.List;
@@ -106,7 +108,52 @@ public class ItemCommand implements TabExecutor {
                 org.nakii.valmora.api.ValmoraAPI.getInstance().getModuleManager().reloadModule("items");
                 player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Item configuration reloaded."));
                 break;
-                
+
+            case "enchant":
+                if (args.length < 3) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /item enchant <enchant_id> <level>"));
+                    return true;
+                }
+
+                String enchantId = args[1];
+                int enchantLevel;
+                try {
+                    enchantLevel = Integer.parseInt(args[2]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Invalid level: " + args[2]));
+                    return true;
+                }
+
+                ItemStack mainHand = player.getInventory().getItemInMainHand();
+                if (mainHand == null || mainHand.getType() == Material.AIR) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>You must hold an item in your main hand!"));
+                    return true;
+                }
+
+                EnchantmentHelper.applyEnchantment(mainHand, enchantId, enchantLevel);
+                player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Applied <white>" + enchantId + " " + enchantLevel + " <green>to your item."));
+                break;
+
+            case "enchantbook":
+                if (args.length < 3) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /item enchantbook <enchant_id> <level>"));
+                    return true;
+                }
+
+                String bookEnchantId = args[1];
+                int bookLevel;
+                try {
+                    bookLevel = Integer.parseInt(args[2]);
+                } catch (NumberFormatException e) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Invalid level: " + args[2]));
+                    return true;
+                }
+
+                ItemStack enchantedBook = EnchantmentHelper.createEnchantedBook(bookEnchantId, bookLevel);
+                player.getInventory().addItem(enchantedBook);
+                player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Gave you an enchanted book with <white>" + bookEnchantId + " " + bookLevel + "</green>."));
+                break;
+
             default:
                 player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Unknown subcommand."));
                 break;
@@ -118,15 +165,21 @@ public class ItemCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filterMatches(args[0], List.of("give", "reload", "info", "list"));
+            return filterMatches(args[0], List.of("give", "reload", "info", "list", "enchant", "enchantbook"));
         } else if (args.length == 2 && (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("info"))) {
             ItemManager itemManager = plugin.getItemManager();
             return filterMatches(args[1], 
                 itemManager.getItemRegistry().getAllItemIds().stream()
                     .map(String::toLowerCase)
                     .collect(Collectors.toList()));
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("enchant") || args[0].equalsIgnoreCase("enchantbook"))) {
+            return filterMatches(args[1],
+                plugin.getEnchantModule().getRegistry().getKeys().stream()
+                    .collect(Collectors.toList()));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
             return filterMatches(args[2], List.of("1", "16", "32", "64"));
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("enchant")) {
+            return filterMatches(args[2], List.of("1", "2", "3", "4", "5"));
         } else if (args.length == 4 && args[0].equalsIgnoreCase("give")) {
             return filterMatches(args[3], Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList()));
         }

@@ -43,11 +43,14 @@ public class GuiDefinitionParser {
             ConfigurationSection compSection = section.getConfigurationSection("components");
             if (compSection != null) {
                 for (String key : compSection.getKeys(false)) {
-                    if (key.length() != 1) continue;
-                    char c = key.charAt(0);
-                    GuiComponent component = parseComponent(compSection.getConfigurationSection(key));
+                    // REMOVED: if (key.length() != 1) continue; 
+                    
+                    // Pass the key to parseComponent so we know the path string
+                    GuiComponent component = parseComponent(compSection.getConfigurationSection(key), key); 
                     if (component != null) {
-                        components.put(c, component);
+                        for (char c : key.toCharArray()) {
+                            components.put(c, component); // Map every character in the string
+                        }
                     }
                 }
             }
@@ -62,7 +65,7 @@ public class GuiDefinitionParser {
         }
     }
 
-    private GuiComponent parseComponent(ConfigurationSection section) {
+    private GuiComponent parseComponent(ConfigurationSection section, String key) {
         String type = section.getString("type", "DISPLAY").toUpperCase();
         
         return switch (type) {
@@ -73,8 +76,8 @@ public class GuiDefinitionParser {
                 List<PaginatedState> states = new ArrayList<>();
                 ConfigurationSection statesSection = section.getConfigurationSection("states");
                 if (statesSection != null) {
-                    for (String key : statesSection.getKeys(false)) {
-                        ConfigurationSection stateSec = statesSection.getConfigurationSection(key);
+                    for (String key1 : statesSection.getKeys(false)) {
+                        ConfigurationSection stateSec = statesSection.getConfigurationSection(key1);
                         if (stateSec == null) continue;
                         String condition = stateSec.getString("condition", "default");
                         GuiItemStack displayItem = parseItemStack(stateSec.getConfigurationSection("display-item"));
@@ -92,11 +95,12 @@ public class GuiDefinitionParser {
                 String iterator = section.getString("iterator", "loop_item");
                 boolean destructure = section.getBoolean("destructure", false);
                 List<PaginatedState> states = new ArrayList<>();
+                String path = section.getString("path", key.length() > 1 ? key : null);
 
                 ConfigurationSection statesSection = section.getConfigurationSection("states");
                 if (statesSection != null) {
-                    for (String key : statesSection.getKeys(false)) {
-                        ConfigurationSection stateSec = statesSection.getConfigurationSection(key);
+                    for (String key1 : statesSection.getKeys(false)) {
+                        ConfigurationSection stateSec = statesSection.getConfigurationSection(key1);
                         if (stateSec == null) continue;
 
                         String condition = stateSec.getString("condition", "default");
@@ -109,7 +113,7 @@ public class GuiDefinitionParser {
                         states.add(new PaginatedState(condition, displayItem, actions));
                     }
                 }
-                yield new PaginatedComponent(list, iterator, destructure, states);
+                yield new PaginatedComponent(list, iterator, destructure, states, path);
             }
             case "PREVIOUS_PAGE" -> {
                 GuiItemStack item = parseItemStack(section.getConfigurationSection("display-item"));

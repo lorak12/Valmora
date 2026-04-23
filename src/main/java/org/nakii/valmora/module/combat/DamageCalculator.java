@@ -2,13 +2,18 @@ package org.nakii.valmora.module.combat;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.module.enchant.EnchantmentDefinition;
+import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.util.Keys;
+
+import java.util.Map;
 
 
 public class DamageCalculator {
@@ -50,6 +55,28 @@ public class DamageCalculator {
             ValmoraPlayer vPlayer = api.getPlayerManager().getSession(attacker.getUniqueId());
             if (vPlayer != null) {
                 damage = vPlayer.getActiveProfile().getStatManager().getStat(Stat.DAMAGE);
+            }
+
+            ItemStack weapon = ((Player) attacker).getInventory().getItemInMainHand();
+            Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
+            for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
+                EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                if (def != null && def.getLogic() != null) {
+                    def.getLogic().onAttack(null, entry.getValue());
+                }
+            }
+
+            if (victim instanceof Player victimPlayer) {
+                ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
+                for (ItemStack armorItem : armor) {
+                    Map<String, Integer> armorEnchants = EnchantmentHelper.getEnchantments(armorItem);
+                    for (Map.Entry<String, Integer> entry : armorEnchants.entrySet()) {
+                        EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                        if (def != null && def.getLogic() != null) {
+                            def.getLogic().onDefend(null, entry.getValue());
+                        }
+                    }
+                }
             }
         } else {
             String mobId = attacker.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);

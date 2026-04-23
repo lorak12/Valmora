@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.script.variable.providers;
 
 import org.nakii.valmora.api.execution.ExecutionContext;
-import org.nakii.valmora.module.gui.GuiExecutionContext;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 import java.util.Map;
 

@@ -128,14 +128,14 @@ public class GuiRenderer {
                 if (component instanceof DisplayComponent display) {
                     GuiItemStack itemDef = display.getDisplayItem();
                     if (!display.getStates().isEmpty()) {
-                        PaginatedState state = findMatchingState(display.getStates(), session, null);
+                        PaginatedState state = findMatchingState(display.getStates(), session, null, null);
                         if (state != null) itemDef = state.displayItem();
                     }
                     if (itemDef != null) {
                         inv.setItem(slot, createItemStack(itemDef, session, null, null));
                     }
                 } else if (component instanceof PaginatedComponent paginated) {
-                    renderPaginatedSlot(session, inv, slot, paginated);
+                    renderPaginatedSlot(session, inv, slot, paginated, c);
                 } else if (component instanceof PageButtonComponent button) {
                     renderPageButton(session, inv, slot, button);
                 }
@@ -187,21 +187,33 @@ public class GuiRenderer {
         return outputs;
     }
 
-    private void renderPaginatedSlot(GuiSession session, Inventory inv, int slot, PaginatedComponent paginated) {
+    private void renderPaginatedSlot(GuiSession session, Inventory inv, int slot, PaginatedComponent paginated, char currentChar) {
         List<?> items = resolveList(paginated.getListExpression(), session);
         if (items == null) return;
 
-        int itemsPerPage = countSlotsForComponent(session.getDefinition(), paginated);
-        int counter = paginatedCounters.getOrDefault(paginated, 0);
-        int itemIndex = session.getCurrentPage() * itemsPerPage + counter;
+        int itemsPerPage;
+        int indexInPage;
+
+        if (paginated.getPath() != null && !paginated.getPath().isEmpty()) {
+            itemsPerPage = paginated.getPath().length();
+            indexInPage = paginated.getPath().indexOf(currentChar);
+            
+            if (indexInPage == -1) return; 
+        } else {
+            itemsPerPage = countSlotsForComponent(session.getDefinition(), paginated);
+            indexInPage = paginatedCounters.getOrDefault(paginated, 0);
+            
+            paginatedCounters.put(paginated, indexInPage + 1);
+        }
+
+        int itemIndex = session.getCurrentPage() * itemsPerPage + indexInPage;
 
         if (itemIndex < items.size()) {
             Object loopItem = items.get(itemIndex);
-            PaginatedState state = findMatchingState(paginated.getStates(), session, loopItem);
+            PaginatedState state = findMatchingState(paginated.getStates(), session, loopItem, paginated.getIteratorName());
             if (state != null) {
                 inv.setItem(slot, createItemStack(state.displayItem(), session, loopItem, paginated.getIteratorName()));
             }
-            paginatedCounters.put(paginated, counter + 1);
         }
     }
 
@@ -227,10 +239,13 @@ public class GuiRenderer {
         return count;
     }
 
-    public PaginatedState findMatchingState(List<PaginatedState> states, GuiSession session, Object loopItem) {
+    public PaginatedState findMatchingState(List<PaginatedState> states, GuiSession session, Object loopItem, String iteratorName) {
         if (states == null || states.isEmpty()) return null;
         
         GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
+        if (loopItem != null && iteratorName != null) {
+            context.setLoopVar(iteratorName, loopItem);
+        }
         PaginatedState defaultState = null;
 
         for (PaginatedState state : states) {
@@ -289,6 +304,9 @@ public class GuiRenderer {
 
         VariableResolver resolver = plugin.getScriptModule().getVariableResolver();
         GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
+        if (loopItem != null && iteratorName != null) {
+            context.setLoopVar(iteratorName, loopItem);
+        }
 
         String processed = text;
         if (loopItem != null) {
@@ -351,7 +369,10 @@ public class GuiRenderer {
                 List<?> items = resolveList(paginated.getListExpression(), session);
                 if (items == null) continue;
 
-                int itemsPerPage = countSlotsForComponent(session.getDefinition(), paginated);
+                int itemsPerPage = (paginated.getPath() != null && !paginated.getPath().isEmpty()) ?
+                                    paginated.getPath().length() :
+                                    countSlotsForComponent(session.getDefinition(), paginated);
+
                 if (items.size() > (session.getCurrentPage() + 1) * itemsPerPage) {
                     return true;
                 }

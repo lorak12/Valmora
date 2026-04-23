@@ -13,7 +13,7 @@ crafting_table:
   title: "<yellow>⚒ Crafting Table</yellow>"
   rows: 6
   machine: crafting_table
-  update-interval: 1000
+  update-interval: 0
 
   layout:
     - "BBBBBBBBB"

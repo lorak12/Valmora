@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariDataSource;
 
-import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.stat.Stat;
