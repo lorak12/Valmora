@@ -1,0 +1,166 @@
+enchanting_table:
+  title: "<yellow>⚒ Enchanting Table</yellow>"
+  rows: 6
+  machine: enchanting_table
+  update-interval: 0
+
+  layout:
+    - "BBBBBBBBB"
+    - "BBBXXXXXU"
+    - "BIBXXXXXB"
+    - "BGBXXXXXD"
+    - "BBBBBBBBB"
+    - "BBBPCBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    I:
+      type: INPUT
+      id: ingredient
+
+    G:
+      type: DISPLAY
+      display-item:
+        material: ENCHANTING_TABLE
+        name: "<white>Enchanting Table"
+        lore:
+          - ""
+          - "<gray>Place an item in the slot"
+          - "<gray>to see available enchants!"
+        amount: 1
+      states:
+        back:
+          condition: "$gui.enchanting.has_selection$ == true"
+          display-item:
+            material: ARROW
+            name: "<red>← Go Back"
+            lore:
+              - "<gray>Return to enchant list"
+            amount: 1
+          actions:
+            left:
+              actions:
+                - "enchant_back"
+                - "sound player ui.button.click"
+
+    P:
+      type: DISPLAY
+      display-item:
+        material: BOOKSHELF
+        name: "<white>Bookshelf power level"
+        lore:
+          - ""
+          - "<gray>Power level: <red>0</red>"
+          - "<gray>Max level: <red>15</red>"
+        amount: 1
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+        amount: 1
+      actions:
+        left:
+          actions:
+            - "close"
+
+    X:
+      type: PAGINATED
+      list: "$gui.enchanting.display_list$"
+      iterator: "entry"
+      states:
+        enchant_state:
+          condition: "$entry.type$ == enchant"
+          display-item:
+            material: ENCHANTED_BOOK
+            name: "<aqua>$entry.name$</aqua>"
+            lore:
+              - "<gray>$entry.description$"
+              - ""
+              - "<gray>E-Table Max Level: <white>$entry.etableMaxLevel$</white></gray>"
+              - "<gray>Absolute Max Level: <white>$entry.absoluteMaxLevel$</white></gray>"
+              - ""
+              - "<yellow>Click to select!</yellow>"
+          actions:
+            left:
+              actions:
+                - "enchant_select ingredient $entry.id$"
+                - "sound player ui.button.click"
+
+        available_state:
+          condition: "$entry.type$ == available"
+          display-item:
+            material: LIME_STAINED_GLASS_PANE
+            name: "<green>$entry.name$"
+            lore:
+              - ""
+              - "<gray>$entry.description$"
+              - ""
+              - "<yellow>Click to apply!</yellow>"
+          actions:
+            left:
+              actions:
+                - "enchant_apply ingredient $entry.enchantId$ $entry.level$"
+                - "sound player block.enchantment_table.use"
+
+        active_state:
+          condition: "$entry.type$ == active"
+          display-item:
+            material: YELLOW_STAINED_GLASS_PANE
+            name: "<yellow>$entry.name$ <gray>(Current)"
+            lore:
+              - ""
+              - "<red>Click to remove!"
+          actions:
+            left:
+              actions:
+                - "enchant_remove ingredient $entry.enchantId$"
+                - "sound player block.enchantment_table.use"
+
+        locked_state:
+          condition: "$entry.type$ == locked"
+          display-item:
+            material: GRAY_STAINED_GLASS_PANE
+            name: "<gray>$entry.name$"
+            lore:
+              - ""
+              - "<dark_gray>Already surpassed"
+
+        default:
+          condition: "default"
+          display-item:
+            material: RED_STAINED_GLASS_PANE
+            name: "<red>Unavailable"
+
+    D:
+      type: PREVIOUS_PAGE
+      display-item:
+        material: ARROW
+        name: "<green>Previous Page"
+      fallback:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    U:
+      type: NEXT_PAGE
+      display-item:
+        material: ARROW
+        name: "<green>Next Page"
+      fallback:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+  on-open:
+    actions:
+      - "sound player block.note_block.pling"
+  on-slot-update:
+    actions:
+      - "sound player ui.button.click"
+  on-close: {}

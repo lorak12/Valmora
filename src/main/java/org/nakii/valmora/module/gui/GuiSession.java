@@ -18,6 +18,7 @@ public class GuiSession {
     private @Nullable BukkitTask updateTask;
     private @Nullable GuiSession parent;
     private final Map<String, Object> props;
+    private @Nullable Map<String, ItemStack> cachedInputSnapshot;
 
     public GuiSession(Player player, GuiDefinition definition, Inventory inventory, Map<String, Object> props) {
         this.player = player;
@@ -39,7 +40,35 @@ public class GuiSession {
     public @Nullable GuiSession getParent() { return parent; }
     public void setParent(@Nullable GuiSession parent) { this.parent = parent; }
 
+    /**
+     * Captures the current input items and caches them. Call this before
+     * clearing the inventory so that variable resolution mid-render can
+     * still see the items the player placed.
+     */
+    public void snapshotInputs() {
+        this.cachedInputSnapshot = buildInputSnapshot();
+    }
+
+    /**
+     * Clears the cached snapshot. Call this after input items have been
+     * restored to the inventory so subsequent reads go live again.
+     */
+    public void clearInputSnapshot() {
+        this.cachedInputSnapshot = null;
+    }
+
+    /**
+     * Returns the input snapshot. If a cached snapshot exists (i.e. we are
+     * mid-render), returns that; otherwise reads live from the inventory.
+     */
     public Map<String, ItemStack> getInputSnapshot() {
+        if (cachedInputSnapshot != null) {
+            return cachedInputSnapshot;
+        }
+        return buildInputSnapshot();
+    }
+
+    private Map<String, ItemStack> buildInputSnapshot() {
         Map<String, ItemStack> snapshot = new HashMap<>();
         List<List<Character>> layout = definition.getLayout();
 

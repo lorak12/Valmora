@@ -17,12 +17,25 @@ import java.util.Optional;
 public class RecipeEngine {
 
     private final Valmora plugin;
+    private final Map<String, DynamicMachineHandler> dynamicHandlers = new HashMap<>();
 
     public RecipeEngine(Valmora plugin) {
         this.plugin = plugin;
     }
 
+    public void registerHandler(String machineId, DynamicMachineHandler handler) {
+        dynamicHandlers.put(machineId.toLowerCase(), handler);
+    }
+
     public Optional<RecipeDefinition> match(String machineId, Map<String, ItemStack> inputs) {
+        // 1. Check Dynamic Handlers
+        DynamicMachineHandler dynamic = dynamicHandlers.get(machineId.toLowerCase());
+        if (dynamic != null) {
+            Optional<RecipeDefinition> dynamicMatch = dynamic.match(inputs);
+            if (dynamicMatch.isPresent()) return dynamicMatch;
+        }
+
+        // 2. Check Static Yaml Recipes
         List<RecipeDefinition> recipes = plugin.getRecipeModule().getRecipesForMachine(machineId);
 
         for (RecipeDefinition recipe : recipes) {
@@ -31,6 +44,7 @@ public class RecipeEngine {
             }
         }
 
+        // 3. Check Vanilla Recipes (if machine is default or crafting)
         Optional<RecipeDefinition> vanillaMatch = matchVanillaRecipe(inputs);
         if (vanillaMatch.isPresent()) {
             return vanillaMatch;
@@ -100,6 +114,10 @@ public class RecipeEngine {
     }
 
     public boolean consume(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
+        if (recipe.isVanilla()) {
+            consumeVanilla(inputs);
+            return true;
+        }
         if (recipe.getType() == RecipeType.EXACT_SLOT) {
             for (Map.Entry<String, RecipeIngredient> entry : recipe.getInputMap().entrySet()) {
                 ItemStack stack = inputs.get(entry.getKey());
@@ -182,6 +200,18 @@ public class RecipeEngine {
             }
         }
         return false;
+    }
+
+    public void consumeVanilla(Map<String, ItemStack> inputs) {
+        for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
+            try {
+                Integer.parseInt(entry.getKey());
+                ItemStack stack = entry.getValue();
+                if (stack != null && stack.getType() != Material.AIR) {
+                    stack.setAmount(stack.getAmount() - 1);
+                }
+            } catch (NumberFormatException ignored) {}
+        }
     }
 
     private boolean matchShaped(RecipeDefinition recipe, Map<String, ItemStack> inputs) {

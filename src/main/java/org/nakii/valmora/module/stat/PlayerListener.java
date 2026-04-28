@@ -148,10 +148,6 @@ public class PlayerListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onItemHeldChange(PlayerItemHeldEvent event) {
-        // If the new slot is empty, return
-        if(event.getPlayer().getInventory().getItem(event.getNewSlot()) == null){
-            return;
-        }
         recalculate(event.getPlayer());
     }
 

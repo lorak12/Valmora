@@ -33,12 +33,18 @@ public class GuiRenderer {
         Map<Integer, ItemStack> savedInputItems = saveInputItems(session);
         Map<Integer, ItemStack> savedOutputItems = saveOutputItems(session);
 
+        // Cache input snapshot BEFORE clearing so mid-render variable
+        // resolution (e.g. $gui.input.ingredient.available_enchants$)
+        // still sees the items the player placed.
+        session.snapshotInputs();
+
         inv.clear();
         this.paginatedCounters.clear();
 
         renderLayout(session, inv);
 
         restoreInputItems(session, savedInputItems);
+        session.clearInputSnapshot();
         updateOutputSlot(session, savedOutputItems);
     }
 
@@ -325,6 +331,29 @@ public class GuiRenderer {
                             value = (long) d;
                         }
                     }
+                    sb.append(value != null ? value.toString() : matcher.group(0));
+                    lastMatch = matcher.end();
+                }
+                sb.append(processed.substring(lastMatch));
+                processed = sb.toString();
+            }
+
+            if (iteratorName != null && loopItem instanceof org.nakii.valmora.module.enchant.EnchantmentDefinition enchant) {
+                Pattern pattern = Pattern.compile("\\$" + Pattern.quote(iteratorName) + "\\.([^$]+)\\$");
+                Matcher matcher = pattern.matcher(processed);
+                StringBuilder sb = new StringBuilder();
+                int lastMatch = 0;
+                while (matcher.find()) {
+                    sb.append(processed, lastMatch, matcher.start());
+                    String key = matcher.group(1).toLowerCase();
+                    Object value = switch (key) {
+                        case "id" -> enchant.getId();
+                        case "name" -> enchant.getName();
+                        case "description" -> String.join("\n", enchant.getDescription());
+                        case "etablemaxlevel" -> enchant.getEtableMaxLevel();
+                        case "absolutemaxlevel" -> enchant.getAbsoluteMaxLevel();
+                        default -> matcher.group(0);
+                    };
                     sb.append(value != null ? value.toString() : matcher.group(0));
                     lastMatch = matcher.end();
                 }

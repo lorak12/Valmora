@@ -1,0 +1,11 @@
+healing_brew:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - GOLDEN_APPLE:1
+    - GHAST_TEAR:1
+  outputs:
+    result: POTION:1 # Just an example
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 10"

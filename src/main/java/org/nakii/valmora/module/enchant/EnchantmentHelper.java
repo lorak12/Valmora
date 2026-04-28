@@ -7,10 +7,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
-import org.nakii.valmora.module.item.ItemDefinition;
-import org.nakii.valmora.module.item.ItemManager;
+import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.module.item.Rarity;
+import net.kyori.adventure.text.Component;
+
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -21,8 +22,35 @@ import java.util.Map;
 
 public class EnchantmentHelper {
 
+    public static boolean canApplyEnchantment(ItemStack item, String enchantId) {
+        if (item == null || !item.hasItemMeta()) {
+            return false;
+        }
+
+        String itemTypeStr = item.getItemMeta().getPersistentDataContainer()
+                .get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (itemTypeStr == null) {
+            return false;
+        }
+
+        try {
+            ItemType itemType = ItemType.valueOf(itemTypeStr.toUpperCase());
+            EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(enchantId).orElse(null);
+            if (def == null) {
+                return false;
+            }
+            return def.canApplyTo(itemType);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     public static void applyEnchantment(ItemStack item, String enchantId, int level) {
         if (item == null || !item.hasItemMeta()) {
+            return;
+        }
+
+        if (!canApplyEnchantment(item, enchantId)) {
             return;
         }
 
@@ -44,11 +72,35 @@ public class EnchantmentHelper {
         return loadEnchantMap(item.getItemMeta().getPersistentDataContainer());
     }
 
+    public static int getEnchantLevel(ItemStack item, String enchantId) {
+        return getEnchantments(item).getOrDefault(enchantId.toLowerCase(), 0);
+    }
+
+    public static void removeEnchantment(ItemStack item, String enchantId) {
+        if (item == null || !item.hasItemMeta()) return;
+
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        Map<String, Integer> enchantMap = loadEnchantMap(pdc);
+        enchantMap.remove(enchantId.toLowerCase());
+
+        if (enchantMap.isEmpty()) {
+            pdc.remove(Keys.ENCHANTS_CONTAINER_KEY);
+            meta.removeEnchant(Enchantment.UNBREAKING);
+            meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS);
+        } else {
+            saveEnchantMap(pdc, enchantMap);
+        }
+
+        applyGlowAndLore(item, meta, enchantMap);
+        item.setItemMeta(meta);
+    }
+
     public static boolean hasValmoraEnchants(ItemStack item) {
         return item != null && item.hasItemMeta() && !loadEnchantMap(item.getItemMeta().getPersistentDataContainer()).isEmpty();
     }
 
-    private static Map<String, Integer> loadEnchantMap(PersistentDataContainer pdc) {
+    public static Map<String, Integer> loadEnchantMap(PersistentDataContainer pdc) {
         Map<String, Integer> result = new HashMap<>();
 
         if (pdc.has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING)) {
@@ -101,33 +153,39 @@ public class EnchantmentHelper {
         meta.addEnchant(Enchantment.UNBREAKING, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
 
-        List<String> newLore = new ArrayList<>();
-
-        String itemId = Keys.ITEM_ID_KEY != null ?
-                meta.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING) : null;
+        String itemId = meta.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
 
         if (itemId != null) {
-            ItemManager itemManager = ValmoraAPI.getInstance().getItemManager();
-            itemManager.getItemRegistry().getItem(itemId).ifPresent(def -> {
-                if (def.getLore() != null) {
-                    newLore.addAll(def.getLore());
-                }
-            });
+            // For Valmora items, use the centralized ItemFactory to rebuild the lore correctly
+            // This ensures stats, abilities, and rarity are preserved.
+            ValmoraAPI.getInstance().getItemManager().getItemFactory().updateLore(item, meta);
+            return;
         }
 
-        List<String> formattedEnchants = formatEnchants(enchantMap);
+        // For generic items, we try to preserve existing lore
+        List<Component> currentLore = meta.lore();
+        List<Component> newLore = new ArrayList<>();
+
+        if (currentLore != null) {
+            for (Component line : currentLore) {
+                // TODO: Improved logic to filter out OLD enchants if needed
+                newLore.add(line);
+            }
+        }
+
+        List<Component> formattedEnchants = formatEnchants(enchantMap);
         if (!formattedEnchants.isEmpty()) {
             if (!newLore.isEmpty()) {
-                newLore.add("");
+                newLore.add(Component.empty());
             }
             newLore.addAll(formattedEnchants);
         }
 
-        meta.setLore(newLore);
+        meta.lore(newLore);
     }
 
-    private static List<String> formatEnchants(Map<String, Integer> enchantMap) {
-        List<String> lore = new ArrayList<>();
+    public static List<Component> formatEnchants(Map<String, Integer> enchantMap) {
+        List<Component> lore = new ArrayList<>();
         List<String> sortedIds = new ArrayList<>(enchantMap.keySet());
 
         sortedIds.sort(String::compareToIgnoreCase);
@@ -145,7 +203,7 @@ public class EnchantmentHelper {
                 }
             }
         } else {
-            List<String> shortEnchants = new ArrayList<>();
+            List<Component> shortEnchants = new ArrayList<>();
             StringBuilder currentLine = new StringBuilder();
 
             for (String id : sortedIds) {
@@ -169,6 +227,7 @@ public class EnchantmentHelper {
 
             lore.addAll(shortEnchants);
         }
+        lore.add(Component.empty());
 
         return lore;
     }

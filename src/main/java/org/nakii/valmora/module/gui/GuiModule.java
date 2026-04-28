@@ -21,6 +21,7 @@ public class GuiModule implements ReloadableModule {
     private final Valmora plugin;
     private final Map<String, GuiDefinition> guiRegistry = new HashMap<>();
     private final Map<UUID, GuiSession> openSessions = new HashMap<>();
+    private GuiListener listener;
 
     public GuiModule(Valmora plugin) {
         this.plugin = plugin;
@@ -28,18 +29,29 @@ public class GuiModule implements ReloadableModule {
 
     @Override
     public void onEnable() {
-        plugin.getServer().getPluginManager().registerEvents(new GuiListener(plugin, this), plugin);
+        this.listener = new GuiListener(plugin, this);
+        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         
+        plugin.getScriptModule().registerProvider(new GuiVariableProvider(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.SoundEventFactory());
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.OpenGuiEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.CloseEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GiveXpEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantApplyEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantSelectEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantRemoveEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantBackEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GuiForceCraftEventFactory(plugin));
 
         loadGuis();
     }
 
     @Override
     public void onDisable() {
+        if (listener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(listener);
+            listener = null;
+        }
         for (UUID uuid : new HashSet<>(openSessions.keySet())) {
             Player player = plugin.getServer().getPlayer(uuid);
             if (player != null) closeGuiSession(player);
@@ -75,7 +87,20 @@ public class GuiModule implements ReloadableModule {
         player.openInventory(inv);
 
         if (def.getUpdateIntervalTicks() > 0) {
-            BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> renderer.render(session), 
+            BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+                // 1. Run the on-update script if present
+                if (def.getOnUpdate() != null) {
+                    GuiExecutionContext updateContext = new GuiExecutionContext(player, session);
+                    if (def.getOnUpdate().conditions() == null || def.getOnUpdate().conditions().evaluate(updateContext)) {
+                        if (def.getOnUpdate().actions() != null) def.getOnUpdate().actions().execute(updateContext);
+                    } else {
+                        if (def.getOnUpdate().failActions() != null) def.getOnUpdate().failActions().execute(updateContext);
+                    }
+                }
+                
+                // 2. Re-render the GUI
+                renderer.render(session);
+            }, 
                 def.getUpdateIntervalTicks(), def.getUpdateIntervalTicks());
             session.setUpdateTask(task);
         }

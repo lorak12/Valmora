@@ -77,7 +77,7 @@ public class GuiListener implements Listener {
             } else if (component instanceof InputComponent) {
                 // ALLOW clicks in input slots
                 event.setCancelled(false);
-                Bukkit.getScheduler().runTask(plugin, () -> updateRecipeOutput(session));
+                triggerSlotUpdate(session);
             } else if (component instanceof PaginatedComponent paginated) {
                 char clickedChar = session.getDefinition().getLayout().get(rawSlot / 9).get(rawSlot % 9);
                 handlePaginatedClick(event, session, paginated, rawSlot, clickedChar);
@@ -368,8 +368,26 @@ public class GuiListener implements Listener {
         }
 
         if (inputAffected) {
-            org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> updateRecipeOutput(session));
+            triggerSlotUpdate(session);
         }
+    }
+
+    private void triggerSlotUpdate(GuiSession session) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            updateRecipeOutput(session);
+            
+            GuiEventBlock slotUpdate = session.getDefinition().getOnSlotUpdate();
+            if (slotUpdate != null) {
+                GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
+                if (slotUpdate.conditions() == null || slotUpdate.conditions().evaluate(context)) {
+                    if (slotUpdate.actions() != null) slotUpdate.actions().execute(context);
+                } else {
+                    if (slotUpdate.failActions() != null) slotUpdate.failActions().execute(context);
+                }
+            }
+            
+            new GuiRenderer(plugin).render(session);
+        });
     }
 
     private GuiComponent getComponentAt(GuiSession session, int slot) {

@@ -1,0 +1,116 @@
+sharpness:
+  name: "Sharpness"
+  logic: "valmora:sharpness"
+  description:
+    - "Increases melee damage by +5% per level."
+  targets: ["SWORD"]
+  conflicts: ["smite", "bane_of_arthropods"]
+  etable-max-level: 5
+  absolute-max-level: 7
+
+growth:
+  name: "Growth"
+  logic: "valmora:growth"
+  description:
+    - "Grants +10 max health per level."
+  targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
+  conflicts: []
+  etable-max-level: 3
+  absolute-max-level: 5
+
+execute:
+  name: "Execute"
+  logic: "valmora:execute"
+  description:
+    - "Increases damage dealt by <yellow>+0.2%<gray> for each"
+    - "<yellow>1%<gray> of health missing on your target."
+  targets: ["SWORD"]
+  conflicts: ["prosecute"]
+  etable-max-level: 5
+  absolute-max-level: 6
+
+first_strike:
+  name: "First Strike"
+  logic: "valmora:first_strike"
+  description:
+    - "Increases damage dealt by <yellow>+25%<gray> per level"
+    - "on the first <yellow>3<gray> hits on a mob."
+  targets: ["SWORD"]
+  conflicts: ["triple_strike"]
+  etable-max-level: 4
+  absolute-max-level: 5
+
+life_steal:
+  name: "Life Steal"
+  logic: "valmora:life_steal"
+  description:
+    - "Heals for <red>+0.5%<gray> of your max health each"
+    - "time you hit a mob."
+  targets: ["SWORD"]
+  conflicts: ["syphon", "mana_steal"]
+  etable-max-level: 3
+  absolute-max-level: 5
+
+lethality:
+  name: "Lethality"
+  logic: "valmora:lethality"
+  description:
+    - "Reduces the armor of the target by <yellow>+0.2%<gray>"
+    - "per level each time you hit them."
+    - "Stacks up to <yellow>4<gray> times for <yellow>4<gray> seconds."
+  targets: ["SWORD"]
+  conflicts: []
+  etable-max-level: 6
+  absolute-max-level: 6
+
+protection:
+  name: "Protection"
+  logic: "valmora:protection"
+  description:
+    - "Grants <green>+4 Defense<gray> per level."
+  targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
+  conflicts: ["blast_protection", "fire_protection", "projectile_protection"]
+  etable-max-level: 4
+  absolute-max-level: 6
+
+respite:
+  name: "Respite"
+  logic: "valmora:respite"
+  description:
+    - "Increases your natural regeneration"
+    - "by <red>+0.5<gray> per level while out of combat."
+  targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
+  conflicts: ["rejuvenate"]
+  etable-max-level: 5
+  absolute-max-level: 5
+
+thorns:
+  name: "Thorns"
+  logic: "valmora:thorns"
+  description:
+    - "Attacks that hit you have a <yellow>15%<gray> chance"
+    - "to deal <red>1<gray> damage back to the attacker."
+  targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
+  conflicts: []
+  etable-max-level: 3
+  absolute-max-level: 4
+
+fortune:
+  name: "Fortune"
+  logic: "valmora:fortune"
+  description:
+    - "Increases your <gold>Luck<gray> stat by <gold>+10<gray> per level."
+  targets: ["PICKAXE", "AXE", "SHOVEL", "HOE", "FISHING_ROD"]
+  conflicts: []
+  etable-max-level: 3
+  absolute-max-level: 5
+
+haste:
+  name: "Haste"
+  logic: "valmora:haste"
+  description:
+    - "Increases your <white>Speed<gray> stat by <white>+2<gray> per level."
+  targets: ["PICKAXE", "AXE", "SHOVEL", "HOE", "FISHING_ROD"]
+  conflicts: []
+  etable-max-level: 3
+  absolute-max-level: 5

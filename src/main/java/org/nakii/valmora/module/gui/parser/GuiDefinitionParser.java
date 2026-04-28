@@ -57,8 +57,10 @@ public class GuiDefinitionParser {
 
             GuiEventBlock onOpen = parseEventBlock(section.getConfigurationSection("on-open"));
             GuiEventBlock onClose = parseEventBlock(section.getConfigurationSection("on-close"));
+            GuiEventBlock onSlotUpdate = parseEventBlock(section.getConfigurationSection("on-slot-update"));
+            GuiEventBlock onUpdate = parseEventBlock(section.getConfigurationSection("on-update"));
 
-            GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose);
+            GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose, onSlotUpdate, onUpdate);
             return LoadResult.success(def);
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Error parsing GUI " + id + ": " + e.getMessage());

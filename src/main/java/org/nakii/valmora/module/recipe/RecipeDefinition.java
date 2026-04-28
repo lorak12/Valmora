@@ -43,10 +43,14 @@ public class RecipeDefinition {
     }
 
     public static RecipeDefinition vanilla(ItemStack result) {
+        return vanilla(result, null);
+    }
+
+    public static RecipeDefinition vanilla(ItemStack result, CompiledEvent onCraft) {
         Map<String, RecipeIngredient> outputs = new HashMap<>();
         outputs.put("result", new RecipeIngredient(result.getType().name(), result.getAmount()));
         return new RecipeDefinition("vanilla:" + result.getType().name(), "crafting_table",
-            RecipeType.SHAPELESS, null, null, outputs, null, true, result);
+            RecipeType.SHAPELESS, null, null, outputs, onCraft, true, result);
     }
 
     public String getId() { return id; }

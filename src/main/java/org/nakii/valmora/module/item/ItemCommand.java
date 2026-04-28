@@ -130,6 +130,11 @@ public class ItemCommand implements TabExecutor {
                     return true;
                 }
 
+                if (!EnchantmentHelper.canApplyEnchantment(mainHand, enchantId)) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>That enchantment cannot be applied to this item!"));
+                    return true;
+                }
+
                 EnchantmentHelper.applyEnchantment(mainHand, enchantId, enchantLevel);
                 player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Applied <white>" + enchantId + " " + enchantLevel + " <green>to your item."));
                 break;

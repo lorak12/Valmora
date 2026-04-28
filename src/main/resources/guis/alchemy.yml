@@ -1,0 +1,53 @@
+alchemy_table:
+  title: "<light_purple>⚗ Alchemy Table</light_purple>"
+  rows: 6
+  machine: alchemy
+  update-interval: 20 # 1 second
+
+  layout:
+    - "BBBBBBBBB"
+    - "B       B"
+    - "B I   O B"
+    - "B   P   B"
+    - "B       B"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: PURPLE_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+    I:
+      type: INPUT
+      id: ingredient
+    O:
+      type: OUTPUT
+      id: result
+    P:
+      type: DISPLAY
+      display-item:
+        material: BREWING_STAND
+        name: "<white>Brewing progress: <light_purple>$prop.brew_time$s</light_purple>"
+        lore:
+          - "<gray>Status: <white>$prop.brew_status$</white>"
+        amount: 1
+
+  on-slot-update:
+    actions:
+      - "condition $gui.input.ingredient.id$ != null"
+      - "variable set prop.brew_time 10"
+      - "variable set prop.brew_status Brewing..."
+    fail-actions:
+      - "variable set prop.brew_time 0"
+      - "variable set prop.brew_status Waiting..."
+
+  on-update:
+    actions:
+      - "condition $prop.brew_time$ > 0"
+      - "variable add prop.brew_time -1"
+      - "condition $prop.brew_time$ == 0"
+      - "gui_force_craft"
+      - "variable set prop.brew_status Done!"
+      - "sound player block.brewing_stand.brew"

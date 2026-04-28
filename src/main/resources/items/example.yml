@@ -85,7 +85,7 @@ sanguine_carver:
 fallen_aegis:
   name: "Aegis of the Fallen"
   material: NETHERITE_CHESTPLATE
-  item-type: "ARMOR"
+  item-type: "CHESTPLATE"
   rarity: "LEGENDARY"
   stats:
     HEALTH: 500
@@ -110,7 +110,7 @@ fallen_aegis:
 mercury_treads:
   name: "Mercury's Treads"
   material: GOLDEN_BOOTS
-  item-type: "ARMOR"
+  item-type: "BOOTS"
   rarity: "EPIC"
   stats:
     SPEED: 50

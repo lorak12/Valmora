@@ -41,7 +41,7 @@ anvil:
 
     I:
       type: INPUT
-      id: base_item
+      id: base
 
     M:
       type: INPUT
@@ -72,4 +72,7 @@ anvil:
   on-open:
     actions:
       - "sound player block.anvil.place"
+  on-slot-update:
+    actions:
+      - "sound player block.note_block.hat"
   on-close: {}

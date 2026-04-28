@@ -15,110 +15,148 @@ import org.nakii.valmora.util.Keys;
 
 import java.util.Map;
 
-
 public class DamageCalculator {
 
-    public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType, double amount) {
+    public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType, double baseDamageOverride) {
         ValmoraAPI api = ValmoraAPI.getInstance();
+        double baseDamage = baseDamageOverride;
         double strength = 0.0;
         double critChance = 0.0;
         double critDamage = 0.0;
+        double defense = 0.0;
 
         if (attacker instanceof Player player) {
             ValmoraPlayer vPlayer = api.getPlayerManager().getSession(player.getUniqueId());
             if (vPlayer != null) {
                 StatManager statManager = vPlayer.getActiveProfile().getStatManager();
+                if (baseDamageOverride <= 0) {
+                    baseDamage = statManager.getStat(Stat.DAMAGE);
+                }
                 strength = statManager.getStat(Stat.STRENGTH);
                 critChance = statManager.getStat(Stat.CRIT_CHANCE);
                 critDamage = statManager.getStat(Stat.CRIT_DAMAGE);
             }
+        } else if (baseDamageOverride <= 0 && attacker != null) {
+            String mobId = attacker.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
+            if (mobId != null) {
+                MobDefinition mob = api.getMobManager().getMobDefinition(mobId);
+                if (mob != null) {
+                    baseDamage = mob.getScaledDamage();
+                }
+            } else {
+                baseDamage = 1.0;
+            }
         }
 
-        boolean isCritical = Math.random() < (critChance / 100.0);
-        double fullDamage = amount * (1 + strength / 100.0);
-
-        if (isCritical) {
-            fullDamage *= (1 + critDamage / 100.0);
+        if (victim instanceof Player victimPlayer) {
+            ValmoraPlayer vVictim = api.getPlayerManager().getSession(victimPlayer.getUniqueId());
+            if (vVictim != null) {
+                defense = vVictim.getActiveProfile().getStatManager().getStat(Stat.DEFENSE);
+            }
         }
 
-        double defenseMultiplier = getDefenseMultiplier(victim, damageType);
-        double finalDamage = Math.floor(fullDamage * defenseMultiplier);
-
-        return new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
-    }
-
-    public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType) {
-        ValmoraAPI api = ValmoraAPI.getInstance();
-        double damage = 1.0;
+        DamageModifierContext context = new DamageModifierContext(baseDamage, strength, critChance, critDamage, defense, damageType);
 
         if (attacker instanceof Player) {
-            ValmoraPlayer vPlayer = api.getPlayerManager().getSession(attacker.getUniqueId());
-            if (vPlayer != null) {
-                damage = vPlayer.getActiveProfile().getStatManager().getStat(Stat.DAMAGE);
-            }
-
             ItemStack weapon = ((Player) attacker).getInventory().getItemInMainHand();
-            Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
-            for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
-                EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                if (def != null && def.getLogic() != null) {
-                    def.getLogic().onAttack(null, entry.getValue());
+            if (weapon != null) {
+                Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
+                for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
+                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                    if (def != null && def.getLogic() != null) {
+                        def.getLogic().modifyAttack(context, attacker, victim, entry.getValue());
+                    }
                 }
             }
+        }
 
-            if (victim instanceof Player victimPlayer) {
-                ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
-                for (ItemStack armorItem : armor) {
+        if (victim instanceof Player victimPlayer) {
+            ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
+            for (ItemStack armorItem : armor) {
+                if (armorItem != null) {
                     Map<String, Integer> armorEnchants = EnchantmentHelper.getEnchantments(armorItem);
                     for (Map.Entry<String, Integer> entry : armorEnchants.entrySet()) {
                         EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
                         if (def != null && def.getLogic() != null) {
-                            def.getLogic().onDefend(null, entry.getValue());
+                            def.getLogic().modifyDefend(context, attacker, victim, entry.getValue());
                         }
                     }
                 }
             }
-        } else {
-            String mobId = attacker.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
-            MobDefinition mob = api.getMobManager().getMobDefinition(mobId);
-            if (mob != null) {
-                damage = mob.getScaledDamage();
+        }
+
+        boolean isCritical = Math.random() < (context.getCritChance() / 100.0);
+        double fullDamage = context.getBaseDamage() * (1 + context.getStrength() / 100.0);
+
+        if (isCritical) {
+            fullDamage *= (1 + context.getCritDamage() / 100.0);
+        }
+        
+        fullDamage *= context.getDamageMultiplier();
+
+        double defenseMultiplier = 1.0;
+        if (damageType != DamageType.VOID && damageType != DamageType.DROWNING && damageType != DamageType.FALL) {
+            defenseMultiplier = 100.0 / (context.getDefense() + 100.0);
+        }
+        
+        double finalDamage = Math.floor(fullDamage * defenseMultiplier);
+
+        DamageResult result = new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
+
+        if (attacker instanceof Player) {
+            ItemStack weapon = ((Player) attacker).getInventory().getItemInMainHand();
+            if (weapon != null) {
+                Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
+                for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
+                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                    if (def != null && def.getLogic() != null) {
+                        def.getLogic().onPostAttack(result, attacker, victim, entry.getValue());
+                    }
+                }
             }
         }
 
-        return calculateDamage(attacker, victim, damageType, damage);
+        if (victim instanceof Player victimPlayer) {
+            ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
+            for (ItemStack armorItem : armor) {
+                if (armorItem != null) {
+                    Map<String, Integer> armorEnchants = EnchantmentHelper.getEnchantments(armorItem);
+                    for (Map.Entry<String, Integer> entry : armorEnchants.entrySet()) {
+                        EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
+                        if (def != null && def.getLogic() != null) {
+                            def.getLogic().onPostDefend(result, attacker, victim, entry.getValue());
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
-    /**
-     * Calculates environmental/custom damage where there is no player attacker.
-     */
+    public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType) {
+        return calculateDamage(attacker, victim, damageType, 0.0);
+    }
+
     public static DamageResult calculateDamage(LivingEntity victim, DamageType damageType, double baseVanillaDamage) {
-        // We scale vanilla base damage so it behaves appropriately for custom mob health.
         double multiplier = 5.0; // configurable later
         double fullDamage = baseVanillaDamage * multiplier;
 
-        // Apply defense reduction even for environmental damage (unless it's void/drowning/etc.)
-        double defenseMultiplier = getDefenseMultiplier(victim, damageType);
+        double defenseMultiplier = 1.0;
+        if (damageType != DamageType.VOID && damageType != DamageType.DROWNING && damageType != DamageType.FALL) {
+            ValmoraAPI api = ValmoraAPI.getInstance();
+            double defense = 0.0;
+            if (victim instanceof Player player) {
+                ValmoraPlayer vVictim = api.getPlayerManager().getSession(player.getUniqueId());
+                if (vVictim != null) {
+                    defense = vVictim.getActiveProfile().getStatManager().getStat(Stat.DEFENSE);
+                }
+            }
+            defenseMultiplier = 100.0 / (defense + 100.0);
+        }
+
         double finalDamage = Math.floor(fullDamage * defenseMultiplier);
 
         return new DamageResult(finalDamage, damageType, false, null, victim);
-    }
-
-    private static double getDefenseMultiplier(LivingEntity victim, DamageType damageType) {
-        ValmoraAPI api = ValmoraAPI.getInstance();
-        // Certain damage types bypass defense
-        if (damageType == DamageType.VOID || damageType == DamageType.DROWNING || damageType == DamageType.FALL) {
-            return 1.0;
-        }
-
-        if (victim instanceof Player player) {
-            ValmoraPlayer vVictim = api.getPlayerManager().getSession(player.getUniqueId());
-            if (vVictim != null) {
-                double defense = vVictim.getActiveProfile().getStatManager().getStat(Stat.DEFENSE);
-                // Correct damage reduction formula: Multiplier = 100 / (Def + 100)
-                return 100.0 / (defense + 100.0);
-            }
-        }
-        return 1.0;
     }
 }

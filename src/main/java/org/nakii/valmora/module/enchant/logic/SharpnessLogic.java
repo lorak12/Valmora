@@ -1,19 +1,23 @@
-package org.nakii.valmora.module.enchant;
+package org.nakii.valmora.module.enchant.logic;
 
-import org.bukkit.entity.Player;
+import org.bukkit.entity.LivingEntity;
+import org.nakii.valmora.module.combat.DamageModifierContext;
+import org.nakii.valmora.module.combat.DamageType;
+import org.nakii.valmora.module.enchant.EnchantmentLogic;
 import org.nakii.valmora.module.stat.StatManager;
 
 public class SharpnessLogic implements EnchantmentLogic {
 
     @Override
-    public void applyStats(Player player, int level, StatManager stats) {
-        double damageBonus = 5.0 * level;
-        stats.addStat(player, org.nakii.valmora.module.stat.Stat.DAMAGE, damageBonus);
+    public void applyStats(LivingEntity entity, int level, StatManager profile) {
+        // Passive stat removed. Sharpness is a pre-hit multiplier only.
     }
 
     @Override
-    public void onAttack(DamageResult result, int level) {
-        double multiplier = 1.0 + (0.05 * level);
-        double extraDamage = result.getFinalDamage() * (multiplier - 1.0);
+    public void modifyAttack(DamageModifierContext context, LivingEntity attacker, LivingEntity victim, int level) {
+        if (context.getDamageType() == DamageType.MELEE) {
+            double multiplier = 1.0 + (0.05 * level);
+            context.setDamageMultiplier(context.getDamageMultiplier() * multiplier);
+        }
     }
 }

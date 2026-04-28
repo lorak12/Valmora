@@ -1196,12 +1196,15 @@ Place GUI definition files in `plugins/Valmora/gui/`. Each file defines one GUI 
 
 ```yaml
 title: "<MiniMessage title string>"
+rows: <1-6>          # Optional. Default: calculated from layout.
+machine: <id>       # Optional. Machine ID for recipe matching (e.g., anvil, alchemy).
+update-interval: <ticks> # Optional. Periodically runs on-update script and re-renders.
+
 layout:
   - "XXXXXXXXX"    # Row 1 (9 chars)
   - "XXXXXXXXX"    # Row 2 (9 chars)
   - "XXXXXXXXX"    # Row 3 (9 chars)
   - "XXXXXXXXX"    # Row 4 (9 chars)
-  # Up to 6 rows for a 54-slot chest
 
 components:
   <char>:
@@ -1217,34 +1220,25 @@ components:
   # Special component types:
   <char>:
     type: "INPUT"         # Unrestricted input slot
+    id: <id>              # Optional. Used for $gui.input.ID.id$ reactivity.
 
   <char>:
     type: "OUTPUT"        # Output slot (extraction-based)
     item: "AIR"
 
-  <char>:
-    type: "PREVIOUS_PAGE"
-    item: "<MATERIAL>"
-    name: "<label>"
-    fallback: { item: "GRAY_STAINED_GLASS_PANE", name: " " }
+# Reactivity & Logic:
+on-open:
+  conditions: ["<condition>"]
+  actions: ["<event>"]
+  fail-actions: ["<event>"]
 
-  <char>:
-    type: "NEXT_PAGE"
-    item: "<MATERIAL>"
-    name: "<label>"
-    fallback: { item: "GRAY_STAINED_GLASS_PANE", name: " " }
+on-slot-update:
+  actions: ["<event>"]
+  fail-actions: ["<event>"]
 
-  <char>:
-    type: "PAGINATED"
-    list: "<variable expression>"
-    iterator: "<variable name>"
-    states:
-      - condition: "<condition string or 'default'>"
-        item: "<MATERIAL>"
-        name: "<label with {iterator} placeholder>"
-        lore:
-          - "<line>"
-        custom-model-data: <integer>
+on-update:
+  actions: ["<event>"]
+  fail-actions: ["<event>"]
 ```
 
 ### Layout System
@@ -1253,26 +1247,44 @@ Each character in the layout grid corresponds to a component key in the `compone
 
 Layout rows must be exactly 9 characters. The number of rows (1–6) determines the inventory size.
 
+### Reactivity Variables
+
+GUIs support dynamic variables that update when items change or scripts run:
+
+| Variable | Description |
+|---|---|
+| `$gui.input.ID.id$` | The Valmora Item ID (or Material name) in the INPUT slot with matching `id`. |
+| `$gui.input.ID.amount$` | The amount of items in the INPUT slot. |
+| `$prop.NAME$` | A GUI-specific property (transient, lost on close). Updated via `variable set prop.NAME`. |
+| `$enchant.NAME.prop$` | In lists, resolves properties of a Valmora enchantment (name, description, level, etc). |
+
+### Lifecycle Scripts
+
+- **`on-open`**: Runs once when the GUI is requested. If conditions fail, `fail-actions` run and the GUI does not open.
+- **`on-slot-update`**: Runs whenever an item is placed or removed in an `INPUT` slot.
+- **`on-update`**: Runs every `update-interval` ticks. Useful for timers and progress bars.
+
 ### Click Actions
 
 | Action | Args | Description |
 |---|---|---|
 | `CLOSE` | — | Closes the inventory. |
 | `BACK` | — | Returns to the previously opened GUI. |
-| `OPEN_GUI` | `"<gui-filename>"` | Opens a different GUI by its filename (without `.yml`). |
+| `OPEN_GUI` | `"<gui-filename>"` | Opens a different GUI. |
+| `SOUND` | `"<sound_id>"` | Plays a sound to the player. |
 
 ### Special Component Types
 
-**`INPUT`** — A player-interactable slot where players can freely place or remove items. Used for crafting and forging UIs.
+**`INPUT`** — A player-interactable slot. If an `id` is provided, its contents are exposed to scripts via `$gui.input.ID.id$`.
 
 **`OUTPUT`** — A result slot. Players can take items from it; taking an item triggers the associated recipe consumption.
 
-**`PREVIOUS_PAGE` / `NEXT_PAGE`** — Pagination buttons for `PAGINATED` components. The `fallback` defines what to show when no previous/next page exists.
+**`PREVIOUS_PAGE` / `NEXT_PAGE`** — Pagination buttons for `PAGINATED` components.
 
-**`PAGINATED`** — Repeating component driven by a list variable. Each slot renders one element from the list:
-- `list` — a variable expression or literal that resolves to a list/range.
-- `iterator` — the name bound to the current element, usable as `{iterator}` in `name`, `lore`, and `condition` strings.
-- `states` — ordered list of display configurations. First condition that evaluates to `true` is used. Use `"default"` as the last condition to catch all remaining cases.
+**`PAGINATED`** — Repeating component driven by a list variable (e.g. `$player.stat.list$`, `$math.range(1, 10)$`).
+- `list` — variable expression resolving to a list.
+- `iterator` — name bound to the current element (e.g. `{lvl}`).
+- `states` — list of display configurations with `condition`. First match wins. Use `default` as catch-all.
 
 ### Complete GUI Examples
 
@@ -1573,18 +1585,38 @@ tag remove tutorial_lock
 
 Tags are simple string flags stored on the profile. They persist across sessions (saved in the DB). Use them to track quest progress, feature unlocks, tutorial steps, etc.
 
-**`variable`** — Modify a custom variable on the active profile.
+**`variable`** — Modify a custom variable on the active profile or a GUI property.
 ```
 variable set player.var.<name> <value>
 variable add player.var.<name> <number>
-variable remove player.var.<name>
+variable set prop.<name> <value>         # GUI transient property
+variable add prop.<name> <number>
+variable remove <path>
 
 variable set player.var.coins 100
-variable add player.var.coins 50
-variable remove player.var.tempFlag
+variable add prop.brew_time -1
 ```
 
-Variables are stored as typed values: numbers stay as `Double`, `"true"`/`"false"` become `Boolean`, anything else is stored as a `String`. Variables are available in conditions via `$player.var.<name>$`.
+Variables are stored as typed values: numbers stay as `Double`, `"true"`/`"false"` become `Boolean`, anything else is stored as a `String`. Variables are available in conditions via `$player.var.<name>$` or `$prop.<name>$`.
+
+**`gui_force_craft`** — Programmatically triggers a recipe match and consumption for the current GUI's machine.
+```
+gui_force_craft
+```
+Used in `on-update` scripts to finish time-based crafting. It finds the recipe matching the current inputs, consumes ingredients, places the result in the OUTPUT slot, and executes the recipe's `on-craft` script.
+
+**`enchant_apply`** — Applies a Valmora enchantment to an item in a specific slot.
+```
+enchant_apply <slot> <enchant_id> <level>
+enchant_apply 10 sharpness 5
+```
+Primarily used in enchanting table GUIs.
+
+**`sound`** — Plays a sound.
+```
+sound player <sound_id> [volume] [pitch]
+sound player block.brewing_stand.brew
+```
 
 ### Event Examples
 

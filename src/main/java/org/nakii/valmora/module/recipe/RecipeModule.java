@@ -22,11 +22,21 @@ public class RecipeModule implements ReloadableModule {
     @Override
     public void onEnable() {
         this.recipeEngine = new RecipeEngine(plugin);
+        
+        // Register Dynamic Handlers
+        registerHandler("anvil", new AnvilMachineHandler(plugin));
+        
         loadRecipes();
     }
 
     public RecipeEngine getRecipeEngine() {
         return recipeEngine;
+    }
+
+    public void registerHandler(String machineId, DynamicMachineHandler handler) {
+        if (recipeEngine != null) {
+            recipeEngine.registerHandler(machineId, handler);
+        }
     }
 
     @Override

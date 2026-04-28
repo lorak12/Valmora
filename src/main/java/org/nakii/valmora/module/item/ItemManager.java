@@ -44,6 +44,10 @@ public class ItemManager implements ReloadableModule {
         return itemRegistry;
     }
 
+    public ItemFactory getItemFactory() {
+        return itemFactory;
+    }
+
     public ItemStack createItemStack(String id){
         java.util.Optional<ItemStack> customItem = itemRegistry.createItemStack(id);
         if (customItem.isPresent()) {

@@ -10,7 +10,8 @@
 
 ---
 
-TODO for tomorrow:
-[] Configure opencode to work with my project
-[] create the docs for module development
-[] fix the project so there is no errors
+Wishlist
+[] Fix lore issues
+[] Make enchants conflict.
+[] Make the description better with scaling values.
+[] Deleting the item from your hand doesn't trigger stat recalculations.
