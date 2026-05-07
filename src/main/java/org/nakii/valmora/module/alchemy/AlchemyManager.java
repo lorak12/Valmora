@@ -7,7 +7,6 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.alchemy.effect.ActiveEffect;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.alchemy.effect.HardcodedAlchemyEffect;
-import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
 
 import java.util.ArrayList;
@@ -133,9 +132,9 @@ public class AlchemyManager {
             if (ae.isExpired()) continue;
             AlchemyEffect def = effectRegistry.get(ae.effectId().toLowerCase());
             if (def == null) continue;
-            for (Stat stat : def.getStats().keySet()) {
-                double value = def.getStatValue(stat, ae.level());
-                if (value != 0) statManager.addModifier(stat, value);
+            for (String statId : def.getStats().keySet()) {
+                double value = def.getStatValue(statId, ae.level());
+                if (value != 0) statManager.addModifier(statId, value);
             }
         }
     }

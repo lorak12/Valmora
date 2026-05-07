@@ -59,8 +59,10 @@ public class SkillDefinitionTest {
         }
 
         // 4. Default
-        try (MockedStatic<Material> materialMock = mockStatic(Material.class)) {
+        try (MockedStatic<Bukkit> bukkit2 = mockStatic(Bukkit.class);
+             MockedStatic<Material> materialMock = mockStatic(Material.class)) {
             materialMock.when(() -> Material.matchMaterial("DIRT")).thenReturn(Material.DIRT);
+            bukkit2.when(() -> Bukkit.getTag(anyString(), any(NamespacedKey.class), eq(Material.class))).thenReturn(null);
             assertEquals(1.0, skill.getSourceXp("BLOCK_BREAK", "DIRT"), "Default should be returned for unknown block");
         }
     }

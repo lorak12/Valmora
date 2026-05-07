@@ -8,7 +8,6 @@ import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
-import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.util.Keys;
 import org.bukkit.entity.Player;
@@ -49,7 +48,7 @@ public class MobDeathListener implements Listener {
                 ValmoraProfile profile = vp.getActiveProfile();
                 if (profile != null) {
                     StatManager statManager = profile.getStatManager();
-                    luck = statManager.getStat(Stat.LUCK);
+                    luck = statManager.getStat(plugin.getStatModule().getSystemStats().getLuck());
 
                     int xpReward = definition.getXpReward();
                     profile.getSkillManager().addXp("combat", (double) xpReward, killer);

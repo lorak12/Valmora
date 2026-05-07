@@ -6,8 +6,9 @@ import java.util.Optional;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.config.LoadResult;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.module.stat.StatRegistry;
 
 public class ItemDefinitionParser {
 
@@ -57,17 +58,16 @@ public class ItemDefinitionParser {
 
         // Stats
         if (section.contains("stats")) {
+            StatRegistry statRegistry = ValmoraAPI.getInstance().getStatRegistry();
             ConfigurationSection statsSection = section.getConfigurationSection("stats");
             for (String statKey : statsSection.getKeys(false)) {
-                try {
-                    Stat stat = Stat.valueOf(statKey.toUpperCase());
-                    if (!statsSection.isDouble(statKey) && !statsSection.isInt(statKey)) {
-                         return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Stat '" + statKey + "' must be a number.");
-                    }
-                    builder.stat(stat, statsSection.getDouble(statKey));
-                } catch (IllegalArgumentException e) {
+                if (!statsSection.isDouble(statKey) && !statsSection.isInt(statKey)) {
+                    return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Stat '" + statKey + "' must be a number.");
+                }
+                if (!statRegistry.contains(statKey)) {
                     return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Unknown stat '" + statKey + "'.");
                 }
+                builder.stat(statKey, statsSection.getDouble(statKey));
             }
         }
 

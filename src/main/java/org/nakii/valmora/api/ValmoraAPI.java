@@ -26,6 +26,10 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.stat.StatModule getStatModule();
 
+    org.nakii.valmora.module.stat.StatRegistry getStatRegistry();
+
+    org.nakii.valmora.module.stat.SystemStats getSystemStats();
+
     org.nakii.valmora.module.ui.UIManager getUIManager();
 
     org.nakii.valmora.module.skill.SkillManager getSkillManager();

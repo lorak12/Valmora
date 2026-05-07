@@ -4,7 +4,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.module.stat.StatDefinition;
+import org.nakii.valmora.module.stat.StatRegistry;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 import net.kyori.adventure.text.Component;
@@ -98,11 +99,16 @@ public class ItemFactory {
         }
 
         // 2. Stats Section
-        Map<Stat, Double> stats = plugin.getStatModule().loadStats(meta);
+        Map<String, Double> stats = plugin.getStatModule().loadStats(meta);
         if (!stats.isEmpty()) {
             if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
-            for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
-                finalLore.add(Formatter.format("<gray> ◈ " + entry.getKey().format(entry.getValue())));
+            StatRegistry statRegistry = plugin.getStatModule().getStatRegistry();
+            for (Map.Entry<String, Double> entry : stats.entrySet()) {
+                StatDefinition def = statRegistry.get(entry.getKey()).orElse(null);
+                String formatted = def != null
+                        ? "<gray> ◈ " + def.format(entry.getValue())
+                        : "<gray> ◈ <white>" + entry.getKey() + ": +" + entry.getValue().intValue();
+                finalLore.add(Formatter.format(formatted));
             }
         }
 

@@ -9,8 +9,8 @@ import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
-import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.module.stat.SystemStats;
 import org.nakii.valmora.util.Keys;
 
 import java.util.Map;
@@ -19,6 +19,8 @@ public class DamageCalculator {
 
     public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType, double baseDamageOverride) {
         ValmoraAPI api = ValmoraAPI.getInstance();
+        SystemStats sys = api.getSystemStats();
+
         double baseDamage = baseDamageOverride;
         double strength = 0.0;
         double critChance = 0.0;
@@ -30,11 +32,11 @@ public class DamageCalculator {
             if (vPlayer != null) {
                 StatManager statManager = vPlayer.getActiveProfile().getStatManager();
                 if (baseDamageOverride <= 0) {
-                    baseDamage = statManager.getStat(Stat.DAMAGE);
+                    baseDamage = statManager.getStat(sys.getDamage());
                 }
-                strength = statManager.getStat(Stat.STRENGTH);
-                critChance = statManager.getStat(Stat.CRIT_CHANCE);
-                critDamage = statManager.getStat(Stat.CRIT_DAMAGE);
+                strength = statManager.getStat(sys.getStrength());
+                critChance = statManager.getStat(sys.getCritChance());
+                critDamage = statManager.getStat(sys.getCritDamage());
             }
         } else if (baseDamageOverride <= 0 && attacker != null) {
             String mobId = attacker.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
@@ -51,7 +53,7 @@ public class DamageCalculator {
         if (victim instanceof Player victimPlayer) {
             ValmoraPlayer vVictim = api.getPlayerManager().getSession(victimPlayer.getUniqueId());
             if (vVictim != null) {
-                defense = vVictim.getActiveProfile().getStatManager().getStat(Stat.DEFENSE);
+                defense = vVictim.getActiveProfile().getStatManager().getStat(sys.getDefense());
             }
         }
 
@@ -91,14 +93,14 @@ public class DamageCalculator {
         if (isCritical) {
             fullDamage *= (1 + context.getCritDamage() / 100.0);
         }
-        
+
         fullDamage *= context.getDamageMultiplier();
 
         double defenseMultiplier = 1.0;
         if (damageType != DamageType.VOID && damageType != DamageType.DROWNING && damageType != DamageType.FALL) {
             defenseMultiplier = 100.0 / (context.getDefense() + 100.0);
         }
-        
+
         double finalDamage = Math.floor(fullDamage * defenseMultiplier);
 
         DamageResult result = new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
@@ -139,7 +141,7 @@ public class DamageCalculator {
     }
 
     public static DamageResult calculateDamage(LivingEntity victim, DamageType damageType, double baseVanillaDamage) {
-        double multiplier = 5.0; // configurable later
+        double multiplier = 5.0;
         double fullDamage = baseVanillaDamage * multiplier;
 
         double defenseMultiplier = 1.0;
@@ -149,14 +151,13 @@ public class DamageCalculator {
             if (victim instanceof Player player) {
                 ValmoraPlayer vVictim = api.getPlayerManager().getSession(player.getUniqueId());
                 if (vVictim != null) {
-                    defense = vVictim.getActiveProfile().getStatManager().getStat(Stat.DEFENSE);
+                    defense = vVictim.getActiveProfile().getStatManager().getStat(api.getSystemStats().getDefense());
                 }
             }
             defenseMultiplier = 100.0 / (defense + 100.0);
         }
 
         double finalDamage = Math.floor(fullDamage * defenseMultiplier);
-
         return new DamageResult(finalDamage, damageType, false, null, victim);
     }
 }

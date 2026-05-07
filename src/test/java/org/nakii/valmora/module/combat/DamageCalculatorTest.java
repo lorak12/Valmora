@@ -20,7 +20,9 @@ import org.nakii.valmora.module.mob.MobManager;
 import org.nakii.valmora.module.profile.PlayerManager;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.module.stat.StatDefinition;
+import org.nakii.valmora.module.stat.StatRegistry;
+import org.nakii.valmora.module.stat.SystemStats;
 import org.nakii.valmora.util.Keys;
 
 import java.util.Optional;
@@ -36,6 +38,8 @@ class DamageCalculatorTest {
     private MobManager mobManager;
     private EnchantModule enchantModule;
     private EnchantmentRegistry enchantmentRegistry;
+    private StatRegistry statRegistry;
+    private SystemStats systemStats;
 
     @BeforeEach
     void setUp() {
@@ -44,10 +48,38 @@ class DamageCalculatorTest {
         mobManager = mock(MobManager.class);
         enchantModule = mock(EnchantModule.class);
         enchantmentRegistry = mock(EnchantmentRegistry.class);
+        systemStats = mock(SystemStats.class);
+
+        when(systemStats.getHealth()).thenReturn("health");
+        when(systemStats.getMana()).thenReturn("mana");
+        when(systemStats.getDamage()).thenReturn("damage");
+        when(systemStats.getStrength()).thenReturn("strength");
+        when(systemStats.getDefense()).thenReturn("defense");
+        when(systemStats.getCritChance()).thenReturn("crit_chance");
+        when(systemStats.getCritDamage()).thenReturn("crit_damage");
+        when(systemStats.getSpeed()).thenReturn("speed");
+        when(systemStats.getHealthRegen()).thenReturn("health_regen");
+        when(systemStats.getManaRegen()).thenReturn("mana_regen");
+        when(systemStats.getLuck()).thenReturn("luck");
+
+        statRegistry = new StatRegistry();
+        statRegistry.register(new StatDefinition("health", "Health", 100.0, 10000.0, "<red>", "APPLE", "", true, null));
+        statRegistry.register(new StatDefinition("mana", "Mana", 50.0, 5000.0, "<aqua>", "LAPIS_LAZULI", "", true, null));
+        statRegistry.register(new StatDefinition("damage", "Damage", 0.0, Double.MAX_VALUE, "<red>", "IRON_SWORD", "", false, null));
+        statRegistry.register(new StatDefinition("strength", "Strength", 0.0, Double.MAX_VALUE, "<red>", "BLAZE_POWDER", "", false, null));
+        statRegistry.register(new StatDefinition("defense", "Defense", 0.0, Double.MAX_VALUE, "<gray>", "IRON_CHESTPLATE", "", false, null));
+        statRegistry.register(new StatDefinition("crit_chance", "Crit Chance", 0.0, 100.0, "<gold>", "GOLD_NUGGET", "", false, null));
+        statRegistry.register(new StatDefinition("crit_damage", "Crit Damage", 50.0, Double.MAX_VALUE, "<gold>", "GOLD_SWORD", "", false, null));
+        statRegistry.register(new StatDefinition("speed", "Speed", 100.0, Double.MAX_VALUE, "<white>", "SUGAR", "", false, "MOVEMENT_SPEED"));
+        statRegistry.register(new StatDefinition("health_regen", "Health Regen", 1.0, Double.MAX_VALUE, "<green>", "GLISTERING_MELON_SLICE", "", false, null));
+        statRegistry.register(new StatDefinition("mana_regen", "Mana Regen", 2.0, Double.MAX_VALUE, "<aqua>", "PRISMARINE_CRYSTALS", "", false, null));
+        statRegistry.register(new StatDefinition("luck", "Luck", 0.0, 100.0, "<yellow>", "RABBIT_FOOT", "", false, null));
 
         when(api.getPlayerManager()).thenReturn(playerManager);
         when(api.getMobManager()).thenReturn(mobManager);
         when(api.getEnchantModule()).thenReturn(enchantModule);
+        when(api.getStatRegistry()).thenReturn(statRegistry);
+        when(api.getSystemStats()).thenReturn(systemStats);
         when(enchantModule.getRegistry()).thenReturn(enchantmentRegistry);
 
         ValmoraAPI.setProvider(api);
@@ -55,30 +87,34 @@ class DamageCalculatorTest {
 
     private void setupPlayer(Player player, UUID uuid, double damage, double strength, double defense, double critChance) {
         when(player.getUniqueId()).thenReturn(uuid);
-        ValmoraPlayer vPlayer = new ValmoraPlayer(uuid);
-        ValmoraProfile profile = new ValmoraProfile("Test");
-        
-        // Clear defaults
-        profile.getStatManager().reduceStat(player, Stat.DAMAGE, Stat.DAMAGE.getDefaultValue());
-        profile.getStatManager().reduceStat(player, Stat.HEALTH, Stat.HEALTH.getDefaultValue());
-        profile.getStatManager().reduceStat(player, Stat.STRENGTH, Stat.STRENGTH.getDefaultValue());
-        profile.getStatManager().reduceStat(player, Stat.DEFENSE, Stat.DEFENSE.getDefaultValue());
-        profile.getStatManager().reduceStat(player, Stat.CRIT_CHANCE, Stat.CRIT_CHANCE.getDefaultValue());
-        profile.getStatManager().reduceStat(player, Stat.CRIT_DAMAGE, Stat.CRIT_DAMAGE.getDefaultValue());
-        
-        profile.getStatManager().addStat(player, Stat.DAMAGE, damage);
-        profile.getStatManager().addStat(player, Stat.STRENGTH, strength);
-        profile.getStatManager().addStat(player, Stat.DEFENSE, defense);
-        profile.getStatManager().addStat(player, Stat.CRIT_CHANCE, critChance);
-        profile.getStatManager().addStat(player, Stat.CRIT_DAMAGE, 50.0); // +50% crit damage
-        
-        vPlayer.addProfile(profile);
-        when(playerManager.getSession(uuid)).thenReturn(vPlayer);
 
+        // Set up inventory and potion mocks BEFORE any stat operations (which call recalculateStats)
         PlayerInventory inventory = mock(PlayerInventory.class);
         when(player.getInventory()).thenReturn(inventory);
+        when(player.getActivePotionEffects()).thenReturn(java.util.Collections.emptyList());
         when(inventory.getItemInMainHand()).thenReturn(null);
+        when(inventory.getItemInOffHand()).thenReturn(null);
         when(inventory.getArmorContents()).thenReturn(new ItemStack[4]);
+
+        ValmoraPlayer vPlayer = new ValmoraPlayer(uuid);
+        ValmoraProfile profile = new ValmoraProfile("Test");
+
+        // Zero out all defaults, then set the desired test values
+        profile.getStatManager().reduceStat(player, "damage", statRegistry.get("damage").get().getDefaultValue());
+        profile.getStatManager().reduceStat(player, "health", statRegistry.get("health").get().getDefaultValue());
+        profile.getStatManager().reduceStat(player, "strength", statRegistry.get("strength").get().getDefaultValue());
+        profile.getStatManager().reduceStat(player, "defense", statRegistry.get("defense").get().getDefaultValue());
+        profile.getStatManager().reduceStat(player, "crit_chance", statRegistry.get("crit_chance").get().getDefaultValue());
+        profile.getStatManager().reduceStat(player, "crit_damage", statRegistry.get("crit_damage").get().getDefaultValue());
+
+        profile.getStatManager().addStat(player, "damage", damage);
+        profile.getStatManager().addStat(player, "strength", strength);
+        profile.getStatManager().addStat(player, "defense", defense);
+        profile.getStatManager().addStat(player, "crit_chance", critChance);
+        profile.getStatManager().addStat(player, "crit_damage", 50.0);
+
+        vPlayer.addProfile(profile);
+        when(playerManager.getSession(uuid)).thenReturn(vPlayer);
     }
 
     @Test

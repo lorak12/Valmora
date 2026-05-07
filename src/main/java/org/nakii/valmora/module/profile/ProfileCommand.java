@@ -5,7 +5,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.util.Formatter;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.api.ValmoraAPI;
 
 import java.util.List;
 import java.util.Map;
@@ -81,8 +81,9 @@ public class ProfileCommand implements TabExecutor {
                 }
                 
                 PlayerState state = activeProfile.getPlayerState();
-                double maxHealth = activeProfile.getStatManager().getStat(Stat.HEALTH);
-                double maxMana = activeProfile.getStatManager().getStat(Stat.MANA);
+                var sys = ValmoraAPI.getInstance().getSystemStats();
+                double maxHealth = activeProfile.getStatManager().getStat(sys.getHealth());
+                double maxMana = activeProfile.getStatManager().getStat(sys.getMana());
                 
                 player.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));
                 player.sendMessage(Formatter.format(" <gold><bold>PROFILE INFO"));

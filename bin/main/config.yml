@@ -45,6 +45,24 @@ time:
   scoreboard-enabled: true
 
 # ========================================================== #
+#               Combat / Engine Stat Mapping                 #
+# ========================================================== #
+# Maps the engine's internal roles to stat IDs defined in stats/*.yml
+# Change these if you rename or replace a core stat.
+combat:
+  health-stat: health
+  mana-stat: mana
+  damage-stat: damage
+  strength-stat: strength
+  defense-stat: defense
+  crit-chance-stat: crit_chance
+  crit-damage-stat: crit_damage
+  speed-stat: speed
+  health-regen-stat: health_regen
+  mana-regen-stat: mana_regen
+  luck-stat: luck
+
+# ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
 alchemy:

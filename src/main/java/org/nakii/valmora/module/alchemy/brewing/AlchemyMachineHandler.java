@@ -132,10 +132,14 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         }
         if (!effect.getStats().isEmpty()) {
             lore.add(Component.empty());
-            for (org.nakii.valmora.module.stat.Stat stat : effect.getStats().keySet()) {
-                double val = effect.getStatValue(stat, level);
+            var registry = org.nakii.valmora.api.ValmoraAPI.getInstance().getStatRegistry();
+            for (String statId : effect.getStats().keySet()) {
+                double val = effect.getStatValue(statId, level);
                 String sign = val >= 0 && effect.getType() == AlchemyEffectType.BUFF ? "+" : "";
-                lore.add(Formatter.format("<gray>" + formatStatName(stat) + ": <" +
+                String displayName = registry.get(statId)
+                        .map(org.nakii.valmora.module.stat.StatDefinition::getDisplayName)
+                        .orElse(statId);
+                lore.add(Formatter.format("<gray>" + displayName + ": <" +
                         (effect.getType() == AlchemyEffectType.BUFF ? "green" : "red") + ">" + sign + (int) val));
             }
         }
@@ -211,20 +215,6 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             case "LEGENDARY" -> "<gold>";
             default -> "<gray>";
         };
-    }
-
-    private String formatStatName(org.nakii.valmora.module.stat.Stat stat) {
-        String name = stat.name().replace("_", " ");
-        String[] parts = name.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String p : parts) {
-            if (!p.isEmpty()) {
-                sb.append(Character.toUpperCase(p.charAt(0)));
-                if (p.length() > 1) sb.append(p.substring(1).toLowerCase());
-                sb.append(" ");
-            }
-        }
-        return sb.toString().trim();
     }
 
     private String toRoman(int level) {

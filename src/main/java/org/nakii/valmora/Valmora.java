@@ -232,6 +232,16 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.stat.StatRegistry getStatRegistry() {
+        return statModule.getStatRegistry();
+    }
+
+    @Override
+    public org.nakii.valmora.module.stat.SystemStats getSystemStats() {
+        return statModule.getSystemStats();
+    }
+
+    @Override
     public org.nakii.valmora.module.alchemy.AlchemyManager getAlchemyManager() {
         return alchemyModule != null ? alchemyModule.getAlchemyManager() : null;
     }
@@ -265,7 +275,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
                     if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                             name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
-                            name.startsWith("alchemy/")) {
+                            name.startsWith("alchemy/") || name.startsWith("stats/")) {
                         saveResource(name, true);
                     }
                 }

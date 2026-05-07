@@ -6,7 +6,6 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
-import org.nakii.valmora.module.stat.Stat;
 
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -89,7 +88,7 @@ public class SQLDataStore implements DataStore {
                 psProfiles.setString(1, uuid.toString());
                 ResultSet rsProfiles = psProfiles.executeQuery();
 
-                Type statsType = new TypeToken<Map<Stat, Double>>() {}.getType();
+                Type statsType = new TypeToken<Map<String, Double>>() {}.getType();
                 Type skillsType = new TypeToken<Map<String, Double>>() {}.getType();
 
                 while (rsProfiles.next()) {
@@ -99,7 +98,7 @@ public class SQLDataStore implements DataStore {
                     );
 
                     // Load JSON Data safely
-                    Map<Stat, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
+                    Map<String, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
                     if (stats != null) profile.getStatManager().loadData(stats);
 
                     Map<String, Double> skills = gson.fromJson(rsProfiles.getString("skills"), skillsType);

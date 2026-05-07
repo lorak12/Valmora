@@ -2,7 +2,6 @@ package org.nakii.valmora.module.alchemy.effect;
 
 import org.bukkit.Color;
 import org.bukkit.Material;
-import org.nakii.valmora.module.stat.Stat;
 
 import java.util.List;
 import java.util.Map;
@@ -18,11 +17,11 @@ public class AlchemyEffect {
     private final Material ingredient;
     private final int maxLevel;
     private final List<Integer> durations;
-    private final Map<Stat, List<Double>> stats;
+    private final Map<String, List<Double>> stats;
 
     public AlchemyEffect(String id, String name, AlchemyEffectType type, String rarity,
                          Color color, List<String> lore, Material ingredient,
-                         int maxLevel, List<Integer> durations, Map<Stat, List<Double>> stats) {
+                         int maxLevel, List<Integer> durations, Map<String, List<Double>> stats) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -49,10 +48,10 @@ public class AlchemyEffect {
         return durations.get(idx);
     }
 
-    public Map<Stat, List<Double>> getStats() { return stats; }
+    public Map<String, List<Double>> getStats() { return stats; }
 
-    public double getStatValue(Stat stat, int level) {
-        List<Double> values = stats.get(stat);
+    public double getStatValue(String statId, int level) {
+        List<Double> values = stats.get(statId.toLowerCase());
         if (values == null || values.isEmpty()) return 0;
         int idx = Math.min(level - 1, values.size() - 1);
         return values.get(idx);

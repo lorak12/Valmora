@@ -62,10 +62,13 @@ public class AlchemyVariableProvider implements VariableProvider {
                 obj.addProperty("material", def.getType().name().equals("BUFF") ? "LIME_DYE" : "RED_DYE");
                 obj.addProperty("rarity", def.getRarity());
                 JsonArray statsArr = new JsonArray();
-                for (org.nakii.valmora.module.stat.Stat stat : def.getStats().keySet()) {
-                    double val = def.getStatValue(stat, ae.level());
+                var registry = ValmoraAPI.getInstance().getStatRegistry();
+                for (String statId : def.getStats().keySet()) {
+                    double val = def.getStatValue(statId, ae.level());
                     JsonObject statObj = new JsonObject();
-                    statObj.addProperty("name", stat.name());
+                    statObj.addProperty("name", registry.get(statId)
+                            .map(org.nakii.valmora.module.stat.StatDefinition::getDisplayName)
+                            .orElse(statId));
                     statObj.addProperty("value", (int) val);
                     statsArr.add(statObj);
                 }

@@ -3,9 +3,10 @@ package org.nakii.valmora.module.alchemy.effect;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.module.stat.StatRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,19 +50,19 @@ public class AlchemyEffectLoader {
             }
             if (durations.isEmpty()) durations.add(60);
 
-            Map<Stat, List<Double>> stats = new HashMap<>();
+            StatRegistry statRegistry = ValmoraAPI.getInstance().getStatRegistry();
+            Map<String, List<Double>> stats = new HashMap<>();
             ConfigurationSection statsSection = s.getConfigurationSection("stats");
             if (statsSection != null) {
                 for (String statKey : statsSection.getKeys(false)) {
-                    try {
-                        Stat stat = Stat.valueOf(statKey.toUpperCase());
-                        List<?> vals = statsSection.getList(statKey);
-                        List<Double> statValues = new ArrayList<>();
-                        if (vals != null) {
-                            for (Object o : vals) statValues.add(((Number) o).doubleValue());
-                        }
-                        stats.put(stat, statValues);
-                    } catch (IllegalArgumentException ignored) {}
+                    String normalizedKey = statKey.toLowerCase();
+                    if (!statRegistry.contains(normalizedKey)) continue; // silently skip unknown stats
+                    List<?> vals = statsSection.getList(statKey);
+                    List<Double> statValues = new ArrayList<>();
+                    if (vals != null) {
+                        for (Object o : vals) statValues.add(((Number) o).doubleValue());
+                    }
+                    stats.put(normalizedKey, statValues);
                 }
             }
 

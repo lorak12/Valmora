@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.item;
 
 import org.bukkit.Material;
-import org.nakii.valmora.module.stat.Stat;
 
 import java.util.HashMap;
 import java.util.List;
@@ -14,7 +13,7 @@ public class ItemDefinition {
     private final Rarity rarity;
     private final ItemType itemType;
     private final List<String> lore;
-    private final Map<Stat, Double> stats;
+    private final Map<String, Double> stats;
     private final Map<String, AbilityDefinition> abilities;
 
     private ItemDefinition(Builder builder) {
@@ -34,7 +33,7 @@ public class ItemDefinition {
     public Rarity getRarity() { return rarity; }
     public ItemType getItemType() { return itemType; }
     public List<String> getLore() { return lore; }
-    public Map<Stat, Double> getStats() { return stats; }
+    public Map<String, Double> getStats() { return stats; }
     public Map<String, AbilityDefinition> getAbilities() { return abilities; }
 
     public static class Builder {
@@ -44,7 +43,7 @@ public class ItemDefinition {
         private Rarity rarity = Rarity.COMMON;
         private ItemType itemType = ItemType.NONE;
         private List<String> lore = List.of();
-        private Map<Stat, Double> stats = new HashMap<>();
+        private Map<String, Double> stats = new HashMap<>();
         private Map<String, AbilityDefinition> abilities = new HashMap<>();
 
         public Builder(String id) {
@@ -56,7 +55,7 @@ public class ItemDefinition {
         public Builder rarity(Rarity rarity) { this.rarity = rarity; return this; }
         public Builder itemType(ItemType itemType) { this.itemType = itemType; return this; }
         public Builder lore(List<String> lore) { this.lore = lore; return this; }
-        public Builder stat(Stat stat, double value) { this.stats.put(stat, value); return this; }
+        public Builder stat(String statId, double value) { this.stats.put(statId.toLowerCase(), value); return this; }
         public Builder ability(String id, AbilityDefinition ability) { this.abilities.put(id, ability); return this; }
 
         public ItemDefinition build() {

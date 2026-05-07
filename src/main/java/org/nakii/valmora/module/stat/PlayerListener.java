@@ -71,7 +71,8 @@ public class PlayerListener implements Listener {
             ValmoraProfile profile = vp.getActiveProfile();
             if (profile == null) return;
 
-            double maxHealth = profile.getStatManager().getStat(Stat.HEALTH);
+            String healthId = plugin.getStatModule().getSystemStats().getHealth();
+            double maxHealth = profile.getStatManager().getStat(healthId);
             profile.getPlayerState().heal(maxHealth, profile.getStatManager());
 
             plugin.getPlayerManager().syncVisualHealth(player, profile.getPlayerState(), profile.getStatManager());

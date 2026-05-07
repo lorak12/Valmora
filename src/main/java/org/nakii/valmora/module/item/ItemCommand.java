@@ -16,7 +16,8 @@ import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
-import org.nakii.valmora.module.stat.Stat;
+import org.nakii.valmora.module.stat.StatDefinition;
+import org.nakii.valmora.module.stat.StatRegistry;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -196,11 +197,14 @@ public class ItemCommand implements TabExecutor {
             }
         }
 
-        Map<Stat, Double> stats = def.getStats();
+        Map<String, Double> stats = def.getStats();
         if (!stats.isEmpty()) {
+            StatRegistry statRegistry = plugin.getStatModule().getStatRegistry();
             player.sendMessage(Formatter.format(" <gray>Stats:"));
-            for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
-                player.sendMessage(Formatter.format("   <dark_gray>| " + entry.getKey().format(entry.getValue())));
+            for (Map.Entry<String, Double> entry : stats.entrySet()) {
+                StatDefinition statDef = statRegistry.get(entry.getKey()).orElse(null);
+                String formatted = statDef != null ? statDef.format(entry.getValue()) : entry.getKey() + ": +" + entry.getValue();
+                player.sendMessage(Formatter.format("   <dark_gray>| " + formatted));
             }
         }
 
@@ -287,11 +291,14 @@ public class ItemCommand implements TabExecutor {
 
         // --- Stats ---
         if (meta != null) {
-            Map<Stat, Double> stats = plugin.getStatModule().loadStats(meta);
+            Map<String, Double> stats = plugin.getStatModule().loadStats(meta);
             if (!stats.isEmpty()) {
+                StatRegistry statRegistry = plugin.getStatModule().getStatRegistry();
                 player.sendMessage(Formatter.format(" <gray>--- <gold>Stats<gray> ---"));
-                for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
-                    player.sendMessage(Formatter.format("   <dark_gray>| " + entry.getKey().format(entry.getValue())));
+                for (Map.Entry<String, Double> entry : stats.entrySet()) {
+                    StatDefinition statDef = statRegistry.get(entry.getKey()).orElse(null);
+                    String formatted = statDef != null ? statDef.format(entry.getValue()) : entry.getKey() + ": +" + entry.getValue();
+                    player.sendMessage(Formatter.format("   <dark_gray>| " + formatted));
                 }
             }
         }

@@ -1,0 +1,83 @@
+health:
+  display-name: "Health"
+  default-value: 100.0
+  max-value: 10000.0
+  color: "<red>"
+  icon: "APPLE"
+  description: "Your maximum health pool."
+  pool: true
+
+mana:
+  display-name: "Mana"
+  default-value: 100.0
+  max-value: 5000.0
+  color: "<aqua>"
+  icon: "LAPIS_LAZULI"
+  description: "Resource used for casting abilities."
+  pool: true
+
+damage:
+  display-name: "Damage"
+  default-value: 5.0
+  color: "<yellow>"
+  icon: "IRON_SWORD"
+  description: "Base attack power dealt to enemies."
+
+strength:
+  display-name: "Strength"
+  default-value: 0.0
+  color: "<dark_red>"
+  icon: "BLAZE_POWDER"
+  description: "Boosts the power of your melee strikes."
+
+defense:
+  display-name: "Defense"
+  default-value: 0.0
+  color: "<green>"
+  icon: "SHIELD"
+  description: "Reduces damage taken from physical attacks."
+
+crit_chance:
+  display-name: "Crit Chance"
+  default-value: 30.0
+  max-value: 100.0
+  color: "<gold>"
+  icon: "GOLD_NUGGET"
+  description: "Chance to deal a critical hit."
+
+crit_damage:
+  display-name: "Crit Damage"
+  default-value: 50.0
+  color: "<gold>"
+  icon: "GLOWSTONE_DUST"
+  description: "Multiplier for your critical hits."
+
+speed:
+  display-name: "Speed"
+  default-value: 100.0
+  color: "<white>"
+  icon: "SUGAR"
+  description: "Increases movement and sprinting speed."
+  vanilla-attribute: "MOVEMENT_SPEED"
+
+health_regen:
+  display-name: "Health Regen"
+  default-value: 1.0
+  color: "<light_purple>"
+  icon: "GHAST_TEAR"
+  description: "Speed at which your health restores over time."
+
+mana_regen:
+  display-name: "Mana Regen"
+  default-value: 2.0
+  color: "<dark_aqua>"
+  icon: "PRISMARINE_CRYSTALS"
+  description: "Speed at which your mana restores over time."
+
+luck:
+  display-name: "Luck"
+  default-value: 0.0
+  max-value: 100.0
+  color: "<gold>"
+  icon: "RABBIT_FOOT"
+  description: "Increases the quality of loot and drops."

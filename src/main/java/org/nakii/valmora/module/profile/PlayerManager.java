@@ -9,7 +9,6 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.module.combat.RegenTask;
 import org.nakii.valmora.database.DataStore;
-import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.module.stat.StatManager;
 
 import java.util.Collection;
@@ -57,7 +56,8 @@ public class PlayerManager implements ReloadableModule {
                 ValmoraProfile defaultProfile = new ValmoraProfile("Default");
                 
                 // Initialize their starting health to their Max Health
-                double maxHealth = defaultProfile.getStatManager().getStat(Stat.HEALTH);
+                String healthId = plugin.getStatModule().getSystemStats().getHealth();
+                double maxHealth = defaultProfile.getStatManager().getStat(healthId);
                 defaultProfile.getPlayerState().heal(maxHealth, defaultProfile.getStatManager());
                 
                 finalPlayer.addProfile(defaultProfile);
@@ -161,7 +161,7 @@ public class PlayerManager implements ReloadableModule {
     }
 
     public void syncVisualHealth(org.bukkit.entity.Player player, PlayerState state, StatManager stats) {
-        double maxHealth = stats.getStat(Stat.HEALTH);
+        double maxHealth = stats.getStat(plugin.getStatModule().getSystemStats().getHealth());
         double current = state.getCurrentHealth();
 
         // Calculate percentage of health remaining
