@@ -5,23 +5,14 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public interface DataStore {
-    /**
-     * Initializes the database tables.
-     */
     void init();
-
-    /**
-     * Loads a player asynchronously.
-     */
     CompletableFuture<ValmoraPlayer> loadPlayer(UUID uuid);
-
-    /**
-     * Saves a player asynchronously.
-     */
     CompletableFuture<Void> savePlayer(ValmoraPlayer player);
 
-    /**
-     * Closes the database connection pool safely.
-     */
+    /** Returns [purse, bank] or null if no row exists for this UUID. */
+    CompletableFuture<double[]> loadEconomy(UUID uuid);
+
+    CompletableFuture<Void> saveEconomy(UUID uuid, double purse, double bank);
+
     void close();
 }

@@ -1,0 +1,17 @@
+id: "alchemy"
+name: "<light_purple><bold>⚗ Alchemy</bold></light_purple>"
+description:
+  - "<dark_gray>Master the art of potion brewing."
+material: BREWING_STAND
+max-level: 60
+xp-curve: "default"
+
+rewards:
+  per-level:
+    - "variable add player.var.coins $param.level$*5"
+
+  milestones:
+    "10":
+      - "give BLAZE_POWDER:5 notify"
+    "30":
+      - "give NETHER_WART:16 notify"

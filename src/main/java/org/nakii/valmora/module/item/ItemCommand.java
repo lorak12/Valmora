@@ -1,18 +1,29 @@
 package org.nakii.valmora.module.item;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
+import org.nakii.valmora.module.stat.Stat;
 import org.nakii.valmora.util.Formatter;
+import org.nakii.valmora.util.Keys;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ItemCommand implements TabExecutor {
@@ -76,22 +87,22 @@ public class ItemCommand implements TabExecutor {
                 break;
                 
             case "info":
-                if (args.length < 2) {
-                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /item info <id>"));
-                    return true;
-                }
-                Optional<ItemDefinition> defOpt = itemManager.getItemRegistry().getItem(args[1]);
-                if (defOpt.isPresent()) {
-                    ItemDefinition def = defOpt.get();
-                    player.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));
-                    player.sendMessage(Formatter.format(" <gold><bold>ITEM INFO: " + def.getId().toUpperCase()));
-                    player.sendMessage(Formatter.format(" <gray>Name: <white>" + def.getName()));
-                    player.sendMessage(Formatter.format(" <gray>Material: <yellow>" + def.getMaterial().name()));
-                    player.sendMessage(Formatter.format(" <gray>Rarity: <aqua>" + def.getRarity().name()));
-                    player.sendMessage(Formatter.format(" <gray>Type: <green>" + def.getItemType().name()));
-                    player.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));
+                if (args.length >= 2) {
+                    // Info by ID from registry
+                    Optional<ItemDefinition> defOpt = itemManager.getItemRegistry().getItem(args[1]);
+                    if (defOpt.isPresent()) {
+                        sendDefinitionInfo(player, defOpt.get());
+                    } else {
+                        player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Item '" + args[1] + "' not found!"));
+                    }
                 } else {
-                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Item '" + args[1] + "' not found!"));
+                    // Info from held item
+                    ItemStack held = player.getInventory().getItemInMainHand();
+                    if (held == null || held.getType() == Material.AIR) {
+                        player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Hold an item or provide an item ID."));
+                        return true;
+                    }
+                    sendHeldItemInfo(player, held, itemManager);
                 }
                 break;
                 
@@ -165,6 +176,156 @@ public class ItemCommand implements TabExecutor {
         }
 
         return true;
+    }
+
+    private void sendDefinitionInfo(Player player, ItemDefinition def) {
+        String hr = "<dark_gray><st>                                                </st>";
+        player.sendMessage(Formatter.format(hr));
+        player.sendMessage(Formatter.format(" <gold><bold>ITEM INFO: " + def.getId().toUpperCase()));
+        player.sendMessage(Formatter.format(" <gray>Name: <white>" + def.getName()));
+        player.sendMessage(Formatter.format(" <gray>Material: <yellow>" + def.getMaterial().name()));
+        Rarity rarity = def.getRarity();
+        player.sendMessage(Formatter.format(" <gray>Rarity: " + rarity.getColor() + rarity.getName()));
+        player.sendMessage(Formatter.format(" <gray>Type: <green>" + def.getItemType().name()));
+
+        List<String> lore = def.getLore();
+        if (!lore.isEmpty()) {
+            player.sendMessage(Formatter.format(" <gray>Lore:"));
+            for (String line : lore) {
+                player.sendMessage(Formatter.format("   <dark_gray>| <white>" + line));
+            }
+        }
+
+        Map<Stat, Double> stats = def.getStats();
+        if (!stats.isEmpty()) {
+            player.sendMessage(Formatter.format(" <gray>Stats:"));
+            for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
+                player.sendMessage(Formatter.format("   <dark_gray>| " + entry.getKey().format(entry.getValue())));
+            }
+        }
+
+        Map<String, AbilityDefinition> abilities = def.getAbilities();
+        if (!abilities.isEmpty()) {
+            player.sendMessage(Formatter.format(" <gray>Abilities:"));
+            for (AbilityDefinition ability : abilities.values()) {
+                player.sendMessage(Formatter.format("   <dark_gray>| <light_purple>" + ability.getName()
+                        + " <gray>(" + ability.getTrigger().name() + ")"
+                        + " <aqua>CD:<white>" + ability.getCooldown() + "s"
+                        + " <aqua>Mana:<white>" + ability.getManaCost()
+                        + " <aqua>Range:<white>" + ability.getTargetRange()));
+                for (String desc : ability.getDescription()) {
+                    player.sendMessage(Formatter.format("     <dark_gray>» <gray>" + desc));
+                }
+            }
+        }
+
+        player.sendMessage(Formatter.format(hr));
+    }
+
+    private void sendHeldItemInfo(Player player, ItemStack item, ItemManager itemManager) {
+        String hr = "<dark_gray><st>                                                </st>";
+        ItemMeta meta = item.getItemMeta();
+        PersistentDataContainer pdc = meta != null ? meta.getPersistentDataContainer() : null;
+
+        player.sendMessage(Formatter.format(hr));
+        player.sendMessage(Formatter.format(" <gold><bold>HELD ITEM INFO"));
+
+        // --- Vanilla / display ---
+        player.sendMessage(Formatter.format(" <gray>Material: <yellow>" + item.getType().name()));
+        player.sendMessage(Formatter.format(" <gray>Amount: <white>" + item.getAmount()));
+
+        if (meta != null) {
+            if (meta.hasDisplayName()) {
+                String display = PlainTextComponentSerializer.plainText().serialize(meta.displayName());
+                player.sendMessage(Formatter.format(" <gray>Display Name: <white>" + display));
+            }
+
+            if (meta.hasLore()) {
+                List<Component> loreComponents = meta.lore();
+                if (loreComponents != null && !loreComponents.isEmpty()) {
+                    player.sendMessage(Formatter.format(" <gray>Lore (" + loreComponents.size() + " lines):"));
+                    for (Component line : loreComponents) {
+                        String plain = PlainTextComponentSerializer.plainText().serialize(line);
+                        player.sendMessage(Formatter.format("   <dark_gray>| <white>" + plain));
+                    }
+                }
+            }
+
+            if (meta.hasCustomModelData()) {
+                player.sendMessage(Formatter.format(" <gray>Custom Model Data: <white>" + meta.getCustomModelData()));
+            }
+
+            if (meta.isUnbreakable()) {
+                player.sendMessage(Formatter.format(" <gray>Unbreakable: <green>true"));
+            }
+        }
+
+        // --- Valmora PDC keys ---
+        player.sendMessage(Formatter.format(" <gray>--- <gold>Valmora PDC<gray> ---"));
+
+        if (pdc != null && pdc.has(Keys.ITEM_ID_KEY, PersistentDataType.STRING)) {
+            String itemId = pdc.get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+            player.sendMessage(Formatter.format(" <gray>Item ID: <aqua>" + itemId));
+
+            // Pull full definition for extra context
+            itemManager.getItemRegistry().getItem(itemId).ifPresent(def -> {
+                Rarity rarity = def.getRarity();
+                player.sendMessage(Formatter.format(" <gray>Definition Rarity: " + rarity.getColor() + rarity.getName()));
+                player.sendMessage(Formatter.format(" <gray>Definition Type: <green>" + def.getItemType().name()));
+            });
+        } else {
+            player.sendMessage(Formatter.format(" <gray>Item ID: <dark_gray>none (vanilla / unregistered)"));
+        }
+
+        if (pdc != null && pdc.has(Keys.RARITY_KEY, PersistentDataType.STRING)) {
+            player.sendMessage(Formatter.format(" <gray>PDC Rarity: <white>" + pdc.get(Keys.RARITY_KEY, PersistentDataType.STRING)));
+        }
+
+        if (pdc != null && pdc.has(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING)) {
+            player.sendMessage(Formatter.format(" <gray>PDC Item Type: <white>" + pdc.get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING)));
+        }
+
+        // --- Stats ---
+        if (meta != null) {
+            Map<Stat, Double> stats = plugin.getStatModule().loadStats(meta);
+            if (!stats.isEmpty()) {
+                player.sendMessage(Formatter.format(" <gray>--- <gold>Stats<gray> ---"));
+                for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
+                    player.sendMessage(Formatter.format("   <dark_gray>| " + entry.getKey().format(entry.getValue())));
+                }
+            }
+        }
+
+        // --- Enchantments ---
+        Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(item);
+        if (!enchants.isEmpty()) {
+            player.sendMessage(Formatter.format(" <gray>--- <gold>Valmora Enchantments<gray> ---"));
+            for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
+                String enchantId = entry.getKey();
+                int level = entry.getValue();
+                Optional<EnchantmentDefinition> enchDef = plugin.getEnchantModule().getRegistry().get(enchantId);
+                String name = enchDef.map(EnchantmentDefinition::getName).orElse(enchantId);
+                String maxLevel = enchDef.map(d -> "/" + d.getAbsoluteMaxLevel()).orElse("");
+                player.sendMessage(Formatter.format("   <dark_gray>| <aqua>" + name + " <white>" + level + maxLevel));
+            }
+        }
+
+        // --- Raw PDC dump ---
+        player.sendMessage(Formatter.format(" <gray>--- <gold>All PDC Keys<gray> ---"));
+        if (pdc != null) {
+            Set<NamespacedKey> keys = pdc.getKeys();
+            if (keys.isEmpty()) {
+                player.sendMessage(Formatter.format("   <dark_gray>none"));
+            } else {
+                for (NamespacedKey key : keys) {
+                    player.sendMessage(Formatter.format("   <dark_gray>| <white>" + key.toString()));
+                }
+            }
+        } else {
+            player.sendMessage(Formatter.format("   <dark_gray>no meta"));
+        }
+
+        player.sendMessage(Formatter.format(hr));
     }
 
     @Override

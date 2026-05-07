@@ -132,8 +132,13 @@ public class StatManager {
                 }
             }
         }
+        var alchemyManager = api.getAlchemyManager();
+        if (alchemyManager != null) {
+            alchemyManager.applyEffectsToStats(player, this);
+        }
+
         recalculateAttributes(player);
-        
+
         var session = api.getPlayerManager().getSession(player.getUniqueId());
         if (session == null) return;
         

@@ -10,6 +10,8 @@ import org.nakii.valmora.module.profile.PlayerManager;
 import org.nakii.valmora.module.profile.ProfileCommand;
 import org.nakii.valmora.module.recipe.RecipeModule;
 import org.nakii.valmora.module.combat.CombatModule;
+import org.nakii.valmora.module.time.TimeModule;
+import org.nakii.valmora.module.time.TimeCommand;
 import org.nakii.valmora.module.combat.DamageIndicatorManager;
 import org.nakii.valmora.module.gui.GuiCommand;
 import org.nakii.valmora.module.gui.GuiModule;
@@ -25,6 +27,12 @@ import org.nakii.valmora.module.skill.SkillManager;
 import org.nakii.valmora.module.skill.SkillModule;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.module.enchant.EnchantModule;
+import org.nakii.valmora.module.alchemy.AlchemyModule;
+import org.nakii.valmora.module.alchemy.command.PotionCommand;
+import org.nakii.valmora.module.alchemy.command.EffectsCommand;
+import org.nakii.valmora.api.economy.EconomyService;
+import org.nakii.valmora.module.economy.EcoCommand;
+import org.nakii.valmora.module.economy.EconomyModule;
 import org.nakii.valmora.util.Keys;
 
 import java.io.File;
@@ -49,13 +57,17 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private AbilityManager abilityManager;
     private CombatModule combatModule;
     private ScriptModule scriptModule;
+    private TimeModule timeModule;
 
     private UIManager uiManager;
     private org.nakii.valmora.module.gui.GuiModule guiModule;
     private org.nakii.valmora.module.recipe.RecipeModule recipeModule;
+    private AlchemyModule alchemyModule;
     private org.nakii.valmora.module.enchant.EnchantModule enchantModule;
 
     private ModuleManager moduleManager;
+    private EconomyModule economyModule;
+    private EconomyService economyService;
 
     @Override
     public void onEnable() {
@@ -74,6 +86,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // 1. Initialize Database first
         this.dataStore = DatabaseFactory.createDataStore(this);
         this.dataStore.init();
+        this.economyModule = new EconomyModule(this, dataStore);
+        this.economyService = economyModule;
 
         // 2. Initialize Managers/Modules
         this.playerManager = new PlayerManager(this, dataStore);
@@ -84,16 +98,20 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.skillModule = new SkillModule(this);
         this.combatModule = new CombatModule(this);
         this.scriptModule = new ScriptModule(this);
+        this.timeModule = new TimeModule(this);
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this);
         this.recipeModule = new RecipeModule(this);
+        this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
         moduleManager.registerModule(scriptModule);
+        moduleManager.registerModule(timeModule);    // No dependencies; scoreboard and scripts read from it
         moduleManager.registerModule(statModule);
         moduleManager.registerModule(playerManager);
+        moduleManager.registerModule(economyModule); // Depends on playerManager for join/quit lifecycle
         
         // Dependent Modules
         moduleManager.registerModule(uiManager);
@@ -104,6 +122,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(combatModule);
         moduleManager.registerModule(guiModule);
         moduleManager.registerModule(recipeModule);
+        moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
 
         // 4. Enable Modules
@@ -117,6 +136,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
         getCommand("skill").setExecutor(new SkillCommand(this, playerManager));
         getCommand("gui").setExecutor(new GuiCommand(this));
+        getCommand("time").setExecutor(new TimeCommand(timeModule.getTimeManager()));
+        getCommand("eco").setExecutor(new EcoCommand(economyModule));
+        getCommand("potion").setExecutor(new PotionCommand(this, alchemyModule.getAlchemyManager()));
+        getCommand("effects").setExecutor(new EffectsCommand(this));
     }
 
      @Override
@@ -191,6 +214,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return scriptModule;
     }
 
+    @Override
+    public org.nakii.valmora.module.time.TimeManager getTimeManager() {
+        return timeModule.getTimeManager();
+    }
+
     public org.nakii.valmora.module.gui.GuiModule getGuiModule() {
         return guiModule;
     }
@@ -201,6 +229,25 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     public org.nakii.valmora.module.enchant.EnchantModule getEnchantModule() {
         return enchantModule;
+    }
+
+    @Override
+    public org.nakii.valmora.module.alchemy.AlchemyManager getAlchemyManager() {
+        return alchemyModule != null ? alchemyModule.getAlchemyManager() : null;
+    }
+
+    @Override
+    public EconomyService getEconomy() {
+        return economyService;
+    }
+
+    @Override
+    public EconomyModule getEconomyModule() {
+        return economyModule;
+    }
+
+    public void setEconomyService(EconomyService service) {
+        this.economyService = service;
     }
 
     private void saveAllResources() {
@@ -217,7 +264,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                     }
 
                     if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
-                            name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/")) {
+                            name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
+                            name.startsWith("alchemy/")) {
                         saveResource(name, true);
                     }
                 }

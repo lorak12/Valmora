@@ -1,0 +1,294 @@
+# ============================================================
+#  Bank of Valmora — all three GUIs in a single file
+#
+#  bank      — main overview (balance, deposit/withdraw nav)
+#  deposit   — choose deposit amount
+#  withdrawal — choose withdrawal amount
+# ============================================================
+
+bank:
+  title: "<gold>⚜ Personal Bank Account"
+  rows: 4
+  update-interval: 40
+
+  #  B B B B B B B B B
+  #  B B D B W B T B B   D=deposit  W=withdraw  T=transactions
+  #  B B B B B B B B B
+  #  B B B B X B B B B   X=close
+  layout:
+    - "BBBBBBBBB"
+    - "BBDBWBTBB"
+    - "BBBBBBBBB"
+    - "BBBBXBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    D:
+      type: DISPLAY
+      display-item:
+        material: CHEST
+        name: "<green>Deposit Coins"
+        lore:
+          - "<gray>Purse: <gold>$economy.purse$ coins"
+          - ""
+          - "<gray>Store coins in the bank to keep them"
+          - "<gray>safe while you go on adventures."
+          - ""
+          - "<yellow>Left-click: <white>choose deposit amount"
+          - "<yellow>Right-click: <white>deposit entire purse"
+      actions:
+        left:
+          actions:
+            - "open_gui deposit"
+        right:
+          actions:
+            - "economy_deposit all"
+
+    W:
+      type: DISPLAY
+      display-item:
+        material: DROPPER
+        name: "<red>Withdraw Coins"
+        lore:
+          - "<gray>Bank: <gold>$economy.bank$ coins"
+          - ""
+          - "<gray>Take your coins out of the bank"
+          - "<gray>in order to spend them."
+          - ""
+          - "<yellow>Click to withdraw coins"
+      actions:
+        left:
+          actions:
+            - "open_gui withdrawal"
+
+    T:
+      type: DISPLAY
+      display-item:
+        material: MAP
+        name: "<white>Recent Transactions"
+        lore:
+          - "<gray>There are no recent transactions!"
+
+    X:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+        lore:
+          - "<gray>Close the bank."
+      actions:
+        left:
+          actions:
+            - "close"
+
+  on-open:
+    actions:
+      - "condition $prop.pending$ == deposit"
+      - "economy_deposit $prop.sign_value$"
+      - "variable set prop.pending null"
+      - "variable set prop.sign_value null"
+    fail-actions:
+      - "condition $prop.pending$ == withdraw"
+      - "economy_withdraw $prop.sign_value$"
+      - "variable set prop.pending null"
+      - "variable set prop.sign_value null"
+
+# ============================================================
+
+deposit:
+  title: "<gold>⚜ Bank Deposit"
+  rows: 4
+  update-interval: 0
+
+  #  B B B B B B B B B
+  #  B B A B H B S B B   A=all  H=half  S=specific
+  #  B B B B B B B B B
+  #  B B B B R B B B B   R=return to bank
+  layout:
+    - "BBBBBBBBB"
+    - "BBABHBSBB"
+    - "BBBBBBBBB"
+    - "BBBBRBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: CHEST
+        name: "<green>Your Whole Purse"
+        lore:
+          - "<dark_gray>Bank deposit"
+          - ""
+          - "<gray>Purse: <gold>$economy.purse$ coins"
+          - "<gray>Amount to deposit: <gold>$economy.purse$ coins"
+          - ""
+          - "<yellow>Click to deposit all!"
+      actions:
+        left:
+          actions:
+            - "economy_deposit all"
+            - "open_gui bank"
+
+    H:
+      type: DISPLAY
+      display-item:
+        material: CHEST
+        name: "<green>Half Your Purse"
+        lore:
+          - "<dark_gray>Bank deposit"
+          - ""
+          - "<gray>Purse: <gold>$economy.purse$ coins"
+          - "<gray>Amount to deposit: <gold>{$economy.purse$ / 2} coins"
+          - ""
+          - "<yellow>Click to deposit half!"
+      actions:
+        left:
+          actions:
+            - "economy_deposit half"
+            - "open_gui bank"
+
+    S:
+      type: DISPLAY
+      display-item:
+        material: OAK_SIGN
+        name: "<green>Specific Amount"
+        lore:
+          - "<dark_gray>Bank deposit"
+          - ""
+          - "<gray>Purse: <gold>$economy.purse$ coins"
+          - ""
+          - "<yellow>Click to enter amount!"
+      actions:
+        left:
+          actions:
+            - "variable set prop.pending deposit"
+            - "open_dialog_input sign_value Deposit_Coins Amount e.g._2.5k return=bank"
+
+    R:
+      type: DISPLAY
+      display-item:
+        material: ARROW
+        name: "<gray>← Back"
+        lore:
+          - "<gray>Return to Personal Bank Account"
+      actions:
+        left:
+          actions:
+            - "open_gui bank"
+
+# ============================================================
+
+withdrawal:
+  title: "<gold>⚜ Bank Withdrawal"
+  rows: 4
+  update-interval: 0
+
+  #  B B B B B B B B B
+  #  B A B H B P B S B   A=all  H=half  P=20%  S=specific
+  #  B B B B B B B B B
+  #  B B B B R B B B B   R=return to bank
+  layout:
+    - "BBBBBBBBB"
+    - "BABHBPBSB"
+    - "BBBBBBBBB"
+    - "BBBBRBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: DROPPER
+        name: "<green>Withdraw Everything"
+        lore:
+          - "<dark_gray>Bank withdrawal"
+          - ""
+          - "<gray>Bank: <gold>$economy.bank$ coins"
+          - "<gray>Amount to withdraw: <gold>$economy.bank$ coins"
+          - ""
+          - "<yellow>Click to withdraw everything!"
+      actions:
+        left:
+          actions:
+            - "economy_withdraw all"
+            - "open_gui bank"
+
+    H:
+      type: DISPLAY
+      display-item:
+        material: DROPPER
+        name: "<green>Withdraw Half"
+        lore:
+          - "<dark_gray>Bank withdrawal"
+          - ""
+          - "<gray>Bank: <gold>$economy.bank$ coins"
+          - "<gray>Amount to withdraw: <gold>{$economy.bank$ / 2} coins"
+          - ""
+          - "<yellow>Click to withdraw half!"
+      actions:
+        left:
+          actions:
+            - "economy_withdraw half"
+            - "open_gui bank"
+
+    P:
+      type: DISPLAY
+      display-item:
+        material: DROPPER
+        name: "<green>Withdraw 20%"
+        lore:
+          - "<dark_gray>Bank withdrawal"
+          - ""
+          - "<gray>Bank: <gold>$economy.bank$ coins"
+          - ""
+          - "<yellow>Click to withdraw 20%!"
+      actions:
+        left:
+          actions:
+            - "economy_withdraw 20%"
+            - "open_gui bank"
+
+    S:
+      type: DISPLAY
+      display-item:
+        material: OAK_SIGN
+        name: "<green>Specific Amount"
+        lore:
+          - "<dark_gray>Bank withdrawal"
+          - ""
+          - "<gray>Bank: <gold>$economy.bank$ coins"
+          - ""
+          - "<yellow>Click to enter amount!"
+      actions:
+        left:
+          actions:
+            - "variable set prop.pending withdraw"
+            - "open_dialog_input sign_value Withdraw_Coins Amount e.g._2.5k return=bank"
+
+    R:
+      type: DISPLAY
+      display-item:
+        material: ARROW
+        name: "<gray>← Back"
+        lore:
+          - "<gray>Return to Personal Bank Account"
+      actions:
+        left:
+          actions:
+            - "open_gui bank"

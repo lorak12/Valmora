@@ -63,7 +63,13 @@ public class PlayerListener implements Listener {
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         Bukkit.getScheduler().runTask(plugin, () -> {
-            ValmoraProfile profile = plugin.getPlayerManager().getSession(player.getUniqueId()).getActiveProfile();
+            var vp = plugin.getPlayerManager().getSession(player.getUniqueId());
+            if (vp == null) {
+                plugin.getLogger().warning("No session for " + player.getName() + " during respawn");
+                return;
+            }
+            ValmoraProfile profile = vp.getActiveProfile();
+            if (profile == null) return;
 
             double maxHealth = profile.getStatManager().getStat(Stat.HEALTH);
             profile.getPlayerState().heal(maxHealth, profile.getStatManager());

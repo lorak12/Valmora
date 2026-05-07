@@ -11,6 +11,11 @@ public class Keys {
     public static NamespacedKey MOB_ID_KEY;
     public static NamespacedKey ENCHANTS_CONTAINER_KEY;
 
+    public static NamespacedKey ALCHEMY_EFFECT_ID;
+    public static NamespacedKey ALCHEMY_EFFECT_LEVEL;
+    public static NamespacedKey ALCHEMY_DURATION;
+    public static NamespacedKey ALCHEMY_IS_SPLASH;
+
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
         RARITY_KEY = new NamespacedKey(plugin, "rarity");
@@ -18,5 +23,10 @@ public class Keys {
         STATS_CONTAINER_KEY = new NamespacedKey(plugin, "item_stats_container");
         MOB_ID_KEY = new NamespacedKey(plugin, "valmora_mob_id");
         ENCHANTS_CONTAINER_KEY = new NamespacedKey(plugin, "valmora_enchants_container");
+
+        ALCHEMY_EFFECT_ID = new NamespacedKey(plugin, "alchemy_effect_id");
+        ALCHEMY_EFFECT_LEVEL = new NamespacedKey(plugin, "alchemy_effect_level");
+        ALCHEMY_DURATION = new NamespacedKey(plugin, "alchemy_duration");
+        ALCHEMY_IS_SPLASH = new NamespacedKey(plugin, "alchemy_is_splash");
     }
 }

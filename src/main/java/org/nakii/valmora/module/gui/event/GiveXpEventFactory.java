@@ -29,9 +29,13 @@ public class GiveXpEventFactory implements EventFactory {
             Skill skill = Skill.valueOf(args[1].toUpperCase());
             double amount = Double.parseDouble(args[2]);
             
-            return context -> context.getPlayerCaster().ifPresent(player -> 
-                plugin.getPlayerManager().getSession(player.getUniqueId())
-                    .getActiveProfile().getSkillManager().addXp(skill, amount, player));
+            return context -> context.getPlayerCaster().ifPresent(player -> {
+                var vp = plugin.getPlayerManager().getSession(player.getUniqueId());
+                if (vp == null) return;
+                var profile = vp.getActiveProfile();
+                if (profile == null) return;
+                profile.getSkillManager().addXp(skill, amount, player);
+            });
         } catch (Exception e) {
             return context -> {};
         }

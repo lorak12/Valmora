@@ -2,15 +2,24 @@ alchemy_table:
   title: "<light_purple>⚗ Alchemy Table</light_purple>"
   rows: 6
   machine: alchemy
-  update-interval: 20 # 1 second
+  update-interval: 20
 
   layout:
     - "BBBBBBBBB"
-    - "B       B"
-    - "B I   O B"
-    - "B   P   B"
-    - "B       B"
+    - "B A B I B"
     - "BBBBBBBBB"
+    - "B G R S B"
+    - "B P B O B"
+    - "BBBBBBBBB"
+
+  # Slot legend:
+  #   A = base (water bottle or awkward potion)
+  #   I = ingredient
+  #   G = potency modifier (Glowstone Dust)
+  #   R = duration modifier (Redstone Dust)
+  #   S = splash modifier (Gunpowder)
+  #   P = preview / progress display
+  #   O = output
 
   components:
     B:
@@ -18,30 +27,68 @@ alchemy_table:
       display-item:
         material: PURPLE_STAINED_GLASS_PANE
         name: " "
-        amount: 1
+
+    " ":
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    A:
+      type: INPUT
+      id: base
+
     I:
       type: INPUT
       id: ingredient
-    O:
-      type: OUTPUT
-      id: result
+
+    G:
+      type: INPUT
+      id: potency
+
+    R:
+      type: INPUT
+      id: duration_mod
+
+    S:
+      type: INPUT
+      id: splash
+
     P:
       type: DISPLAY
       display-item:
         material: BREWING_STAND
         name: "<white>Brewing progress: <light_purple>$prop.brew_time$s</light_purple>"
         lore:
-          - "<gray>Status: <white>$prop.brew_status$</white>"
-        amount: 1
+          - "<gray>Status: <white>$prop.brew_status$"
+          - ""
+          - "<dark_gray>Base: <white>$prop.hint_base$"
+          - "<dark_gray>Ingredient: <white>$prop.hint_ingredient$"
+
+    O:
+      type: OUTPUT
+      id: result
+
+  on-open:
+    actions:
+      - "variable set prop.brew_time 0"
+      - "variable set prop.brew_status <gray>Waiting..."
+      - "variable set prop.hint_base <gray>Empty"
+      - "variable set prop.hint_ingredient <gray>Empty"
 
   on-slot-update:
     actions:
-      - "condition $gui.input.ingredient.id$ != null"
+      - "condition $gui.input.base.material$ != null"
+      - "condition $gui.input.ingredient.material$ != null"
       - "variable set prop.brew_time 10"
-      - "variable set prop.brew_status Brewing..."
+      - "variable set prop.brew_status <yellow>Brewing..."
+      - "variable set prop.hint_base <green>Ready"
+      - "variable set prop.hint_ingredient <green>Ready"
     fail-actions:
       - "variable set prop.brew_time 0"
-      - "variable set prop.brew_status Waiting..."
+      - "variable set prop.brew_status <gray>Waiting..."
+      - "variable set prop.hint_base <gray>Empty"
+      - "variable set prop.hint_ingredient <gray>Empty"
 
   on-update:
     actions:
@@ -49,5 +96,5 @@ alchemy_table:
       - "variable add prop.brew_time -1"
       - "condition $prop.brew_time$ == 0"
       - "gui_force_craft"
-      - "variable set prop.brew_status Done!"
+      - "variable set prop.brew_status <green>Done!"
       - "sound player block.brewing_stand.brew"

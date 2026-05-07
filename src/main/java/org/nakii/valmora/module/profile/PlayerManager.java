@@ -66,6 +66,7 @@ public class PlayerManager implements ReloadableModule {
 
             Runnable finalize = () -> {
                 activeSession.put(uuid, finalPlayer);
+                new PlayerProfileLoadedEvent(uuid, finalPlayer).callEvent();
                 Player bukkitPlayer = Bukkit.getPlayer(uuid);
                 if (bukkitPlayer != null) {
                     finalPlayer.getActiveProfile().getStatManager().recalculateAttributes(bukkitPlayer);
@@ -133,6 +134,10 @@ public class PlayerManager implements ReloadableModule {
 
     public ValmoraPlayer getSession(UUID uuid) {
         return activeSession.get(uuid);
+    }
+
+    public boolean isLoaded(UUID uuid) {
+        return activeSession.containsKey(uuid);
     }
 
     public void createProfile(UUID uuid, String profileName) {

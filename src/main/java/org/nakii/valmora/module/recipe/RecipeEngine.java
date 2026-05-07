@@ -2,9 +2,11 @@ package org.nakii.valmora.module.recipe;
 
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.Nullable;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.util.Keys;
 
@@ -27,11 +29,59 @@ public class RecipeEngine {
         dynamicHandlers.put(machineId.toLowerCase(), handler);
     }
 
+    /**
+     * Unified craft operation: matches, determines output, consumes ingredients.
+     * Returns empty if no recipe matched or output could not be built.
+     * All three steps happen atomically on the calling thread.
+     */
+    public Optional<CraftResult> craft(String machineId, Map<String, ItemStack> inputs) {
+        return craft(machineId, inputs, null);
+    }
+
+    public Optional<CraftResult> craft(String machineId, Map<String, ItemStack> inputs, @Nullable Player player) {
+        Optional<RecipeDefinition> matched = match(machineId, inputs, player);
+        if (matched.isEmpty()) return Optional.empty();
+
+        RecipeDefinition recipe = matched.get();
+        ItemStack output = buildOutput(recipe);
+        if (output == null || output.getType() == org.bukkit.Material.AIR) return Optional.empty();
+
+        consume(recipe, inputs);
+        return Optional.of(new CraftResult(output, recipe, recipe.getOnCraft()));
+    }
+
+    private ItemStack buildOutput(RecipeDefinition recipe) {
+        ItemStack output;
+        if (recipe.isVanilla()) {
+            output = recipe.getVanillaResult().clone();
+        } else if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) {
+            return null;
+        } else {
+            RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
+            org.bukkit.Material mat = org.bukkit.Material.matchMaterial(firstOutput.item());
+            if (mat == null) {
+                output = plugin.getItemManager().createItemStack(firstOutput.item());
+                if (output != null) output.setAmount(firstOutput.amount());
+            } else {
+                output = new ItemStack(mat, firstOutput.amount());
+            }
+        }
+
+        if (output == null || output.getType() == org.bukkit.Material.AIR) return null;
+
+        // Ensure every item coming out of a machine is a Valmora-formatted item
+        return plugin.getItemManager().getItemTranslator().translate(output);
+    }
+
     public Optional<RecipeDefinition> match(String machineId, Map<String, ItemStack> inputs) {
+        return match(machineId, inputs, null);
+    }
+
+    public Optional<RecipeDefinition> match(String machineId, Map<String, ItemStack> inputs, @Nullable Player player) {
         // 1. Check Dynamic Handlers
         DynamicMachineHandler dynamic = dynamicHandlers.get(machineId.toLowerCase());
         if (dynamic != null) {
-            Optional<RecipeDefinition> dynamicMatch = dynamic.match(inputs);
+            Optional<RecipeDefinition> dynamicMatch = dynamic.match(inputs, player);
             if (dynamicMatch.isPresent()) return dynamicMatch;
         }
 
@@ -114,6 +164,10 @@ public class RecipeEngine {
     }
 
     public boolean consume(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
+        if (recipe.getConsumeHandler() != null) {
+            recipe.getConsumeHandler().accept(inputs);
+            return true;
+        }
         if (recipe.isVanilla()) {
             consumeVanilla(inputs);
             return true;

@@ -54,25 +54,24 @@ public class EventParser {
         EventOptions options = new EventOptions(delay, notifyPlayer);
 
         final int finalDelay = delay;
-        return module.getEventFactoryRegistry().get(eventName)
-                .<CompiledEvent>map(factory -> {
-                    CompiledEvent event = factory.compile(args, options);
-                    
-                    // Delay handling
-                    if (finalDelay > 0) {
-                        return context -> {
-                            Bukkit.getScheduler().runTaskLater(
-                                module.getValmora(),
-                                () -> event.execute(context),
-                                finalDelay
-                            );
-                        };
-                    }
-                    return event;
-                })
-                .orElse(context -> {
-                    module.getValmora().getLogger().warning("Unknown script event: " + eventName);
-                });
+        var factoryOpt = module.getEventFactoryRegistry().get(eventName);
+
+        // Validate at compile time — fail fast with a clear message
+        if (factoryOpt.isEmpty()) {
+            module.getValmora().getLogger().warning("[DSL] Unknown event '" + eventName + "' in script: \"" + raw + "\"");
+            return context -> {};
+        }
+
+        CompiledEvent event = factoryOpt.get().compile(args, options);
+
+        if (finalDelay > 0) {
+            return context -> Bukkit.getScheduler().runTaskLater(
+                module.getValmora(),
+                () -> event.execute(context),
+                finalDelay
+            );
+        }
+        return event;
     }
 
     /**
@@ -86,6 +85,8 @@ public class EventParser {
         for (String s : list) {
             events.add(parse(s));
         }
+        // ConditionAbortException is intentionally NOT caught here.
+        // It propagates to the caller (GuiModule / GuiListener) which then runs fail-actions.
         return context -> {
             for (CompiledEvent event : events) {
                 event.execute(context);

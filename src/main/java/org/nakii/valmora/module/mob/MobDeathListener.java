@@ -56,9 +56,7 @@ public class MobDeathListener implements Listener {
 
                     int goldReward = definition.getGoldReward();
                     if (goldReward > 0) {
-                        // TODO: Integrate with Economy system
-                        // Example: plugin.getEconomy().depositPlayer(killer, goldReward);
-                        plugin.getLogger().info("Player " + killer.getName() + " earned " + goldReward + " gold (economy integration pending)");
+                        plugin.getEconomy().addCoins(killer, goldReward);
                     }
                 }
             }

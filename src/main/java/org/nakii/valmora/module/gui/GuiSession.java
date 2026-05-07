@@ -19,6 +19,9 @@ public class GuiSession {
     private @Nullable GuiSession parent;
     private final Map<String, Object> props;
     private @Nullable Map<String, ItemStack> cachedInputSnapshot;
+    private boolean craftingLocked = false;
+    private boolean inputPending = false;
+    private @Nullable String inputPropKey = null;
 
     public GuiSession(Player player, GuiDefinition definition, Inventory inventory, Map<String, Object> props) {
         this.player = player;
@@ -39,6 +42,14 @@ public class GuiSession {
 
     public @Nullable GuiSession getParent() { return parent; }
     public void setParent(@Nullable GuiSession parent) { this.parent = parent; }
+
+    public boolean isCraftingLocked() { return craftingLocked; }
+    public void setCraftingLocked(boolean locked) { this.craftingLocked = locked; }
+
+    public boolean isInputPending() { return inputPending; }
+    public void setInputPending(boolean pending) { this.inputPending = pending; }
+    public @Nullable String getInputPropKey() { return inputPropKey; }
+    public void setInputPropKey(@Nullable String key) { this.inputPropKey = key; }
 
     /**
      * Captures the current input items and caches them. Call this before

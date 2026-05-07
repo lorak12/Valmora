@@ -25,6 +25,34 @@ database:
   #   password: "password123"
 
 # ========================================================== #
-#                      Other Settings                        #
+#                        Time Settings                       #
 # ========================================================== #
-# TODO: Add more settings here
+time:
+  # Which world's clock to read hour/minute from (world.getTime())
+  world: world
+
+  # Starting calendar position (applied on first server launch; stored in time.yml after that)
+  start-year: 1
+  start-season: SPRING   # SPRING | SUMMER | AUTUMN | WINTER
+  start-phase: EARLY     # EARLY | MID | LATE
+  start-day: 1           # 1–30
+
+  # Display names used in the scoreboard and variables
+  season-names: [Spring, Summer, Autumn, Winter]
+  phase-names:  [Early, Mid, Late]
+
+  # Show time lines on the sidebar scoreboard
+  scoreboard-enabled: true
+
+# ========================================================== #
+#                     Alchemy Settings                       #
+# ========================================================== #
+alchemy:
+  # Block radius for splash potion area of effect
+  splash-radius: 4.0
+
+  # Ticks between active-effect expiry checks (20 = 1 second)
+  tick-interval: 20
+
+  # Max concurrent active effects per player
+  max-active-effects: 10

@@ -20,6 +20,20 @@ commands:
   gui:
     usage: /gui help
     description: Gui debugging and opening commands.
+  time:
+    usage: /time [info|reset]
+    description: Display or reset the Valmora RPG calendar clock.
+  potion:
+    usage: /potion give <effect_id> <level> [player]
+    permission: valmora.admin
+    description: Give an alchemy potion to a player.
+  effects:
+    usage: /effects
+    description: Open the active effects GUI.
+  eco:
+    usage: /eco <get|set|add|remove> <player> [purse|bank] [amount]
+    permission: valmora.admin
+    description: Admin command for manipulating player coin balances.
   valmora:
     usage: /valmora reload
     permission: valmora.admin

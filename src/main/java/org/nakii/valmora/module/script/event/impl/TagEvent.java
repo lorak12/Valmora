@@ -3,6 +3,7 @@ package org.nakii.valmora.module.script.event.impl;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.scripting.CompiledEvent;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
 
@@ -27,7 +28,10 @@ public class TagEvent implements EventFactory {
         return context -> {
             context.getPlayerCaster()
                     .map(Player::getUniqueId)
-                    .map(uuid -> ValmoraAPI.getInstance().getPlayerManager().getSession(uuid).getActiveProfile())
+                    .map(uuid -> {
+                        ValmoraPlayer vp = ValmoraAPI.getInstance().getPlayerManager().getSession(uuid);
+                        return vp != null ? vp.getActiveProfile() : null;
+                    })
                     .ifPresent(profile -> {
                         if (action.equalsIgnoreCase("add")) {
                             profile.getTags().add(tagName);

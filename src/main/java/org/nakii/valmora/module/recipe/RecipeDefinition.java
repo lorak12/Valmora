@@ -6,6 +6,7 @@ import org.nakii.valmora.api.scripting.CompiledEvent;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class RecipeDefinition {
     private final String id;
@@ -17,20 +18,22 @@ public class RecipeDefinition {
     private final CompiledEvent onCraft;
     private final boolean isVanilla;
     private final ItemStack vanillaResult;
+    private final Consumer<Map<String, ItemStack>> consumeHandler;
 
     public RecipeDefinition(String id, String machine, RecipeType type,
                             Map<String, RecipeIngredient> inputMap,
                             List<RecipeIngredient> inputList,
                             Map<String, RecipeIngredient> outputs,
                             CompiledEvent onCraft) {
-        this(id, machine, type, inputMap, inputList, outputs, onCraft, false, null);
+        this(id, machine, type, inputMap, inputList, outputs, onCraft, false, null, null);
     }
 
     private RecipeDefinition(String id, String machine, RecipeType type,
                             Map<String, RecipeIngredient> inputMap,
                             List<RecipeIngredient> inputList,
                             Map<String, RecipeIngredient> outputs,
-                            CompiledEvent onCraft, boolean isVanilla, ItemStack vanillaResult) {
+                            CompiledEvent onCraft, boolean isVanilla, ItemStack vanillaResult,
+                            Consumer<Map<String, ItemStack>> consumeHandler) {
         this.id = id;
         this.machine = machine;
         this.type = type;
@@ -40,6 +43,7 @@ public class RecipeDefinition {
         this.onCraft = onCraft;
         this.isVanilla = isVanilla;
         this.vanillaResult = vanillaResult;
+        this.consumeHandler = consumeHandler;
     }
 
     public static RecipeDefinition vanilla(ItemStack result) {
@@ -50,7 +54,14 @@ public class RecipeDefinition {
         Map<String, RecipeIngredient> outputs = new HashMap<>();
         outputs.put("result", new RecipeIngredient(result.getType().name(), result.getAmount()));
         return new RecipeDefinition("vanilla:" + result.getType().name(), "crafting_table",
-            RecipeType.SHAPELESS, null, null, outputs, onCraft, true, result);
+            RecipeType.SHAPELESS, null, null, outputs, onCraft, true, result, null);
+    }
+
+    /** Creates a dynamic recipe with a pre-built output item and custom consume logic. */
+    public static RecipeDefinition dynamic(String machineId, ItemStack result,
+                                           Consumer<Map<String, ItemStack>> consumeHandler) {
+        return new RecipeDefinition("dynamic:" + machineId + ":" + System.nanoTime(), machineId,
+            RecipeType.EXACT_SLOT, null, null, null, null, true, result, consumeHandler);
     }
 
     public String getId() { return id; }
@@ -62,4 +73,5 @@ public class RecipeDefinition {
     public CompiledEvent getOnCraft() { return onCraft; }
     public boolean isVanilla() { return isVanilla; }
     public ItemStack getVanillaResult() { return vanillaResult; }
+    public Consumer<Map<String, ItemStack>> getConsumeHandler() { return consumeHandler; }
 }

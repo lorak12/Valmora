@@ -16,7 +16,7 @@ public class SkillModule implements ReloadableModule {
         this.skillRegistry = new SkillRegistry();
         this.skillLoader = new SkillLoader(plugin, skillRegistry);
         this.skillManager = new SkillManager();
-        this.skillListener = new SkillListener(skillManager, plugin);
+        this.skillListener = new SkillListener(plugin);
     }
 
     @Override

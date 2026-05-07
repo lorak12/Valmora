@@ -1,8 +1,10 @@
 package org.nakii.valmora.api;
 
+import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.ModuleManager;
 import org.nakii.valmora.module.item.AbilityManager;
 import org.nakii.valmora.module.script.ScriptModule;
+import org.nakii.valmora.module.time.TimeManager;
 
 public interface ValmoraAPI {
 
@@ -35,6 +37,14 @@ public interface ValmoraAPI {
     ScriptModule getScriptModule();
 
     org.nakii.valmora.module.enchant.EnchantModule getEnchantModule();
+
+    TimeManager getTimeManager();
+
+    EconomyService getEconomy();
+
+    org.nakii.valmora.module.economy.EconomyModule getEconomyModule();
+
+    org.nakii.valmora.module.alchemy.AlchemyManager getAlchemyManager();
 }
 
 class Holder {

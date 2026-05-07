@@ -85,7 +85,7 @@ public class SkillManager {
         skillXp.put(skillId.toLowerCase(), newXp);
 
         // Call XP Gain Event
-        SkillXpGainEvent event = new SkillXpGainEvent(player, skill, newXp);
+        SkillXpGainEvent event = new SkillXpGainEvent(player, skill, amount);
         event.callEvent();
 
         int newLevel = registry.getLevelFromXp(skill.getXpCurve(), newXp);

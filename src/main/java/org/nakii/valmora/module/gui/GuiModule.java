@@ -8,8 +8,10 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.nakii.valmora.module.gui.components.InputComponent;
+import org.nakii.valmora.module.gui.event.OpenDialogInputEventFactory;
 import org.nakii.valmora.module.gui.parser.GuiDefinitionParser;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
+import org.nakii.valmora.module.script.event.ConditionAbortException;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +45,8 @@ public class GuiModule implements ReloadableModule {
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantBackEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GuiForceCraftEventFactory(plugin));
 
+        plugin.getScriptModule().registerEvent(new OpenDialogInputEventFactory(plugin, this));
+
         loadGuis();
     }
 
@@ -62,21 +66,30 @@ public class GuiModule implements ReloadableModule {
         GuiDefinition def = guiRegistry.get(id);
         if (def == null) return;
 
-        // Fire onOpen conditions/actions
-        GuiExecutionContext context = new GuiExecutionContext(player, null);
-        if (def.getOnOpen() != null && def.getOnOpen().conditions() != null) {
-            if (!def.getOnOpen().conditions().evaluate(context)) {
-                if (def.getOnOpen().failActions() != null) def.getOnOpen().failActions().execute(context);
-                return;
-            }
-        }
-        if (def.getOnOpen() != null && def.getOnOpen().actions() != null) {
-            def.getOnOpen().actions().execute(context);
-        }
-
         GuiRenderer renderer = new GuiRenderer(plugin);
+        // Create a prop-bearing temp session BEFORE running on-open so $prop.*$ resolves correctly.
         GuiSession tempSession = new GuiSession(player, def, null, props);
         String resolvedTitle = renderer.resolveVariables(def.getTitle(), tempSession, null, null);
+
+        // Fire onOpen — use tempSession context so PropVariableProvider can read incoming props.
+        if (def.getOnOpen() != null) {
+            GuiExecutionContext openCtx = new GuiExecutionContext(player, tempSession);
+            if (def.getOnOpen().conditions() != null && !def.getOnOpen().conditions().evaluate(openCtx)) {
+                if (def.getOnOpen().failActions() != null) {
+                    try { def.getOnOpen().failActions().execute(openCtx); } catch (ConditionAbortException ignored) {}
+                }
+                return;
+            }
+            if (def.getOnOpen().actions() != null) {
+                try {
+                    def.getOnOpen().actions().execute(openCtx);
+                } catch (ConditionAbortException ignored) {
+                    if (def.getOnOpen().failActions() != null) {
+                        try { def.getOnOpen().failActions().execute(openCtx); } catch (ConditionAbortException ignored2) {}
+                    }
+                }
+            }
+        }
 
         Inventory inv = Bukkit.createInventory(null, def.getRows() * 9, org.nakii.valmora.util.Formatter.format(resolvedTitle));
         GuiSession session = new GuiSession(player, def, inv, props);
@@ -91,10 +104,18 @@ public class GuiModule implements ReloadableModule {
                 // 1. Run the on-update script if present
                 if (def.getOnUpdate() != null) {
                     GuiExecutionContext updateContext = new GuiExecutionContext(player, session);
-                    if (def.getOnUpdate().conditions() == null || def.getOnUpdate().conditions().evaluate(updateContext)) {
-                        if (def.getOnUpdate().actions() != null) def.getOnUpdate().actions().execute(updateContext);
-                    } else {
-                        if (def.getOnUpdate().failActions() != null) def.getOnUpdate().failActions().execute(updateContext);
+                    if (def.getOnUpdate().conditions() != null && !def.getOnUpdate().conditions().evaluate(updateContext)) {
+                        if (def.getOnUpdate().failActions() != null) {
+                            try { def.getOnUpdate().failActions().execute(updateContext); } catch (ConditionAbortException ignored) {}
+                        }
+                    } else if (def.getOnUpdate().actions() != null) {
+                        try {
+                            def.getOnUpdate().actions().execute(updateContext);
+                        } catch (ConditionAbortException ignored) {
+                            if (def.getOnUpdate().failActions() != null) {
+                                try { def.getOnUpdate().failActions().execute(updateContext); } catch (ConditionAbortException ignored2) {}
+                            }
+                        }
                     }
                 }
                 
@@ -117,7 +138,7 @@ public class GuiModule implements ReloadableModule {
             
             GuiExecutionContext context = new GuiExecutionContext(player, session);
             if (session.getDefinition().getOnClose() != null && session.getDefinition().getOnClose().actions() != null) {
-                session.getDefinition().getOnClose().actions().execute(context);
+                try { session.getDefinition().getOnClose().actions().execute(context); } catch (ConditionAbortException ignored) {}
             }
 
             // --- BEST PRACTICE ITEM REFUND LOGIC ---

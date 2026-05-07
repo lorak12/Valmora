@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.gui;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -8,7 +9,11 @@ import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
+import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.variable.VariableProvider;
+import org.nakii.valmora.module.skill.SkillDefinition;
+import org.nakii.valmora.module.skill.SkillRegistry;
 import org.nakii.valmora.util.Keys;
 
 import java.util.*;
@@ -39,6 +44,10 @@ public class GuiVariableProvider implements VariableProvider {
             return resolveEnchanting(path, session);
         }
 
+        if (path.length >= 2 && path[0].equalsIgnoreCase("viewed_skill")) {
+            return resolveViewedSkill(path[1], session);
+        }
+
         if (path.length < 3) return null;
 
         if (path[0].equalsIgnoreCase("input")) {
@@ -49,7 +58,7 @@ public class GuiVariableProvider implements VariableProvider {
 
             String property = path[2];
             return switch (property.toLowerCase()) {
-                case "item_type" -> getItemType(item);
+                case "id", "item_type" -> getItemType(item);
                 case "material" -> item.getType().name();
                 case "amount" -> item.getAmount();
                 case "available_enchants" -> getAvailableEnchants(item);
@@ -58,6 +67,39 @@ public class GuiVariableProvider implements VariableProvider {
         }
 
         return null;
+    }
+
+    // ── Viewed Skill namespace ──────────────────────────────────────────
+
+    private Object resolveViewedSkill(String key, GuiSession session) {
+        Object targetSkill = session.getProps().get("target_skill");
+        if (!(targetSkill instanceof Map<?, ?> skillMap)) return null;
+
+        String skillId = (String) skillMap.get("id");
+        if (skillId == null) return null;
+
+        Player player = session.getPlayer();
+        ValmoraPlayer vp = plugin.getPlayerManager().getSession(player.getUniqueId());
+        if (vp == null) return null;
+        ValmoraProfile profile = vp.getActiveProfile();
+        if (profile == null) return null;
+
+        SkillDefinition skillDef = plugin.getSkillModule().getSkillRegistry().getSkill(skillId).orElse(null);
+        if (skillDef == null) return null;
+
+        double xp = profile.getSkillManager().getXp(skillId);
+        SkillRegistry.ProgressData data = plugin.getSkillModule().getSkillRegistry()
+                .getProgressData(skillDef.getXpCurve(), xp);
+
+        return switch (key.toLowerCase()) {
+            case "level" -> data.currentLevel();
+            case "next_level" -> data.nextLevel();
+            case "progress" -> data.percent();
+            case "xp_in_level" -> data.xpInLevel();
+            case "xp_required" -> data.xpRequired();
+            case "xp" -> (int) xp;
+            default -> null;
+        };
     }
 
     // ── Enchanting namespace ────────────────────────────────────────────

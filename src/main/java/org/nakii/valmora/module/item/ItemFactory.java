@@ -56,43 +56,68 @@ public class ItemFactory {
 
     public void updateLore(ItemStack item, ItemMeta meta) {
         String itemId = meta.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
-        if (itemId == null) return;
+        
+        // Try to get definition
+        var definitionOpt = itemId != null ? plugin.getItemManager().getItemRegistry().getItem(itemId) : java.util.Optional.<ItemDefinition>empty();
 
-        plugin.getItemManager().getItemRegistry().getItem(itemId).ifPresent(definition -> {
-            Rarity rarity = definition.getRarity() != null ? definition.getRarity() : Rarity.COMMON;
-            String rarityColor = rarity.getColor();
+        Rarity rarity;
+        String rarityColor;
+        String name;
+        List<String> baseLore = new ArrayList<>();
 
-            // Set Display Name with Rarity Color
-            if (definition.getName() != null) {
-                meta.displayName(Formatter.format(rarityColor + definition.getName()));
+        if (definitionOpt.isPresent()) {
+            ItemDefinition definition = definitionOpt.get();
+            rarity = definition.getRarity() != null ? definition.getRarity() : Rarity.COMMON;
+            rarityColor = rarity.getColor();
+            name = definition.getName();
+            if (definition.getLore() != null) baseLore.addAll(definition.getLore());
+        } else {
+            // Fallback for translated vanilla items
+            String rarityName = meta.getPersistentDataContainer().get(Keys.RARITY_KEY, PersistentDataType.STRING);
+            try {
+                rarity = rarityName != null ? Rarity.valueOf(rarityName) : Rarity.COMMON;
+            } catch (IllegalArgumentException e) {
+                rarity = Rarity.COMMON;
             }
+            rarityColor = rarity.getColor();
+            // Use capitalized material name if it's a translated vanilla item
+            name = (itemId != null && itemId.startsWith("vanilla_")) ? Formatter.capitalize(item.getType().name().replace("_", " ")) : null;
+        }
 
-            // Assemble Lore
-            List<Component> finalLore = new ArrayList<>();
-            
-            // 1. Base Lore from Config
-            if (definition.getLore() != null && !definition.getLore().isEmpty()) {
-                finalLore.addAll(Formatter.formatList(definition.getLore()));
+        // Set Display Name
+        if (name != null) {
+            meta.displayName(Formatter.format(rarityColor + name));
+        }
+
+        // Assemble Lore
+        List<Component> finalLore = new ArrayList<>();
+        
+        // 1. Base Lore
+        if (!baseLore.isEmpty()) {
+            finalLore.addAll(Formatter.formatList(baseLore));
+        }
+
+        // 2. Stats Section
+        Map<Stat, Double> stats = plugin.getStatModule().loadStats(meta);
+        if (!stats.isEmpty()) {
+            if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
+            for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
+                finalLore.add(Formatter.format("<gray> ◈ " + entry.getKey().format(entry.getValue())));
             }
+        }
 
-            // 2. Stats Section
-            Map<Stat, Double> stats = plugin.getStatModule().loadStats(meta);
-            if (!stats.isEmpty()) {
-                if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
-                for (Map.Entry<Stat, Double> entry : stats.entrySet()) {
-                    finalLore.add(Formatter.format("<gray> ◈ " + entry.getKey().format(entry.getValue())));
-                }
-            }
+        // 3. Enchantments Section
+        Map<String, Integer> enchants = org.nakii.valmora.module.enchant.EnchantmentHelper.loadEnchantMap(meta.getPersistentDataContainer());
+        if (!enchants.isEmpty()) {
+            if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
+            finalLore.addAll(org.nakii.valmora.module.enchant.EnchantmentHelper.formatEnchants(enchants));
+        }
 
-            // 3. Enchantments Section
-            Map<String, Integer> enchants = org.nakii.valmora.module.enchant.EnchantmentHelper.loadEnchantMap(meta.getPersistentDataContainer());
-            if (!enchants.isEmpty()) {
-                if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
-                finalLore.addAll(org.nakii.valmora.module.enchant.EnchantmentHelper.formatEnchants(enchants));
-            }
-
+        // 4. Abilities (Only if definition present)
+        if (definitionOpt.isPresent()) {
+            ItemDefinition definition = definitionOpt.get();
             if (definition.getAbilities() != null && !definition.getAbilities().isEmpty()) {
-                finalLore.add(Component.empty()); // Spacer below stats/enchants
+                finalLore.add(Component.empty()); // Spacer
                 
                 for (AbilityDefinition ability : definition.getAbilities().values()) {
                     String triggerText = ability.getTrigger().name().replace("_", " ");
@@ -109,11 +134,14 @@ public class ItemFactory {
                     finalLore.add(Component.empty());
                 }
             }
+        }
 
-            // 4. Rarity Tag
-            finalLore.add(Formatter.format(rarityColor + "<bold>" + rarity.getName().toUpperCase()));
+        // 5. Rarity Tag (e.g. EPIC SWORD)
+        String typeName = meta.getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        String typeDisplay = (typeName != null && !typeName.equalsIgnoreCase("NONE")) ? " " + typeName.toUpperCase() : "";
+        
+        finalLore.add(Formatter.format(rarityColor + "<bold>" + rarity.getName().toUpperCase() + typeDisplay));
 
-            meta.lore(finalLore);
-        });
+        meta.lore(finalLore);
     }
 }

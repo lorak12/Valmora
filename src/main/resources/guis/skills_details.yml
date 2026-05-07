@@ -32,8 +32,8 @@ skill_details:
         name: "<green>$prop.target_skill.name$ Skill"
         lore:
           - "<gray>$prop.target_skill.description$"
-          - "<gray>Progress to Level $prop.target_skill.next_level$: <yellow>$prop.target_skill.progress$%"
-          - "<white>-------------------- <yellow>$prop.target_skill.xp_in_level$<gold>/</gold><yellow>$prop.target_skill.xp_required$"
+          - "<gray>Progress to Level $gui.viewed_skill.next_level$: <yellow>$gui.viewed_skill.progress$%"
+          - "<white>-------------------- <yellow>$gui.viewed_skill.xp_in_level$<gold>/</gold><yellow>$gui.viewed_skill.xp_required$"
           - ""
           - "<dark_gray>Increase your $prop.target_skill.name$ Level to"
           - "<dark_gray>unlock Perks, statistic bonuses, and"
@@ -48,7 +48,7 @@ skill_details:
       states:
         # State 1: Already Reached
         completed:
-          condition: "$prop.target_skill.level$ >= $lvl$"
+          condition: "$gui.viewed_skill.level$ >= $lvl$"
           item: LIME_STAINED_GLASS_PANE
           amount: "$lvl$"
           name: "<green>$prop.target_skill.name$ Level $lvl$"
@@ -57,13 +57,13 @@ skill_details:
 
         # State 2: Currently Working On
         current:
-          condition: "$prop.target_skill.level$ == $lvl$ - 1"
+          condition: "$gui.viewed_skill.level$ == $lvl$ - 1"
           item: YELLOW_STAINED_GLASS_PANE
           amount: "$lvl$"
           name: "<yellow>$prop.target_skill.name$ Level $lvl$"
           lore:
             - "<gray>Status: <yellow>In Progress"
-            - "<gray>Progress: <yellow>$prop.target_skill.progress$%"
+            - "<gray>Progress: <yellow>$gui.viewed_skill.progress$%"
 
         # State 3: Locked (Fallback)
         locked:

@@ -56,6 +56,15 @@ public class SQLDataStore implements DataStore {
                     player_state TEXT
                 )
             """).execute();
+
+            // Economy Table
+            conn.prepareStatement("""
+                CREATE TABLE IF NOT EXISTS valmora_economy (
+                    uuid VARCHAR(36) PRIMARY KEY,
+                    purse DOUBLE NOT NULL DEFAULT 0,
+                    bank  DOUBLE NOT NULL DEFAULT 0
+                )
+            """).execute();
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -168,6 +177,43 @@ public class SQLDataStore implements DataStore {
                 }
 
                 conn.commit(); // Commit Transaction
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<double[]> loadEconomy(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = hikari.getConnection()) {
+                PreparedStatement ps = conn.prepareStatement(
+                    "SELECT purse, bank FROM valmora_economy WHERE uuid = ?");
+                ps.setString(1, uuid.toString());
+                ResultSet rs = ps.executeQuery();
+                if (!rs.next()) return null;
+                return new double[]{rs.getDouble("purse"), rs.getDouble("bank")};
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> saveEconomy(UUID uuid, double purse, double bank) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = isMySQL
+                ? "INSERT INTO valmora_economy (uuid, purse, bank) VALUES (?,?,?) ON DUPLICATE KEY UPDATE purse=?, bank=?"
+                : "INSERT INTO valmora_economy (uuid, purse, bank) VALUES (?,?,?) ON CONFLICT(uuid) DO UPDATE SET purse=?, bank=?";
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, uuid.toString());
+                ps.setDouble(2, purse);
+                ps.setDouble(3, bank);
+                ps.setDouble(4, purse);
+                ps.setDouble(5, bank);
+                ps.executeUpdate();
             } catch (SQLException e) {
                 e.printStackTrace();
             }

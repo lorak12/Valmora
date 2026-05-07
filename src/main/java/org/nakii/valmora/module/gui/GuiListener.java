@@ -14,6 +14,7 @@ import org.nakii.valmora.module.gui.components.*;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
+import org.nakii.valmora.module.script.event.ConditionAbortException;
 
 import java.util.List;
 import java.util.Optional;
@@ -121,10 +122,18 @@ public class GuiListener implements Listener {
                         context.setLoopVar(paginated.getIteratorName(), loopItem);
                     }
                     
-                    if (handler.conditions() == null || handler.conditions().evaluate(context)) {
-                        if (handler.actions() != null) handler.actions().execute(context);
-                    } else {
-                        if (handler.failActions() != null) handler.failActions().execute(context);
+                    if (handler.conditions() != null && !handler.conditions().evaluate(context)) {
+                        if (handler.failActions() != null) {
+                            try { handler.failActions().execute(context); } catch (ConditionAbortException ignored) {}
+                        }
+                    } else if (handler.actions() != null) {
+                        try {
+                            handler.actions().execute(context);
+                        } catch (ConditionAbortException ignored) {
+                            if (handler.failActions() != null) {
+                                try { handler.failActions().execute(context); } catch (ConditionAbortException ignored2) {}
+                            }
+                        }
                     }
                 }
             }
@@ -329,10 +338,18 @@ public class GuiListener implements Listener {
 
     private void executeHandler(GuiSession session, ClickHandler handler) {
         GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
-        if (handler.conditions() == null || handler.conditions().evaluate(context)) {
-            if (handler.actions() != null) handler.actions().execute(context);
-        } else {
+        if (handler.conditions() != null && !handler.conditions().evaluate(context)) {
             if (handler.failActions() != null) handler.failActions().execute(context);
+            return;
+        }
+        if (handler.actions() != null) {
+            try {
+                handler.actions().execute(context);
+            } catch (ConditionAbortException ignored) {
+                if (handler.failActions() != null) {
+                    try { handler.failActions().execute(context); } catch (ConditionAbortException ignored2) {}
+                }
+            }
         }
     }
 
@@ -341,6 +358,8 @@ public class GuiListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         GuiSession session = guiModule.getSession(player.getUniqueId());
         if (session != null && session.getInventory().equals(event.getInventory())) {
+            // Dialog/sign input closes the inventory intentionally — keep the session alive.
+            if (session.isInputPending()) return;
             guiModule.closeGuiSession(player);
         }
     }
@@ -379,10 +398,18 @@ public class GuiListener implements Listener {
             GuiEventBlock slotUpdate = session.getDefinition().getOnSlotUpdate();
             if (slotUpdate != null) {
                 GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
-                if (slotUpdate.conditions() == null || slotUpdate.conditions().evaluate(context)) {
-                    if (slotUpdate.actions() != null) slotUpdate.actions().execute(context);
-                } else {
-                    if (slotUpdate.failActions() != null) slotUpdate.failActions().execute(context);
+                if (slotUpdate.conditions() != null && !slotUpdate.conditions().evaluate(context)) {
+                    if (slotUpdate.failActions() != null) {
+                        try { slotUpdate.failActions().execute(context); } catch (ConditionAbortException ignored) {}
+                    }
+                } else if (slotUpdate.actions() != null) {
+                    try {
+                        slotUpdate.actions().execute(context);
+                    } catch (ConditionAbortException ignored) {
+                        if (slotUpdate.failActions() != null) {
+                            try { slotUpdate.failActions().execute(context); } catch (ConditionAbortException ignored2) {}
+                        }
+                    }
                 }
             }
             

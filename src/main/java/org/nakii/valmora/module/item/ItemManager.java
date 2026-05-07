@@ -10,18 +10,23 @@ public class ItemManager implements ReloadableModule {
     private ItemRegistry itemRegistry;
     private ItemFactory itemFactory;
     private ItemLoader itemLoader;
+    private ItemTranslator itemTranslator;
 
     public ItemManager(Valmora plugin){
         this.plugin = plugin;
         this.itemFactory = new ItemFactory(plugin);
         this.itemRegistry = new ItemRegistry(itemFactory);
         this.itemLoader = new ItemLoader(plugin, itemRegistry);
+        this.itemTranslator = new ItemTranslator(plugin);
     }
 
     @Override
     public void onEnable() {
         plugin.getLogger().info("Starting Item Module...");
         itemLoader.loadItems();
+        
+        LootListener lootListener = new LootListener(plugin);
+        plugin.getServer().getPluginManager().registerEvents(lootListener, plugin);
     }
 
     @Override
@@ -46,6 +51,10 @@ public class ItemManager implements ReloadableModule {
 
     public ItemFactory getItemFactory() {
         return itemFactory;
+    }
+
+    public ItemTranslator getItemTranslator() {
+        return itemTranslator;
     }
 
     public ItemStack createItemStack(String id){

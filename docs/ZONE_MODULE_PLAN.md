@@ -1,0 +1,5 @@
+# What the final areas should look like and what is needed for them
+
+- Hub (as a world): We have a zone for the entire map that is the default one (like Wilderness). Then we have areas inside that are designated shapes (probably just boxes), This will include: Bank (NPC, Vault button), Bazzar (NPC), Auction House (NPC), Shops (NPCs), A cold area (Cold damage on players, NPC, mob spawning), Graveyard (Lvl.1 Zombies that spawn up to a capacity of x (smart spawning at night)), Mine (Block regeneration), Farm (Crop growth), Lake (body of water for fishing), Forest (Tree regrowth, breaking the many blocks at once and removing rest of blocks at 90% of total tree broken), Flags like ability use, healing, fall damage, damage etc.
+- Mine: Many levels with teleporattion in a gui to diferent tiers if players have been in the level before (Tag system, gui module, NPC), blocks regenerating, mobs spawning, npc at the top with shops, quest entities
+- Public boss island (world): Boss spawns when some contitions are met like blocks having a certain state, or player triggering it thru a lever/button or by paying an NPC

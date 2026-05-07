@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.skill.SkillDefinition;
@@ -38,7 +39,9 @@ public class PlayerVariableProvider implements VariableProvider {
         if (key.equalsIgnoreCase("biome")) return player.getLocation().getBlock().getBiome().name();
 
         ValmoraAPI api = ValmoraAPI.getInstance();
-        ValmoraProfile profile = api.getPlayerManager().getSession(player.getUniqueId()).getActiveProfile();
+        ValmoraPlayer vp = api.getPlayerManager().getSession(player.getUniqueId());
+        if (vp == null) return null;
+        ValmoraProfile profile = vp.getActiveProfile();
         if (profile == null) return null;
 
         if (key.equalsIgnoreCase("stat") && path.length > 1) {
