@@ -17,6 +17,10 @@ repositories {
         name = "okaeri-repo"
         url = "https://storehouse.okaeri.eu/repository/maven-public/"
     }
+    maven {
+        name = "codemc-repo"
+        url = "https://repo.codemc.io/repository/maven-releases/"
+    }
 }
 
 dependencies {
@@ -25,6 +29,7 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.46.0.0")
     implementation("com.mysql:mysql-connector-j:8.3.0")
     implementation("com.google.code.gson:gson:2.10.1")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.12.0")
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
@@ -35,18 +40,35 @@ test {
     useJUnitPlatform()
 }
 
+tasks.register('syncResources') {
+    doLast {
+        def srcDir = file('src/main/resources')
+        def dstDir = file('run/plugins/Valmora')
+        if (!dstDir.exists()) return
+
+        // Fully replace each subdirectory so deleted files are removed from the run folder
+        srcDir.listFiles({ it.isDirectory() } as FileFilter)?.each { srcSub ->
+            def dstSub = new File(dstDir, srcSub.name)
+            if (dstSub.exists()) dstSub.deleteDir()
+            copy { from srcSub; into dstSub }
+        }
+
+        // Copy top-level config files (skip plugin.yml — it is the plugin descriptor)
+        srcDir.listFiles({ it.isFile() && it.name != 'plugin.yml' } as FileFilter)?.each { f ->
+            copy { from f; into dstDir }
+        }
+    }
+}
+
 tasks {
     runServer {
-        // Configure the Minecraft version for our task.
-        // This is the only required configuration besides applying the plugin.
-        // Your plugin's jar (or shadowJar if present) will be used automatically.
         minecraftVersion("1.21.11")
+        dependsOn('syncResources')
     }
-    shadowJar{
-        
+    shadowJar {
     }
 
-    build{
+    build {
         dependsOn(shadowJar)
     }
 }

@@ -1,0 +1,119 @@
+events:
+  reward_coins_small:
+    - "point currency add 100"
+    - "sound player entity.player.levelup"
+
+  reward_coins_large:
+    - "point currency add 500"
+    - "sound player entity.player.levelup"
+    - "notify <gold>You earned 500 coins! category:quest_complete"
+
+  bonus_mining_reward: "folder reward_coins_small"
+
+conditions:
+  in_mine:        "zone coal_mine"
+  is_day:         "$time.is_day$ == true"
+  mine_done:      "tag forgotten_mine.done"
+
+quests:
+
+  # ----------------------------------------------------------
+  # Quest 1: A Miner's Burden
+  # ----------------------------------------------------------
+  forgotten_mine:
+    name: "<yellow>A Miner's Burden"
+
+    objectives:
+
+      meet_thorin:
+        type: TALK_TO_NPC
+        target: thorin
+        amount: 1
+
+      mine_coal:
+        type: BLOCK_BREAK
+        target: COAL_ORE
+        amount: 20
+        notify: 5
+
+      kill_spiders:
+        type: KILL
+        target: cave_spider
+        amount: 5
+        conditions: "in_mine"
+
+      reach_mine:
+        type: REACH_ZONE
+        target: coal_mine
+        amount: 1
+
+    rewards:
+      - "notify <green>You have completed <bold>A Miner's Burden<reset><green>! category:quest_complete"
+      - "point currency add 250"
+      - "tag add forgotten_mine.done"
+      - "sound player entity.player.levelup"
+      - "give COAL:32"
+
+    on-start-events:
+      - "notify <yellow>Head to the <bold>Coal Mine<reset><yellow> east of the village. category:quest_progress"
+      - "sound player entity.villager.yes"
+
+  # ----------------------------------------------------------
+  # Quest 2: The Blacksmith's Request
+  # ----------------------------------------------------------
+  blacksmith_request:
+    name: "<gold>The Blacksmith's Request"
+
+    objectives:
+
+      meet_bjorn:
+        type: TALK_TO_NPC
+        target: bjorn
+        amount: 1
+
+      craft_pickaxe:
+        type: CRAFT
+        target: IRON_PICKAXE
+        amount: 1
+
+      smelt_iron:
+        type: SMELT
+        target: IRON_INGOT
+        amount: 10
+        notify: 2
+
+      catch_fish:
+        type: FISH
+        target: any
+        amount: 3
+        conditions: "is_day"
+
+    rewards:
+      - "notify <gold>You have completed <bold>The Blacksmith's Request<reset><gold>! category:quest_complete"
+      - "point currency add 500"
+      - "tag add blacksmith_request.done"
+      - "sound player entity.player.levelup"
+      - "give IRON_PICKAXE:1"
+
+    on-start-events:
+      - "notify <yellow>Visit <bold>Bjorn<reset><yellow> in the forge. category:quest_progress"
+
+  # ----------------------------------------------------------
+  # Quest 3: Daily Mining Bonus (persistent + auto-once)
+  # ----------------------------------------------------------
+  daily_mining:
+    name: "<gray>Daily Mining Bonus"
+
+    objectives:
+
+      bonus_mining:
+        type: BLOCK_BREAK
+        target: any
+        amount: 50
+        persistent: true
+        auto-once: true
+        notify: 10
+        events: "reward_coins_small"
+
+    rewards: []
+    on-start-events: []

@@ -1,0 +1,5 @@
+package:
+  enabled: true
+
+npc_conversations:
+  blacksmith: blacksmith

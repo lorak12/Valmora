@@ -1,0 +1,3 @@
+events:
+  startQuest:    "quest_start blacksmith_hub"
+  completeQuest: "quest_complete blacksmith_hub"

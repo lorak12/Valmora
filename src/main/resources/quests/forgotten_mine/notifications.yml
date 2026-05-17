@@ -1,0 +1,24 @@
+# ============================================================
+# Notification Categories — The Forgotten Mine package
+# ============================================================
+# Categories define the default IO type and settings for
+# notifications sent within this package.
+# Use them in actions: notify <message> category:<name>
+# or: notify <message> io:<type> [key:value ...]
+
+notifications:
+
+  # Sent when a quest is completed — shown as a title.
+  quest_complete:
+    io: title
+    fadeIn: "10"
+    stay: "60"
+    fadeOut: "20"
+
+  # Sent for objective progress updates — shown in the action bar.
+  quest_progress:
+    io: actionbar
+
+  # Override the built-in "info" category for this package.
+  info:
+    io: actionbar

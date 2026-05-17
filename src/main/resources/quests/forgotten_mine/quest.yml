@@ -1,0 +1,6 @@
+package:
+  enabled: true
+
+npc_conversations:
+  thorin: thorin_main
+  bjorn:  bjorn_main

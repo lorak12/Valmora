@@ -1,0 +1,65 @@
+conditions:
+  not_in_progress:  "!quest blacksmith_hub in_progress"
+  not_completed:    "!quest blacksmith_hub completed"
+  is_in_progress:   "quest blacksmith_hub in_progress"
+  is_completed:     "quest blacksmith_hub completed"
+
+conversations:
+  blacksmith:
+    quester: "<yellow>Blacksmith"
+    stop: true
+    first:
+      - greeting
+      - progress
+      - completed_ack
+
+    NPC_options:
+
+      # ── Not started ──────────────────────────────────────────
+      greeting:
+        text: "Oi, you. Looking for work?"
+        conditions: "not_in_progress, not_completed"
+        pointers:
+          - offer
+
+      offer:
+        text: "I need 10 Coal — mine it, loot it, buy it, I do not care how. Bring it to me and I will owe you a discount on your first Reforge."
+        pointers:
+          - question
+          - accept_quest
+          - decline_quest
+
+      coal_location:
+        text: "The Coal Mine east of the village is your best bet. But any Coal you pick up counts, wherever it comes from."
+        pointers:
+          - accept_quest
+          - decline_quest
+
+      quest_accepted:
+        text: "Right. 10 Coal. Do not take too long."
+
+      # ── In progress ───────────────────────────────────────────
+      progress:
+        text: "Still waiting on that Coal. 10 pieces — collect it however you want."
+        conditions: "is_in_progress"
+
+      # ── Completed ─────────────────────────────────────────────
+      completed_ack:
+        text: "You did it. Your Reforge Discount is noted — come find me when the forge is ready and I will make it worth your while."
+        conditions: "is_completed"
+
+    player_options:
+
+      question:
+        text: "Where do I find Coal?"
+        pointers:
+          - coal_location
+
+      accept_quest:
+        text: "10 Coal — consider it done."
+        events: "startQuest"
+        pointers:
+          - quest_accepted
+
+      decline_quest:
+        text: "Not right now."

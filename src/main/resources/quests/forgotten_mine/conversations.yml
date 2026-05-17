@@ -1,0 +1,149 @@
+conditions:
+  mine_not_started:    "!quest forgotten_mine in_progress"
+  mine_not_completed:  "!quest forgotten_mine completed"
+  mine_in_progress:    "quest forgotten_mine in_progress"
+  mine_completed:      "quest forgotten_mine completed"
+
+  smith_not_started:   "!quest blacksmith_request in_progress"
+  smith_not_completed: "!quest blacksmith_request completed"
+  smith_in_progress:   "quest blacksmith_request in_progress"
+  smith_completed:     "quest blacksmith_request completed"
+
+events:
+  start_forgotten_mine:      "quest_start forgotten_mine"
+  start_blacksmith_request:  "quest_start blacksmith_request"
+
+conversations:
+
+  # ----------------------------------------------------------
+  # Conversation: thorin_main
+  # NPC: Elder Thorin (quest giver)
+  # ----------------------------------------------------------
+  thorin_main:
+    quester: "<gold><bold>Elder Thorin"
+    stop: true
+    first:
+      - greeting_new
+      - greeting_progress
+      - greeting_done
+
+    final_events:
+      - "sound player entity.villager.no"
+
+    NPC_options:
+
+      greeting_new:
+        text: "<yellow>The mine has gone silent. Our coal supply dwindles and something lurks in the dark tunnels. Will you help us?"
+        conditions: "mine_not_started, mine_not_completed"
+        pointers:
+          - accept_quest
+          - decline_quest
+
+      greeting_progress:
+        text: "<yellow>How goes your work in the mine? We are counting on you."
+        conditions: "mine_in_progress"
+        pointers:
+          - report_progress
+          - say_goodbye
+
+      greeting_done:
+        text: "<green>You have done the village a great service. The mine runs freely again. If you seek more work, speak to Bjorn the blacksmith."
+        conditions: "mine_completed"
+        pointers:
+          - say_goodbye
+
+      quest_accepted:
+        text: "<yellow>Excellent! Head east past the old oak — the mine entrance is marked by a lantern. Bring back proof of your courage."
+        pointers:
+          - say_goodbye
+
+      quest_declined:
+        text: "<gray>I understand. Return when you are ready, adventurer."
+        pointers:
+          - say_goodbye
+
+    player_options:
+
+      accept_quest:
+        text: "<white>I will investigate the mine and deal with whatever lurks there."
+        events: "start_forgotten_mine"
+        pointers:
+          - quest_accepted
+
+      decline_quest:
+        text: "<white>I am not ready for that yet."
+        pointers:
+          - quest_declined
+
+      report_progress:
+        text: "<white>I am working on it."
+        pointers:
+          - greeting_progress
+
+      say_goodbye:
+        text: "<white>Farewell, Elder."
+
+
+  # ----------------------------------------------------------
+  # Conversation: bjorn_main
+  # NPC: Bjorn the Blacksmith
+  # ----------------------------------------------------------
+  bjorn_main:
+    quester: "<red><bold>Bjorn"
+    first:
+      - bjorn_offer_quest
+      - bjorn_in_progress
+      - bjorn_done
+      - bjorn_idle
+
+    NPC_options:
+
+      bjorn_offer_quest:
+        text: "<red>The Elder said you cleared out the mine. Good. I could use someone capable. I need coal ore, smelted iron, and a fresh pickaxe to restock my forge. Interested?"
+        conditions: "mine_completed, smith_not_started, smith_not_completed"
+        pointers:
+          - accept_blacksmith
+          - decline_blacksmith
+
+      bjorn_in_progress:
+        text: "<red>Still gathering my order? I need coal, iron ingots, and that pickaxe. Oh — fish too. Wife's recipe. Don't ask."
+        conditions: "smith_in_progress"
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_done:
+        text: "<red>My forge burns bright thanks to you. Come back anytime."
+        conditions: "smith_completed"
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_idle:
+        text: "<red>I am busy. Come back after you have proven yourself out there."
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_quest_accepted:
+        text: "<red>Don't take all day. And catch the fish during daylight — they taste better."
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_quest_declined:
+        text: "<red>Suit yourself. I will find someone else."
+        pointers:
+          - say_goodbye_bjorn
+
+    player_options:
+
+      accept_blacksmith:
+        text: "<white>Consider it done, Bjorn."
+        events: "start_blacksmith_request"
+        pointers:
+          - bjorn_quest_accepted
+
+      decline_blacksmith:
+        text: "<white>Not right now."
+        pointers:
+          - bjorn_quest_declined
+
+      say_goodbye_bjorn:
+        text: "<white>See you around."
