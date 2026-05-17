@@ -150,6 +150,13 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         return String.valueOf(r);
     }
 
+    /** Formats a coin amount with dot-separated thousands and a coin emoji, e.g. "🪙 1.000.000". */
+    public static String formatCoinsDisplay(double amount) {
+        long r = Math.round(amount);
+        String num = String.format(java.util.Locale.US, "%,d", r).replace(",", ".");
+        return "🪙 " + num;
+    }
+
     // --- EconomyService compat (operates on purse) ---
 
     @Override public void addCoins(Player player, double amount) { addPurse(player.getUniqueId(), amount); }

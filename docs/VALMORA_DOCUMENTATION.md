@@ -93,20 +93,16 @@ onEnable()
  ├── 6. DatabaseFactory.createDataStore(this)   ← Reads config.yml -> type
  ├── 7. dataStore.init()            ← Creates SQL tables
  │
- ├── 8. new PlayerManager(this, dataStore)
- ├── 9. new StatModule(this)
- ├── 10. new AbilityManager(this)   ← Registers built-in mechanics
- ├── 11. new ItemManager(this)
- ├── 12. new MobManager(this)
- ├── 13. new SkillModule(this)
- ├── 14. new CombatModule(this)
- ├── 15. new ScriptModule(this)
- ├── 16. new UIManager(this)
+ ├── 8.  Instantiate all modules (fields in Valmora.java):
+ │       ScriptModule, TimeModule, StatModule, PlayerManager, EconomyModule,
+ │       UIManager, AbilityManager, ItemManager, MobManager, SkillModule,
+ │       CombatModule, GuiModule, RecipeModule, AlchemyModule, EnchantModule,
+ │       ZoneModule, ResourceModule, FishingModule, NpcModule, WarpModule, QuestModule
  │
- ├── 17. moduleManager.registerModule(...)  ← x8 modules registered in order
- ├── 18. moduleManager.enableModules()      ← onEnable() called on all
+ ├── 9.  moduleManager.registerModule(...)  ← 21 modules in dependency order
+ ├── 10. moduleManager.enableModules()      ← onEnable() called on all
  │
- └── 19. Register Commands
+ └── 11. Register Commands
 ```
 
 **Shutdown order** in `onDisable()`:
@@ -236,15 +232,27 @@ The `LinkedHashMap` in `ModuleManager` preserves insertion order. Your module's 
 
 **Current registration order:**
 ```
-1. PlayerManager (profiles)
-2. StatModule    (stat)
-3. UIManager     (ui)
-4. AbilityManager
-5. ItemManager   (items)
-6. MobManager    (mobs)
-7. SkillModule   (skills)
-8. CombatModule  (combat)
-9. ScriptModule  (script)
+1.  ScriptModule    (script)
+2.  TimeModule      (time)
+3.  StatModule      (stat)
+4.  PlayerManager   (player)
+5.  EconomyModule   (economy)
+6.  UIManager       (ui)
+7.  AbilityManager  (ability)
+8.  ItemManager     (items)
+9.  MobManager      (mobs)
+10. SkillModule     (skills)
+11. CombatModule    (combat)
+12. GuiModule       (gui)
+13. RecipeModule    (recipe)
+14. AlchemyModule   (alchemy)
+15. EnchantModule   (enchants)
+16. ZoneModule      (zone)
+17. ResourceModule  (resource)
+18. FishingModule   (fishing)
+19. NpcModule       (npc)
+20. WarpModule      (warp)
+21. QuestModule     (quest)
 ```
 
 ---
@@ -262,15 +270,27 @@ ValmoraAPI api = ValmoraAPI.getInstance();
 | Method | Returns | Description |
 |---|---|---|
 | `getModuleManager()` | `ModuleManager` | The lifecycle manager for all modules. |
+| `getScriptModule()` | `ScriptModule` | Access variable resolver, parsers, event factories. |
+| `getTimeManager()` | `TimeManager` | RPG calendar — season, hour, day offset. |
+| `getEconomy()` | `EconomyService` | Lightweight economy service interface. |
+| `getEconomyModule()` | `EconomyModule` | Full economy module with shop/transaction logic. |
 | `getPlayerManager()` | `PlayerManager` | Access player sessions, profiles, stat sync. |
-| `getItemManager()` | `ItemManager` | Create item stacks, query item registry. |
-| `getMobManager()` | `MobManager` | Spawn mobs, query mob registry. |
 | `getStatModule()` | `StatModule` | Save/load stat maps to/from ItemMeta. |
+| `getStatRegistry()` | `StatRegistry` | Registry of all stat definitions. |
+| `getSystemStats()` | `SystemStats` | Default stat values and metadata. |
 | `getUIManager()` | `UIManager` | Access ChatUI, ActionBarUI, ScoreboardUI. |
 | `getSkillManager()` | `SkillManager` | Query and modify player skill XP/levels. |
+| `getItemManager()` | `ItemManager` | Create item stacks, query item registry. |
+| `getMobManager()` | `MobManager` | Spawn mobs, query mob registry. |
 | `getAbilityManager()` | `AbilityManager` | Access the MechanicRegistry. |
 | `getDamageIndicatorManager()` | `DamageIndicatorManager` | Spawn floating damage text. |
-| `getScriptModule()` | `ScriptModule` | Access variable resolver, parsers, event factories. |
+| `getEnchantModule()` | `EnchantModule` | Access enchantment registry and helpers. |
+| `getAlchemyManager()` | `AlchemyManager` | Access alchemy recipes and brew state. |
+| `getZoneManager()` | `ZoneManager` | Query zones and their flags at a location. |
+| `getNpcManager()` | `NpcManager` | Spawn/query custom NPCs. |
+| `getDialogueManager()` | `DialogueManager` | Load and trigger NPC dialogues. |
+| `getWarpManager()` | `WarpManager` | Register/use named warp points. |
+| `getQuestManager()` | `QuestManager` | Track player quest state and progress. |
 
 ---
 

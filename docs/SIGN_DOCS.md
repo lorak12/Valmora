@@ -1,3 +1,8 @@
+# Sign API — Reference Notes
+
+> **Source:** External Paper/Bukkit API reference for 1.20+ sign mechanics.  
+> For virtual sign input in Valmora, use **Method A (Paper Native)** — `Player#openVirtualSign` + `UncheckedSignChangeEvent`. Valmora targets Paper 1.21.11 so ProtocolLib/PacketEvents are not needed.
+
 ---
 
 # The Complete 1.20+ Sign API Documentation (Bukkit, Spigot, Paper)

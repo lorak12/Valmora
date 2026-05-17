@@ -1,4 +1,12 @@
-Dialog API
+# Paper Dialog API — Reference Notes
+
+> **Source:** Paper 1.21.6+ docs — external reference, not Valmora-specific.  
+> Dialogs require Paper 1.21.6+. Valmora targets 1.21.11 so the full API is available.  
+> Valmora uses dialogs via `NpcModule` for NPC conversation screens.
+
+---
+
+## Dialog API
 Experimental
 
 The dialog API is currently experimental and might change in the future.

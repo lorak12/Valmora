@@ -1,7 +1,10 @@
 package org.nakii.valmora.module.stat;
 
 import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -62,17 +65,35 @@ public class StatModule implements ReloadableModule {
     /**
      * Applies vanilla attribute mappings for any stat with a vanilla-attribute defined.
      */
+    private static final NamespacedKey MINING_SPEED_MOD_KEY = new NamespacedKey("valmora", "mining_speed_bonus");
+    private static final String BLOCK_BREAK_SPEED_KEY = "block_break_speed";
+
     public void recalculateAttributes(Player player, StatManager statManager) {
         for (StatDefinition def : statRegistry.values()) {
             if (def.getVanillaAttribute() == null) continue;
-            try {
-                Attribute attr = Attribute.valueOf(def.getVanillaAttribute());
-                var attrInst = player.getAttribute(attr);
-                if (attrInst == null) continue;
-                double statValue = statManager.getStat(def.getId());
+
+            NamespacedKey attrKey = NamespacedKey.fromString(def.getVanillaAttribute());
+            if (attrKey == null) attrKey = NamespacedKey.minecraft(def.getVanillaAttribute().toLowerCase());
+
+            Attribute attr = Registry.ATTRIBUTE.get(attrKey);
+            if (attr == null) continue;
+
+            AttributeInstance attrInst = player.getAttribute(attr);
+            if (attrInst == null) continue;
+
+            double statValue = statManager.getStat(def.getId());
+
+            if (attrKey.getKey().equals(BLOCK_BREAK_SPEED_KEY)) {
+                // 100 = vanilla base speed (modifier 0). Values above 100 add to the base.
+                attrInst.removeModifier(MINING_SPEED_MOD_KEY);
+                double bonus = Math.max(0.0, (statValue - 100.0) / 100.0);
+                if (bonus > 0) {
+                    attrInst.addModifier(new AttributeModifier(
+                        MINING_SPEED_MOD_KEY, bonus,
+                        AttributeModifier.Operation.ADD_NUMBER));
+                }
+            } else {
                 attrInst.setBaseValue(0.1 * statValue / 100.0);
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("[StatModule] Unknown vanilla attribute: " + def.getVanillaAttribute());
             }
         }
     }

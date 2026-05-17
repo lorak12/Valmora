@@ -1,5 +1,7 @@
 package org.nakii.valmora;
 
+import com.github.retrooper.packetevents.PacketEvents;
+import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.nakii.valmora.module.item.ItemCommand;
 import org.nakii.valmora.module.item.ItemManager;
@@ -28,6 +30,23 @@ import org.nakii.valmora.module.skill.SkillModule;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.module.enchant.EnchantModule;
 import org.nakii.valmora.module.alchemy.AlchemyModule;
+import org.nakii.valmora.module.zone.ZoneModule;
+import org.nakii.valmora.module.zone.ZoneManager;
+import org.nakii.valmora.module.zone.ZoneCommand;
+import org.nakii.valmora.module.resource.ResourceModule;
+import org.nakii.valmora.module.fishing.FishingModule;
+import org.nakii.valmora.module.npc.NpcModule;
+import org.nakii.valmora.module.npc.NpcManager;
+import org.nakii.valmora.module.npc.dialogue.DialogueManager;
+import org.nakii.valmora.module.warp.WarpModule;
+import org.nakii.valmora.module.warp.WarpManager;
+import org.nakii.valmora.module.warp.WarpCommand;
+import org.nakii.valmora.module.quest.QuestModule;
+import org.nakii.valmora.module.quest.QuestManager;
+import org.nakii.valmora.module.quest.QuestCommand;
+import org.nakii.valmora.module.quest.points.PointsModule;
+import org.nakii.valmora.module.npc.NpcCommand;
+import org.nakii.valmora.module.notify.NotifyModule;
 import org.nakii.valmora.module.alchemy.command.PotionCommand;
 import org.nakii.valmora.module.alchemy.command.EffectsCommand;
 import org.nakii.valmora.api.economy.EconomyService;
@@ -46,6 +65,12 @@ import java.util.zip.ZipInputStream;
 public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     private static Valmora instance;
+
+    @Override
+    public void onLoad() {
+        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
+        PacketEvents.getAPI().load();
+    }
 
     private DataStore dataStore;
 
@@ -68,11 +93,20 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private ModuleManager moduleManager;
     private EconomyModule economyModule;
     private EconomyService economyService;
+    private ZoneModule zoneModule;
+    private ResourceModule resourceModule;
+    private FishingModule fishingModule;
+    private NpcModule npcModule;
+    private WarpModule warpModule;
+    private QuestModule questModule;
+    private PointsModule pointsModule;
+    private NotifyModule notifyModule;
 
     @Override
     public void onEnable() {
         instance = this;
         ValmoraAPI.setProvider(this);
+        PacketEvents.getAPI().init();
         
         this.moduleManager = new ModuleManager(this);
 
@@ -104,6 +138,14 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.recipeModule = new RecipeModule(this);
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
+        this.zoneModule = new ZoneModule(this);
+        this.resourceModule = new ResourceModule(this);
+        this.fishingModule = new FishingModule(this);
+        this.npcModule = new NpcModule(this);
+        this.warpModule = new WarpModule(this);
+        this.questModule = new QuestModule(this);
+        this.pointsModule = new PointsModule(this);
+        this.notifyModule = new NotifyModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -124,11 +166,23 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(recipeModule);
         moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
+        moduleManager.registerModule(zoneModule);
+        moduleManager.registerModule(resourceModule);
+        moduleManager.registerModule(fishingModule);
+        moduleManager.registerModule(npcModule);
+        moduleManager.registerModule(warpModule);
+        moduleManager.registerModule(questModule);
+        moduleManager.registerModule(pointsModule);
+        moduleManager.registerModule(notifyModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
 
         // 5. Commands
+        getCommand("quest").setExecutor(new QuestCommand(this));
+        NpcCommand npcCommand = new NpcCommand(this);
+        getCommand("npc").setExecutor(npcCommand);
+        getCommand("npc").setTabCompleter(npcCommand);
         getCommand("valmora").setExecutor(new ValmoraCommand(this));
         getCommand("profile").setExecutor(new ProfileCommand(playerManager));
         getCommand("stat").setExecutor(new StatCommand(playerManager));
@@ -140,6 +194,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("eco").setExecutor(new EcoCommand(economyModule));
         getCommand("potion").setExecutor(new PotionCommand(this, alchemyModule.getAlchemyManager()));
         getCommand("effects").setExecutor(new EffectsCommand(this));
+        getCommand("warp").setExecutor(new WarpCommand(this));
+        ZoneCommand zoneCommand = new ZoneCommand(this, zoneModule);
+        getCommand("zone").setExecutor(zoneCommand);
+        getCommand("zone").setTabCompleter(zoneCommand);
     }
 
      @Override
@@ -147,6 +205,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         if (moduleManager != null) {
             moduleManager.disableModules();
         }
+
+        PacketEvents.getAPI().terminate();
 
         if (playerManager != null && dataStore != null) {
             for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
@@ -260,6 +320,62 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.economyService = service;
     }
 
+    @Override
+    public ZoneManager getZoneManager() {
+        return zoneModule != null ? zoneModule.getZoneManager() : null;
+    }
+
+    public ZoneModule getZoneModule() {
+        return zoneModule;
+    }
+
+    public ResourceModule getResourceModule() {
+        return resourceModule;
+    }
+
+    public FishingModule getFishingModule() {
+        return fishingModule;
+    }
+
+    @Override
+    public NpcManager getNpcManager() {
+        return npcModule != null ? npcModule.getNpcManager() : null;
+    }
+
+    @Override
+    public DialogueManager getDialogueManager() {
+        return npcModule != null ? npcModule.getDialogueManager() : null;
+    }
+
+    @Override
+    public WarpManager getWarpManager() {
+        return warpModule != null ? warpModule.getWarpManager() : null;
+    }
+
+    @Override
+    public QuestManager getQuestManager() {
+        return questModule != null ? questModule.getQuestManager() : null;
+    }
+
+    public NpcModule getNpcModule() { return npcModule; }
+    public WarpModule getWarpModule() { return warpModule; }
+    public QuestModule getQuestModule() { return questModule; }
+
+    @Override
+    public org.nakii.valmora.module.quest.points.PointsManager getPointsManager() {
+        return pointsModule != null ? pointsModule.getPointsManager() : null;
+    }
+
+    @Override
+    public org.nakii.valmora.module.notify.NotifyManager getNotifyManager() {
+        return notifyModule != null ? notifyModule.getNotifyManager() : null;
+    }
+
+    @Override
+    public org.nakii.valmora.module.quest.pkg.QuestPackageManager getQuestPackageManager() {
+        return questModule != null ? questModule.getPackageManager() : null;
+    }
+
     private void saveAllResources() {
         try {
             File jarFile = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -275,8 +391,14 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
                     if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                             name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
-                            name.startsWith("alchemy/") || name.startsWith("stats/")) {
-                        saveResource(name, true);
+                            name.startsWith("alchemy/") || name.startsWith("stats/") ||
+                            name.startsWith("zones/") || name.startsWith("fishing/") ||
+                            name.startsWith("npcs/") || name.startsWith("dialogues/") ||
+                            name.startsWith("warps/") || name.startsWith("quests/")) {
+                        // Only save if the file doesn't already exist — don't overwrite server edits
+                        if (!new File(getDataFolder(), name).exists()) {
+                            saveResource(name, false);
+                        }
                     }
                 }
             }

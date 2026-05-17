@@ -68,6 +68,9 @@ public class ItemTranslator {
             stats.put(sys.getDamage(), getWeaponDamage(name));
         } else if (name.endsWith("_AXE")) {
             stats.put(sys.getDamage(), getWeaponDamage(name) + 2);
+            stats.put(sys.getMiningSpeed(), getMiningSpeed(name));
+        } else if (name.endsWith("_PICKAXE") || name.endsWith("_SHOVEL") || name.endsWith("_HOE")) {
+            stats.put(sys.getMiningSpeed(), getMiningSpeed(name));
         } else if (material == Material.BOW) {
             stats.put(sys.getDamage(), 6.0);
         } else if (material == Material.CROSSBOW) {
@@ -80,6 +83,15 @@ public class ItemTranslator {
         }
 
         return stats;
+    }
+
+    private double getMiningSpeed(String name) {
+        if (name.contains("NETHERITE")) return 450.0;
+        if (name.contains("DIAMOND")) return 400.0;
+        if (name.contains("IRON")) return 300.0;
+        if (name.contains("STONE")) return 200.0;
+        if (name.contains("GOLDEN")) return 500.0;
+        return 100.0; // wood — baseline, no bonus
     }
 
     private double getWeaponDamage(String name) {

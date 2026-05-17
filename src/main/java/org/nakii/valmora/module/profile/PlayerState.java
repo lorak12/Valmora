@@ -8,6 +8,7 @@ public class PlayerState {
     private double currentHealth;
     private double currentMana;
     private transient long lastCombatTime = 0;
+    private transient String currentZoneId = null;
 
     public PlayerState() {
         // Use defaults from StatRegistry; fall back to 100 if registry not yet loaded
@@ -29,6 +30,9 @@ public class PlayerState {
             this.currentMana = 100.0;
         }
     }
+
+    public String getCurrentZoneId() { return currentZoneId; }
+    public void setCurrentZoneId(String id) { this.currentZoneId = id; }
 
     public long getLastCombatTime() { return lastCombatTime; }
     public void setInCombat() { this.lastCombatTime = System.currentTimeMillis(); }

@@ -10,6 +10,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.module.economy.EconomyModule;
 import org.nakii.valmora.module.time.TimeManager;
 import org.nakii.valmora.module.time.TimeSnapshot;
 import org.nakii.valmora.util.Formatter;
@@ -150,8 +151,20 @@ public class ScoreboardUI {
             lines.add(Component.empty());
         }
 
-        lines.add(Formatter.format("<gray>Zone: <green>Safezone"));
-        lines.add(Formatter.format("<gray>Purse: <gold>0 Coins"));
+        String zoneLine = "<green>Wilderness";
+        try {
+            var zm = ValmoraAPI.getInstance().getZoneManager();
+            if (zm != null) zoneLine = zm.getCurrentZone(player)
+                    .map(z -> z.getDisplayName()).orElse("<green>Wilderness");
+        } catch (Exception ignored) {}
+        lines.add(Formatter.format("<gray>Zone: " + zoneLine));
+
+        String purseDisplay = "0 coins";
+        try {
+            var eco = ValmoraAPI.getInstance().getEconomyModule();
+            if (eco != null) purseDisplay = EconomyModule.formatCoinsDisplay(eco.getPurse(player.getUniqueId()));
+        } catch (Exception ignored) {}
+        lines.add(Formatter.format("<gray>Purse: <gold>" + purseDisplay));
 
         return lines;
     }

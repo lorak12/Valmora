@@ -63,6 +63,25 @@ combat:
   luck-stat: luck
 
 # ========================================================== #
+#                     Mining Settings                        #
+# ========================================================== #
+mining:
+  mining-fortune-stat: mining_fortune
+  mining-speed-stat: mining_speed
+
+# ========================================================== #
+#                    NPC Skin File Server                    #
+# ========================================================== #
+# Enables a tiny built-in HTTP server so you can apply skins
+# from PNG files placed in plugins/Valmora/skins/.
+# Use: /npc skin <id> file <filename.png>
+npc-skin-server:
+  enabled: false
+  port: 2525
+  # host: ""   # Leave blank to auto-detect. Set to your public IP if
+  #              clients connect from outside the local network.
+
+# ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
 alchemy:

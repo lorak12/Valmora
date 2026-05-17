@@ -49,6 +49,22 @@ public interface ValmoraAPI {
     org.nakii.valmora.module.economy.EconomyModule getEconomyModule();
 
     org.nakii.valmora.module.alchemy.AlchemyManager getAlchemyManager();
+
+    org.nakii.valmora.module.zone.ZoneManager getZoneManager();
+
+    org.nakii.valmora.module.npc.NpcManager getNpcManager();
+
+    org.nakii.valmora.module.npc.dialogue.DialogueManager getDialogueManager();
+
+    org.nakii.valmora.module.warp.WarpManager getWarpManager();
+
+    org.nakii.valmora.module.quest.QuestManager getQuestManager();
+
+    org.nakii.valmora.module.quest.points.PointsManager getPointsManager();
+
+    org.nakii.valmora.module.notify.NotifyManager getNotifyManager();
+
+    org.nakii.valmora.module.quest.pkg.QuestPackageManager getQuestPackageManager();
 }
 
 class Holder {

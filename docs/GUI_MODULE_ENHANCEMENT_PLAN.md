@@ -1,10 +1,12 @@
-To complete the GUI module and fulfill the requirements for the overridden vanilla machines (Enchanting Table, Anvil, Alchemy Table), we need to introduce a few targeted architectural extensions. Instead of hardcoding logic into the `GuiListener`, we will extend existing abstractions (like the `RecipeEngine` and `VariableProvider` systems) to support dynamic transformations.
+# GUI Module Enhancement Plan
 
-Here is the implementation plan and architectural roadmap to finish the GUI system.
+> **Status:** Phases 1–4 are complete. Phase 5 (docs/optimization) is ongoing.
+
+To complete the GUI module and fulfill the requirements for the overridden vanilla machines (Enchanting Table, Anvil, Alchemy Table), we need to introduce a few targeted architectural extensions. Instead of hardcoding logic into the `GuiListener`, we will extend existing abstractions (like the `RecipeEngine` and `VariableProvider` systems) to support dynamic transformations.
 
 ---
 
-### Phase 1: Core Framework Extensions
+### Phase 1: Core Framework Extensions ✅
 
 Currently, GUIs only support static recipes and fixed update intervals. We need to add immediate reactivity and dynamic recipe generation.
 
@@ -40,7 +42,7 @@ Currently, GUIs only support static recipes and fixed update intervals. We need 
 
 ---
 
-### Phase 2: Enchanting Table Implementation
+### Phase 2: Enchanting Table Implementation ✅
 
 **Goal:** Loop over applicable enchants for the input item, allowing the player to click to apply them, costing XP/Mana.
 
@@ -58,7 +60,7 @@ Currently, GUIs only support static recipes and fixed update intervals. We need 
 
 ---
 
-### Phase 3: Anvil Implementation
+### Phase 3: Anvil Implementation ✅
 
 **Goal:** Merge items, combine Valmora enchantments with specific math, support Enchanted Books, and deduct costs.
 
@@ -77,7 +79,7 @@ Currently, GUIs only support static recipes and fixed update intervals. We need 
 
 ---
 
-### Phase 4: Alchemy Table (Brewing) Implementation
+### Phase 4: Alchemy Table (Brewing) Implementation ✅
 
 **Goal:** Support time-based crafting (brewing) that visually updates in the GUI.
 
@@ -104,7 +106,7 @@ Currently, GUIs only support static recipes and fixed update intervals. We need 
 
 ---
 
-### Phase 5: Documentation & Optimization Tasks
+### Phase 5: Documentation & Optimization Tasks ⬜
 
 1.  **YAML Docs Updates (`docs/YAML_DOCS.md`):**
     - Add a section under `Module: GUIs` detailing the `on-slot-update` and `on-update` triggers.

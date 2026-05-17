@@ -1,16 +1,24 @@
 # Main Projects
 
-[] Skill info (totalXP) is getting desynced between gui, ui (actionbar, chat) and the actual xp.
-[] Scoreboard does not appear after relogging.
+## Bugs / Fixes
+- [ ] Skill info (totalXP) is getting desynced between GUI, UI (actionbar, chat) and actual XP
+- [ ] Scoreboard does not appear after relogging
 
-[*] Enchanting system
-[] Redo stats system
-[*] Finish all of the prebuild gui's
-[] Finish Profile module
-[*] Telekinesis, Custom Drops & Vanilla Formatting
-[*] Alchemy module
-[*] Time module
-[] Zone module
-[] NPC module
-[] Quest module
-[] Dungeon module
+## Core Systems
+- [x] Enchanting system
+- [ ] Redo stats system
+- [x] Finish all of the prebuilt GUIs
+- [x] Telekinesis, Custom Drops & Vanilla Formatting
+- [x] Alchemy module
+- [x] Time module
+
+## Modules In Progress
+- [ ] Zone module
+- [ ] NPC module (started)
+- [ ] Quest module (started)
+- [ ] Warp module (started)
+- [ ] Fishing module (started)
+- [ ] Resource module (started)
+
+## Future
+- [ ] Dungeon module

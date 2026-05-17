@@ -7,11 +7,13 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ValmoraCommand implements TabExecutor {
 
@@ -23,6 +25,17 @@ public class ValmoraCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        // Dialogue choice — no permission required, player-only
+        if (args.length >= 2 && args[0].equalsIgnoreCase("npc-choice")) {
+            if (!(sender instanceof Player player)) return true;
+            try {
+                int index = Integer.parseInt(args[1]);
+                DialogueManager dm = plugin.getDialogueManager();
+                if (dm != null) dm.handleChoice(player, index);
+            } catch (NumberFormatException ignored) {}
+            return true;
+        }
+
         if (!sender.hasPermission("valmora.admin")) {
             sender.sendMessage(Formatter.format("<red>No permission!"));
             return true;
@@ -74,7 +87,7 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return List.of("reload", "variable").stream()
+            return Stream.of("reload", "variable")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -100,4 +113,3 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
     }
 }
-

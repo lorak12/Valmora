@@ -34,7 +34,7 @@ Valmora.onEnable()
     ├── 2. All modules instantiated (fields in Valmora.java)
     ├── 3. All modules registered (moduleManager.registerModule)
     ├── 4. All modules enabled (moduleManager.enableModules)
-    │       └─ Each module.onEnable() runs in registration order
+    /usa│       └─ Each module.onEnable() runs in registration order
     └── 5. Commands registered
 ```
 
@@ -103,17 +103,35 @@ public interface ValmoraAPI {
     static void setProvider(ValmoraAPI provider);
     static ValmoraAPI getInstance();
 
-    // Access to all modules:
+    // Core infrastructure
     ModuleManager getModuleManager();
+    ScriptModule getScriptModule();
+    TimeManager getTimeManager();
+    EconomyService getEconomy();           // lightweight service interface
+    EconomyModule getEconomyModule();
+
+    // Player systems
     PlayerManager getPlayerManager();
-    ItemManager getItemManager();
-    MobManager getMobManager();
     StatModule getStatModule();
+    StatRegistry getStatRegistry();
+    SystemStats getSystemStats();
     UIManager getUIManager();
     SkillManager getSkillManager();
+
+    // World content
+    ItemManager getItemManager();
+    MobManager getMobManager();
     AbilityManager getAbilityManager();
     DamageIndicatorManager getDamageIndicatorManager();
-    ScriptModule getScriptModule();
+    EnchantModule getEnchantModule();
+    AlchemyManager getAlchemyManager();
+    ZoneManager getZoneManager();
+
+    // Gameplay systems
+    NpcManager getNpcManager();
+    DialogueManager getDialogueManager();
+    WarpManager getWarpManager();
+    QuestManager getQuestManager();
 }
 ```
 
@@ -472,31 +490,40 @@ MyFeatureRegistry registry = myModule.getRegistry();
 
 ## 9. Module Load Order
 
-Modules are enabled in **registration order**. The current order is:
+Modules are enabled in **registration order**. The current order (from `Valmora.java`) is:
 
 ```
-1.  PlayerManager     (profiles, player data)
-2.  StatModule       (stats, stat calculations)
-3.  UIManager        (chat, action bar, scoreboard)
-4.  AbilityManager  (mechanics registry)
-5.  ItemManager     (custom items)
-6.  MobManager      (custom mobs)
-7.  SkillModule    (skills, XP)
-8.  CombatModule   (damage, combat)
-9.  ScriptModule  (expressions, conditions, events)
-10. GuiModule      (inventory GUIs)
-11. RecipeModule  (crafting recipes)
-12. EnchantModule (enchantments)
+1.  ScriptModule    (script)      — no deps; everything else can use expressions
+2.  TimeModule      (time)        — no deps; scoreboard reads from it
+3.  StatModule      (stat)        — no deps
+4.  PlayerManager   (player)      — depends on stat
+5.  EconomyModule   (economy)     — depends on playerManager lifecycle
+6.  UIManager       (ui)          — no deps
+7.  AbilityManager  (ability)     — no deps
+8.  ItemManager     (items)       — depends on ability
+9.  MobManager      (mobs)        — depends on items
+10. SkillModule     (skills)      — depends on combat events, reads stat
+11. CombatModule    (combat)      — depends on stat, items
+12. GuiModule       (gui)         — depends on script, items, recipe
+13. RecipeModule    (recipe)      — depends on items
+14. AlchemyModule   (alchemy)     — depends on recipe, gui
+15. EnchantModule   (enchants)    — depends on items, gui
+16. ZoneModule      (zone)        — no deps
+17. ResourceModule  (resource)    — depends on zone
+18. FishingModule   (fishing)     — depends on items, skill
+19. NpcModule       (npc)         — depends on gui, script
+20. WarpModule      (warp)        — depends on zone, gui
+21. QuestModule     (quest)       — depends on script, npc, items
 ```
 
 ### Choosing Load Order
 
 If your module **depends on** another:
 - Load AFTER the dependency
-- Example: ItemManager depends on AbilityManager → loads after it
+- Example: `ItemManager` depends on `AbilityManager` → loads after it
 
 If your module is **independent**:
-- Load late (near bottom) to ensure other systems are ready
+- Load early (near top) so others can depend on it
 
 ---
 

@@ -58,7 +58,7 @@ speed:
   color: "<white>"
   icon: "SUGAR"
   description: "Increases movement and sprinting speed."
-  vanilla-attribute: "MOVEMENT_SPEED"
+  vanilla-attribute: "movement_speed"
 
 health_regen:
   display-name: "Health Regen"
@@ -81,3 +81,19 @@ luck:
   color: "<gold>"
   icon: "RABBIT_FOOT"
   description: "Increases the quality of loot and drops."
+
+mining_fortune:
+  display-name: "Mining Fortune"
+  default-value: 0.0
+  max-value: 500.0
+  color: "<gold>"
+  icon: "GOLD_NUGGET"
+  description: "Multiplies the quantity of drops when mining resource blocks."
+
+mining_speed:
+  display-name: "Mining Speed"
+  default-value: 100.0
+  color: "<white>"
+  icon: "IRON_PICKAXE"
+  description: "Increases how fast you break blocks."
+  vanilla-attribute: "block_break_speed"

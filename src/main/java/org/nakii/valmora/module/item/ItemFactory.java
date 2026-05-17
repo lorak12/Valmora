@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.item;
 
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -92,9 +93,23 @@ public class ItemFactory {
 
         // Assemble Lore
         List<Component> finalLore = new ArrayList<>();
-        
+
+        // 0. Breaking Power (first line for mining tools)
+        String typeTagRaw = meta.getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
+        if (typeTagRaw != null) {
+            try {
+                ItemType itemType = ItemType.valueOf(typeTagRaw.toUpperCase());
+                if (itemType == ItemType.PICKAXE || itemType == ItemType.SHOVEL
+                        || itemType == ItemType.AXE || itemType == ItemType.HOE) {
+                    int bp = getBreakingPower(item.getType());
+                    finalLore.add(Formatter.format("<dark_gray>Breaking Power " + bp));
+                }
+            } catch (IllegalArgumentException ignored) {}
+        }
+
         // 1. Base Lore
         if (!baseLore.isEmpty()) {
+            if (!finalLore.isEmpty()) finalLore.add(Component.empty());
             finalLore.addAll(Formatter.formatList(baseLore));
         }
 
@@ -149,5 +164,14 @@ public class ItemFactory {
         finalLore.add(Formatter.format(rarityColor + "<bold>" + rarity.getName().toUpperCase() + typeDisplay));
 
         meta.lore(finalLore);
+    }
+
+    private int getBreakingPower(Material material) {
+        String name = material.name();
+        if (name.contains("NETHERITE")) return 5;
+        if (name.contains("DIAMOND")) return 4;
+        if (name.contains("IRON")) return 3;
+        if (name.contains("STONE")) return 2;
+        return 1;
     }
 }

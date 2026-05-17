@@ -31,10 +31,11 @@ public class EventParser {
         if (parts.length == 0) return context -> {};
 
         String eventName = parts[0];
-        
+
         // Option parsing
         int delay = 0;
         boolean notifyPlayer = false;
+        String conditionsToken = null;
         List<String> argsList = new ArrayList<>();
 
         for (int i = 1; i < parts.length; i++) {
@@ -45,6 +46,9 @@ public class EventParser {
                 try {
                     delay = Integer.parseInt(part.substring(6));
                 } catch (NumberFormatException ignored) {}
+            } else if (part.startsWith("conditions:") || part.startsWith("condition:")) {
+                int sep = part.indexOf(':');
+                conditionsToken = part.substring(sep + 1);
             } else {
                 argsList.add(part);
             }
@@ -52,6 +56,7 @@ public class EventParser {
 
         String[] args = argsList.toArray(new String[0]);
         EventOptions options = new EventOptions(delay, notifyPlayer);
+        final String finalConditionsToken = conditionsToken;
 
         final int finalDelay = delay;
         var factoryOpt = module.getEventFactoryRegistry().get(eventName);
@@ -62,7 +67,18 @@ public class EventParser {
             return context -> {};
         }
 
-        CompiledEvent event = factoryOpt.get().compile(args, options);
+        CompiledEvent compiled = factoryOpt.get().compile(args, options);
+
+        // Wrap with condition guard if conditions: token was present
+        CompiledEvent event;
+        if (finalConditionsToken != null && !finalConditionsToken.isEmpty()) {
+            var conditionGroup = module.getConditionParser().parseInlineList(finalConditionsToken);
+            event = context -> {
+                if (conditionGroup.evaluate(context)) compiled.execute(context);
+            };
+        } else {
+            event = compiled;
+        }
 
         if (finalDelay > 0) {
             return context -> Bukkit.getScheduler().runTaskLater(

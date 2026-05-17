@@ -26,7 +26,11 @@ public class EconomyVariableProvider implements VariableProvider {
         if (maybePlayer.isEmpty() || path.length == 0) return null;
         UUID uuid = maybePlayer.get().getUniqueId();
         return switch (path[0].toLowerCase()) {
-            case "purse" -> module.getPurse(uuid);
+            case "purse" -> {
+                if (path.length > 1 && path[1].equalsIgnoreCase("formatted"))
+                    yield EconomyModule.formatCoinsDisplay(module.getPurse(uuid));
+                yield module.getPurse(uuid);
+            }
             case "bank"  -> module.getBank(uuid);
             case "total" -> module.getTotal(uuid);
             default      -> null;

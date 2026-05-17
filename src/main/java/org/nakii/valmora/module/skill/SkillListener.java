@@ -2,6 +2,7 @@ package org.nakii.valmora.module.skill;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -37,7 +38,7 @@ public class SkillListener implements Listener {
         plugin.getUIManager().getChat().sendLevelUp(event.getPlayer(), event.getSkill().getName(), event.getNewLevel());
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         ValmoraProfile profile = getProfile(event.getPlayer());
         if (profile == null) return;
@@ -85,7 +86,7 @@ public class SkillListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onCropHarvest(BlockBreakEvent event) {
         ValmoraProfile profile = getProfile(event.getPlayer());
         if (profile == null) return;

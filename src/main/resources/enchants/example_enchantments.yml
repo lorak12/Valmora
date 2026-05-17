@@ -99,18 +99,19 @@ fortune:
   name: "Fortune"
   logic: "valmora:fortune"
   description:
-    - "Increases your <gold>Luck<gray> stat by <gold>+10<gray> per level."
+    - "Increases your <gold>Mining Fortune<gray> by <gold>+10<gray> per level,"
+    - "multiplying resource block drop quantities."
   targets: ["PICKAXE", "AXE", "SHOVEL", "HOE", "FISHING_ROD"]
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 5
 
-haste:
-  name: "Haste"
-  logic: "valmora:haste"
+efficiency:
+  name: "Efficiency"
+  logic: "valmora:efficiency"
   description:
-    - "Increases your <white>Speed<gray> stat by <white>+2<gray> per level."
-  targets: ["PICKAXE", "AXE", "SHOVEL", "HOE", "FISHING_ROD"]
+    - "Increases your <white>Mining Speed<gray> by <white>+50<gray> per level."
+  targets: ["PICKAXE", "AXE", "SHOVEL", "HOE"]
   conflicts: []
-  etable-max-level: 3
-  absolute-max-level: 5
+  etable-max-level: 5
+  absolute-max-level: 7

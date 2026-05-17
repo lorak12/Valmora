@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.item;
 
 import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -10,6 +11,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.module.resource.ResourceModule;
+import org.nakii.valmora.module.zone.ZoneManager;
 import org.nakii.valmora.util.Formatter;
 import net.kyori.adventure.title.Title;
 import java.time.Duration;
@@ -32,6 +35,17 @@ public class LootListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) return;
+
+        // Defer to ResourceModule for resource blocks and intermediate stages
+        Block block = event.getBlock();
+        ZoneManager zm = plugin.getZoneManager();
+        if (zm != null) {
+            var zone = zm.getZoneAt(block.getLocation()).orElse(null);
+            if (zone != null && zone.getResourceBlocks().containsKey(block.getType())) return;
+        }
+        ResourceModule rm = plugin.getResourceModule();
+        if (rm != null && rm.getResourceManager() != null
+                && rm.getResourceManager().isTrackedResource(block.getLocation())) return;
 
         // Cancel vanilla drops
         event.setDropItems(false);

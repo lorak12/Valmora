@@ -2,6 +2,7 @@ package org.nakii.valmora.module.ui;
 
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.module.stat.SystemStats;
@@ -28,6 +29,10 @@ public class ActionBarUI {
     }
 
     public void tick(Player player) {
+        // Don't overwrite the dialogue action bar while the player is in a conversation
+        DialogueManager dialogueMgr = plugin.getDialogueManager();
+        if (dialogueMgr != null && dialogueMgr.getSession(player.getUniqueId()) != null) return;
+
         UUID uuid = player.getUniqueId();
         QueuedMessage override = activeOverrides.get(uuid);
 

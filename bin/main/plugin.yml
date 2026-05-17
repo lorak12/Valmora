@@ -34,6 +34,9 @@ commands:
     usage: /eco <get|set|add|remove> <player> [purse|bank] [amount]
     permission: valmora.admin
     description: Admin command for manipulating player coin balances.
+  warp:
+    usage: /warp [id]
+    description: Teleport to a warp point or open the fast travel menu.
   valmora:
     usage: /valmora reload
     permission: valmora.admin

@@ -65,10 +65,11 @@ public class MobFactory {
         entity.setCustomNameVisible(true);  
     }
 
-    public void spawnMob(MobDefinition definition, Location location) {
+    public LivingEntity spawnMob(MobDefinition definition, Location location) {
         LivingEntity entity = (LivingEntity) location.getWorld().spawnEntity(location, definition.getEntityType());
         applyData(entity, definition);
         applyEquipment(entity, definition);
         applyVisuals(entity, definition);
+        return entity;
     }
 }

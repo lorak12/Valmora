@@ -68,11 +68,7 @@ public class ItemManager implements ReloadableModule {
             if (material == null) {
                 return null;
             }
-            ItemDefinition vanillaDef = new ItemDefinition.Builder(id)
-                    .material(material)
-                    .rarity(Rarity.COMMON)
-                    .build();
-            return itemFactory.create(vanillaDef);
+            return itemTranslator.translate(new org.bukkit.inventory.ItemStack(material));
         } catch (Exception e) {
             return null;
         }

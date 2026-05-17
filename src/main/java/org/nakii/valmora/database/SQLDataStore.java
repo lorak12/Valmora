@@ -52,9 +52,14 @@ public class SQLDataStore implements DataStore {
                     name VARCHAR(255),
                     stats TEXT,
                     skills TEXT,
-                    player_state TEXT
+                    player_state TEXT,
+                    tags TEXT,
+                    variables TEXT
                 )
             """).execute();
+            // Migration for existing databases
+            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN tags TEXT").execute(); } catch (Exception ignored) {}
+            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN variables TEXT").execute(); } catch (Exception ignored) {}
 
             // Economy Table
             conn.prepareStatement("""
@@ -90,14 +95,15 @@ public class SQLDataStore implements DataStore {
 
                 Type statsType = new TypeToken<Map<String, Double>>() {}.getType();
                 Type skillsType = new TypeToken<Map<String, Double>>() {}.getType();
+                Type tagsType = new TypeToken<java.util.Set<String>>() {}.getType();
+                Type variablesType = new TypeToken<Map<String, Object>>() {}.getType();
 
                 while (rsProfiles.next()) {
                     ValmoraProfile profile = new ValmoraProfile(
-                            UUID.fromString(rsProfiles.getString("id")), // Needs a minor tweak in ValmoraProfile to allow setting ID
+                            UUID.fromString(rsProfiles.getString("id")),
                             rsProfiles.getString("name")
                     );
 
-                    // Load JSON Data safely
                     Map<String, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
                     if (stats != null) profile.getStatManager().loadData(stats);
 
@@ -108,6 +114,18 @@ public class SQLDataStore implements DataStore {
                     if (stateJson != null) {
                         double[] stateData = gson.fromJson(stateJson, double[].class);
                         profile.getPlayerState().loadData(stateData);
+                    }
+
+                    String tagsJson = rsProfiles.getString("tags");
+                    if (tagsJson != null) {
+                        java.util.Set<String> tags = gson.fromJson(tagsJson, tagsType);
+                        if (tags != null) profile.getTags().addAll(tags);
+                    }
+
+                    String variablesJson = rsProfiles.getString("variables");
+                    if (variablesJson != null) {
+                        Map<String, Object> variables = gson.fromJson(variablesJson, variablesType);
+                        if (variables != null) profile.getVariables().putAll(variables);
                     }
 
                     player.addProfile(profile);
@@ -146,30 +164,35 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?";
-                
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?";
+
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
                         ps.setString(1, profile.getId().toString());
                         ps.setString(2, player.getUuid().toString());
                         ps.setString(3, profile.getName());
-                        
+
                         String statsJson = gson.toJson(profile.getStatManager().getSaveData());
                         String skillsJson = gson.toJson(profile.getSkillManager().getSaveData());
                         String stateJson = gson.toJson(profile.getPlayerState().getSaveData());
+                        String tagsJson = gson.toJson(profile.getTags());
+                        String variablesJson = gson.toJson(profile.getVariables());
 
-                        
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
                         ps.setString(6, stateJson);
-                        
+                        ps.setString(7, tagsJson);
+                        ps.setString(8, variablesJson);
+
                         // Update values
-                        ps.setString(7, profile.getName());
-                        ps.setString(8, statsJson);
-                        ps.setString(9, skillsJson);
-                        ps.setString(10, stateJson);
-                        
+                        ps.setString(9, profile.getName());
+                        ps.setString(10, statsJson);
+                        ps.setString(11, skillsJson);
+                        ps.setString(12, stateJson);
+                        ps.setString(13, tagsJson);
+                        ps.setString(14, variablesJson);
+
                         ps.addBatch();
                     }
                     ps.executeBatch();

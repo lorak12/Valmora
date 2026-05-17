@@ -1,0 +1,74 @@
+# ============================================================
+# Hub NPCs
+# ============================================================
+# NPCs are defined here with position, entity type, and
+# optional script actions. To bind a conversation from a
+# quest package, set the `conversation:` field to the
+# conversation ID, or use the npc_conversations: block below.
+
+banker:
+  display-name: "<gold>Banker"
+  entity-type: VILLAGER
+  world: world
+  x: 5.5
+  y: 65.0
+  z: -5.5
+  yaw: 180
+  on-right-click:
+    - "gui open bank"
+  on-left-click: []
+
+item_shop:
+  display-name: "<green>Item Shop"
+  entity-type: VILLAGER
+  world: world
+  x: -5.5
+  y: 65.0
+  z: -5.5
+  yaw: 0
+  on-right-click: []
+  on-left-click: []
+
+thorin:
+  display-name: "<gold>Elder Thorin"
+  entity-type: VILLAGER
+  world: world
+  x: -8.5
+  y: 65.0
+  z: 8.5
+  yaw: 90
+  on-right-click: []
+  on-left-click: []
+
+bjorn:
+  display-name: "<red>Bjorn"
+  entity-type: VILLAGER
+  world: world
+  x: 8.5
+  y: 65.0
+  z: 8.5
+  yaw: 270
+  on-right-click: []
+  on-left-click: []
+
+slayer_master:
+  display-name: "<red>Slayer Master"
+  entity-type: PILLAGER
+  world: world
+  x: 0.5
+  y: 65.0
+  z: 12.5
+  yaw: 180
+  on-right-click: []
+  on-left-click: []
+
+# ============================================================
+# Conversation Bindings
+# ============================================================
+# Maps NPC IDs to conversation IDs loaded from quest packages
+# or the dialogues/ folder. Conversation takes priority over
+# the on-right-click action list.
+
+npc_conversations:
+  thorin: thorin_main
+  bjorn: bjorn_main

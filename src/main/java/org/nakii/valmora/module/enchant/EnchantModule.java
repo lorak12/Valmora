@@ -8,6 +8,8 @@ import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.nakii.valmora.module.enchant.logic.SharpnessLogic;
 import org.nakii.valmora.module.enchant.logic.GrowthLogic;
+import org.nakii.valmora.module.enchant.logic.FortuneLogic;
+import org.nakii.valmora.module.enchant.logic.EfficiencyLogic;
 import org.nakii.valmora.module.item.ItemType;
 
 import java.util.ArrayList;
@@ -37,6 +39,8 @@ public class EnchantModule implements ReloadableModule {
     private void registerBuiltinLogics() {
         logicMap.put("valmora:sharpness", new SharpnessLogic());
         logicMap.put("valmora:growth", new GrowthLogic());
+        logicMap.put("valmora:fortune", new FortuneLogic());
+        logicMap.put("valmora:efficiency", new EfficiencyLogic());
     }
 
     @Override

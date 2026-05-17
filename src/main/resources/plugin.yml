@@ -3,6 +3,7 @@ version: "0.1"
 main: org.nakii.valmora.Valmora
 api-version: "1.21"
 authors: [nakii]
+depend: [packetevents]
 description: A MMORPG engine for creating anything one can imagine.
 
 commands:
@@ -34,6 +35,20 @@ commands:
     usage: /eco <get|set|add|remove> <player> [purse|bank] [amount]
     permission: valmora.admin
     description: Admin command for manipulating player coin balances.
+  warp:
+    usage: /warp [id]
+    description: Teleport to a warp point or open the fast travel menu.
+  zone:
+    usage: /zone <create|delete|info|list|wand|pos1|pos2|clear|flag|spawner|visualize>
+    permission: valmora.admin
+    description: Zone management command.
+  quest:
+    usage: /quest [journal]
+    description: Open the quest journal or manage quests.
+  npc:
+    usage: /npc <create|delete|list|reload>
+    permission: valmora.admin
+    description: NPC management command.
   valmora:
     usage: /valmora reload
     permission: valmora.admin

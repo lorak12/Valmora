@@ -1,0 +1,74 @@
+hub_spawn:
+  display-name: "<gold>Hub Spawn"
+  world: world
+  x: 0.5
+  y: 65.0
+  z: 0.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - {x: 10, y: 64, z: 10}
+    - {x: 11, y: 64, z: 10}
+    - {x: 10, y: 64, z: 11}
+    - {x: 11, y: 64, z: 11}
+
+coal_mine_warp:
+  display-name: "<gray>Coal Mine"
+  world: world
+  x: -55.5
+  y: 65.0
+  z: 90.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - {x: -20, y: 64, z: 20}
+    - {x: -21, y: 64, z: 20}
+    - {x: -20, y: 64, z: 21}
+    - {x: -21, y: 64, z: 21}
+
+forest_warp:
+  display-name: "<green>Whispering Forest"
+  world: world
+  x: 90.5
+  y: 65.0
+  z: -90.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - {x: 30, y: 64, z: -30}
+    - {x: 31, y: 64, z: -30}
+    - {x: 30, y: 64, z: -31}
+    - {x: 31, y: 64, z: -31}
+
+fishing_village_warp:
+  display-name: "<aqua>Fishing Village"
+  world: world
+  x: 150.5
+  y: 65.0
+  z: 150.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - {x: 50, y: 64, z: 50}
+    - {x: 51, y: 64, z: 50}
+    - {x: 50, y: 64, z: 51}
+    - {x: 51, y: 64, z: 51}
+
+graveyard_warp:
+  display-name: "<dark_gray>Graveyard"
+  world: world
+  x: -115.5
+  y: 65.0
+  z: -105.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - {x: -40, y: 64, z: -40}
+    - {x: -41, y: 64, z: -40}
+    - {x: -40, y: 64, z: -41}
+    - {x: -41, y: 64, z: -41}

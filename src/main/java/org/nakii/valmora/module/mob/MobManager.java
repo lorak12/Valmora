@@ -47,8 +47,8 @@ public class MobManager implements ReloadableModule {
         return "Mob Engine";
     }
 
-    public void spawnMob(MobDefinition definition, Location location) {
-        mobFactory.spawnMob(definition, location);
+    public LivingEntity spawnMob(MobDefinition definition, Location location) {
+        return mobFactory.spawnMob(definition, location);
     }
 
     public void updateVisuals(LivingEntity entity) {
