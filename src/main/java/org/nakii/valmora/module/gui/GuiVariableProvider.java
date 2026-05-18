@@ -52,11 +52,25 @@ public class GuiVariableProvider implements VariableProvider {
 
         if (path[0].equalsIgnoreCase("input")) {
             String slotId = path[1];
+            String property = path[2];
+
+            // "count" enumerates every layout slot with this component ID — no snapshot needed
+            if (property.equalsIgnoreCase("count")) {
+                return countFilledSlots(session, slotId);
+            }
+
             Map<String, ItemStack> inputs = session.getInputSnapshot();
             ItemStack item = inputs.get(slotId);
-            if (item == null) return null;
 
-            String property = path[2];
+            // Empty slots return "null" string so DSL conditions like
+            // "$gui.input.X.material$ != null" can distinguish absent vs present.
+            if (item == null || item.getType() == org.bukkit.Material.AIR) {
+                return switch (property.toLowerCase()) {
+                    case "material" -> "null";
+                    default -> null;
+                };
+            }
+
             return switch (property.toLowerCase()) {
                 case "id", "item_type" -> getItemType(item);
                 case "material" -> item.getType().name();
@@ -234,5 +248,27 @@ public class GuiVariableProvider implements VariableProvider {
         return plugin.getEnchantModule().getRegistry().values().stream()
                 .filter(enchant -> enchant.getTargets().contains(ItemType.ALL) || enchant.getTargets().contains(type))
                 .collect(Collectors.toList());
+    }
+
+    /** Counts how many inventory slots mapped to the given INPUT component ID hold a real item. */
+    private int countFilledSlots(GuiSession session, String componentId) {
+        int count = 0;
+        List<List<Character>> layout = session.getDefinition().getLayout();
+        Map<Character, GuiComponent> components = session.getDefinition().getComponents();
+        org.bukkit.inventory.Inventory inv = session.getInventory();
+        if (inv == null) return 0;
+
+        for (int r = 0; r < layout.size(); r++) {
+            List<Character> row = layout.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                GuiComponent comp = components.get(row.get(c));
+                if (comp instanceof org.nakii.valmora.module.gui.components.InputComponent input
+                        && componentId.equals(input.getId())) {
+                    ItemStack item = inv.getItem(r * 9 + c);
+                    if (item != null && item.getType() != org.bukkit.Material.AIR) count++;
+                }
+            }
+        }
+        return count;
     }
 }

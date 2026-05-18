@@ -1,0 +1,16 @@
+hub_town_hall:
+  display-name: <green>hub_town_hall
+  world: The_Hub
+  min:
+  - -5
+  - 71
+  - -115
+  max:
+  - 13
+  - 81
+  - -99
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false

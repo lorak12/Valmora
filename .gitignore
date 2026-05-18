@@ -3,6 +3,8 @@
 .vscode/
 .claude/
 
+/docs/copies/*
+
 *.iml
 *.ipr
 *.iws

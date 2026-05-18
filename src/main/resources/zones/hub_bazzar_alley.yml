@@ -1,0 +1,16 @@
+hub_bazzar_alley:
+  display-name: <green>hub_bazzar_alley
+  world: The_Hub
+  min:
+  - -50
+  - 70
+  - -80
+  max:
+  - -27
+  - 78
+  - -67
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false

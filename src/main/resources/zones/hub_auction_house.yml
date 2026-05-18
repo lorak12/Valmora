@@ -1,0 +1,16 @@
+hub_auction_house:
+  display-name: <green>hub_auction_house
+  world: The_Hub
+  min:
+  - -54
+  - 70
+  - -100
+  max:
+  - -22
+  - 80
+  - -84
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false

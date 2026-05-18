@@ -75,8 +75,9 @@ public class GuiListener implements Listener {
                 }
             } else if (component instanceof OutputComponent output) {
                 handleOutputClick(event, session, output);
-            } else if (component instanceof InputComponent) {
-                // ALLOW clicks in input slots
+            } else if (component instanceof InputComponent input) {
+                // Block locked input slots (e.g. bottle slots during an active brew)
+                if (isInputLocked(session, input)) return;
                 event.setCancelled(false);
                 triggerSlotUpdate(session);
             } else if (component instanceof PaginatedComponent paginated) {
@@ -376,8 +377,11 @@ public class GuiListener implements Listener {
             if (slot < event.getInventory().getSize()) {
                 GuiComponent component = getComponentAt(session, slot);
                 
-                // Strict whitelist: Only allow dragging into Input Components
-                if (!(component instanceof InputComponent)) {
+                // Strict whitelist: Only allow dragging into unlocked Input Components
+                if (!(component instanceof InputComponent input)) {
+                    event.setCancelled(true);
+                    return;
+                } else if (isInputLocked(session, input)) {
                     event.setCancelled(true);
                     return;
                 } else {
@@ -389,6 +393,14 @@ public class GuiListener implements Listener {
         if (inputAffected) {
             triggerSlotUpdate(session);
         }
+    }
+
+    /** Returns true when this INPUT slot should reject player interaction during an active brew. */
+    private boolean isInputLocked(GuiSession session, InputComponent input) {
+        Object val = session.getProps().get("brew_running");
+        if (!(val instanceof Number n && n.doubleValue() > 0)) return false;
+        // Both ingredient and bottle slots are locked while brewing.
+        return "bottle".equals(input.getId()) || "ingredient".equals(input.getId());
     }
 
     private void triggerSlotUpdate(GuiSession session) {

@@ -1,0 +1,16 @@
+hub_hub:
+  display-name: <green>hub_hub
+  world: The_Hub
+  min:
+  - -92
+  - 61
+  - -152
+  max:
+  - 95
+  - 125
+  - -13
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false

@@ -1,11 +1,244 @@
-healing_brew:
+# =====================================================================
+# Valmora Alchemy Recipes
+#
+# Each recipe has two variants:
+#   _bottle  — uses GLASS_BOTTLE (fresh empty bottle)
+#   _potion  — uses POTION       (any base potion from creative/commands)
+#
+# The brew event picks the first matching recipe, so both routes produce
+# the same output item.
+# =====================================================================
+
+# --- Awkward Potion (Nether Wart base) ---
+
+awkward_potion_bottle:
   machine: alchemy
   type: SHAPELESS
   inputs:
-    - GOLDEN_APPLE:1
-    - GHAST_TEAR:1
+    - item: NETHER_WART
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
   outputs:
-    result: POTION:1 # Just an example
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 5"
+
+awkward_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: NETHER_WART
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 5"
+
+# --- Thick Potion (Glowstone Dust base) ---
+
+thick_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GLOWSTONE_DUST
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "variable add player.var.alchemy_xp 3"
+
+thick_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GLOWSTONE_DUST
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "variable add player.var.alchemy_xp 3"
+
+# --- Healing ---
+
+healing_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GLISTERING_MELON_SLICE
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 15"
+
+healing_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GLISTERING_MELON_SLICE
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 15"
+
+# --- Strength ---
+
+strength_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: BLAZE_POWDER
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 12"
+
+strength_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: BLAZE_POWDER
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 12"
+
+# --- Fire Resistance ---
+
+fire_resistance_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: MAGMA_CREAM
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 10"
+
+fire_resistance_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: MAGMA_CREAM
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 10"
+
+# --- Night Vision ---
+
+night_vision_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GOLDEN_CARROT
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "variable add player.var.alchemy_xp 8"
+
+night_vision_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: GOLDEN_CARROT
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "variable add player.var.alchemy_xp 8"
+
+# --- Swiftness (Sugar base) ---
+
+swiftness_potion_bottle:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: SUGAR
+      amount: 1
+    - item: GLASS_BOTTLE
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
+  on-craft:
+    - "sound player entity.witch.celebrate"
+    - "variable add player.var.alchemy_xp 10"
+
+swiftness_potion_potion:
+  machine: alchemy
+  type: SHAPELESS
+  inputs:
+    - item: SUGAR
+      amount: 1
+    - item: POTION
+      amount: 1
+  outputs:
+    result:
+      item: POTION
+      amount: 1
   on-craft:
     - "sound player entity.witch.celebrate"
     - "variable add player.var.alchemy_xp 10"

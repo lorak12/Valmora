@@ -44,6 +44,8 @@ public class GuiModule implements ReloadableModule {
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantRemoveEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantBackEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GuiForceCraftEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.AlchemyBrewStartEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.AlchemyBrewEventFactory(plugin));
 
         plugin.getScriptModule().registerEvent(new OpenDialogInputEventFactory(plugin, this));
 

@@ -1,0 +1,16 @@
+hub_blacksmith:
+  display-name: <green>hub_blacksmith
+  world: The_Hub
+  min:
+  - -31
+  - 68
+  - -133
+  max:
+  - -25
+  - 73
+  - -123
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false

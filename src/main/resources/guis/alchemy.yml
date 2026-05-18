@@ -6,20 +6,18 @@ alchemy_table:
 
   layout:
     - "BBBBBBBBB"
-    - "B A B I B"
-    - "BBBBBBBBB"
-    - "B G R S B"
-    - "B P B O B"
-    - "BBBBBBBBB"
+    - "BBBBIBBBB"
+    - "BBTTTTTBB"
+    - "BBTBTBTBB"
+    - "BBPBPBPBB"
+    - "BBBBCBBBB"
 
   # Slot legend:
-  #   A = base (water bottle or awkward potion)
-  #   I = ingredient
-  #   G = potency modifier (Glowstone Dust)
-  #   R = duration modifier (Redstone Dust)
-  #   S = splash modifier (Gunpowder)
-  #   P = preview / progress display
-  #   O = output
+  #   B = Purple glass border
+  #   I = Ingredient INPUT (consumed immediately when brew starts)
+  #   T = Status / instruction DISPLAY (updates every tick via props)
+  #   P = Bottle INPUT slots — locked during brew, replaced with result after
+  #   C = Close button
 
   components:
     B:
@@ -28,73 +26,77 @@ alchemy_table:
         material: PURPLE_STAINED_GLASS_PANE
         name: " "
 
-    " ":
-      type: DISPLAY
-      display-item:
-        material: BLACK_STAINED_GLASS_PANE
-        name: " "
-
-    A:
-      type: INPUT
-      id: base
-
     I:
       type: INPUT
       id: ingredient
 
-    G:
-      type: INPUT
-      id: potency
-
-    R:
-      type: INPUT
-      id: duration_mod
-
-    S:
-      type: INPUT
-      id: splash
-
-    P:
+    T:
       type: DISPLAY
       display-item:
         material: BREWING_STAND
-        name: "<white>Brewing progress: <light_purple>$prop.brew_time$s</light_purple>"
+        name: "<light_purple><bold>⚗ Alchemy Table</bold></light_purple>"
         lore:
-          - "<gray>Status: <white>$prop.brew_status$"
           - ""
-          - "<dark_gray>Base: <white>$prop.hint_base$"
-          - "<dark_gray>Ingredient: <white>$prop.hint_ingredient$"
+          - "<gray>Status: $prop.brew_status$"
+          - "<gray>Time remaining: <white>$prop.brew_time$<gray>s"
+          - ""
+          - "<dark_gray>• Place a base potion in the bottom slots"
+          - "<dark_gray>• Place an ingredient in the top slot"
+          - "<dark_gray>• Wait for the brew timer to reach zero"
 
-    O:
-      type: OUTPUT
-      id: result
+    P:
+      type: INPUT
+      id: bottle
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+      actions:
+        LEFT:
+          actions:
+            - "close"
 
   on-open:
     actions:
       - "variable set prop.brew_time 0"
       - "variable set prop.brew_status <gray>Waiting..."
-      - "variable set prop.hint_base <gray>Empty"
-      - "variable set prop.hint_ingredient <gray>Empty"
+      - "variable set prop.brew_running 0"
+      - "sound player block.brewing_stand.brew"
 
   on-slot-update:
     actions:
-      - "condition $gui.input.base.material$ != null"
-      - "condition $gui.input.ingredient.material$ != null"
-      - "variable set prop.brew_time 10"
-      - "variable set prop.brew_status <yellow>Brewing..."
-      - "variable set prop.hint_base <green>Ready"
-      - "variable set prop.hint_ingredient <green>Ready"
-    fail-actions:
+      # If a brew is active, ignore all slot changes — the ingredient is already
+      # consumed and the bottles are locked. Nothing to reset here.
+      - "condition $prop.brew_running$ == 0"
+      # If nothing useful is present any more, show Waiting status.
+      - "condition $gui.input.bottle.count$ == 0"
       - "variable set prop.brew_time 0"
       - "variable set prop.brew_status <gray>Waiting..."
-      - "variable set prop.hint_base <gray>Empty"
-      - "variable set prop.hint_ingredient <gray>Empty"
 
   on-update:
     actions:
-      - "condition $prop.brew_time$ > 0"
+      # Primary path: brew is running — tick the timer down.
+      - "condition $prop.brew_running$ > 0"
       - "variable add prop.brew_time -1"
       - "condition $prop.brew_time$ == 0"
-      - "gui_force_craft"
+      - "gui_alchemy_brew"
       - "variable set prop.brew_status <green>Done!"
+      - "variable set prop.brew_running 0"
       - "sound player block.brewing_stand.brew"
+    fail-actions:
+      # Not currently running. Start a brew if ingredient + bottles are present
+      # and the recipe is valid. gui_alchemy_start consumes the ingredient and
+      # stores the result; it aborts the chain (ConditionAbortException) if no
+      # recipe matches, so brew_time/brew_running are only set on success.
+      # The brew_running == 0 guard MUST be first — without it this block would
+      # also fire every tick when condition 3 (brew_time == 0) fails during a
+      # normal countdown, since fail-actions are also entered from that path.
+      - "condition $prop.brew_running$ == 0"
+      - "condition $gui.input.ingredient.material$ != null"
+      - "condition $gui.input.bottle.count$ > 0"
+      - "gui_alchemy_start"
+      - "variable set prop.brew_time 10"
+      - "variable set prop.brew_status <yellow>Brewing..."
+      - "variable set prop.brew_running 1"

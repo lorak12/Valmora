@@ -15,6 +15,8 @@ public class Keys {
     public static NamespacedKey ALCHEMY_EFFECT_LEVEL;
     public static NamespacedKey ALCHEMY_DURATION;
     public static NamespacedKey ALCHEMY_IS_SPLASH;
+    public static NamespacedKey ALCHEMY_LEVEL_MODIFIED;
+    public static NamespacedKey ALCHEMY_DURATION_MODIFIED;
 
     public static NamespacedKey NPC_ID_KEY;
     public static NamespacedKey WARP_ID_KEY;
@@ -33,6 +35,8 @@ public class Keys {
         ALCHEMY_EFFECT_LEVEL = new NamespacedKey(plugin, "alchemy_effect_level");
         ALCHEMY_DURATION = new NamespacedKey(plugin, "alchemy_duration");
         ALCHEMY_IS_SPLASH = new NamespacedKey(plugin, "alchemy_is_splash");
+        ALCHEMY_LEVEL_MODIFIED = new NamespacedKey(plugin, "alchemy_level_modified");
+        ALCHEMY_DURATION_MODIFIED = new NamespacedKey(plugin, "alchemy_duration_modified");
 
         NPC_ID_KEY = new NamespacedKey(plugin, "valmora_npc_id");
         WARP_ID_KEY = new NamespacedKey(plugin, "valmora_warp_id");
