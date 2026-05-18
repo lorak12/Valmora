@@ -1,0 +1,312 @@
+# =====================================================================
+# Valmora Alchemy Effects
+#
+# max-level: absolute maximum including all level modifiers
+# tiers: ingredient → base level produced (ingredient can be a vanilla
+#         material name or a custom Valmora item ID)
+#         "if the ingredients state multiple items they are levels 1,3,5"
+# duration: base durations in seconds per level [1..max-level]
+# stats: per-stat list of values per level [1..max-level]
+# =====================================================================
+
+speed:
+  name: "<yellow>Potion of Speed"
+  type: BUFF
+  rarity: COMMON
+  color: "#FFFF44"
+  lore:
+    - "<gray>Increases movement speed."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  stats:
+    speed: [5, 10, 15, 20, 25, 30, 35, 40]
+  tiers:
+    - ingredient: SUGAR
+      level: 1
+    - ingredient: enchanted_sugar
+      level: 3
+    - ingredient: enchanted_sugar_cane
+      level: 5
+
+jump_boost:
+  name: "<green>Potion of Jump Boost"
+  type: BUFF
+  rarity: COMMON
+  color: "#88FF88"
+  lore:
+    - "<gray>Increases jump height."
+  max-level: 4
+  duration: [60, 70, 80, 90]
+  tiers:
+    - ingredient: RABBIT_FOOT
+      level: 1
+
+healing:
+  name: "<red>Potion of Healing"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#FF6666"
+  lore:
+    - "<gray>Instantly restores health."
+  max-level: 8
+  duration: [1, 1, 1, 1, 1, 1, 1, 1]
+  tiers:
+    - ingredient: SPIDER_EYE
+      level: 1
+
+poison:
+  name: "<dark_green>Potion of Poison"
+  type: DEBUFF
+  rarity: UNCOMMON
+  color: "#44AA44"
+  lore:
+    - "<gray>Poisons the affected entity over time."
+  max-level: 4
+  duration: [30, 35, 40, 45]
+  tiers:
+    - ingredient: GLISTERING_MELON_SLICE
+      level: 1
+    - ingredient: enchanted_glistering_melon
+      level: 3
+    - ingredient: enchanted_blistering_melon
+      level: 5
+
+water_breathing:
+  name: "<aqua>Potion of Water Breathing"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#0088FF"
+  lore:
+    - "<gray>Grants a chance to avoid drowning damage."
+  max-level: 6
+  duration: [120, 130, 140, 150, 160, 180]
+  tiers:
+    - ingredient: PUFFERFISH
+      level: 1
+    - ingredient: enchanted_pufferfish
+      level: 3
+
+fire_resistance:
+  name: "<gold>Potion of Fire Resistance"
+  type: BUFF
+  rarity: RARE
+  color: "#FF8800"
+  lore:
+    - "<gray>Grants immunity to fire and lava damage."
+  max-level: 1
+  duration: [120]
+  tiers:
+    - ingredient: MAGMA_CREAM
+      level: 1
+
+night_vision:
+  name: "<dark_blue>Potion of Night Vision"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#1111AA"
+  lore:
+    - "<gray>Enhances visibility in darkness."
+  max-level: 2
+  duration: [180, 240]
+  tiers:
+    - ingredient: GOLDEN_CARROT
+      level: 1
+
+strength:
+  name: "<dark_red>Potion of Strength"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#AA0000"
+  lore:
+    - "<gray>Increases melee attack power."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  stats:
+    strength: [5, 12.5, 20, 30, 40, 50, 60, 75]
+  tiers:
+    - ingredient: BLAZE_POWDER
+      level: 1
+    - ingredient: enchanted_blaze_powder
+      level: 3
+    - ingredient: enchanted_blaze_rod
+      level: 5
+
+invisibility:
+  name: "<gray>Potion of Invisibility"
+  type: BUFF
+  rarity: RARE
+  color: "#AAAAAA"
+  lore:
+    - "<gray>Turns the user invisible."
+  max-level: 1
+  duration: [60]
+  tiers:
+    - ingredient: FERMENTED_SPIDER_EYE
+      level: 1
+
+regeneration:
+  name: "<light_purple>Potion of Regeneration"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#FF44FF"
+  lore:
+    - "<gray>Grants Health Regeneration."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  stats:
+    health_regen: [5, 10, 15, 20, 25, 30, 35, 40]
+  tiers:
+    - ingredient: GHAST_TEAR
+      level: 1
+    - ingredient: enchanted_ghast_tear
+      level: 3
+    - ingredient: concentrated_ghast_tear
+      level: 5
+
+weakness:
+  name: "<gray>Potion of Weakness"
+  type: DEBUFF
+  rarity: UNCOMMON
+  color: "#776677"
+  lore:
+    - "<gray>Reduces the target's attack damage."
+  max-level: 6
+  duration: [60, 70, 80, 90, 100, 110]
+  stats:
+    damage: [-5, -10, -15, -20, -25, -30]
+  tiers:
+    - ingredient: ROTTEN_FLESH
+      level: 1
+    - ingredient: enchanted_rotten_flesh
+      level: 3
+
+slowness:
+  name: "<blue>Potion of Slowness"
+  type: DEBUFF
+  rarity: COMMON
+  color: "#4488FF"
+  lore:
+    - "<gray>Reduces movement speed."
+  max-level: 6
+  duration: [60, 70, 80, 90, 100, 110]
+  stats:
+    speed: [-5, -10, -15, -20, -25, -30]
+  tiers:
+    - ingredient: TURTLE_SCUTE
+      level: 1
+    - ingredient: enchanted_turtle_scute
+      level: 3
+
+damage:
+  name: "<red>Potion of Damage"
+  type: DEBUFF
+  rarity: UNCOMMON
+  color: "#CC0000"
+  lore:
+    - "<gray>Instantly deals true damage to the target."
+  max-level: 6
+  duration: [1, 1, 1, 1, 1, 1]
+  tiers:
+    - ingredient: CACTUS
+      level: 1
+    - ingredient: enchanted_cactus
+      level: 3
+
+haste:
+  name: "<gold>Potion of Haste"
+  type: BUFF
+  rarity: COMMON
+  color: "#FFAA00"
+  lore:
+    - "<gray>Increases mining speed."
+  max-level: 4
+  duration: [60, 70, 80, 90]
+  stats:
+    mining_speed: [50, 100, 150, 200]
+  tiers:
+    - ingredient: COAL
+      level: 1
+
+burning:
+  name: "<red>Potion of Burning"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#FF4400"
+  lore:
+    - "<gray>Damaging enemies sets them on fire."
+  max-level: 4
+  duration: [60, 70, 80, 90]
+  tiers:
+    - ingredient: RED_SAND
+      level: 1
+
+absorption:
+  name: "<gold>Potion of Absorption"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#FFDD00"
+  lore:
+    - "<gray>Grants bonus absorption health."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  tiers:
+    - ingredient: GOLD_INGOT
+      level: 1
+    - ingredient: enchanted_gold_ingot
+      level: 3
+    - ingredient: enchanted_gold_block
+      level: 5
+
+critical:
+  name: "<gold>Potion of Critical Strike"
+  type: BUFF
+  rarity: RARE
+  color: "#FFBB00"
+  lore:
+    - "<gray>Increases critical hit chance and damage."
+  max-level: 4
+  duration: [60, 70, 80, 90]
+  stats:
+    crit_chance: [10, 15, 30, 25]
+    crit_damage: [10, 20, 30, 40]
+  tiers:
+    - ingredient: FLINT
+      level: 1
+
+resistance:
+  name: "<green>Potion of Resistance"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#44FF44"
+  lore:
+    - "<gray>Increases Defense."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  stats:
+    defense: [10, 20, 30, 40, 50, 60, 70, 80]
+  tiers:
+    - ingredient: NAUTILUS_SHELL
+      level: 1
+    - ingredient: enchanted_nautilus_shell
+      level: 3
+    - ingredient: hardened_nautilus_shell
+      level: 5
+
+mana:
+  name: "<aqua>Potion of Mana"
+  type: BUFF
+  rarity: UNCOMMON
+  color: "#00FFFF"
+  lore:
+    - "<gray>Grants Mana Regeneration."
+  max-level: 8
+  duration: [60, 70, 80, 90, 100, 110, 120, 130]
+  stats:
+    mana_regen: [1, 2, 3, 4, 5, 6, 7, 8]
+  tiers:
+    - ingredient: MUTTON
+      level: 1
+    - ingredient: enchanted_mutton
+      level: 3
+    - ingredient: enchanted_cooked_mutton
+      level: 5

@@ -1,12 +1,12 @@
 package org.nakii.valmora.module.alchemy;
 
-import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.alchemy.effect.ActiveEffect;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.alchemy.effect.HardcodedAlchemyEffect;
+import org.nakii.valmora.module.alchemy.modifier.AlchemyModifier;
 import org.nakii.valmora.module.stat.StatManager;
 
 import java.util.ArrayList;
@@ -21,10 +21,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AlchemyManager {
 
+    /** Maps a brewing ingredient to the effect and base level it produces. */
+    public record BrewTier(AlchemyEffect effect, int baseLevel) {}
+
     private final Map<UUID, List<ActiveEffect>> activeEffects = new ConcurrentHashMap<>();
     private final Map<String, HardcodedAlchemyEffect> hardcodedEffects = new HashMap<>();
-    private final Map<Material, AlchemyEffect> ingredientIndex = new HashMap<>();
+    private final Map<String, BrewTier> ingredientIndex = new HashMap<>();
     private final Map<String, AlchemyEffect> effectRegistry = new HashMap<>();
+    private final Map<String, AlchemyModifier> modifierRegistry = new HashMap<>();
 
     private final int maxActiveEffects;
 
@@ -36,19 +40,29 @@ public class AlchemyManager {
 
     public void registerEffect(AlchemyEffect effect) {
         effectRegistry.put(effect.getId().toLowerCase(), effect);
-        ingredientIndex.put(effect.getIngredient(), effect);
+        for (AlchemyEffect.Tier tier : effect.getTiers()) {
+            ingredientIndex.put(tier.ingredientKey().toLowerCase(), new BrewTier(effect, tier.level()));
+        }
     }
 
     public void registerHardcodedEffect(HardcodedAlchemyEffect effect) {
         hardcodedEffects.put(effect.getEffectId().toLowerCase(), effect);
     }
 
+    public void registerModifier(AlchemyModifier modifier) {
+        modifierRegistry.put(modifier.getItemId(), modifier);
+    }
+
     public Optional<AlchemyEffect> getEffect(String id) {
         return Optional.ofNullable(effectRegistry.get(id.toLowerCase()));
     }
 
-    public Optional<AlchemyEffect> getEffectByIngredient(Material material) {
-        return Optional.ofNullable(ingredientIndex.get(material));
+    public Optional<BrewTier> getBrewTier(String ingredientKey) {
+        return Optional.ofNullable(ingredientIndex.get(ingredientKey.toLowerCase()));
+    }
+
+    public Optional<AlchemyModifier> getModifier(String itemId) {
+        return Optional.ofNullable(modifierRegistry.get(itemId));
     }
 
     public Map<String, AlchemyEffect> getAllEffects() {
@@ -58,6 +72,7 @@ public class AlchemyManager {
     public void clear() {
         effectRegistry.clear();
         ingredientIndex.clear();
+        modifierRegistry.clear();
     }
 
     // ── Active Effect Application ─────────────────────────────────────────

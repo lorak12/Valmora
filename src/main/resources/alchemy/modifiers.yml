@@ -1,0 +1,55 @@
+# =====================================================================
+# Valmora Alchemy — Modifier Configuration
+#
+# Three modifier categories can each be applied ONCE per potion:
+#
+#   level    — increases the potion's level (e.g. swiftness I → II)
+#   duration — overrides the potion's duration with an absolute value
+#   splash   — converts the potion to a splash potion, multiplies duration
+#
+# Item IDs:
+#   "minecraft:<material>"  — vanilla item matched by Bukkit Material name
+#   "<valmora_item_id>"     — custom Valmora item matched by PDC ITEM_ID_KEY
+#
+# requires-max-base:
+#   When true, the modifier can only be applied to a potion that is already
+#   at the highest level achievable through base recipes (without any level
+#   modifier). This prevents skipping higher recipe tiers.
+#   Regular glowstone (bonus: 1, requires-max-base: false) is the only
+#   exception — it can bump any base tier.
+# =====================================================================
+
+level:
+  - item: "minecraft:glowstone_dust"
+    bonus: 1
+    requires-max-base: false
+
+  - item: "enchanted_glowstone_dust"
+    bonus: 2
+    requires-max-base: true
+
+  - item: "enchanted_glowstone"
+    bonus: 3
+    requires-max-base: true
+
+duration:
+  - item: "minecraft:redstone"
+    seconds: 480       # 8 minutes
+    requires-max-base: true
+
+  - item: "enchanted_redstone"
+    seconds: 960       # 16 minutes
+    requires-max-base: true
+
+  - item: "enchanted_redstone_block"
+    seconds: 2400      # 40 minutes
+    requires-max-base: true
+
+splash:
+  - item: "minecraft:gunpowder"
+    duration-multiplier: 0.5   # -50% duration
+    requires-max-base: true
+
+  - item: "enchanted_gunpowder"
+    duration-multiplier: 1.0   # no duration penalty
+    requires-max-base: true

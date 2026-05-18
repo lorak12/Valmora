@@ -66,7 +66,7 @@ public class PotionCommand implements CommandExecutor {
         int duration = effect.getDuration(clampedLevel);
 
         AlchemyMachineHandler handler = new AlchemyMachineHandler(plugin, alchemyManager);
-        ItemStack potion = handler.buildPotion(effect, clampedLevel, duration, false);
+        ItemStack potion = handler.buildPotion(effect, clampedLevel, duration, false, false, false);
         target.getInventory().addItem(potion);
 
         sender.sendMessage(net.kyori.adventure.text.Component.text(

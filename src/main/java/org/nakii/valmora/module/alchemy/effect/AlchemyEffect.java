@@ -1,12 +1,18 @@
 package org.nakii.valmora.module.alchemy.effect;
 
 import org.bukkit.Color;
-import org.bukkit.Material;
 
 import java.util.List;
 import java.util.Map;
 
 public class AlchemyEffect {
+
+    /**
+     * A single base-recipe tier.
+     * ingredientKey is either "minecraft:<material>" for vanilla items
+     * or the custom Valmora item ID for non-vanilla ingredients.
+     */
+    public record Tier(String ingredientKey, int level) {}
 
     private final String id;
     private final String name;
@@ -14,13 +20,13 @@ public class AlchemyEffect {
     private final String rarity;
     private final Color color;
     private final List<String> lore;
-    private final Material ingredient;
+    private final List<Tier> tiers;
     private final int maxLevel;
     private final List<Integer> durations;
     private final Map<String, List<Double>> stats;
 
     public AlchemyEffect(String id, String name, AlchemyEffectType type, String rarity,
-                         Color color, List<String> lore, Material ingredient,
+                         Color color, List<String> lore, List<Tier> tiers,
                          int maxLevel, List<Integer> durations, Map<String, List<Double>> stats) {
         this.id = id;
         this.name = name;
@@ -28,7 +34,7 @@ public class AlchemyEffect {
         this.rarity = rarity;
         this.color = color;
         this.lore = lore;
-        this.ingredient = ingredient;
+        this.tiers = tiers;
         this.maxLevel = maxLevel;
         this.durations = durations;
         this.stats = stats;
@@ -40,8 +46,17 @@ public class AlchemyEffect {
     public String getRarity() { return rarity; }
     public Color getColor() { return color; }
     public List<String> getLore() { return lore; }
-    public Material getIngredient() { return ingredient; }
+    public List<Tier> getTiers() { return tiers; }
     public int getMaxLevel() { return maxLevel; }
+
+    /** The highest level achievable through base recipes alone (no level modifiers). */
+    public int getMaxBaseLevel() {
+        return tiers.stream().mapToInt(Tier::level).max().orElse(1);
+    }
+
+    public java.util.Optional<Tier> getTierForIngredient(String ingredientKey) {
+        return tiers.stream().filter(t -> t.ingredientKey().equalsIgnoreCase(ingredientKey)).findFirst();
+    }
 
     public int getDuration(int level) {
         int idx = Math.min(level - 1, durations.size() - 1);

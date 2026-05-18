@@ -2,10 +2,12 @@ package org.nakii.valmora.module.alchemy;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.LingeringPotionSplashEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
@@ -51,6 +53,46 @@ public class AlchemyListener implements Listener {
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand.isSimilar(item)) {
             hand.setAmount(hand.getAmount() - 1);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onEntityDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity entity)) return;
+        if (event.getCause() != EntityDamageEvent.DamageCause.DROWNING) return;
+
+        var effects = alchemyManager.getActiveEffects(entity.getUniqueId());
+        for (var ae : effects) {
+            if ("water_breathing".equalsIgnoreCase(ae.effectId()) && !ae.isExpired()) {
+                double chancePercent = ae.level() * 15.0;
+                if (Math.random() * 100 < chancePercent) {
+                    event.setCancelled(true);
+                }
+                break;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity target)) return;
+
+        LivingEntity attacker = null;
+        if (event.getDamager() instanceof LivingEntity le) {
+            attacker = le;
+        } else if (event.getDamager() instanceof Projectile proj
+                && proj.getShooter() instanceof LivingEntity le) {
+            attacker = le;
+        }
+        if (attacker == null) return;
+
+        var effects = alchemyManager.getActiveEffects(attacker.getUniqueId());
+        for (var ae : effects) {
+            if ("burning".equalsIgnoreCase(ae.effectId()) && !ae.isExpired()) {
+                int fireTicks = ae.level() * 2 * 20;
+                target.setFireTicks(Math.max(target.getFireTicks(), fireTicks));
+                break;
+            }
         }
     }
 

@@ -12,6 +12,8 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.alchemy.AlchemyManager;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffectType;
+import org.nakii.valmora.module.alchemy.modifier.AlchemyModifier;
+import org.nakii.valmora.module.alchemy.modifier.AlchemyModifierType;
 import org.nakii.valmora.module.recipe.DynamicMachineHandler;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.util.Formatter;
@@ -41,15 +43,18 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
 
     @Override
     public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs, @Nullable Player player) {
-        ItemStack base = getItem(inputs, "base");
-        ItemStack ingredient = getItem(inputs, "ingredient");
-        ItemStack potency = getItem(inputs, "potency");
-        ItemStack durationMod = getItem(inputs, "duration_mod");
-        ItemStack splash = getItem(inputs, "splash");
+        ItemStack base = inputs.get("base");
+        ItemStack ingredient = inputs.get("ingredient");
 
         if (isEmpty(base) || isEmpty(ingredient)) return Optional.empty();
 
-        // Step 1: Water Bottle + Nether Wart → Awkward Potion
+        // ── Priority 1: Modifier application ─────────────────────────────
+        // Check ingredient before base-brew so glowstone doesn't accidentally
+        // match as a brewing ingredient for some future effect.
+        Optional<RecipeDefinition> modifierMatch = matchModifier(base, ingredient);
+        if (modifierMatch.isPresent()) return modifierMatch;
+
+        // ── Priority 2: Water Bottle + Nether Wart → Awkward Potion ──────
         if (isWaterBottle(base) && ingredient.getType() == Material.NETHER_WART) {
             ItemStack awkward = buildAwkwardPotion();
             return Optional.of(RecipeDefinition.dynamic("alchemy", awkward, inp -> {
@@ -58,32 +63,96 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             }));
         }
 
-        // Step 2: Awkward Potion + ingredient → Brewed Potion
+        // ── Priority 3: Awkward Potion + ingredient → Brewed Potion ──────
         if (!isAwkwardPotion(base)) return Optional.empty();
 
-        Optional<AlchemyEffect> effectOpt = alchemyManager.getEffectByIngredient(ingredient.getType());
-        if (effectOpt.isEmpty()) return Optional.empty();
+        String ingredientKey = getItemKey(ingredient);
+        Optional<AlchemyManager.BrewTier> tierOpt = alchemyManager.getBrewTier(ingredientKey);
+        if (tierOpt.isEmpty()) return Optional.empty();
 
-        AlchemyEffect effect = effectOpt.get();
-        boolean hasPotency = !isEmpty(potency) && potency.getType() == Material.GLOWSTONE_DUST;
-        boolean hasDuration = !isEmpty(durationMod) && durationMod.getType() == Material.REDSTONE;
-        boolean isSplash = !isEmpty(splash) && splash.getType() == Material.GUNPOWDER;
+        AlchemyManager.BrewTier tier = tierOpt.get();
+        AlchemyEffect effect = tier.effect();
+        int baseLevel = Math.min(tier.baseLevel(), effect.getMaxLevel());
+        int alchemyBonus = getAlchemyLevel(player);
+        // Alchemy skill adds a small duration bonus (1% per level)
+        double alchemyMult = 1.0 + alchemyBonus * 0.01;
+        int duration = (int) (effect.getDuration(baseLevel) * alchemyMult);
 
-        int level = Math.min(1 + (hasPotency ? 1 : 0), effect.getMaxLevel());
-        int alchemyLevel = getAlchemyLevel(player);
-        double alchemyBonus = 1.0 + alchemyLevel * 0.01;
-        double durationMult = hasDuration ? 1.5 : 1.0;
-        int finalDuration = (int) (effect.getDuration(level) * alchemyBonus * durationMult);
-
-        ItemStack potion = buildPotionItem(effect, level, finalDuration, isSplash);
+        ItemStack potion = buildPotionItem(effect, baseLevel, duration, false, false, false);
 
         return Optional.of(RecipeDefinition.dynamic("alchemy", potion, inp -> {
             consume(inp, "base", 1);
             consume(inp, "ingredient", 1);
-            if (hasPotency) consume(inp, "potency", 1);
-            if (hasDuration) consume(inp, "duration_mod", 1);
-            if (isSplash) consume(inp, "splash", 1);
         }));
+    }
+
+    // ── Modifier matching ─────────────────────────────────────────────────
+
+    private Optional<RecipeDefinition> matchModifier(ItemStack base, ItemStack ingredient) {
+        String ingredientKey = getItemKey(ingredient);
+        Optional<AlchemyModifier> modOpt = alchemyManager.getModifier(ingredientKey);
+        if (modOpt.isEmpty()) return Optional.empty();
+        AlchemyModifier modifier = modOpt.get();
+
+        // Base must be a Valmora alchemy potion (not awkward, not water)
+        if (!base.hasItemMeta()) return Optional.empty();
+        var pdc = base.getItemMeta().getPersistentDataContainer();
+        String effectId = pdc.get(Keys.ALCHEMY_EFFECT_ID, PersistentDataType.STRING);
+        if (effectId == null) return Optional.empty();
+
+        AlchemyEffect effect = alchemyManager.getEffect(effectId).orElse(null);
+        if (effect == null) return Optional.empty();
+
+        int currentLevel    = pdc.getOrDefault(Keys.ALCHEMY_EFFECT_LEVEL,   PersistentDataType.INTEGER, 1);
+        int currentDuration = pdc.getOrDefault(Keys.ALCHEMY_DURATION,        PersistentDataType.INTEGER, effect.getDuration(currentLevel));
+        boolean isSplash         = pdc.getOrDefault(Keys.ALCHEMY_IS_SPLASH,       PersistentDataType.BYTE, (byte) 0) == 1;
+        boolean levelModified    = pdc.getOrDefault(Keys.ALCHEMY_LEVEL_MODIFIED,   PersistentDataType.BYTE, (byte) 0) == 1;
+        boolean durationModified = pdc.getOrDefault(Keys.ALCHEMY_DURATION_MODIFIED,PersistentDataType.BYTE, (byte) 0) == 1;
+
+        int maxBase = effect.getMaxBaseLevel();
+
+        return switch (modifier.getType()) {
+            case LEVEL -> {
+                if (levelModified) yield Optional.empty(); // already levelled up
+                if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
+                int newLevel = currentLevel + modifier.getLevelBonus();
+                if (newLevel > effect.getMaxLevel()) yield Optional.empty();
+                ItemStack result = buildPotionItem(effect, newLevel, currentDuration, isSplash, true, durationModified);
+                yield Optional.of(recipe(result));
+            }
+            case DURATION -> {
+                if (durationModified) yield Optional.empty();
+                if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
+                // Absolute duration set; if already splash, apply the splash multiplier again
+                // so the combination is consistent regardless of application order.
+                int newDuration = isSplash
+                        ? (int) (modifier.getDurationSeconds() * getSplashMultiplier())
+                        : modifier.getDurationSeconds();
+                ItemStack result = buildPotionItem(effect, currentLevel, newDuration, isSplash, levelModified, true);
+                yield Optional.of(recipe(result));
+            }
+            case SPLASH -> {
+                if (isSplash) yield Optional.empty();
+                if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
+                int splashDuration = (int) (currentDuration * modifier.getDurationMultiplier());
+                ItemStack result = buildPotionItem(effect, currentLevel, splashDuration, true, levelModified, durationModified);
+                yield Optional.of(recipe(result));
+            }
+        };
+    }
+
+    /** Returns the lowest splash multiplier registered (used when a duration modifier is applied to an already-splash potion). */
+    private double getSplashMultiplier() {
+        // Default 0.5 — duration modifiers assume the gunpowder path if already splash.
+        // This could be refined to track which splash modifier was used via an extra PDC key.
+        return 0.5;
+    }
+
+    private static RecipeDefinition recipe(ItemStack output) {
+        return RecipeDefinition.dynamic("alchemy", output, inp -> {
+            consume(inp, "base", 1);
+            consume(inp, "ingredient", 1);
+        });
     }
 
     // ── Builders ─────────────────────────────────────────────────────────
@@ -93,35 +162,41 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         PotionMeta meta = (PotionMeta) item.getItemMeta();
         meta.setBasePotionType(org.bukkit.potion.PotionType.MUNDANE);
         meta.setColor(Color.fromRGB(100, 80, 150));
+        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         meta.getPersistentDataContainer().set(Keys.ITEM_ID_KEY, PersistentDataType.STRING, AWKWARD_POTION_ID);
         meta.getPersistentDataContainer().set(Keys.RARITY_KEY, PersistentDataType.STRING, "COMMON");
         meta.displayName(Formatter.format("<white>Awkward Potion"));
         List<Component> lore = new ArrayList<>();
         lore.add(Formatter.format("<gray>A base for brewing custom potions."));
         lore.add(Component.empty());
-        lore.add(Formatter.format("<dark_gray><italic>COMMON"));
+        lore.add(Formatter.format("<white>COMMON"));
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
 
-    public ItemStack buildPotion(AlchemyEffect effect, int level, int durationSeconds, boolean isSplash) {
-        return buildPotionItem(effect, level, durationSeconds, isSplash);
+    public ItemStack buildPotion(AlchemyEffect effect, int level, int durationSeconds,
+                                 boolean isSplash, boolean levelModified, boolean durationModified) {
+        return buildPotionItem(effect, level, durationSeconds, isSplash, levelModified, durationModified);
     }
 
-    private ItemStack buildPotionItem(AlchemyEffect effect, int level, int durationSeconds, boolean isSplash) {
+    private ItemStack buildPotionItem(AlchemyEffect effect, int level, int durationSeconds,
+                                      boolean isSplash, boolean levelModified, boolean durationModified) {
         Material mat = isSplash ? Material.SPLASH_POTION : Material.POTION;
         ItemStack item = new ItemStack(mat);
         PotionMeta meta = (PotionMeta) item.getItemMeta();
 
         if (effect.getColor() != null) meta.setColor(effect.getColor());
         meta.setBasePotionType(org.bukkit.potion.PotionType.MUNDANE);
+        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
-        meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_ID, PersistentDataType.STRING, effect.getId());
-        meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_LEVEL, PersistentDataType.INTEGER, level);
-        meta.getPersistentDataContainer().set(Keys.ALCHEMY_DURATION, PersistentDataType.INTEGER, durationSeconds);
-        meta.getPersistentDataContainer().set(Keys.ALCHEMY_IS_SPLASH, PersistentDataType.BYTE, isSplash ? (byte) 1 : (byte) 0);
-        meta.getPersistentDataContainer().set(Keys.ITEM_ID_KEY, PersistentDataType.STRING, "alchemy:" + effect.getId());
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_ID,        PersistentDataType.STRING,  effect.getId());
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_LEVEL,      PersistentDataType.INTEGER, level);
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_DURATION,          PersistentDataType.INTEGER, durationSeconds);
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_IS_SPLASH,         PersistentDataType.BYTE,    isSplash ? (byte) 1 : (byte) 0);
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_LEVEL_MODIFIED,    PersistentDataType.BYTE,    levelModified ? (byte) 1 : (byte) 0);
+        meta.getPersistentDataContainer().set(Keys.ALCHEMY_DURATION_MODIFIED, PersistentDataType.BYTE,    durationModified ? (byte) 1 : (byte) 0);
+        meta.getPersistentDataContainer().set(Keys.ITEM_ID_KEY,               PersistentDataType.STRING,  "alchemy:" + effect.getId());
 
         String rarityColor = getRarityColor(effect.getRarity());
         meta.displayName(Formatter.format(effect.getName() + " " + toRoman(level)));
@@ -144,7 +219,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             }
         }
         lore.add(Component.empty());
-        lore.add(Formatter.format("<gray>Duration: <white>" + durationSeconds + "s"));
+        lore.add(Formatter.format("<gray>Duration: <white>" + formatDuration(durationSeconds)));
         if (isSplash) lore.add(Formatter.format("<gray>Type: <light_purple>Splash"));
         lore.add(Component.empty());
         lore.add(Formatter.format(rarityColor + "<italic>" + effect.getRarity()));
@@ -156,8 +231,14 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private ItemStack getItem(Map<String, ItemStack> inputs, String key) {
-        return inputs.get(key);
+    private String getItemKey(ItemStack item) {
+        if (item.hasItemMeta()) {
+            String id = item.getItemMeta().getPersistentDataContainer()
+                    .get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+            // Valmora custom items: return the raw item ID (e.g. "enchanted_glowstone_dust")
+            if (id != null && !id.startsWith("vanilla_") && !id.startsWith("alchemy:")) return id;
+        }
+        return "minecraft:" + item.getType().name().toLowerCase();
     }
 
     private boolean isEmpty(ItemStack item) {
@@ -167,8 +248,9 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
     private boolean isWaterBottle(ItemStack item) {
         if (item == null || item.getType() != Material.POTION) return false;
         if (item.hasItemMeta()) {
-            String id = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
-            if (id != null) return false;
+            String id = item.getItemMeta().getPersistentDataContainer()
+                    .get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+            if (id != null) return false; // Any tagged Valmora potion is not a water bottle
             if (item.getItemMeta() instanceof PotionMeta pm) {
                 return pm.getBasePotionType() == org.bukkit.potion.PotionType.WATER
                         || pm.getBasePotionType() == null;
@@ -181,10 +263,15 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         if (item == null || !item.hasItemMeta()) return false;
         String id = item.getItemMeta().getPersistentDataContainer()
                 .get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
-        return AWKWARD_POTION_ID.equals(id);
+        if (AWKWARD_POTION_ID.equals(id)) return true;
+        // Also accept vanilla awkward potions (e.g. from creative inventory)
+        if (item.getItemMeta() instanceof PotionMeta pm) {
+            return pm.getBasePotionType() == org.bukkit.potion.PotionType.AWKWARD;
+        }
+        return false;
     }
 
-    private void consume(Map<String, ItemStack> inputs, String key, int amount) {
+    private static void consume(Map<String, ItemStack> inputs, String key, int amount) {
         ItemStack item = inputs.get(key);
         if (item != null && !item.getType().isAir()) {
             item.setAmount(Math.max(0, item.getAmount() - amount));
@@ -199,21 +286,29 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             var profile = session.getActiveProfile();
             if (profile == null) return 0;
             double xp = profile.getSkillManager().getXp("alchemy");
-            var data = plugin.getSkillModule().getSkillRegistry()
-                    .getProgressData("default", xp);
+            var data = plugin.getSkillModule().getSkillRegistry().getProgressData("default", xp);
             return data.currentLevel();
         } catch (Exception e) {
             return 0;
         }
     }
 
+    private String formatDuration(int seconds) {
+        if (seconds >= 60) {
+            int m = seconds / 60;
+            int s = seconds % 60;
+            return s == 0 ? m + "m" : m + "m " + s + "s";
+        }
+        return seconds + "s";
+    }
+
     private String getRarityColor(String rarity) {
         return switch (rarity.toUpperCase()) {
             case "UNCOMMON" -> "<green>";
-            case "RARE" -> "<blue>";
-            case "EPIC" -> "<dark_purple>";
-            case "LEGENDARY" -> "<gold>";
-            default -> "<gray>";
+            case "RARE"     -> "<blue>";
+            case "EPIC"     -> "<dark_purple>";
+            case "LEGENDARY"-> "<gold>";
+            default         -> "<gray>";
         };
     }
 
@@ -224,6 +319,9 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             case 3 -> "III";
             case 4 -> "IV";
             case 5 -> "V";
+            case 6 -> "VI";
+            case 7 -> "VII";
+            case 8 -> "VIII";
             default -> String.valueOf(level);
         };
     }

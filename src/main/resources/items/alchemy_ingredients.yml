@@ -1,0 +1,249 @@
+# =====================================================================
+# Alchemy Brewing Ingredients
+#
+# Tier-2 and Tier-3 brewing ingredients for all potions, plus the
+# level/duration/splash modifiers referenced in alchemy/modifiers.yml.
+#
+# Tier structure: ingredient at level 1 = vanilla item (no entry needed);
+#                 level 3 = "enchanted" variant; level 5 = elite variant.
+# =====================================================================
+
+# ─── Speed ────────────────────────────────────────────────────────────
+
+enchanted_sugar:
+  name: "<aqua>Enchanted Sugar"
+  material: SUGAR
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A magically concentrated grain of sugar."
+    - "<gray>Used in alchemy to brew higher-tier <yellow>Speed <gray>potions."
+
+enchanted_sugar_cane:
+  name: "<aqua>Enchanted Sugar Cane"
+  material: SUGAR_CANE
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A whole cane infused with raw arcane energy."
+    - "<gray>Used to brew elite-tier <yellow>Speed <gray>potions."
+
+# ─── Strength ─────────────────────────────────────────────────────────
+
+enchanted_blaze_powder:
+  name: "<aqua>Enchanted Blaze Powder"
+  material: BLAZE_POWDER
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Blaze powder smoldering with arcane heat."
+    - "<gray>Used to brew higher-tier <dark_red>Strength <gray>potions."
+
+enchanted_blaze_rod:
+  name: "<aqua>Enchanted Blaze Rod"
+  material: BLAZE_ROD
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A blaze rod crackling with magical fire."
+    - "<gray>Used to brew elite-tier <dark_red>Strength <gray>potions."
+
+# ─── Regeneration ─────────────────────────────────────────────────────
+
+enchanted_ghast_tear:
+  name: "<aqua>Enchanted Ghast Tear"
+  material: GHAST_TEAR
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A tear infused with restorative magic."
+    - "<gray>Used to brew higher-tier <light_purple>Regeneration <gray>potions."
+
+concentrated_ghast_tear:
+  name: "<aqua>Concentrated Ghast Tear"
+  material: GHAST_TEAR
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>Distilled essence of pure regenerative energy."
+    - "<gray>Used to brew elite-tier <light_purple>Regeneration <gray>potions."
+
+# ─── Weakness ─────────────────────────────────────────────────────────
+
+enchanted_rotten_flesh:
+  name: "<aqua>Enchanted Rotten Flesh"
+  material: ROTTEN_FLESH
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Putrid flesh laced with weakening magic."
+    - "<gray>Used to brew higher-tier <gray>Weakness <gray>potions."
+
+# ─── Slowness ─────────────────────────────────────────────────────────
+
+enchanted_turtle_scute:
+  name: "<aqua>Enchanted Turtle Scute"
+  material: TURTLE_SCUTE
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A hardened scute glowing with magical weight."
+    - "<gray>Used to brew higher-tier <blue>Slowness <gray>potions."
+
+# ─── Damage ───────────────────────────────────────────────────────────
+
+enchanted_cactus:
+  name: "<aqua>Enchanted Cactus"
+  material: CACTUS
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Cactus spines sharpened by arcane energy."
+    - "<gray>Used to brew higher-tier <red>Damage <gray>potions."
+
+# ─── Poison ───────────────────────────────────────────────────────────
+
+enchanted_glistering_melon:
+  name: "<aqua>Enchanted Glistering Melon"
+  material: GLISTERING_MELON_SLICE
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A slice gleaming with potent toxic energy."
+    - "<gray>Used to brew higher-tier <dark_green>Poison <gray>potions."
+
+enchanted_blistering_melon:
+  name: "<aqua>Enchanted Blistering Melon"
+  material: GLISTERING_MELON_SLICE
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A melon slice seething with virulent magic."
+    - "<gray>Used to brew elite-tier <dark_green>Poison <gray>potions."
+
+# ─── Water Breathing ──────────────────────────────────────────────────
+
+enchanted_pufferfish:
+  name: "<aqua>Enchanted Pufferfish"
+  material: PUFFERFISH
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A pufferfish swollen with aquatic magic."
+    - "<gray>Used to brew higher-tier <aqua>Water Breathing <gray>potions."
+
+# ─── Absorption ───────────────────────────────────────────────────────
+
+enchanted_gold_ingot:
+  name: "<aqua>Enchanted Gold Ingot"
+  material: GOLD_INGOT
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>An ingot radiating warm protective energy."
+    - "<gray>Used to brew higher-tier <gold>Absorption <gray>potions."
+
+enchanted_gold_block:
+  name: "<aqua>Enchanted Gold Block"
+  material: GOLD_BLOCK
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A solid block of gold suffused with arcane vitality."
+    - "<gray>Used to brew elite-tier <gold>Absorption <gray>potions."
+
+# ─── Resistance ───────────────────────────────────────────────────────
+
+enchanted_nautilus_shell:
+  name: "<aqua>Enchanted Nautilus Shell"
+  material: NAUTILUS_SHELL
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A shell hardened by defensive enchantments."
+    - "<gray>Used to brew higher-tier <green>Resistance <gray>potions."
+
+hardened_nautilus_shell:
+  name: "<aqua>Hardened Nautilus Shell"
+  material: NAUTILUS_SHELL
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>An ancient shell reinforced to near-impenetrable density."
+    - "<gray>Used to brew elite-tier <green>Resistance <gray>potions."
+
+# ─── Mana ─────────────────────────────────────────────────────────────
+
+enchanted_mutton:
+  name: "<aqua>Enchanted Mutton"
+  material: MUTTON
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Mutton infused with arcane sustenance."
+    - "<gray>Used to brew higher-tier <aqua>Mana <gray>potions."
+
+enchanted_cooked_mutton:
+  name: "<aqua>Enchanted Cooked Mutton"
+  material: COOKED_MUTTON
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>Perfectly cooked mutton brimming with mana energy."
+    - "<gray>Used to brew elite-tier <aqua>Mana <gray>potions."
+
+# =====================================================================
+# Alchemy Modifiers
+# (referenced in alchemy/modifiers.yml — level, duration, splash)
+# =====================================================================
+
+# ─── Level modifiers ──────────────────────────────────────────────────
+
+enchanted_glowstone_dust:
+  name: "<aqua>Enchanted Glowstone Dust"
+  material: GLOWSTONE_DUST
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Supercharged glowstone dust pulsing with power."
+    - "<gray>Adds <yellow>+2 levels <gray>to a potion at max base level."
+
+enchanted_glowstone:
+  name: "<aqua>Enchanted Glowstone"
+  material: GLOWSTONE
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A crystalline block radiating intense arcane light."
+    - "<gray>Adds <yellow>+3 levels <gray>to a potion at max base level."
+
+# ─── Duration modifiers ───────────────────────────────────────────────
+
+enchanted_redstone:
+  name: "<aqua>Enchanted Redstone"
+  material: REDSTONE
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Redstone dust crackling with temporal energy."
+    - "<gray>Extends potion duration to <white>16 minutes<gray>."
+
+enchanted_redstone_block:
+  name: "<aqua>Enchanted Redstone Block"
+  material: REDSTONE_BLOCK
+  item-type: NONE
+  rarity: RARE
+  lore:
+    - "<gray>A dense block thrumming with time-warping magic."
+    - "<gray>Extends potion duration to <white>40 minutes<gray>."
+
+# ─── Splash modifier ──────────────────────────────────────────────────
+
+enchanted_gunpowder:
+  name: "<aqua>Enchanted Gunpowder"
+  material: GUNPOWDER
+  item-type: NONE
+  rarity: UNCOMMON
+  lore:
+    - "<gray>Volatile powder that converts a potion into a splash"
+    - "<gray>potion with <white>no duration penalty<gray>."
