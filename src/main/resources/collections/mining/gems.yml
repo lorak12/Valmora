@@ -1,0 +1,277 @@
+# ─── Mining — Gem & Precious Ore Collections ──────────────────────────────────
+# coal and iron_ingot are in coal.yml; this file covers other precious resources.
+
+diamond:
+  category: mining
+  name: "<aqua>Diamond"
+  icon: DIAMOND
+  track:
+    - "BLOCK_BREAK:DIAMOND_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_DIAMOND_ORE"
+    - "ITEM_PICKUP:DIAMOND"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Diamond Miner title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% diamond ore yield"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Gem Seeker title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% diamond drop rate"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Diamond Baron title"
+    6:
+      required: 25000
+      rewards:
+        - "<gray>Diamond God title"
+        - "<gray>Diamond Crown cosmetic"
+
+emerald:
+  category: mining
+  name: "<green>Emerald"
+  icon: EMERALD
+  track:
+    - "BLOCK_BREAK:EMERALD_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_EMERALD_ORE"
+    - "ITEM_PICKUP:EMERALD"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Trader title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% emerald ore yield"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Village Merchant title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% emerald drop rate"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Emerald Tycoon title"
+
+lapis_lazuli:
+  category: mining
+  name: "<blue>Lapis Lazuli"
+  icon: LAPIS_LAZULI
+  track:
+    - "BLOCK_BREAK:LAPIS_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_LAPIS_ORE"
+    - "ITEM_PICKUP:LAPIS_LAZULI"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Enchanter Apprentice title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% lapis yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Blue Miner title"
+    4:
+      required: 2000
+      rewards:
+        - "<gray>+10% lapis ore drop"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Lapis Sorcerer title"
+
+redstone:
+  category: mining
+  name: "<red>Redstone"
+  icon: REDSTONE
+  track:
+    - "BLOCK_BREAK:REDSTONE_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_REDSTONE_ORE"
+    - "ITEM_PICKUP:REDSTONE"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Redstone Engineer title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% redstone yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Circuit Breaker title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% redstone ore drop"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Redstone Genius title"
+
+quartz:
+  category: mining
+  name: "<white>Nether Quartz"
+  icon: QUARTZ
+  track:
+    - "BLOCK_BREAK:NETHER_QUARTZ_ORE"
+    - "ITEM_PICKUP:QUARTZ"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Nether Explorer title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% quartz yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Crystal Miner title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% quartz ore drop"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Quartz Artisan title"
+
+raw_gold:
+  category: mining
+  name: "<gold>Gold"
+  icon: GOLD_INGOT
+  track:
+    - "BLOCK_BREAK:GOLD_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_GOLD_ORE"
+    - "BLOCK_BREAK:NETHER_GOLD_ORE"
+    - "ITEM_PICKUP:RAW_GOLD"
+    - "ITEM_PICKUP:GOLD_NUGGET"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Gold Prospector title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% gold ore yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Auric Miner title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% gold drop rate"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Gold Rush title"
+
+raw_copper:
+  category: mining
+  name: "<gold>Copper"
+  icon: COPPER_INGOT
+  track:
+    - "BLOCK_BREAK:COPPER_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_COPPER_ORE"
+    - "ITEM_PICKUP:RAW_COPPER"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Copper Miner title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% copper yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Oxidized title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% copper ore drop"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Bronze Age title"
+
+ancient_debris:
+  category: mining
+  name: "<dark_red>Ancient Debris"
+  icon: ANCIENT_DEBRIS
+  track:
+    - "BLOCK_BREAK:ANCIENT_DEBRIS"
+    - "ITEM_PICKUP:ANCIENT_DEBRIS"
+  stages:
+    1:
+      required: 5
+      rewards:
+        - "<gray>Netherite Seeker title"
+    2:
+      required: 20
+      rewards:
+        - "<gray>+5% ancient debris chance"
+    3:
+      required: 100
+      rewards:
+        - "<gray>Nether Archaeologist title"
+    4:
+      required: 500
+      rewards:
+        - "<gray>+10% debris yield"
+    5:
+      required: 2000
+      rewards:
+        - "<gray>Netherite God title"
+
+amethyst_shard:
+  category: mining
+  name: "<light_purple>Amethyst Shard"
+  icon: AMETHYST_SHARD
+  track:
+    - "BLOCK_BREAK:AMETHYST_CLUSTER"
+    - "BLOCK_BREAK:LARGE_AMETHYST_BUD"
+    - "ITEM_PICKUP:AMETHYST_SHARD"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Crystal Hunter title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% amethyst yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Amethyst Keeper title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% cluster drop rate"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Geode Lord title"

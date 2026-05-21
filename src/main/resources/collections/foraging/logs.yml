@@ -1,0 +1,240 @@
+# ─── Foraging — Wood Log Collections ──────────────────────────────────────────
+
+spruce_log:
+  category: foraging
+  name: "<dark_gray>Spruce Log"
+  icon: SPRUCE_LOG
+  track:
+    - "BLOCK_BREAK:SPRUCE_LOG"
+    - "BLOCK_BREAK:STRIPPED_SPRUCE_LOG"
+    - "ITEM_PICKUP:SPRUCE_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Spruce Logger title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% spruce log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Snow Lumberjack title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% spruce wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Taiga Lord title"
+
+birch_log:
+  category: foraging
+  name: "<yellow>Birch Log"
+  icon: BIRCH_LOG
+  track:
+    - "BLOCK_BREAK:BIRCH_LOG"
+    - "BLOCK_BREAK:STRIPPED_BIRCH_LOG"
+    - "ITEM_PICKUP:BIRCH_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Birch Cutter title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% birch log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>White Forest Ranger title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% birch wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Birch Baron title"
+
+jungle_log:
+  category: foraging
+  name: "<dark_green>Jungle Log"
+  icon: JUNGLE_LOG
+  track:
+    - "BLOCK_BREAK:JUNGLE_LOG"
+    - "BLOCK_BREAK:STRIPPED_JUNGLE_LOG"
+    - "ITEM_PICKUP:JUNGLE_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Jungle Explorer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% jungle log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Rainforest Logger title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% jungle wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Jungle Lord title"
+
+acacia_log:
+  category: foraging
+  name: "<gold>Acacia Log"
+  icon: ACACIA_LOG
+  track:
+    - "BLOCK_BREAK:ACACIA_LOG"
+    - "BLOCK_BREAK:STRIPPED_ACACIA_LOG"
+    - "ITEM_PICKUP:ACACIA_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Savanna Cutter title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% acacia log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Acacia Forager title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% acacia wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Acacia Baron title"
+
+dark_oak_log:
+  category: foraging
+  name: "<dark_gray>Dark Oak Log"
+  icon: DARK_OAK_LOG
+  track:
+    - "BLOCK_BREAK:DARK_OAK_LOG"
+    - "BLOCK_BREAK:STRIPPED_DARK_OAK_LOG"
+    - "ITEM_PICKUP:DARK_OAK_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Dark Forest Wanderer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% dark oak log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Shadow Logger title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% dark oak wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Dark Oak Sovereign title"
+
+mangrove_log:
+  category: foraging
+  name: "<dark_red>Mangrove Log"
+  icon: MANGROVE_LOG
+  track:
+    - "BLOCK_BREAK:MANGROVE_LOG"
+    - "BLOCK_BREAK:STRIPPED_MANGROVE_LOG"
+    - "ITEM_PICKUP:MANGROVE_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Swamp Walker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% mangrove log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Mangrove Forager title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% mangrove wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Mangrove Baron title"
+
+cherry_log:
+  category: foraging
+  name: "<light_purple>Cherry Log"
+  icon: CHERRY_LOG
+  track:
+    - "BLOCK_BREAK:CHERRY_LOG"
+    - "BLOCK_BREAK:STRIPPED_CHERRY_LOG"
+    - "ITEM_PICKUP:CHERRY_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Blossom Cutter title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% cherry log yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Sakura Logger title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% cherry wood drop"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Cherry Blossom Lord title"
+
+bamboo:
+  category: foraging
+  name: "<green>Bamboo"
+  icon: BAMBOO
+  track:
+    - "BLOCK_BREAK:BAMBOO"
+    - "ITEM_PICKUP:BAMBOO"
+  stages:
+    1:
+      required: 100
+      rewards:
+        - "<gray>Panda Friend title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+5% bamboo yield"
+    3:
+      required: 2000
+      rewards:
+        - "<gray>Bamboo Harvester title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+10% bamboo drop"
+    5:
+      required: 50000
+      rewards:
+        - "<gray>Bamboo Baron title"

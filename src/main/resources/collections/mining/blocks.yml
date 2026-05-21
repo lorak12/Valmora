@@ -1,0 +1,300 @@
+# ─── Mining — Block Collections ───────────────────────────────────────────────
+
+cobblestone:
+  category: mining
+  name: "<gray>Cobblestone"
+  icon: COBBLESTONE
+  track:
+    - "BLOCK_BREAK:STONE"
+    - "BLOCK_BREAK:COBBLESTONE"
+    - "ITEM_PICKUP:COBBLESTONE"
+  stages:
+    1:
+      required: 250
+      rewards:
+        - "<gray>Stonecutter Apprentice title"
+    2:
+      required: 2500
+      rewards:
+        - "<gray>+5% stone break speed"
+    3:
+      required: 10000
+      rewards:
+        - "<gray>Stone Mason title"
+    4:
+      required: 50000
+      rewards:
+        - "<gray>+10% cobblestone yield"
+    5:
+      required: 250000
+      rewards:
+        - "<gray>Lord of Stone title"
+
+obsidian:
+  category: mining
+  name: "<dark_purple>Obsidian"
+  icon: OBSIDIAN
+  track:
+    - "BLOCK_BREAK:OBSIDIAN"
+    - "BLOCK_BREAK:CRYING_OBSIDIAN"
+    - "ITEM_PICKUP:OBSIDIAN"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Portal Builder title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% obsidian mine speed"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Nether Architect title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% obsidian drop rate"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Obsidian Lord title"
+
+glowstone_dust:
+  category: mining
+  name: "<yellow>Glowstone Dust"
+  icon: GLOWSTONE_DUST
+  track:
+    - "BLOCK_BREAK:GLOWSTONE"
+    - "ITEM_PICKUP:GLOWSTONE_DUST"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Light Seeker title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% glowstone dust yield"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Illuminator title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% dust drop rate"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Glow Lord title"
+
+gravel:
+  category: mining
+  name: "<gray>Gravel"
+  icon: GRAVEL
+  track:
+    - "BLOCK_BREAK:GRAVEL"
+    - "ITEM_PICKUP:GRAVEL"
+    - "ITEM_PICKUP:FLINT"
+  stages:
+    1:
+      required: 100
+      rewards:
+        - "<gray>Gravel Digger title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+5% flint drop rate"
+    3:
+      required: 2000
+      rewards:
+        - "<gray>Flint & Steel Forger title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+15% flint from gravel"
+    5:
+      required: 50000
+      rewards:
+        - "<gray>Gravel Baron title"
+
+flint:
+  category: mining
+  name: "<dark_gray>Flint"
+  icon: FLINT
+  track:
+    - "ITEM_PICKUP:FLINT"
+    - "BLOCK_BREAK:GRAVEL"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Flint Knapper title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+10% flint from gravel"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Arrowsmith title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+20% flint drop rate"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Flint Master title"
+
+sand:
+  category: mining
+  name: "<yellow>Sand"
+  icon: SAND
+  track:
+    - "BLOCK_BREAK:SAND"
+    - "BLOCK_BREAK:RED_SAND"
+    - "ITEM_PICKUP:SAND"
+    - "ITEM_PICKUP:RED_SAND"
+  stages:
+    1:
+      required: 100
+      rewards:
+        - "<gray>Desert Drifter title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+5% sand drop rate"
+    3:
+      required: 2000
+      rewards:
+        - "<gray>Glass Maker title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+10% sand yield"
+    5:
+      required: 50000
+      rewards:
+        - "<gray>Sand Baron title"
+
+netherrack:
+  category: mining
+  name: "<dark_red>Netherrack"
+  icon: NETHERRACK
+  track:
+    - "BLOCK_BREAK:NETHERRACK"
+    - "ITEM_PICKUP:NETHERRACK"
+  stages:
+    1:
+      required: 100
+      rewards:
+        - "<gray>Nether Diver title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+5% netherrack break speed"
+    3:
+      required: 2500
+      rewards:
+        - "<gray>Hellfire Miner title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+10% netherrack yield"
+    5:
+      required: 50000
+      rewards:
+        - "<gray>Nether Lord title"
+
+end_stone:
+  category: mining
+  name: "<yellow>End Stone"
+  icon: END_STONE
+  track:
+    - "BLOCK_BREAK:END_STONE"
+    - "ITEM_PICKUP:END_STONE"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Void Walker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% end stone break speed"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>End Explorer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% end stone yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>End Sovereign title"
+
+ice:
+  category: mining
+  name: "<aqua>Ice"
+  icon: ICE
+  track:
+    - "BLOCK_BREAK:ICE"
+    - "BLOCK_BREAK:PACKED_ICE"
+    - "BLOCK_BREAK:BLUE_ICE"
+    - "ITEM_PICKUP:ICE"
+    - "ITEM_PICKUP:PACKED_ICE"
+    - "ITEM_PICKUP:BLUE_ICE"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Ice Harvester title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% ice break speed"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Glacier Miner title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% ice yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Permafrost Overlord title"
+
+clay_ball:
+  category: mining
+  name: "<gray>Clay"
+  icon: CLAY_BALL
+  track:
+    - "BLOCK_BREAK:CLAY"
+    - "ITEM_PICKUP:CLAY_BALL"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Potter Apprentice title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% clay yield"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Terracotta Artisan title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% clay drop rate"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Master Potter title"

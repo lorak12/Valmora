@@ -1,0 +1,146 @@
+# ─── Combat — Nether Mob Collections ──────────────────────────────────────────
+
+blaze_rod:
+  category: combat
+  name: "<gold>Blaze Rod"
+  icon: BLAZE_ROD
+  track:
+    - "MOB_KILL:BLAZE"
+    - "ITEM_PICKUP:BLAZE_ROD"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Blaze Slayer title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% blaze rod drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Fireborn title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% blaze rod yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Inferno Champion title"
+
+blaze_powder:
+  category: combat
+  name: "<gold>Blaze Powder"
+  icon: BLAZE_POWDER
+  track:
+    - "MOB_KILL:BLAZE"
+    - "ITEM_PICKUP:BLAZE_POWDER"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Powder Seeker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% blaze powder drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Alchemist's Ally title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% powder yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Blaze Powder Baron title"
+
+ghast_tear:
+  category: combat
+  name: "<white>Ghast Tear"
+  icon: GHAST_TEAR
+  track:
+    - "MOB_KILL:GHAST"
+    - "ITEM_PICKUP:GHAST_TEAR"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Ghast Hunter title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% tear drop rate"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Fireball Dodger title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% ghast tear yield"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Ghast Sovereign title"
+
+magma_cream:
+  category: combat
+  name: "<red>Magma Cream"
+  icon: MAGMA_CREAM
+  track:
+    - "MOB_KILL:MAGMA_CUBE"
+    - "ITEM_PICKUP:MAGMA_CREAM"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Lava Jumper title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% cream drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Magma Slayer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% magma cream yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Magma Baron title"
+
+wither_skeleton_skull:
+  category: combat
+  name: "<dark_gray>Wither Skeleton Skull"
+  icon: WITHER_SKELETON_SKULL
+  track:
+    - "MOB_KILL:WITHER_SKELETON"
+    - "ITEM_PICKUP:WITHER_SKELETON_SKULL"
+  stages:
+    1:
+      required: 5
+      rewards:
+        - "<gray>Skull Collector title"
+    2:
+      required: 25
+      rewards:
+        - "<gray>+5% skull drop rate"
+    3:
+      required: 100
+      rewards:
+        - "<gray>Wither Slayer title"
+    4:
+      required: 500
+      rewards:
+        - "<gray>+10% skull yield"
+    5:
+      required: 2000
+      rewards:
+        - "<gray>Wither Champion title"

@@ -1,0 +1,342 @@
+# ─── Farming — Animal Product Collections ─────────────────────────────────────
+
+feather:
+  category: farming
+  name: "<white>Feather"
+  icon: FEATHER
+  track:
+    - "MOB_KILL:CHICKEN"
+    - "ITEM_PICKUP:FEATHER"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Chicken Farmer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% feather drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Plume Collector title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% feather yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Featherweight title"
+
+raw_chicken:
+  category: farming
+  name: "<yellow>Raw Chicken"
+  icon: CHICKEN
+  track:
+    - "MOB_KILL:CHICKEN"
+    - "ITEM_PICKUP:CHICKEN"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Poultry Farmer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% chicken drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Chicken Wrangler title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% poultry yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Roost Master title"
+
+leather:
+  category: farming
+  name: "<gold>Leather"
+  icon: LEATHER
+  track:
+    - "MOB_KILL:COW"
+    - "MOB_KILL:MOOSHROOM"
+    - "MOB_KILL:HORSE"
+    - "MOB_KILL:DONKEY"
+    - "MOB_KILL:MULE"
+    - "ITEM_PICKUP:LEATHER"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Tanner Apprentice title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% leather drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Leather Worker title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% leather yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Master Tanner title"
+
+raw_beef:
+  category: farming
+  name: "<dark_red>Raw Beef"
+  icon: BEEF
+  track:
+    - "MOB_KILL:COW"
+    - "MOB_KILL:MOOSHROOM"
+    - "ITEM_PICKUP:BEEF"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Rancher title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% beef drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Cattle Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% beef yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Butcher Supreme title"
+
+porkchop:
+  category: farming
+  name: "<yellow>Porkchop"
+  icon: PORKCHOP
+  track:
+    - "MOB_KILL:PIG"
+    - "MOB_KILL:HOGLIN"
+    - "ITEM_PICKUP:PORKCHOP"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Pig Farmer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% pork drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Pork Chop Champion title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% pork yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Swine Maestro title"
+
+mutton:
+  category: farming
+  name: "<white>Mutton"
+  icon: MUTTON
+  track:
+    - "MOB_KILL:SHEEP"
+    - "ITEM_PICKUP:MUTTON"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Shepherd title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% mutton drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Lamb Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% mutton yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Flock Master title"
+
+wool:
+  category: farming
+  name: "<white>Wool"
+  icon: WHITE_WOOL
+  track:
+    - "MOB_KILL:SHEEP"
+    - "ITEM_PICKUP:WHITE_WOOL"
+    - "ITEM_PICKUP:ORANGE_WOOL"
+    - "ITEM_PICKUP:MAGENTA_WOOL"
+    - "ITEM_PICKUP:LIGHT_BLUE_WOOL"
+    - "ITEM_PICKUP:YELLOW_WOOL"
+    - "ITEM_PICKUP:LIME_WOOL"
+    - "ITEM_PICKUP:PINK_WOOL"
+    - "ITEM_PICKUP:GRAY_WOOL"
+    - "ITEM_PICKUP:LIGHT_GRAY_WOOL"
+    - "ITEM_PICKUP:CYAN_WOOL"
+    - "ITEM_PICKUP:PURPLE_WOOL"
+    - "ITEM_PICKUP:BLUE_WOOL"
+    - "ITEM_PICKUP:BROWN_WOOL"
+    - "ITEM_PICKUP:GREEN_WOOL"
+    - "ITEM_PICKUP:RED_WOOL"
+    - "ITEM_PICKUP:BLACK_WOOL"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Woolly Farmer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% wool drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Sheep Shearer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% wool yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Wool Baron title"
+
+raw_rabbit:
+  category: farming
+  name: "<yellow>Raw Rabbit"
+  icon: RABBIT
+  track:
+    - "MOB_KILL:RABBIT"
+    - "ITEM_PICKUP:RABBIT"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Rabbit Hunter title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% rabbit drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Bunny Farmer title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% rabbit yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Warren Master title"
+
+rabbit_hide:
+  category: farming
+  name: "<gold>Rabbit Hide"
+  icon: RABBIT_HIDE
+  track:
+    - "MOB_KILL:RABBIT"
+    - "ITEM_PICKUP:RABBIT_HIDE"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Trapper title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% hide drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Pelt Collector title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% hide yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Fur Trader title"
+
+ink_sac:
+  category: farming
+  name: "<dark_gray>Ink Sac"
+  icon: INK_SAC
+  track:
+    - "MOB_KILL:SQUID"
+    - "MOB_KILL:GLOW_SQUID"
+    - "ITEM_PICKUP:INK_SAC"
+    - "ITEM_PICKUP:GLOW_INK_SAC"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Squid Wrangler title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% ink drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Inkling title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% ink yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Ink Baron title"
+
+egg:
+  category: farming
+  name: "<white>Egg"
+  icon: EGG
+  track:
+    - "ITEM_PICKUP:EGG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Egg Collector title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% egg drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Omelette Chef title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% egg yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Poultry Baron title"

@@ -1,0 +1,119 @@
+# ─── Combat — Ocean / Aquatic Mob Collections ─────────────────────────────────
+
+prismarine_shard:
+  category: combat
+  name: "<aqua>Prismarine Shard"
+  icon: PRISMARINE_SHARD
+  track:
+    - "MOB_KILL:GUARDIAN"
+    - "MOB_KILL:ELDER_GUARDIAN"
+    - "ITEM_PICKUP:PRISMARINE_SHARD"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Deep Sea Diver title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% shard drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Guardian Slayer title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% shard yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Ocean Monument Raider title"
+
+prismarine_crystals:
+  category: combat
+  name: "<aqua>Prismarine Crystals"
+  icon: PRISMARINE_CRYSTALS
+  track:
+    - "MOB_KILL:GUARDIAN"
+    - "MOB_KILL:ELDER_GUARDIAN"
+    - "ITEM_PICKUP:PRISMARINE_CRYSTALS"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Crystal Collector title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% crystal drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Sea Lantern Crafter title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% crystal yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Abyssal Warden title"
+
+nautilus_shell:
+  category: combat
+  name: "<aqua>Nautilus Shell"
+  icon: NAUTILUS_SHELL
+  track:
+    - "MOB_KILL:DROWNED"
+    - "ITEM_PICKUP:NAUTILUS_SHELL"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Shell Seeker title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% shell drop rate"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Conduit Caller title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% shell yield"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Drowned Overlord title"
+
+trident:
+  category: combat
+  name: "<aqua>Trident"
+  icon: TRIDENT
+  track:
+    - "MOB_KILL:DROWNED"
+    - "ITEM_PICKUP:TRIDENT"
+  stages:
+    1:
+      required: 5
+      rewards:
+        - "<gray>Tidal Hunter title"
+    2:
+      required: 25
+      rewards:
+        - "<gray>+5% trident drop chance"
+    3:
+      required: 100
+      rewards:
+        - "<gray>Poseidon's Apprentice title"
+    4:
+      required: 500
+      rewards:
+        - "<gray>+10% trident drop rate"
+    5:
+      required: 2000
+      rewards:
+        - "<gray>Trident God title"

@@ -1,0 +1,117 @@
+# ─── Fishing — Fish Collections ───────────────────────────────────────────────
+
+tropical_fish:
+  category: fishing
+  name: "<gold>Tropical Fish"
+  icon: TROPICAL_FISH
+  track:
+    - "FISHING:TROPICAL_FISH"
+    - "ITEM_PICKUP:TROPICAL_FISH"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Reef Angler title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% tropical fish bite rate"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Tropical Fisherman title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% tropical fish yield"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Coral Diver title"
+
+pufferfish:
+  category: fishing
+  name: "<yellow>Pufferfish"
+  icon: PUFFERFISH
+  track:
+    - "FISHING:PUFFERFISH"
+    - "ITEM_PICKUP:PUFFERFISH"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Puffer Poacher title"
+    2:
+      required: 50
+      rewards:
+        - "<gray>+5% pufferfish bite rate"
+    3:
+      required: 250
+      rewards:
+        - "<gray>Toxicologist title"
+    4:
+      required: 1000
+      rewards:
+        - "<gray>+10% pufferfish yield"
+    5:
+      required: 5000
+      rewards:
+        - "<gray>Blowfish Baron title"
+
+lily_pad:
+  category: fishing
+  name: "<green>Lily Pad"
+  icon: LILY_PAD
+  track:
+    - "FISHING:LILY_PAD"
+    - "ITEM_PICKUP:LILY_PAD"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Junk Fisher title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% treasure catch rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Pond Farmer title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+5% fishing luck"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Water Lily Master title"
+
+ink_sac_fishing:
+  category: fishing
+  name: "<dark_gray>Ink Sac (Fishing)"
+  icon: INK_SAC
+  track:
+    - "FISHING:INK_SAC"
+    - "FISHING:GLOW_INK_SAC"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Junk Collector title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% junk drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Dye Fisher title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% fishing yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Ink Baron title"

@@ -1,0 +1,297 @@
+# ─── Farming — Crop Collections ───────────────────────────────────────────────
+# wheat and carrot are in their own files; this file covers all remaining crops.
+# Track syntax: "EVENT_TYPE:MATERIAL"  where MATERIAL is the Bukkit enum name.
+
+potato:
+  category: farming
+  name: "<yellow>Potato"
+  icon: POTATO
+  track:
+    - "BLOCK_BREAK:POTATOES"
+    - "ITEM_PICKUP:POTATO"
+    - "ITEM_PICKUP:POISONOUS_POTATO"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Potato Peeler title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 potato per harvest"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Potato Baker title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+5% crop yield bonus"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Spud Lord title"
+
+pumpkin:
+  category: farming
+  name: "<gold>Pumpkin"
+  icon: PUMPKIN
+  track:
+    - "BLOCK_BREAK:PUMPKIN"
+    - "BLOCK_BREAK:CARVED_PUMPKIN"
+    - "ITEM_PICKUP:PUMPKIN"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Pumpkin Picker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 pumpkin per patch"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Pumpkin Carver title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+5% farming speed"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Pumpkin King title"
+
+melon_slice:
+  category: farming
+  name: "<green>Melon"
+  icon: MELON_SLICE
+  track:
+    - "BLOCK_BREAK:MELON"
+    - "ITEM_PICKUP:MELON_SLICE"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Melon Slicer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+2 slices per melon"
+    3:
+      required: 1500
+      rewards:
+        - "<gray>Melon Farmer title"
+    4:
+      required: 7500
+      rewards:
+        - "<gray>+5% farming speed"
+    5:
+      required: 30000
+      rewards:
+        - "<gray>Melon Lord title"
+
+red_mushroom:
+  category: farming
+  name: "<red>Red Mushroom"
+  icon: RED_MUSHROOM
+  track:
+    - "BLOCK_BREAK:RED_MUSHROOM"
+    - "BLOCK_BREAK:RED_MUSHROOM_BLOCK"
+    - "ITEM_PICKUP:RED_MUSHROOM"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Fungi Forager title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% mushroom drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Mushroom Farmer title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% mushroom yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Mycelium Master title"
+
+brown_mushroom:
+  category: farming
+  name: "<dark_gray>Brown Mushroom"
+  icon: BROWN_MUSHROOM
+  track:
+    - "BLOCK_BREAK:BROWN_MUSHROOM"
+    - "BLOCK_BREAK:BROWN_MUSHROOM_BLOCK"
+    - "ITEM_PICKUP:BROWN_MUSHROOM"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Fungi Collector title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% mushroom drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Shroomkeeper title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% mushroom yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Mycelium Baron title"
+
+cocoa_beans:
+  category: farming
+  name: "<dark_red>Cocoa Beans"
+  icon: COCOA_BEANS
+  track:
+    - "BLOCK_BREAK:COCOA"
+    - "ITEM_PICKUP:COCOA_BEANS"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Chocolate Lover title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 bean per plant"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Cocoa Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% bean yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Chocolatier title"
+
+cactus:
+  category: farming
+  name: "<green>Cactus"
+  icon: CACTUS
+  track:
+    - "BLOCK_BREAK:CACTUS"
+    - "ITEM_PICKUP:CACTUS"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Prickly Picker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% cactus drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Desert Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% cactus yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Cactus King title"
+
+sugar_cane:
+  category: farming
+  name: "<yellow>Sugar Cane"
+  icon: SUGAR_CANE
+  track:
+    - "BLOCK_BREAK:SUGAR_CANE"
+    - "ITEM_PICKUP:SUGAR_CANE"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Sugar Rusher title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 cane per harvest"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Sugarcane Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+5% sugar cane yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Sugar Baron title"
+
+nether_wart:
+  category: farming
+  name: "<dark_red>Nether Wart"
+  icon: NETHER_WART
+  track:
+    - "BLOCK_BREAK:NETHER_WART"
+    - "ITEM_PICKUP:NETHER_WART"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Nether Farmer title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% wart drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>Potion Cultivator title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% wart yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Wart Warlock title"
+
+beetroot:
+  category: farming
+  name: "<dark_red>Beetroot"
+  icon: BEETROOT
+  track:
+    - "BLOCK_BREAK:BEETROOTS"
+    - "ITEM_PICKUP:BEETROOT"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Beet Picker title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 beetroot per harvest"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Beetroot Farmer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+5% crop yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Root Master title"

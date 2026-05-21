@@ -1,0 +1,243 @@
+# ─── Combat — Overworld Mob Collections ───────────────────────────────────────
+
+string:
+  category: combat
+  name: "<white>String"
+  icon: STRING
+  track:
+    - "MOB_KILL:SPIDER"
+    - "MOB_KILL:CAVE_SPIDER"
+    - "ITEM_PICKUP:STRING"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Spider Slayer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% string drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Web Weaver title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% string yield"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Arachnid Lord title"
+
+spider_eye:
+  category: combat
+  name: "<red>Spider Eye"
+  icon: SPIDER_EYE
+  track:
+    - "MOB_KILL:SPIDER"
+    - "MOB_KILL:CAVE_SPIDER"
+    - "ITEM_PICKUP:SPIDER_EYE"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Venomous Hunter title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% eye drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Poison Brewer title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% spider eye yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Spider Witch title"
+
+gunpowder:
+  category: combat
+  name: "<gray>Gunpowder"
+  icon: GUNPOWDER
+  track:
+    - "MOB_KILL:CREEPER"
+    - "ITEM_PICKUP:GUNPOWDER"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Creeper Tamer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% gunpowder drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Demolitions Expert title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% gunpowder yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Boom Master title"
+
+ender_pearl:
+  category: combat
+  name: "<dark_green>Ender Pearl"
+  icon: ENDER_PEARL
+  track:
+    - "MOB_KILL:ENDERMAN"
+    - "ITEM_PICKUP:ENDER_PEARL"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Void Walker title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% pearl drop rate"
+    3:
+      required: 500
+      rewards:
+        - "<gray>End Stalker title"
+    4:
+      required: 2500
+      rewards:
+        - "<gray>+10% ender pearl yield"
+    5:
+      required: 10000
+      rewards:
+        - "<gray>Teleporter Supremacy title"
+
+slimeball:
+  category: combat
+  name: "<green>Slimeball"
+  icon: SLIME_BALL
+  track:
+    - "MOB_KILL:SLIME"
+    - "ITEM_PICKUP:SLIME_BALL"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Slime Hunter title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% slimeball drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Bouncy Warrior title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% slime yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Slime Overlord title"
+
+bone:
+  category: combat
+  name: "<white>Bone"
+  icon: BONE
+  track:
+    - "MOB_KILL:SKELETON"
+    - "MOB_KILL:STRAY"
+    - "MOB_KILL:WITHER_SKELETON"
+    - "ITEM_PICKUP:BONE"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Skeleton Slayer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% bone drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Marrow Collector title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% bone yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Bone Baron title"
+
+rotten_flesh:
+  category: combat
+  name: "<dark_green>Rotten Flesh"
+  icon: ROTTEN_FLESH
+  track:
+    - "MOB_KILL:ZOMBIE"
+    - "MOB_KILL:ZOMBIE_VILLAGER"
+    - "MOB_KILL:DROWNED"
+    - "MOB_KILL:HUSK"
+    - "ITEM_PICKUP:ROTTEN_FLESH"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Undead Slayer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+5% flesh drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Zombie Hunter title"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+10% rotten flesh yield"
+    5:
+      required: 20000
+      rewards:
+        - "<gray>Plague Warrior title"
+
+arrow:
+  category: combat
+  name: "<white>Arrow"
+  icon: ARROW
+  track:
+    - "MOB_KILL:SKELETON"
+    - "MOB_KILL:STRAY"
+    - "ITEM_PICKUP:ARROW"
+    - "ITEM_PICKUP:TIPPED_ARROW"
+    - "ITEM_PICKUP:SPECTRAL_ARROW"
+  stages:
+    1:
+      required: 100
+      rewards:
+        - "<gray>Archer title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+5% arrow drop rate"
+    3:
+      required: 2000
+      rewards:
+        - "<gray>Bowmaster title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+10% arrow yield"
+    5:
+      required: 50000
+      rewards:
+        - "<gray>Arrow Baron title"
