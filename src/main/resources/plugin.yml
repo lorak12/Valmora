@@ -53,3 +53,6 @@ commands:
     usage: /valmora reload
     permission: valmora.admin
     description: Master engine administrative command.
+  collections:
+    usage: /collections
+    description: Open the collections menu.

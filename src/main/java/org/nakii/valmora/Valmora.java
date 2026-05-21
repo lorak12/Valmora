@@ -49,6 +49,8 @@ import org.nakii.valmora.module.npc.NpcCommand;
 import org.nakii.valmora.module.notify.NotifyModule;
 import org.nakii.valmora.module.alchemy.command.PotionCommand;
 import org.nakii.valmora.module.alchemy.command.EffectsCommand;
+import org.nakii.valmora.module.collection.CollectionModule;
+import org.nakii.valmora.module.collection.CollectionCommand;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.economy.EcoCommand;
 import org.nakii.valmora.module.economy.EconomyModule;
@@ -101,6 +103,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private QuestModule questModule;
     private PointsModule pointsModule;
     private NotifyModule notifyModule;
+    private CollectionModule collectionModule;
 
     @Override
     public void onEnable() {
@@ -146,6 +149,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.questModule = new QuestModule(this);
         this.pointsModule = new PointsModule(this);
         this.notifyModule = new NotifyModule(this);
+        this.collectionModule = new CollectionModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -174,6 +178,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(questModule);
         moduleManager.registerModule(pointsModule);
         moduleManager.registerModule(notifyModule);
+        moduleManager.registerModule(collectionModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -198,6 +203,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         ZoneCommand zoneCommand = new ZoneCommand(this, zoneModule);
         getCommand("zone").setExecutor(zoneCommand);
         getCommand("zone").setTabCompleter(zoneCommand);
+        getCommand("collections").setExecutor(new CollectionCommand(this));
     }
 
      @Override
@@ -360,6 +366,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     public NpcModule getNpcModule() { return npcModule; }
     public WarpModule getWarpModule() { return warpModule; }
     public QuestModule getQuestModule() { return questModule; }
+    public CollectionModule getCollectionModule() { return collectionModule; }
 
     @Override
     public org.nakii.valmora.module.quest.points.PointsManager getPointsManager() {
@@ -394,7 +401,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                             name.startsWith("alchemy/") || name.startsWith("stats/") ||
                             name.startsWith("zones/") || name.startsWith("fishing/") ||
                             name.startsWith("npcs/") || name.startsWith("dialogues/") ||
-                            name.startsWith("warps/") || name.startsWith("quests/")) {
+                            name.startsWith("warps/") || name.startsWith("quests/") ||
+                            name.startsWith("collections/")) {
                         // Only save if the file doesn't already exist — don't overwrite server edits
                         if (!new File(getDataFolder(), name).exists()) {
                             saveResource(name, false);

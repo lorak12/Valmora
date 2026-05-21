@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Collections — Item Browser (within a category)
+# Requires prop: selected_category=<id>  (passed by collections_categories).
+# Clicking a collection item opens collections_detail with selected_collection.
+# ─────────────────────────────────────────────────────────────────────────────
+
+collections_list:
+  title: "<gold><bold>✦ Collections</bold></gold>"
+  rows: 6
+  update-interval: 0
+
+  layout:
+    - "BBBBBBBBB"
+    - "BCBCBCBCB"
+    - "BCBCBCBCB"
+    - "BCBCBCBCB"
+    - "BBBBBBBBB"
+    - "BBBPPNBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    C:
+      type: PAGINATED
+      list: "$collection.item_list$"
+      iterator: "col"
+      states:
+        completed_state:
+          condition: "$col.status$ == completed"
+          item: "$col.icon$"
+          name: "<green>$col.name$"
+          lore:
+            - "<dark_gray>Stage: <green>$col.stage$<dark_gray>/<gray>$col.max_stage$"
+            - "<dark_gray>Count: <gray>$col.count$"
+            - ""
+            - "<green>✔ Fully Completed!"
+            - ""
+            - "<yellow>➤ Click to view stages."
+          actions:
+            left:
+              actions:
+                - "open_gui collections_detail selected_collection=$col.id$"
+        default:
+          item: "$col.icon$"
+          name: "<yellow>$col.name$"
+          lore:
+            - "<dark_gray>Stage: <yellow>$col.stage$<dark_gray>/<gray>$col.max_stage$"
+            - "<dark_gray>Count: <gray>$col.count$ <dark_gray>/ <gray>$col.next_required$"
+            - ""
+            - "<yellow>➤ Click to view stages."
+          actions:
+            left:
+              actions:
+                - "open_gui collections_detail selected_collection=$col.id$"
+
+    P:
+      type: PREVIOUS_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>« Previous"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    N:
+      type: NEXT_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>Next »"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "

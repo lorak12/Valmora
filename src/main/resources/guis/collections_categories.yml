@@ -1,0 +1,62 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Collections — Category Browser
+# Shows all collection categories. Clicking one opens collections_list.
+# ─────────────────────────────────────────────────────────────────────────────
+
+collections_categories:
+  command: collections
+  title: "<gold><bold>✦ Collections</bold></gold>"
+  rows: 6
+  update-interval: 0
+
+  layout:
+    - "BBBBBBBBB"
+    - "BBCBCBCBB"
+    - "BBCBCBCBB"
+    - "BBCBCBCBB"
+    - "BBBBBBBBB"
+    - "BBBPPNBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    C:
+      type: PAGINATED
+      list: "$collection.category_list$"
+      iterator: "cat"
+      states:
+        default:
+          item: "$cat.icon$"
+          name: "$cat.name$"
+          lore:
+            - "$cat.description$"
+            - ""
+            - "<dark_gray>Collections: <gray>$cat.completed$<dark_gray>/<gray>$cat.total$"
+            - ""
+            - "<yellow>➤ Click to browse!"
+          actions:
+            left:
+              actions:
+                - "open_gui collections_list selected_category=$cat.id$"
+
+    P:
+      type: PREVIOUS_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>« Previous"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    N:
+      type: NEXT_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>Next »"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "

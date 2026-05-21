@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.Set;
 
 public class SQLDataStore implements DataStore {
 
@@ -54,12 +55,14 @@ public class SQLDataStore implements DataStore {
                     skills TEXT,
                     player_state TEXT,
                     tags TEXT,
-                    variables TEXT
+                    variables TEXT,
+                    collections TEXT
                 )
             """).execute();
             // Migration for existing databases
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN tags TEXT").execute(); } catch (Exception ignored) {}
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN variables TEXT").execute(); } catch (Exception ignored) {}
+            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN collections TEXT").execute(); } catch (Exception ignored) {}
 
             // Economy Table
             conn.prepareStatement("""
@@ -95,8 +98,9 @@ public class SQLDataStore implements DataStore {
 
                 Type statsType = new TypeToken<Map<String, Double>>() {}.getType();
                 Type skillsType = new TypeToken<Map<String, Double>>() {}.getType();
-                Type tagsType = new TypeToken<java.util.Set<String>>() {}.getType();
+                Type tagsType = new TypeToken<Set<String>>() {}.getType();
                 Type variablesType = new TypeToken<Map<String, Object>>() {}.getType();
+                Type collectionsType = new TypeToken<Map<String, Long>>() {}.getType();
 
                 while (rsProfiles.next()) {
                     ValmoraProfile profile = new ValmoraProfile(
@@ -118,7 +122,7 @@ public class SQLDataStore implements DataStore {
 
                     String tagsJson = rsProfiles.getString("tags");
                     if (tagsJson != null) {
-                        java.util.Set<String> tags = gson.fromJson(tagsJson, tagsType);
+                        Set<String> tags = gson.fromJson(tagsJson, tagsType);
                         if (tags != null) profile.getTags().addAll(tags);
                     }
 
@@ -127,6 +131,14 @@ public class SQLDataStore implements DataStore {
                         Map<String, Object> variables = gson.fromJson(variablesJson, variablesType);
                         if (variables != null) profile.getVariables().putAll(variables);
                     }
+
+                    try {
+                        String collectionsJson = rsProfiles.getString("collections");
+                        if (collectionsJson != null) {
+                            Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
+                            if (collections != null) profile.getCollectionManager().loadData(collections);
+                        }
+                    } catch (SQLException ignored) {}
 
                     player.addProfile(profile);
                 }
@@ -164,8 +176,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -178,20 +190,23 @@ public class SQLDataStore implements DataStore {
                         String stateJson = gson.toJson(profile.getPlayerState().getSaveData());
                         String tagsJson = gson.toJson(profile.getTags());
                         String variablesJson = gson.toJson(profile.getVariables());
+                        String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
                         ps.setString(6, stateJson);
                         ps.setString(7, tagsJson);
                         ps.setString(8, variablesJson);
+                        ps.setString(9, collectionsJson);
 
                         // Update values
-                        ps.setString(9, profile.getName());
-                        ps.setString(10, statsJson);
-                        ps.setString(11, skillsJson);
-                        ps.setString(12, stateJson);
-                        ps.setString(13, tagsJson);
-                        ps.setString(14, variablesJson);
+                        ps.setString(10, profile.getName());
+                        ps.setString(11, statsJson);
+                        ps.setString(12, skillsJson);
+                        ps.setString(13, stateJson);
+                        ps.setString(14, tagsJson);
+                        ps.setString(15, variablesJson);
+                        ps.setString(16, collectionsJson);
 
                         ps.addBatch();
                     }

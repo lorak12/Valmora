@@ -1,0 +1,34 @@
+# Wheat Collection
+# track: list of "EVENT_TYPE:IDENTIFIER" strings.
+# Supported event types: BLOCK_BREAK, MOB_KILL, FISHING, ITEM_PICKUP, CRAFT
+# For custom Valmora items use: ITEM_PICKUP:custom:<item_id>
+
+wheat:
+  category: farming
+  name: "<yellow>Wheat"
+  icon: WHEAT
+  track:
+    - "BLOCK_BREAK:WHEAT"
+    - "ITEM_PICKUP:WHEAT"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Beginner Farmer title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1% crop harvest chance"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Access to Wheat Merchant"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>+5% farming speed"
+    5:
+      required: 25000
+      rewards:
+        - "<gray>Master Farmer title"
+        - "<gray>Wheat Crown cosmetic"

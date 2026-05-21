@@ -1,0 +1,24 @@
+carrot:
+  category: farming
+  name: "<gold>Carrot"
+  icon: CARROT
+  track:
+    - "BLOCK_BREAK:CARROTS"
+    - "ITEM_PICKUP:CARROT"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Carrot Connoisseur title"
+    2:
+      required: 500
+      rewards:
+        - "<gray>+2% carrot drop rate"
+    3:
+      required: 5000
+      rewards:
+        - "<gray>Golden Carrot recipe unlocked"
+    4:
+      required: 50000
+      rewards:
+        - "<gray>Carrot King title"

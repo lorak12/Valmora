@@ -1,0 +1,56 @@
+zombie:
+  category: combat
+  name: "<green>Zombie"
+  icon: ROTTEN_FLESH
+  track:
+    - "MOB_KILL:ZOMBIE"
+    - "MOB_KILL:HUSK"
+    - "MOB_KILL:DROWNED"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Zombie Slayer I title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% zombie rotten flesh drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Undead Hunter title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+1% zombie XP"
+    5:
+      required: 100000
+      rewards:
+        - "<gray>Zombie Lord title"
+        - "<gray>Zombie Pet unlocked"
+
+skeleton:
+  category: combat
+  name: "<white>Skeleton"
+  icon: BONE
+  track:
+    - "MOB_KILL:SKELETON"
+    - "MOB_KILL:STRAY"
+    - "MOB_KILL:WITHER_SKELETON"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Skeleton Slayer title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% bone drop rate"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Bone Knight title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>Skeleton Hunter title"

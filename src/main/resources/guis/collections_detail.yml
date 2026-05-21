@@ -1,0 +1,89 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Collections — Stage Detail View
+# Requires prop: selected_collection=<id>  (passed by collections_list).
+# Shows the collection icon + summary at top, then paginated stages below.
+# ─────────────────────────────────────────────────────────────────────────────
+
+collections_detail:
+  title: "<gold><bold>✦ $collection.detail_name$</bold></gold>"
+  rows: 6
+  update-interval: 0
+
+  layout:
+    - "BBBBIBBBB"
+    - "BBBBBBBBB"
+    - "BSSSSSSSB"
+    - "BSSSSSSSB"
+    - "BBBBBBBBB"
+    - "BBBPPNBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    # Collection summary icon
+    I:
+      type: DISPLAY
+      display-item:
+        material: "$collection.detail_icon$"
+        name: "<gold><bold>$collection.detail_name$"
+        lore:
+          - ""
+          - "<dark_gray>Current stage: <yellow>$collection.detail_stage$<dark_gray>/<gray>$collection.detail_max_stage$"
+          - "<dark_gray>Total collected: <gray>$collection.detail_count$"
+          - "<dark_gray>Next stage at: <gray>$collection.detail_next_required$"
+
+    # Stages — paginated list
+    S:
+      type: PAGINATED
+      list: "$collection.stage_list$"
+      iterator: "stage"
+      states:
+        completed_stage:
+          condition: "$stage.status$ == completed"
+          item: LIME_STAINED_GLASS_PANE
+          name: "<green>Stage $stage.number$ <dark_gray>— <green>✔ Completed"
+          lore:
+            - "<dark_gray>Required: <gray>$stage.required$ collected"
+            - ""
+            - "<gray>Rewards:"
+            - "$stage.rewards$"
+        current_stage:
+          condition: "$stage.status$ == current"
+          item: YELLOW_STAINED_GLASS_PANE
+          name: "<yellow>Stage $stage.number$ <dark_gray>— <yellow>★ In Progress"
+          lore:
+            - "<dark_gray>Required: <gray>$stage.required$ collected"
+            - "<dark_gray>Progress: <gray>$collection.detail_count$<dark_gray>/<gray>$stage.required$"
+            - ""
+            - "<gray>Rewards:"
+            - "$stage.rewards$"
+        default:
+          item: GRAY_STAINED_GLASS_PANE
+          name: "<gray>Stage $stage.number$ <dark_gray>— Locked"
+          lore:
+            - "<dark_gray>Requires: <gray>$stage.required$ collected"
+            - ""
+            - "<dark_gray>Rewards:"
+            - "$stage.rewards$"
+
+    P:
+      type: PREVIOUS_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>« Previous"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    N:
+      type: NEXT_PAGE
+      display-item:
+        material: ARROW
+        name: "<yellow>Next »"
+      fallback:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "

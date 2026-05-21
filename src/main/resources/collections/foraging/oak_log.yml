@@ -1,0 +1,25 @@
+oak_log:
+  category: foraging
+  name: "<dark_green>Oak Wood"
+  icon: OAK_LOG
+  track:
+    - "BLOCK_BREAK:OAK_LOG"
+    - "BLOCK_BREAK:OAK_WOOD"
+    - "ITEM_PICKUP:OAK_LOG"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Lumberjack Apprentice title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 oak log per tree"
+    3:
+      required: 2500
+      rewards:
+        - "<gray>Oak Artisan title"
+    4:
+      required: 25000
+      rewards:
+        - "<gray>Master Forager title"

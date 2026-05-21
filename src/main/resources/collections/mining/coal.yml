@@ -1,0 +1,56 @@
+coal:
+  category: mining
+  name: "<dark_gray>Coal"
+  icon: COAL
+  track:
+    - "BLOCK_BREAK:COAL_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_COAL_ORE"
+    - "ITEM_PICKUP:COAL"
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "<gray>Novice Miner title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>+1 coal per vein"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Coal Forging recipe unlocked"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>+5% smelting speed"
+    5:
+      required: 100000
+      rewards:
+        - "<gray>Coal Baron title"
+
+iron_ingot:
+  category: mining
+  name: "<white>Iron Ingot"
+  icon: IRON_INGOT
+  track:
+    - "BLOCK_BREAK:IRON_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_IRON_ORE"
+    - "ITEM_PICKUP:IRON_INGOT"
+    - "CRAFT:IRON_INGOT"
+  stages:
+    1:
+      required: 25
+      rewards:
+        - "<gray>Iron Apprentice title"
+    2:
+      required: 250
+      rewards:
+        - "<gray>Iron tools discount"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>+2% iron ore yield"
+    4:
+      required: 5000
+      rewards:
+        - "<gray>Iron Magnate title"

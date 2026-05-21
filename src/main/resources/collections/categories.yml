@@ -1,0 +1,28 @@
+# Collection categories — define the top-level groupings shown in the main menu.
+# Each key is the category ID (lowercase, no spaces).
+# icon: Bukkit Material name shown in the category menu.
+
+farming:
+  name: "<green><bold>Farming</bold></green>"
+  icon: WHEAT
+  description: "<gray>Crops, seeds, and farming resources."
+
+mining:
+  name: "<gray><bold>Mining</bold></gray>"
+  icon: DIAMOND_PICKAXE
+  description: "<gray>Ores, stones, and underground resources."
+
+combat:
+  name: "<red><bold>Combat</bold></red>"
+  icon: DIAMOND_SWORD
+  description: "<gray>Mob drops and combat trophies."
+
+fishing:
+  name: "<aqua><bold>Fishing</bold></aqua>"
+  icon: FISHING_ROD
+  description: "<gray>Fish and aquatic treasures."
+
+foraging:
+  name: "<dark_green><bold>Foraging</bold></dark_green>"
+  icon: OAK_LOG
+  description: "<gray>Wood, saplings, and forest resources."

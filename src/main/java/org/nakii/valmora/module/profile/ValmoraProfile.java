@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.profile;
 
+import org.nakii.valmora.module.collection.CollectionManager;
 import org.nakii.valmora.module.item.CooldownManager;
 import org.nakii.valmora.module.skill.SkillManager;
 import org.nakii.valmora.module.stat.StatManager;
@@ -14,6 +15,7 @@ public class ValmoraProfile {
     private final String name;
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
+    private final CollectionManager collectionManager = new CollectionManager();
     private final PlayerState playerState = new PlayerState();
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Set<String> tags = new HashSet<>();
@@ -38,6 +40,10 @@ public class ValmoraProfile {
 
     public SkillManager getSkillManager() {
         return skillManager;
+    }
+
+    public CollectionManager getCollectionManager() {
+        return collectionManager;
     }
 
     public PlayerState getPlayerState() {

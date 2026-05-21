@@ -1,0 +1,45 @@
+cod:
+  category: fishing
+  name: "<aqua>Cod"
+  icon: COD
+  track:
+    - "FISHING:COD"
+    - "ITEM_PICKUP:COD"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Apprentice Fisherman title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% cod catch chance"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>Seasoned Angler title"
+    4:
+      required: 10000
+      rewards:
+        - "<gray>Master Fisherman title"
+
+salmon:
+  category: fishing
+  name: "<red>Salmon"
+  icon: SALMON
+  track:
+    - "FISHING:SALMON"
+    - "ITEM_PICKUP:SALMON"
+  stages:
+    1:
+      required: 10
+      rewards:
+        - "<gray>Salmon Fisher title"
+    2:
+      required: 100
+      rewards:
+        - "<gray>+5% salmon catch chance"
+    3:
+      required: 1000
+      rewards:
+        - "<gray>River Master title"
