@@ -40,6 +40,18 @@ test {
     useJUnitPlatform()
 }
 
+tasks.register('testUnit', Test) {
+    useJUnitPlatform { includeTags 'unit', 'config' }
+    group = 'verification'
+    description = 'Runs pure unit tests and YAML config validation (no Bukkit server needed).'
+}
+
+tasks.register('testFull', Test) {
+    useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration' }
+    group = 'verification'
+    description = 'Runs the full automated test suite (all tags except live-server tests).'
+}
+
 tasks.register('syncResources') {
     doLast {
         def srcDir = file('src/main/resources')

@@ -10,11 +10,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SkillManager {
-    
+
     // Maps Skill ID (String) to XP amount
     private final Map<String, Double> skillXp = new HashMap<>();
+    // Injected registry for tests (bypasses the Valmora singleton)
+    private final SkillRegistry injectedRegistry;
 
     public SkillManager() {
+        this.injectedRegistry = null;
+    }
+
+    // Package-private constructor for unit tests — avoids Valmora.getInstance() dependency
+    SkillManager(SkillRegistry registry) {
+        this.injectedRegistry = registry;
     }
 
     public void loadData(Map<String, Double> savedData) {
@@ -31,6 +39,7 @@ public class SkillManager {
     }
 
     public SkillRegistry getSkillRegistry() {
+        if (injectedRegistry != null) return injectedRegistry;
         return Valmora.getInstance().getSkillModule().getSkillRegistry();
     }
 

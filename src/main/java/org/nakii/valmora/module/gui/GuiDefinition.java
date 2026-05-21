@@ -15,12 +15,14 @@ public class GuiDefinition {
     private final GuiEventBlock onClose;
     private final GuiEventBlock onSlotUpdate;
     private final GuiEventBlock onUpdate;
+    private final String command;
+    private final String commandPermission;
 
     public GuiDefinition(String id, String title, int updateIntervalTicks, int rows,
                          String machine,
                          List<List<Character>> layout, Map<Character, GuiComponent> components,
                          GuiEventBlock onOpen, GuiEventBlock onClose, GuiEventBlock onSlotUpdate,
-                         GuiEventBlock onUpdate) {
+                         GuiEventBlock onUpdate, String command, String commandPermission) {
         this.id = id;
         this.title = title;
         this.updateIntervalTicks = updateIntervalTicks;
@@ -32,6 +34,8 @@ public class GuiDefinition {
         this.onClose = onClose;
         this.onSlotUpdate = onSlotUpdate;
         this.onUpdate = onUpdate;
+        this.command = command;
+        this.commandPermission = commandPermission;
     }
 
     public String getId() { return id; }
@@ -45,4 +49,6 @@ public class GuiDefinition {
     public GuiEventBlock getOnClose() { return onClose; }
     public GuiEventBlock getOnSlotUpdate() { return onSlotUpdate; }
     public GuiEventBlock getOnUpdate() { return onUpdate; }
+    public String getCommand() { return command; }
+    public String getCommandPermission() { return commandPermission; }
 }

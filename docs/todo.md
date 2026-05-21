@@ -1,7 +1,6 @@
 
 
 To finish:
-- alchemy: implement all of the potion effects
 - economy: bank upgrades, intrest
 - enchant: add all of the enchantments
 - fishing: accually implement proper fishing with sea creatures, hot spots, treasures, drops, rod parts

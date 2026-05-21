@@ -13,8 +13,10 @@ import org.nakii.valmora.module.gui.parser.GuiDefinitionParser;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.script.event.ConditionAbortException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,6 +26,7 @@ public class GuiModule implements ReloadableModule {
     private final Map<String, GuiDefinition> guiRegistry = new HashMap<>();
     private final Map<UUID, GuiSession> openSessions = new HashMap<>();
     private GuiListener listener;
+    private final List<String> registeredCommandNames = new ArrayList<>();
 
     public GuiModule(Valmora plugin) {
         this.plugin = plugin;
@@ -62,6 +65,7 @@ public class GuiModule implements ReloadableModule {
             Player player = plugin.getServer().getPlayer(uuid);
             if (player != null) closeGuiSession(player);
         }
+        unregisterGuiCommands();
     }
 
     public void openGui(Player player, String id, Map<String, Object> props) {
@@ -189,10 +193,50 @@ public class GuiModule implements ReloadableModule {
     }
 
     private void loadGuis() {
+        unregisterGuiCommands();
         guiRegistry.clear();
         GuiDefinitionParser parser = new GuiDefinitionParser(plugin);
         YamlLoader<GuiDefinition> loader = new YamlLoader<>(plugin, "guis", "GUIs");
-        loader.load(parser::parse, def -> guiRegistry.put(def.getId(), def));
+        loader.load(parser::parse, def -> {
+            guiRegistry.put(def.getId(), def);
+            if (def.getCommand() != null) {
+                registerGuiCommand(def);
+            }
+        });
+        if (!registeredCommandNames.isEmpty()) {
+            syncCommandsWithClients();
+        }
+    }
+
+    private void registerGuiCommand(GuiDefinition def) {
+        org.bukkit.command.CommandMap commandMap = Bukkit.getServer().getCommandMap();
+        String name = def.getCommand().toLowerCase();
+        GuiOpenCommand cmd = new GuiOpenCommand(name, def.getId(), def.getCommandPermission(), this);
+        if (commandMap.register("valmora", cmd)) {
+            registeredCommandNames.add(name);
+            plugin.getLogger().info("[GUI] Registered command /" + name + " → opens GUI '" + def.getId() + "'");
+        } else {
+            plugin.getLogger().warning("[GUI] Could not register command /" + name + " for GUI '" + def.getId() + "' — name already taken.");
+        }
+    }
+
+    private void unregisterGuiCommands() {
+        if (registeredCommandNames.isEmpty()) return;
+        Map<String, org.bukkit.command.Command> knownCommands = Bukkit.getServer().getCommandMap().getKnownCommands();
+        for (String name : registeredCommandNames) {
+            knownCommands.remove(name);
+            knownCommands.remove("valmora:" + name);
+        }
+        registeredCommandNames.clear();
+        syncCommandsWithClients();
+    }
+
+    private void syncCommandsWithClients() {
+        try {
+            plugin.getServer().getClass().getMethod("syncCommands").invoke(plugin.getServer());
+        } catch (Exception e) {
+            plugin.getLogger().warning("[GUI] Could not sync commands with clients: " + e.getMessage());
+        }
     }
 
     public Map<String, GuiDefinition> getGuiRegistry() {

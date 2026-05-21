@@ -60,7 +60,10 @@ public class GuiDefinitionParser {
             GuiEventBlock onSlotUpdate = parseEventBlock(section.getConfigurationSection("on-slot-update"));
             GuiEventBlock onUpdate = parseEventBlock(section.getConfigurationSection("on-update"));
 
-            GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose, onSlotUpdate, onUpdate);
+            String command = section.getString("command", null);
+            String commandPermission = section.getString("command-permission", null);
+
+            GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose, onSlotUpdate, onUpdate, command, commandPermission);
             return LoadResult.success(def);
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Error parsing GUI " + id + ": " + e.getMessage());

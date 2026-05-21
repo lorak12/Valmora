@@ -115,12 +115,9 @@ public class RecipeEngine {
         Map<String, RecipeIngredient> required = recipe.getInputMap();
 
         int providedCount = 0;
-        for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
-            if (entry.getValue() != null && entry.getValue().getType() != Material.AIR) {
-                try {
-                    Integer.parseInt(entry.getKey());
-                    providedCount++; // Count physical slots occupied, ignoring string IDs
-                } catch (NumberFormatException ignored) {}
+        for (ItemStack stack : inputs.values()) {
+            if (stack != null && stack.getType() != Material.AIR) {
+                providedCount++;
             }
         }
 

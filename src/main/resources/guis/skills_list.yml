@@ -1,4 +1,5 @@
 skills_list:
+  command: skills
   title: "<gold><bold>✦ Your Skills</bold></gold>"
   rows: 6
   update-interval: 40
