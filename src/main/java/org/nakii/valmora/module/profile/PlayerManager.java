@@ -13,9 +13,12 @@ import org.nakii.valmora.module.combat.RegenTask;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.module.stat.StatManager;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 public class PlayerManager implements ReloadableModule {
@@ -23,6 +26,7 @@ public class PlayerManager implements ReloadableModule {
     private final Map<UUID, ValmoraPlayer> activeSession = new HashMap<>();
     private final Valmora plugin;
     private BukkitTask regenTask;
+    private final Random random = new Random();
 
     public PlayerManager(Valmora plugin, DataStore dataStore) {
         this.plugin = plugin;
@@ -57,7 +61,8 @@ public class PlayerManager implements ReloadableModule {
         java.util.function.Consumer<ValmoraPlayer> processor = (player) -> {
             ValmoraPlayer finalPlayer = player != null ? player : new ValmoraPlayer(uuid);
             if (finalPlayer.getProfiles().isEmpty()) {
-                ValmoraProfile defaultProfile = new ValmoraProfile("Default");
+                String defaultName = plugin.getConfig().getString("profiles.default-name", "Earth");
+                ValmoraProfile defaultProfile = new ValmoraProfile(defaultName);
                 
                 // Initialize their starting health to their Max Health
                 String healthId = plugin.getStatModule().getSystemStats().getHealth();
@@ -163,12 +168,36 @@ public class PlayerManager implements ReloadableModule {
         return activeSession.containsKey(uuid);
     }
 
+    public int getMaxProfiles() {
+        return plugin.getConfig().getInt("profiles.max-profiles", 4);
+    }
+
+    public String pickNextProfileName(ValmoraPlayer vp) {
+        List<String> used = new ArrayList<>();
+        for (ValmoraProfile p : vp.getProfiles().values()) used.add(p.getName().toLowerCase());
+
+        List<String> pool = plugin.getConfig().getStringList("profiles.planet-names");
+        List<String> available = new ArrayList<>();
+        for (String name : pool) {
+            if (!used.contains(name.toLowerCase())) available.add(name);
+        }
+        if (available.isEmpty()) return "Profile " + (vp.getProfiles().size() + 1);
+        return available.get(random.nextInt(available.size()));
+    }
+
     public void createProfile(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
         if (vp == null) return;
+        if (vp.getProfiles().size() >= getMaxProfiles()) return;
         ValmoraProfile newProfile = new ValmoraProfile(profileName);
         vp.addProfile(newProfile);
         dataStore.savePlayer(vp);
+    }
+
+    public void createNextProfile(UUID uuid) {
+        ValmoraPlayer vp = activeSession.get(uuid);
+        if (vp == null) return;
+        createProfile(uuid, pickNextProfileName(vp));
     }
 
     public void deleteProfile(UUID playerUuid, UUID profileId) {

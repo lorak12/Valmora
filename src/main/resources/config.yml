@@ -25,6 +25,31 @@ database:
   #   password: "password123"
 
 # ========================================================== #
+#                      Profile Settings                      #
+# ========================================================== #
+profiles:
+  # Maximum number of profiles a player can have (visual cap: 4)
+  max-profiles: 4
+
+  # Name given to the very first (default) profile created for new players
+  default-name: Earth
+
+  # Pool of names randomly picked for new profiles (unused names only)
+  planet-names:
+    - Mars
+    - Venus
+    - Jupiter
+    - Saturn
+    - Mercury
+    - Neptune
+    - Uranus
+    - Pluto
+    - Kepler-22b
+    - Proxima b
+    - Titan
+    - Europa
+
+# ========================================================== #
 #                        Time Settings                       #
 # ========================================================== #
 time:
