@@ -15,6 +15,7 @@ public class ValmoraProfile {
     private final UUID id;
     private final String name;
     private final long createdAt;
+    private long lastUsed;
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
     private final CollectionManager collectionManager = new CollectionManager();
@@ -31,21 +32,25 @@ public class ValmoraProfile {
     // Accessory bag (45 slots)
     private ItemStack[] accessoryItems = new ItemStack[45];
 
-    public ValmoraProfile(UUID id, String name, long createdAt) {
+    public ValmoraProfile(UUID id, String name, long createdAt, long lastUsed) {
         this.id = id;
         this.name = name;
         this.createdAt = createdAt;
+        this.lastUsed = lastUsed;
     }
 
     public ValmoraProfile(String name) {
         this.id = UUID.randomUUID();
         this.name = name;
         this.createdAt = System.currentTimeMillis();
+        this.lastUsed = System.currentTimeMillis();
     }
 
     public UUID getId() { return id; }
     public String getName() { return name; }
     public long getCreatedAt() { return createdAt; }
+    public long getLastUsed() { return lastUsed; }
+    public void touchLastUsed() { this.lastUsed = System.currentTimeMillis(); }
 
     public StatManager getStatManager() {
         return statManager;

@@ -68,6 +68,7 @@ public class SQLDataStore implements DataStore {
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN collections TEXT").execute(); } catch (Exception ignored) {}
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN inventory TEXT").execute(); } catch (Exception ignored) {}
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN created_at BIGINT NOT NULL DEFAULT 0").execute(); } catch (Exception ignored) {}
+            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN last_used BIGINT NOT NULL DEFAULT 0").execute(); } catch (Exception ignored) {}
 
             // Economy Table
             conn.prepareStatement("""
@@ -110,10 +111,12 @@ public class SQLDataStore implements DataStore {
 
                 while (rsProfiles.next()) {
                     long createdAt = rsProfiles.getLong("created_at");
+                    long lastUsed = rsProfiles.getLong("last_used");
                     ValmoraProfile profile = new ValmoraProfile(
                             UUID.fromString(rsProfiles.getString("id")),
                             rsProfiles.getString("name"),
-                            createdAt
+                            createdAt,
+                            lastUsed
                     );
 
                     Map<String, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
@@ -187,10 +190,10 @@ public class SQLDataStore implements DataStore {
                     ps.executeUpdate();
                 }
 
-                // 2. Save Profiles (created_at is set on insert only, never overwritten)
+                // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -214,16 +217,18 @@ public class SQLDataStore implements DataStore {
                         ps.setString(9, collectionsJson);
                         ps.setString(10, inventoryJson);
                         ps.setLong(11, profile.getCreatedAt());
+                        ps.setLong(12, profile.getLastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(12, profile.getName());
-                        ps.setString(13, statsJson);
-                        ps.setString(14, skillsJson);
-                        ps.setString(15, stateJson);
-                        ps.setString(16, tagsJson);
-                        ps.setString(17, variablesJson);
-                        ps.setString(18, collectionsJson);
-                        ps.setString(19, inventoryJson);
+                        ps.setString(13, profile.getName());
+                        ps.setString(14, statsJson);
+                        ps.setString(15, skillsJson);
+                        ps.setString(16, stateJson);
+                        ps.setString(17, tagsJson);
+                        ps.setString(18, variablesJson);
+                        ps.setString(19, collectionsJson);
+                        ps.setString(20, inventoryJson);
+                        ps.setLong(21, profile.getLastUsed());
 
                         ps.addBatch();
                     }

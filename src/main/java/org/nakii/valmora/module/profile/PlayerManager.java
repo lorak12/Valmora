@@ -79,6 +79,7 @@ public class PlayerManager implements ReloadableModule {
                 Player bukkitPlayer = Bukkit.getPlayer(uuid);
                 if (bukkitPlayer != null) {
                     ValmoraProfile active = finalPlayer.getActiveProfile();
+                    active.touchLastUsed();
                     applyPlayerInventory(bukkitPlayer, active);
                     active.getStatManager().recalculateAttributes(bukkitPlayer);
                     active.getStatManager().recalculateStats(bukkitPlayer);
@@ -154,6 +155,7 @@ public class PlayerManager implements ReloadableModule {
         vp.setActiveProfile(profileId);
         ValmoraProfile next = vp.getActiveProfile();
         if (next != null) {
+            next.touchLastUsed();
             applyPlayerInventory(player, next);
             next.getStatManager().recalculateStats(player);
             next.getStatManager().recalculateAttributes(player);
