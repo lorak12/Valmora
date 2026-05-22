@@ -305,6 +305,10 @@ public class GuiListener implements Listener {
                 return;
             }
 
+            if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) {
+                session.getInventory().setItem(outputSlot, null);
+                return;
+            }
             RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
 
             Material mat = Material.matchMaterial(firstOutput.item());

@@ -7,6 +7,7 @@ import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.gui.GuiComponent;
 import org.nakii.valmora.module.gui.GuiExecutionContext;
 import org.nakii.valmora.module.gui.GuiSession;
+import org.nakii.valmora.module.gui.components.InputComponent;
 import org.nakii.valmora.module.gui.components.OutputComponent;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.recipe.CraftResult;
@@ -56,12 +57,15 @@ public class GuiForceCraftEventFactory implements EventFactory {
 
                 CraftResult craft = result.get();
 
-                // Find output slot in GUI layout
+                // Find output slot in GUI layout; fall back to input slot for in-place machines
                 int outputSlot = findOutputSlot(session);
-                if (outputSlot == -1) return;
-
-                // Place output item
-                session.getInventory().setItem(outputSlot, craft.output());
+                if (outputSlot == -1) {
+                    int inputSlot = findInputSlot(session, "base_item");
+                    if (inputSlot == -1) return;
+                    session.getInventory().setItem(inputSlot, craft.output());
+                } else {
+                    session.getInventory().setItem(outputSlot, craft.output());
+                }
 
                 // Execute on-craft script
                 if (craft.onCraft() != null) craft.onCraft().execute(guiContext);
@@ -81,6 +85,20 @@ public class GuiForceCraftEventFactory implements EventFactory {
             for (int c = 0; c < row.size(); c++) {
                 GuiComponent comp = session.getDefinition().getComponents().get(row.get(c));
                 if (comp instanceof OutputComponent) {
+                    return r * 9 + c;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private int findInputSlot(GuiSession session, String inputId) {
+        List<List<Character>> layout = session.getDefinition().getLayout();
+        for (int r = 0; r < layout.size(); r++) {
+            List<Character> row = layout.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                GuiComponent comp = session.getDefinition().getComponents().get(row.get(c));
+                if (comp instanceof InputComponent input && inputId.equals(input.getId())) {
                     return r * 9 + c;
                 }
             }

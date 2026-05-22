@@ -90,6 +90,7 @@ public class GuiRenderer {
                 Optional<RecipeDefinition> match = matchRecipe(session);
                 if (match.isPresent()) {
                     RecipeDefinition recipe = match.get();
+                    if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) continue;
                     RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
 
                     Material mat = Material.matchMaterial(firstOutput.item());

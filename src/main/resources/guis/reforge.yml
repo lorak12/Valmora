@@ -1,32 +1,32 @@
 # =====================================================================
-# Valmora Reforge GUI  — 36 slots (4×9)
+# Valmora Reforge GUI  — 45 slots (5×9)
 #
 # Layout:
-#  B = Black glass border
+#  R = Red glass border (columns 1 and 9)
 #  G = Grey glass filler
 #  I = Input slot  (item to reforge)
-#  A = Arrow display
 #  O = Output slot (reforged result)
 #  C = Reforge button (triggers forge_random machine)
 # =====================================================================
 
 reforge:
-  title: "<dark_red><bold>⚒ Valmora Reforge</bold></dark_red>"
-  rows: 4
+  title: "<dark_red><bold>⚒ Reforge Item</bold></dark_red>"
+  rows: 5
   machine: forge_random
   update-interval: 0
 
   layout:
-    - "BBBBBBBBB"
-    - "BGGGGGGGB"
-    - "BGIAOGGGB"
-    - "BBBBCBBBB"
+    - "RGGGGGGGR"
+    - "RGGGIGGGR"
+    - "RGGGCGGGR"
+    - "RGGGGGGGR"
+    - "RGGGXGGGR"
 
   components:
-    B:
+    R:
       type: DISPLAY
       display-item:
-        material: BLACK_STAINED_GLASS_PANE
+        material: RED_STAINED_GLASS_PANE
         name: " "
         amount: 1
 
@@ -41,35 +41,30 @@ reforge:
       type: INPUT
       id: base_item
 
-    A:
+    X:
       type: DISPLAY
       display-item:
-        material: ARROW
-        name: "<yellow>→"
+        material: BARRIER
+        name: "<red>Close"
         amount: 1
-
-    O:
-      type: OUTPUT
-      id: result
+      actions:
+        LEFT:
+          actions:
+            - "close"
+        RIGHT:
+          actions:
+            - "close"
 
     C:
       type: DISPLAY
       display-item:
         material: ANVIL
-        name: "<gold><bold>⚒ Random Reforge!"
+        name: "<yellow>Reforge Item"
         lore:
-          - "<gray>Place an item in the left slot."
-          - "<gray>A random reforge will be applied,"
-          - "<gray>replacing any existing one."
-          - ""
-          - "<gray>Cost by item rarity:"
-          - "<white>  Common       <yellow>250 Coins"
-          - "<green>  Uncommon     <yellow>500 Coins"
-          - "<blue>  Rare         <yellow>1,000 Coins"
-          - "<dark_purple>  Epic         <yellow>2,500 Coins"
-          - "<gold>  Legendary    <yellow>5,000 Coins"
-          - "<light_purple>  Mythic       <yellow>10,000 Coins"
-          - "<aqua>  Divine       <yellow>15,000 Coins"
+          - "<gray>Place an item above to reforge"
+          - "<gray>it! Reforging items adds a"
+          - "<gray>random modifier to the item that"
+          - "<gray>grants stat boosts."
         amount: 1
       actions:
         LEFT:
