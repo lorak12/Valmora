@@ -1,0 +1,72 @@
+baby_wolf:
+  name: "Baby Wolf"
+  entity-type: WOLF
+  base-stats:
+    strength: 5
+    crit_chance: 2
+  stats-per-level:
+    strength: 0.5
+    crit_chance: 0.1
+  abilities:
+    - trigger: ON_KILL
+      events:
+        - "notify chat <green>+5 HP from Baby Wolf!"
+    - trigger: ON_DEFEND
+      events:
+        - "notify chat <gray>Baby Wolf growls!"
+  milestones:
+    "25":
+      - "stat_modify add crit_chance 5"
+      - "notify chat <gold>Your Baby Wolf reached milestone Level 25! +5 Crit Chance"
+    "50":
+      - "stat_modify add strength 15"
+      - "notify chat <gold>Your Baby Wolf reached milestone Level 50! +15 Strength"
+    "100":
+      - "stat_modify add strength 25"
+      - "stat_modify add crit_damage 20"
+      - "notify chat <gold>Your Baby Wolf reached Level 100! Maximum power achieved!"
+
+baby_sheep:
+  name: "Baby Sheep"
+  entity-type: SHEEP
+  base-stats:
+    defense: 8
+    health: 15
+  stats-per-level:
+    defense: 0.4
+    health: 0.8
+  abilities:
+    - trigger: ON_DEFEND
+      events:
+        - "notify chat <green>Baby Sheep shields you!"
+  milestones:
+    "25":
+      - "stat_modify add defense 10"
+      - "notify chat <green>Your Baby Sheep reached Level 25! +10 Defense"
+    "50":
+      - "stat_modify add health 30"
+      - "notify chat <green>Your Baby Sheep reached Level 50! +30 Health"
+
+ender_dragon_pet:
+  name: "Ender Dragon"
+  entity-type: ENDER_DRAGON
+  base-stats:
+    strength: 50
+    crit_damage: 30
+    damage: 20
+  stats-per-level:
+    strength: 2.0
+    crit_damage: 1.0
+    damage: 1.0
+  abilities:
+    - trigger: ON_KILL
+      events:
+        - "stat_modify add strength 2"
+        - "run_script delay:200 stat_modify add strength -2"
+  milestones:
+    "50":
+      - "stat_modify add strength 50"
+      - "notify chat <dark_purple>Your Ender Dragon reached Level 50! Legendary power!"
+    "100":
+      - "stat_modify add ability_damage 100"
+      - "notify chat <dark_purple>Your Ender Dragon is at Level 100! You are unstoppable."

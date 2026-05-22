@@ -52,6 +52,16 @@ public class StatManager {
         recalculateStats(player);
     }
 
+    public void setStat(Player player, String statId, double value) {
+        baseStats.put(statId.toLowerCase(), value);
+        recalculateStats(player);
+    }
+
+    public void resetStat(Player player, String statId) {
+        ValmoraAPI.getInstance().getStatRegistry().get(statId)
+                .ifPresent(def -> setStat(player, statId, def.getDefaultValue()));
+    }
+
     public void addModifier(String statId, double value) {
         String key = statId.toLowerCase();
         effectiveStats.put(key, effectiveStats.getOrDefault(key, 0.0) + value);
@@ -128,6 +138,26 @@ public class StatManager {
         var alchemyManager = api.getAlchemyManager();
         if (alchemyManager != null) {
             alchemyManager.applyEffectsToStats(player, this);
+        }
+
+        // Accessory bag stats
+        var playerSession = api.getPlayerManager().getSession(player.getUniqueId());
+        if (playerSession != null && playerSession.getActiveProfile() != null) {
+            for (ItemStack acc : playerSession.getActiveProfile().getAccessoryItems()) {
+                if (acc == null || !acc.hasItemMeta()) continue;
+                if (statModule != null) {
+                    Map<String, Double> accStats = statModule.loadStats(acc.getItemMeta());
+                    for (Map.Entry<String, Double> entry : accStats.entrySet()) {
+                        addModifier(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+        }
+
+        // Pet stat bonuses (applied by PetModule if a pet is summoned)
+        var valmora = org.nakii.valmora.Valmora.getInstance();
+        if (valmora != null && valmora.getPetModule() != null) {
+            valmora.getPetModule().applyPetStats(player, this);
         }
 
         // Cap effective stats to their defined maxValue (fixes CRIT_CHANCE and LUCK never being capped)

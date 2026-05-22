@@ -217,14 +217,18 @@ public class ZoneCommand implements TabExecutor {
 
         ZoneFlags old = zone.getFlags();
         ZoneFlags updated = switch (args[2].toLowerCase()) {
-            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing());
-            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing());
-            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing());
-            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value);
+            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
+            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
+            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
+            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
+            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay());
+            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay());
+            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay());
+            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value);
             default -> null;
         };
         if (updated == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay"));
             return;
         }
         mgr().setZoneFlags(zone.getId(), updated);

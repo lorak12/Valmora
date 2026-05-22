@@ -40,10 +40,14 @@ public class ZoneLoader {
                     allowSec.getBoolean("pvp", false),
                     allowSec.getBoolean("natural-mob-spawning", false),
                     allowSec.getBoolean("block-breaking", false),
-                    allowSec.getBoolean("block-placing", false)
+                    allowSec.getBoolean("block-placing", false),
+                    allowSec.getBoolean("hunger", true),
+                    allowSec.getBoolean("entry", true),
+                    allowSec.getBoolean("teleportation", true),
+                    allowSec.getBoolean("leaf-decay", true)
                 );
             } else {
-                flags = new ZoneFlags(sec.getBoolean("pvp-enabled", false), false, false, false);
+                flags = new ZoneFlags(sec.getBoolean("pvp-enabled", false), false, false, false, true, true, true, true);
             }
 
             List<Integer> minList = sec.getIntegerList("min");
@@ -53,6 +57,28 @@ public class ZoneLoader {
 
             int minX = minList.get(0), minY = minList.get(1), minZ = minList.get(2);
             int maxX = maxList.get(0), maxY = maxList.get(1), maxZ = maxList.get(2);
+
+            // Optional extra bounding boxes
+            List<int[]> extraBoxes = new ArrayList<>();
+            List<?> extraBoxesList = sec.getList("extra-boxes");
+            if (extraBoxesList != null) {
+                for (Object entry : extraBoxesList) {
+                    if (!(entry instanceof Map<?, ?> m)) continue;
+                    Object minObj = m.get("min");
+                    Object maxObj = m.get("max");
+                    if (!(minObj instanceof List<?> minL) || !(maxObj instanceof List<?> maxL)) continue;
+                    if (minL.size() < 3 || maxL.size() < 3) continue;
+                    try {
+                        int bMinX = ((Number) minL.get(0)).intValue();
+                        int bMinY = ((Number) minL.get(1)).intValue();
+                        int bMinZ = ((Number) minL.get(2)).intValue();
+                        int bMaxX = ((Number) maxL.get(0)).intValue();
+                        int bMaxY = ((Number) maxL.get(1)).intValue();
+                        int bMaxZ = ((Number) maxL.get(2)).intValue();
+                        extraBoxes.add(new int[]{bMinX, bMinY, bMinZ, bMaxX, bMaxY, bMaxZ});
+                    } catch (ClassCastException ignored) {}
+                }
+            }
 
             List<ZoneMobSpawner> spawners = new ArrayList<>();
             ConfigurationSection spawnersSec = sec.getConfigurationSection("mob-spawners");
@@ -130,7 +156,7 @@ public class ZoneLoader {
             return LoadResult.success(new ZoneDefinition(
                     id, displayName, world,
                     minX, minY, minZ, maxX, maxY, maxZ,
-                    flags, fishingTable, spawners, resourceBlocks,
+                    extraBoxes, flags, fishingTable, spawners, resourceBlocks,
                     enterActions, exitActions
             ));
         } catch (Exception e) {

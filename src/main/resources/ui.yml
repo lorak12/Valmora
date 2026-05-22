@@ -1,0 +1,37 @@
+# ========================================================== #
+#                    Valmora UI Configuration                #
+# ========================================================== #
+# All text values support MiniMessage formatting and $variable$ tokens.
+# Available variables: $player.*$, $time.*$, $zone.*$,
+#   $economy.*$, $server.*$, $world.*$, $stat.*$
+
+scoreboard:
+  # Title shown at the top of the sidebar
+  title: "<gold><bold>VALMORA RPG"
+
+  # Lines rendered top-to-bottom. Use "" for blank lines.
+  # Use "$dynamic$" to insert the current dynamic section (combat lock, dialogue, etc.)
+  lines:
+    - "<yellow>pay.valmora.net"
+    - ""
+    - "<aqua>⏰ <white>$time.formatted_time$  $time.color$$time.emote$ <gold>$time.phase$ $time.season$"
+    - "<gray>Day <white>$time.day$  <dark_gray>│  <gray>Year <white>$time.year$"
+    - ""
+    - "$dynamic$"
+    - "<gray>Profile: <yellow>$player.profile$"
+    - "<gray>Zone: $zone.current$"
+    - "<gray>Purse: <gold>$economy.purse.formatted$"
+
+# ========================================================== #
+#                       Action Bar                           #
+# ========================================================== #
+action-bar:
+  # Shown when no temporary override is active.
+  default: "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana"
+
+# ========================================================== #
+#                          Tab List                          #
+# ========================================================== #
+tab:
+  header: "<gold><bold>VALMORA</bold></gold>"
+  footer: "<gray>Players online: <white>$server.online$"

@@ -6,10 +6,15 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.MemoryConfiguration;
 import org.nakii.valmora.module.enchant.logic.SharpnessLogic;
 import org.nakii.valmora.module.enchant.logic.GrowthLogic;
 import org.nakii.valmora.module.enchant.logic.FortuneLogic;
 import org.nakii.valmora.module.enchant.logic.EfficiencyLogic;
+import org.nakii.valmora.module.enchant.logic.StatBonusLogic;
+import org.nakii.valmora.module.enchant.logic.DamageMultiplierLogic;
+import org.nakii.valmora.module.enchant.logic.DefenseReductionLogic;
 import org.nakii.valmora.module.item.ItemType;
 
 import java.util.ArrayList;
@@ -17,17 +22,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class EnchantModule implements ReloadableModule {
 
     private final Valmora plugin;
     private final EnchantmentRegistry registry;
     private final Map<String, EnchantmentLogic> logicMap;
+    private final Map<String, Function<ConfigurationSection, EnchantmentLogic>> logicFactories;
 
     public EnchantModule(Valmora plugin) {
         this.plugin = plugin;
         this.registry = new EnchantmentRegistry();
         this.logicMap = new ConcurrentHashMap<>();
+        this.logicFactories = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -41,12 +49,21 @@ public class EnchantModule implements ReloadableModule {
         logicMap.put("valmora:growth", new GrowthLogic());
         logicMap.put("valmora:fortune", new FortuneLogic());
         logicMap.put("valmora:efficiency", new EfficiencyLogic());
+
+        // Parameterized generic logics
+        logicFactories.put("valmora:stat_bonus", params ->
+            new StatBonusLogic(params.getString("stat", "strength"), params.getDouble("per-level", 1.0)));
+        logicFactories.put("valmora:damage_multiplier", params ->
+            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0)));
+        logicFactories.put("valmora:defense_reduction", params ->
+            new DefenseReductionLogic(params.getDouble("percent-per-level", 3.0)));
     }
 
     @Override
     public void onDisable() {
         registry.clear();
         logicMap.clear();
+        logicFactories.clear();
     }
 
     @Override
@@ -97,7 +114,16 @@ public class EnchantModule implements ReloadableModule {
                 }
 
                 String logicId = section.getString("logic", "");
-                EnchantmentLogic logic = logicMap.get(logicId.toLowerCase());
+                ConfigurationSection logicParams = section.getConfigurationSection("logic-params");
+                if (logicParams == null) logicParams = new MemoryConfiguration();
+
+                EnchantmentLogic logic;
+                Function<ConfigurationSection, EnchantmentLogic> factory = logicFactories.get(logicId.toLowerCase());
+                if (factory != null) {
+                    logic = factory.apply(logicParams);
+                } else {
+                    logic = logicMap.get(logicId.toLowerCase());
+                }
 
                 EnchantmentDefinition definition = new EnchantmentDefinition(
                         id, name, description, etableMaxLevel,

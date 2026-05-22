@@ -22,10 +22,10 @@ public class ZoneVariableProvider implements VariableProvider {
 
         Optional<ZoneDefinition> zone = zm.getCurrentZone(maybePlayer.get());
         return switch (path[0].toLowerCase()) {
-            case "id" -> zone.map(ZoneDefinition::getId).orElse(null);
-            case "name" -> zone.map(ZoneDefinition::getDisplayName).orElse(null);
-            case "pvp" -> zone.map(ZoneDefinition::isPvpEnabled).orElse(false);
-            default -> null;
+            case "id"            -> zone.map(ZoneDefinition::getId).orElse(null);
+            case "current", "name" -> zone.map(ZoneDefinition::getDisplayName).orElse("<green>Wilderness");
+            case "pvp"           -> zone.map(ZoneDefinition::isPvpEnabled).orElse(false);
+            default              -> null;
         };
     }
 }

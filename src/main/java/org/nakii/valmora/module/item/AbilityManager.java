@@ -45,6 +45,7 @@ public class AbilityManager implements ReloadableModule {
         mechanicRegistry.registerMechanic(new DamageMechanic());
         mechanicRegistry.registerMechanic(new HealMechanic());
         mechanicRegistry.registerMechanic(new ApplyEffectMechanic());
+        mechanicRegistry.registerMechanic(new ScriptMechanic());
     }
     
     public MechanicRegistry getMechanicRegistry() {

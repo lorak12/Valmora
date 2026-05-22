@@ -286,9 +286,9 @@ public class ZoneManager {
         int minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
         int minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
         int minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
-        ZoneFlags flags = new ZoneFlags(false, false, false, false);
+        ZoneFlags flags = ZoneFlags.defaults();
         ZoneDefinition zone = new ZoneDefinition(id, displayName, worldName,
-            minX, minY, minZ, maxX, maxY, maxZ, flags, null,
+            minX, minY, minZ, maxX, maxY, maxZ, List.of(), flags, null,
             new ArrayList<>(), Map.of(), new ArrayList<>(), new ArrayList<>());
         registry.register(id, zone);
         saveZoneToFile(zone);
@@ -353,6 +353,21 @@ public class ZoneManager {
         config.set(sec + ".allow.natural-mob-spawning", zone.getFlags().naturalMobSpawning());
         config.set(sec + ".allow.block-breaking", zone.getFlags().blockBreaking());
         config.set(sec + ".allow.block-placing", zone.getFlags().blockPlacing());
+        config.set(sec + ".allow.hunger", zone.getFlags().hunger());
+        config.set(sec + ".allow.entry", zone.getFlags().entry());
+        config.set(sec + ".allow.teleportation", zone.getFlags().teleportation());
+        config.set(sec + ".allow.leaf-decay", zone.getFlags().leafDecay());
+
+        if (!zone.getExtraBoxes().isEmpty()) {
+            List<Map<String, List<Integer>>> boxEntries = new ArrayList<>();
+            for (int[] b : zone.getExtraBoxes()) {
+                boxEntries.add(Map.of(
+                    "min", List.of(b[0], b[1], b[2]),
+                    "max", List.of(b[3], b[4], b[5])
+                ));
+            }
+            config.set(sec + ".extra-boxes", boxEntries);
+        }
 
         int i = 0;
         for (ZoneMobSpawner spawner : zone.getMobSpawners()) {
@@ -404,13 +419,14 @@ public class ZoneManager {
             String world = player.getWorld().getName();
             for (ZoneDefinition zone : registry.values()) {
                 if (!zone.getWorldName().equals(world)) continue;
-                // Only render if player is within 200 blocks of the zone center
+                // Only render if player is within 200 blocks of the primary box center
                 double cx = (zone.getMinX() + zone.getMaxX()) / 2.0;
                 double cy = (zone.getMinY() + zone.getMaxY()) / 2.0;
                 double cz = (zone.getMinZ() + zone.getMaxZ()) / 2.0;
                 if (player.getLocation().distanceSquared(new Location(player.getWorld(), cx, cy, cz)) > 200 * 200) continue;
-                drawBox(player, zone.getMinX(), zone.getMinY(), zone.getMinZ(),
-                        zone.getMaxX(), zone.getMaxY(), zone.getMaxZ(), Color.YELLOW);
+                for (int[] b : zone.getAllBoxes()) {
+                    drawBox(player, b[0], b[1], b[2], b[3], b[4], b[5], Color.YELLOW);
+                }
             }
         }
     }

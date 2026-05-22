@@ -56,3 +56,6 @@ commands:
   collections:
     usage: /collections
     description: Open the collections menu.
+  accessories:
+    usage: /accessories
+    description: Open your accessory bag.

@@ -6,6 +6,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityTameEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.enchantment.EnchantItemEvent;
@@ -124,6 +125,20 @@ public class SkillListener implements Listener {
                     if (profile == null) return;
                     profile.getSkillManager().addXp(skill.getId(), xp, player);
                 });
+            }
+        }
+    }
+
+    @EventHandler
+    public void onTame(EntityTameEvent event) {
+        if (!(event.getOwner() instanceof Player player)) return;
+        ValmoraProfile profile = getProfile(player);
+        if (profile == null) return;
+        String mobId = event.getEntity().getType().name();
+        for (SkillDefinition skill : plugin.getSkillModule().getSkillRegistry().values()) {
+            Double xp = skill.getSourceXp("TAME_MOB", mobId);
+            if (xp != null && xp > 0) {
+                profile.getSkillManager().addXp(skill.getId(), xp, player);
             }
         }
     }

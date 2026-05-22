@@ -9,6 +9,8 @@ public interface DataStore {
     CompletableFuture<ValmoraPlayer> loadPlayer(UUID uuid);
     CompletableFuture<Void> savePlayer(ValmoraPlayer player);
 
+    CompletableFuture<Void> deleteProfile(UUID profileId);
+
     /** Returns [purse, bank] or null if no row exists for this UUID. */
     CompletableFuture<double[]> loadEconomy(UUID uuid);
 

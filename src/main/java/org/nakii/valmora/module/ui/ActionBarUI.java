@@ -1,7 +1,11 @@
 package org.nakii.valmora.module.ui;
 
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.scripting.VariableResolver;
 import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.StatManager;
@@ -14,11 +18,16 @@ import java.util.UUID;
 
 public class ActionBarUI {
     private final Valmora plugin;
-
     private final Map<UUID, QueuedMessage> activeOverrides = new HashMap<>();
+
+    private UIConfig config;
 
     public ActionBarUI(Valmora plugin) {
         this.plugin = plugin;
+    }
+
+    public void setConfig(UIConfig config) {
+        this.config = config;
     }
 
     private record QueuedMessage(String message, long expirationTimeMillis) {}
@@ -29,7 +38,6 @@ public class ActionBarUI {
     }
 
     public void tick(Player player) {
-        // Don't overwrite the dialogue action bar while the player is in a conversation
         DialogueManager dialogueMgr = plugin.getDialogueManager();
         if (dialogueMgr != null && dialogueMgr.getSession(player.getUniqueId()) != null) return;
 
@@ -45,7 +53,23 @@ public class ActionBarUI {
             }
         }
 
-        ValmoraPlayer vp = plugin.getPlayerManager().getSession(uuid);
+        // Config-driven template
+        if (config != null && !config.getActionBarDefault().isEmpty()) {
+            try {
+                VariableResolver resolver = ValmoraAPI.getInstance().getScriptModule().getVariableResolver();
+                var ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
+                String resolved = resolver.resolveTemplate(config.getActionBarDefault(), ctx);
+                player.sendActionBar(Formatter.format(resolved));
+                return;
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback: hard-coded bar (used when config hasn't loaded yet)
+        legacyBar(player);
+    }
+
+    private void legacyBar(Player player) {
+        ValmoraPlayer vp = plugin.getPlayerManager().getSession(player.getUniqueId());
         if (vp == null || vp.getActiveProfile() == null) return;
 
         StatManager stats = vp.getActiveProfile().getStatManager();
@@ -55,13 +79,12 @@ public class ActionBarUI {
         double defense = stats.getStat(sys.getDefense());
         double currentHealth = player.getHealth()
                 * (maxHealth / player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue());
-
         double maxMana = stats.getStat(sys.getMana());
         double currentMana = vp.getActiveProfile().getPlayerState().getCurrentMana();
 
-        String baseBar = "<red>❤ " + (int) currentHealth + "/" + (int) maxHealth
+        String bar = "<red>❤ " + (int) currentHealth + "/" + (int) maxHealth
                 + " <dark_gray>| <green>❈ " + (int) defense + " Defense"
                 + " <dark_gray>| <aqua>⛨ " + (int) currentMana + "/" + (int) maxMana + " Mana";
-        player.sendActionBar(Formatter.format(baseBar));
+        player.sendActionBar(Formatter.format(bar));
     }
 }

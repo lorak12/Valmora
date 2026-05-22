@@ -97,3 +97,99 @@ mining_speed:
   icon: "IRON_PICKAXE"
   description: "Increases how fast you break blocks."
   vanilla-attribute: "block_break_speed"
+
+intelligence:
+  display-name: "Intelligence"
+  default-value: 0.0
+  color: "<aqua>"
+  icon: "BOOK"
+  description: "Increases your maximum mana pool."
+
+ferocity:
+  display-name: "Ferocity"
+  default-value: 0.0
+  max-value: 100.0
+  color: "<dark_red>"
+  icon: "BLAZE_ROD"
+  description: "Chance to strike multiple times in a single hit."
+
+pet_luck:
+  display-name: "Pet Luck"
+  default-value: 0.0
+  color: "<gold>"
+  icon: "BONE"
+  description: "Increases the chance of finding rare pets."
+
+sea_creature_chance:
+  display-name: "Sea Creature Chance"
+  default-value: 20.0
+  max-value: 100.0
+  color: "<blue>"
+  icon: "FISHING_ROD"
+  description: "Chance to hook a sea creature while fishing."
+
+fishing_speed:
+  display-name: "Fishing Speed"
+  default-value: 0.0
+  color: "<aqua>"
+  icon: "FISHING_ROD"
+  description: "Reduces the time it takes to catch a fish."
+
+trophy_fish_chance:
+  display-name: "Trophy Fish Chance"
+  default-value: 0.0
+  max-value: 100.0
+  color: "<gold>"
+  icon: "TROPICAL_FISH"
+  description: "Chance of catching rare trophy fish."
+
+bonus_attack_speed:
+  display-name: "Bonus Attack Speed"
+  default-value: 0.0
+  color: "<yellow>"
+  icon: "GOLDEN_SWORD"
+  description: "Reduces the cooldown between attacks."
+
+ability_damage:
+  display-name: "Ability Damage"
+  default-value: 0.0
+  color: "<light_purple>"
+  icon: "BLAZE_POWDER"
+  description: "Increases the damage dealt by item abilities."
+
+magic_find:
+  display-name: "Magic Find"
+  default-value: 0.0
+  color: "<aqua>"
+  icon: "NETHER_STAR"
+  description: "Increases the chance of rare drops from all sources."
+
+true_defense:
+  display-name: "True Defense"
+  default-value: 0.0
+  color: "<white>"
+  icon: "SHIELD"
+  description: "Reduces all types of damage, bypassing defense reduction."
+
+vitality:
+  display-name: "Vitality"
+  default-value: 0.0
+  color: "<red>"
+  icon: "GHAST_TEAR"
+  description: "Increases the effectiveness of healing received."
+
+farming_fortune:
+  display-name: "Farming Fortune"
+  default-value: 0.0
+  max-value: 500.0
+  color: "<green>"
+  icon: "WHEAT"
+  description: "Multiplies crop yield when harvesting."
+
+foraging_fortune:
+  display-name: "Foraging Fortune"
+  default-value: 0.0
+  max-value: 500.0
+  color: "<dark_green>"
+  icon: "OAK_LOG"
+  description: "Multiplies wood and leaf yield when foraging."

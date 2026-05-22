@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.profile;
 
+import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.module.collection.CollectionManager;
 import org.nakii.valmora.module.item.CooldownManager;
 import org.nakii.valmora.module.skill.SkillManager;
@@ -20,6 +21,14 @@ public class ValmoraProfile {
     private final CooldownManager cooldownManager = new CooldownManager();
     private final Set<String> tags = new HashSet<>();
     private final Map<String, Object> variables = new HashMap<>();
+
+    // Per-profile inventory snapshots (null = no snapshot yet → treat as empty)
+    private ItemStack[] savedInventory = null;
+    private ItemStack[] savedArmor = null;
+    private ItemStack savedOffhand = null;
+
+    // Accessory bag (45 slots)
+    private ItemStack[] accessoryItems = new ItemStack[45];
 
     public ValmoraProfile(UUID id, String name) {
         this.id = id;
@@ -61,4 +70,15 @@ public class ValmoraProfile {
     public Map<String, Object> getVariables() {
         return variables;
     }
+
+    public ItemStack[] getSavedInventory() { return savedInventory; }
+    public ItemStack[] getSavedArmor() { return savedArmor; }
+    public ItemStack getSavedOffhand() { return savedOffhand; }
+
+    public void setSavedInventory(ItemStack[] inventory) { this.savedInventory = inventory; }
+    public void setSavedArmor(ItemStack[] armor) { this.savedArmor = armor; }
+    public void setSavedOffhand(ItemStack offhand) { this.savedOffhand = offhand; }
+
+    public ItemStack[] getAccessoryItems() { return accessoryItems; }
+    public void setAccessoryItems(ItemStack[] items) { this.accessoryItems = items; }
 }

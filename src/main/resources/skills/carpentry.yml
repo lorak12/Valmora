@@ -1,0 +1,61 @@
+id: "carpentry"
+name: "<yellow><bold>🪵 Carpentry</bold></yellow>"
+description:
+  - "<gray>Craft and build with wood and refined materials."
+material: CRAFTING_TABLE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  CRAFT_ITEM:
+    CRAFTING_TABLE: 2.0
+    OAK_PLANKS: 1.0
+    SPRUCE_PLANKS: 1.0
+    BIRCH_PLANKS: 1.0
+    JUNGLE_PLANKS: 1.0
+    ACACIA_PLANKS: 1.0
+    DARK_OAK_PLANKS: 1.0
+    MANGROVE_PLANKS: 1.0
+    CHERRY_PLANKS: 1.0
+    BAMBOO_PLANKS: 1.0
+    OAK_SLAB: 2.0
+    STICK: 0.5
+    CHEST: 5.0
+    BARREL: 5.0
+    BOOKSHELF: 8.0
+    OAK_STAIRS: 3.0
+    SPRUCE_STAIRS: 3.0
+    BIRCH_STAIRS: 3.0
+    JUNGLE_STAIRS: 3.0
+    ACACIA_STAIRS: 3.0
+    DARK_OAK_STAIRS: 3.0
+    LADDER: 2.0
+    FENCE: 2.0
+    OAK_DOOR: 5.0
+    OAK_TRAPDOOR: 5.0
+    WOODEN_SWORD: 4.0
+    WOODEN_PICKAXE: 4.0
+    WOODEN_AXE: 4.0
+    WOODEN_SHOVEL: 4.0
+    WOODEN_HOE: 4.0
+    BOW: 10.0
+    ARROW: 1.0
+    SHIELD: 15.0
+    BOAT: 8.0
+    ITEM_FRAME: 5.0
+    PAINTING: 5.0
+    NOTE_BLOCK: 8.0
+    JUKEBOX: 12.0
+
+rewards:
+  per-level:
+    - "variable add player.var.ability_damage 0.2"
+    - "variable add player.var.coins $param.level$*12"
+
+  milestones:
+    "10":
+      - "give OAK_LOG:32 notify"
+    "25":
+      - "give CHEST:8 notify"
+    "50":
+      - "give SHULKER_BOX:1 notify"

@@ -21,6 +21,9 @@ public enum ItemType {
     LEGGINGS,
     BOOTS,
     HORSE_ARMOR,
+    PET,
+    ACCESSORY,
+    BACKPACK,
     ALL,
     NONE;
 

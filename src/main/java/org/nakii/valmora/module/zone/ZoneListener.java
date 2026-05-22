@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.zone;
 
+import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -7,9 +8,11 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -34,6 +37,19 @@ public class ZoneListener implements Listener {
     public ZoneListener(Valmora plugin, ZoneManager zoneManager) {
         this.plugin = plugin;
         this.zoneManager = zoneManager;
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onMoveEntryCheck(PlayerMoveEvent event) {
+        Location from = event.getFrom(), to = event.getTo();
+        if (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()) return;
+        ZoneDefinition fromZone = zoneManager.getZoneAt(from).orElse(null);
+        ZoneDefinition toZone   = zoneManager.getZoneAt(to).orElse(null);
+        if (toZone != null && toZone != fromZone && !toZone.getFlags().entry()) {
+            event.setTo(from.clone());
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -113,5 +129,20 @@ public class ZoneListener implements Listener {
         if (zone != null && !zone.getFlags().naturalMobSpawning()) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onHunger(FoodLevelChangeEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        zoneManager.getZoneAt(player.getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().hunger()) event.setCancelled(true);
+        });
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onLeavesDecay(LeavesDecayEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().leafDecay()) event.setCancelled(true);
+        });
     }
 }

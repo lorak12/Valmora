@@ -4,6 +4,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
@@ -39,6 +41,8 @@ public class PlayerManager implements ReloadableModule {
         this.connectionListener = new PlayerConnectionListener(this);
         plugin.getServer().getPluginManager().registerEvents(connectionListener, plugin);
 
+        ProfileGui.register(plugin);
+
         // Load existing players SYNCHRONOUSLY if this was a hot-reload to prevent async gap NPEs
         for (Player online : Bukkit.getOnlinePlayers()) {
             handleJoin(online.getUniqueId(), true);
@@ -69,9 +73,10 @@ public class PlayerManager implements ReloadableModule {
                 new PlayerProfileLoadedEvent(uuid, finalPlayer).callEvent();
                 Player bukkitPlayer = Bukkit.getPlayer(uuid);
                 if (bukkitPlayer != null) {
-                    finalPlayer.getActiveProfile().getStatManager().recalculateAttributes(bukkitPlayer);
-                    // Also recalculate stats to ensure they are correct immediately
-                    finalPlayer.getActiveProfile().getStatManager().recalculateStats(bukkitPlayer);
+                    ValmoraProfile active = finalPlayer.getActiveProfile();
+                    applyPlayerInventory(bukkitPlayer, active);
+                    active.getStatManager().recalculateAttributes(bukkitPlayer);
+                    active.getStatManager().recalculateStats(bukkitPlayer);
                 }
             };
 
@@ -91,6 +96,8 @@ public class PlayerManager implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        ProfileGui.unregister();
+
         if (regenTask != null) {
             regenTask.cancel();
             regenTask = null;
@@ -111,25 +118,41 @@ public class PlayerManager implements ReloadableModule {
         return "profiles";
     }
 
-    public void handleQuit(UUID uuid){
-        ValmoraPlayer player = activeSession.remove(uuid);
-        if (player != null) {
-            dataStore.savePlayer(player);
-            // Async execution handles the save seamlessly without lag spikes!
+    public void handleQuit(UUID uuid) {
+        Player player = Bukkit.getPlayer(uuid);
+        ValmoraPlayer vp = activeSession.get(uuid);
+        if (player != null && vp != null && vp.getActiveProfile() != null) {
+            savePlayerInventory(player, vp.getActiveProfile());
+        }
+        ValmoraPlayer stored = activeSession.remove(uuid);
+        if (stored != null) {
+            dataStore.savePlayer(stored);
         }
     }
 
-    public void switchProfile(Player player, String profileName){
+    public void switchProfile(Player player, String profileName) {
         ValmoraPlayer vp = activeSession.get(player.getUniqueId());
-
-        for (ValmoraProfile profile: vp.getProfiles().values()){
-            if (profile.getName().equalsIgnoreCase(profileName)){
-                vp.setActiveProfile(profile.getId());
-                vp.getActiveProfile().getStatManager().recalculateStats(player);
+        for (ValmoraProfile profile : vp.getProfiles().values()) {
+            if (profile.getName().equalsIgnoreCase(profileName)) {
+                switchProfile(player, profile.getId());
                 return;
             }
         }
         player.sendMessage(Component.text("Profile not found: " + profileName, NamedTextColor.RED));
+    }
+
+    public void switchProfile(Player player, UUID profileId) {
+        ValmoraPlayer vp = activeSession.get(player.getUniqueId());
+        if (vp == null) return;
+        ValmoraProfile current = vp.getActiveProfile();
+        if (current != null) savePlayerInventory(player, current);
+        vp.setActiveProfile(profileId);
+        ValmoraProfile next = vp.getActiveProfile();
+        if (next != null) {
+            applyPlayerInventory(player, next);
+            next.getStatManager().recalculateStats(player);
+            next.getStatManager().recalculateAttributes(player);
+        }
     }
 
     public ValmoraPlayer getSession(UUID uuid) {
@@ -142,18 +165,44 @@ public class PlayerManager implements ReloadableModule {
 
     public void createProfile(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
+        if (vp == null) return;
         ValmoraProfile newProfile = new ValmoraProfile(profileName);
         vp.addProfile(newProfile);
         dataStore.savePlayer(vp);
     }
 
+    public void deleteProfile(UUID playerUuid, UUID profileId) {
+        ValmoraPlayer vp = activeSession.get(playerUuid);
+        if (vp == null) return;
+        vp.removeProfile(profileId);
+        dataStore.deleteProfile(profileId);
+        dataStore.savePlayer(vp);
+    }
+
+    // Legacy command-compatible overload; keep for ProfileCommand
     public void deleteProfile(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
-        ValmoraProfile activeProfile = vp.getActiveProfile();
-        if (activeProfile != null) {
-            vp.removeProfile(activeProfile.getId());
-            dataStore.savePlayer(vp);
-        }
+        if (vp == null) return;
+        vp.getProfiles().values().stream()
+                .filter(p -> p.getName().equalsIgnoreCase(profileName))
+                .findFirst()
+                .ifPresent(p -> deleteProfile(uuid, p.getId()));
+    }
+
+    private void savePlayerInventory(Player player, ValmoraProfile profile) {
+        PlayerInventory inv = player.getInventory();
+        profile.setSavedInventory(inv.getStorageContents().clone());
+        profile.setSavedArmor(inv.getArmorContents().clone());
+        ItemStack offhand = inv.getItemInOffHand();
+        profile.setSavedOffhand(offhand.getType().isAir() ? null : offhand.clone());
+    }
+
+    private void applyPlayerInventory(Player player, ValmoraProfile profile) {
+        PlayerInventory inv = player.getInventory();
+        inv.clear();
+        if (profile.getSavedInventory() != null) inv.setStorageContents(profile.getSavedInventory());
+        if (profile.getSavedArmor() != null) inv.setArmorContents(profile.getSavedArmor());
+        if (profile.getSavedOffhand() != null) inv.setItemInOffHand(profile.getSavedOffhand());
     }
 
     public Collection<ValmoraPlayer> getAllSessions() {

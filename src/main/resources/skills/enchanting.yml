@@ -1,0 +1,56 @@
+id: "enchanting"
+name: "<dark_purple><bold>✦ Enchanting</bold></dark_purple>"
+description:
+  - "<gray>Imbue items with powerful magical properties."
+material: ENCHANTING_TABLE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  ENCHANT_ITEM:
+    WOODEN_SWORD: 10.0
+    STONE_SWORD: 15.0
+    IRON_SWORD: 25.0
+    GOLDEN_SWORD: 20.0
+    DIAMOND_SWORD: 60.0
+    NETHERITE_SWORD: 100.0
+    WOODEN_PICKAXE: 10.0
+    STONE_PICKAXE: 15.0
+    IRON_PICKAXE: 25.0
+    GOLDEN_PICKAXE: 20.0
+    DIAMOND_PICKAXE: 60.0
+    NETHERITE_PICKAXE: 100.0
+    LEATHER_HELMET: 8.0
+    LEATHER_CHESTPLATE: 12.0
+    LEATHER_LEGGINGS: 10.0
+    LEATHER_BOOTS: 8.0
+    IRON_HELMET: 20.0
+    IRON_CHESTPLATE: 30.0
+    IRON_LEGGINGS: 25.0
+    IRON_BOOTS: 20.0
+    DIAMOND_HELMET: 50.0
+    DIAMOND_CHESTPLATE: 75.0
+    DIAMOND_LEGGINGS: 65.0
+    DIAMOND_BOOTS: 50.0
+    NETHERITE_HELMET: 90.0
+    NETHERITE_CHESTPLATE: 130.0
+    NETHERITE_LEGGINGS: 110.0
+    NETHERITE_BOOTS: 90.0
+    BOW: 30.0
+    CROSSBOW: 35.0
+    TRIDENT: 80.0
+    FISHING_ROD: 20.0
+    BOOK: 5.0
+
+rewards:
+  per-level:
+    - "variable add player.var.magic_find 0.3"
+    - "variable add player.var.coins $param.level$*20"
+
+  milestones:
+    "10":
+      - "give BOOK:3 notify"
+    "25":
+      - "give EXPERIENCE_BOTTLE:16 notify"
+    "50":
+      - "give ENCHANTED_BOOK:1 notify"

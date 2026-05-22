@@ -51,6 +51,13 @@ import org.nakii.valmora.module.alchemy.command.PotionCommand;
 import org.nakii.valmora.module.alchemy.command.EffectsCommand;
 import org.nakii.valmora.module.collection.CollectionModule;
 import org.nakii.valmora.module.collection.CollectionCommand;
+import org.nakii.valmora.module.hud.HudItemModule;
+import org.nakii.valmora.module.calendar.CalendarEventModule;
+import org.nakii.valmora.module.reforge.ReforgeModule;
+import org.nakii.valmora.module.pet.PetModule;
+import org.nakii.valmora.module.slayer.SlayerModule;
+import org.nakii.valmora.module.accessory.AccessoryModule;
+import org.nakii.valmora.module.backpack.BackpackModule;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.economy.EcoCommand;
 import org.nakii.valmora.module.economy.EconomyModule;
@@ -104,6 +111,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private PointsModule pointsModule;
     private NotifyModule notifyModule;
     private CollectionModule collectionModule;
+    private HudItemModule hudItemModule;
+    private CalendarEventModule calendarEventModule;
+    private ReforgeModule reforgeModule;
+    private PetModule petModule;
+    private SlayerModule slayerModule;
+    private AccessoryModule accessoryModule;
+    private BackpackModule backpackModule;
 
     @Override
     public void onEnable() {
@@ -150,6 +164,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.pointsModule = new PointsModule(this);
         this.notifyModule = new NotifyModule(this);
         this.collectionModule = new CollectionModule(this);
+        this.hudItemModule = new HudItemModule(this);
+        this.calendarEventModule = new CalendarEventModule(this);
+        this.reforgeModule = new ReforgeModule(this);
+        this.petModule = new PetModule(this);
+        this.slayerModule = new SlayerModule(this);
+        this.accessoryModule = new AccessoryModule(this);
+        this.backpackModule = new BackpackModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -179,6 +200,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(pointsModule);
         moduleManager.registerModule(notifyModule);
         moduleManager.registerModule(collectionModule);
+        moduleManager.registerModule(hudItemModule);       // Depends on scriptModule for click DSL
+        moduleManager.registerModule(calendarEventModule); // Depends on scriptModule + timeModule
+        moduleManager.registerModule(reforgeModule);      // Depends on recipeModule (registers handler)
+        moduleManager.registerModule(petModule);          // Depends on scriptModule + statModule
+        moduleManager.registerModule(slayerModule);       // Depends on scriptModule + mobModule
+        moduleManager.registerModule(accessoryModule);    // Depends on statModule for recalc
+        moduleManager.registerModule(backpackModule);     // Depends on abilityManager for mechanic
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -189,7 +217,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("npc").setExecutor(npcCommand);
         getCommand("npc").setTabCompleter(npcCommand);
         getCommand("valmora").setExecutor(new ValmoraCommand(this));
-        getCommand("profile").setExecutor(new ProfileCommand(playerManager));
+        ProfileCommand profileCommand = new ProfileCommand(playerManager);
+        getCommand("profile").setExecutor(profileCommand);
+        getCommand("profile").setTabCompleter(profileCommand);
         getCommand("stat").setExecutor(new StatCommand(playerManager));
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
@@ -204,6 +234,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("zone").setExecutor(zoneCommand);
         getCommand("zone").setTabCompleter(zoneCommand);
         getCommand("collections").setExecutor(new CollectionCommand(this));
+        getCommand("accessories").setExecutor((sender, cmd, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player player)) return true;
+            accessoryModule.openAccessoryBag(player);
+            return true;
+        });
     }
 
      @Override
@@ -367,6 +402,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     public WarpModule getWarpModule() { return warpModule; }
     public QuestModule getQuestModule() { return questModule; }
     public CollectionModule getCollectionModule() { return collectionModule; }
+    public HudItemModule getHudItemModule() { return hudItemModule; }
+    public CalendarEventModule getCalendarEventModule() { return calendarEventModule; }
+    public ReforgeModule getReforgeModule() { return reforgeModule; }
+    public PetModule getPetModule() { return petModule; }
+    public SlayerModule getSlayerModule() { return slayerModule; }
+    public AccessoryModule getAccessoryModule() { return accessoryModule; }
+    public BackpackModule getBackpackModule() { return backpackModule; }
 
     @Override
     public org.nakii.valmora.module.quest.points.PointsManager getPointsManager() {
@@ -402,7 +444,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                             name.startsWith("zones/") || name.startsWith("fishing/") ||
                             name.startsWith("npcs/") || name.startsWith("dialogues/") ||
                             name.startsWith("warps/") || name.startsWith("quests/") ||
-                            name.startsWith("collections/")) {
+                            name.startsWith("collections/") || name.startsWith("hud-items/") ||
+                            name.startsWith("calendar/") || name.startsWith("reforges/") ||
+                            name.startsWith("pets/") || name.startsWith("slayers/")) {
                         // Only save if the file doesn't already exist — don't overwrite server edits
                         if (!new File(getDataFolder(), name).exists()) {
                             saveResource(name, false);

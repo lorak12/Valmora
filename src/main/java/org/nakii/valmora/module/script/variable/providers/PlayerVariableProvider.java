@@ -141,6 +141,8 @@ public class PlayerVariableProvider implements VariableProvider {
         if (key.equalsIgnoreCase("mana")) return profile.getPlayerState().getCurrentMana();
         if (key.equalsIgnoreCase("max_mana")) return profile.getStatManager().getStat(sys.getMana());
 
+        if (key.equalsIgnoreCase("profile")) return profile.getName();
+
         if (key.equalsIgnoreCase("var") && path.length > 1) {
             return profile.getVariables().get(path[1]);
         }

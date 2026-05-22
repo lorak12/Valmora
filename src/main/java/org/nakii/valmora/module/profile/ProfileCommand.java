@@ -35,6 +35,9 @@ public class ProfileCommand implements TabExecutor {
         ValmoraPlayer session = playerManager.getSession(player.getUniqueId());
 
         switch (subCommand) {
+            case "gui":
+                ProfileGui.open(player, playerManager);
+                return true;
             case "create":
                 if (args.length < 2) {
                     player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /profile create <name>"));
@@ -106,7 +109,7 @@ public class ProfileCommand implements TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return List.of("create", "delete", "switch", "list", "info").stream()
+            return List.of("create", "delete", "switch", "list", "info", "gui").stream()
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .toList();
         } else if (args.length == 2 && (args[0].equalsIgnoreCase("delete") || args[0].equalsIgnoreCase("switch"))) {

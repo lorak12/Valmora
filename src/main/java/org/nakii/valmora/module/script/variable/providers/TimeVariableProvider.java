@@ -21,17 +21,20 @@ public class TimeVariableProvider implements VariableProvider {
 
         TimeSnapshot snap = tm.getSnapshot();
         return switch (path[0].toLowerCase()) {
-            case "hour"          -> snap.hour();
-            case "minute"        -> snap.minute();
-            case "day"           -> snap.dayInPhase();
-            case "phase"         -> snap.phaseName();
-            case "season"        -> snap.seasonName();
-            case "year"          -> snap.year();
-            case "total_days"    -> snap.totalDays();
-            case "total_minutes" -> snap.totalDays() * 24 * 60 + snap.hour() * 60 + snap.minute();
-            case "is_day"        -> snap.isDay();
-            case "time_of_day"   -> snap.timeOfDayEmote() + " " + (snap.isDay() ? "Day" : "Night");
-            default              -> null;
+            case "hour"           -> snap.hour();
+            case "minute"         -> snap.minute();
+            case "day"            -> snap.dayInPhase();
+            case "phase"          -> snap.phaseName();
+            case "season"         -> snap.seasonName();
+            case "year"           -> snap.year();
+            case "total_days"     -> snap.totalDays();
+            case "total_minutes"  -> snap.totalDays() * 24 * 60 + snap.hour() * 60 + snap.minute();
+            case "is_day"         -> snap.isDay();
+            case "time_of_day"    -> snap.timeOfDayEmote() + " " + (snap.isDay() ? "Day" : "Night");
+            case "formatted_time" -> snap.formattedTime();
+            case "emote"          -> snap.timeOfDayEmote();
+            case "color"          -> snap.timeOfDayMiniColor();
+            default               -> null;
         };
     }
 }

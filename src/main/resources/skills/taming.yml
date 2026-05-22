@@ -1,0 +1,33 @@
+id: "taming"
+name: "<aqua><bold>🐾 Taming</bold></aqua>"
+description:
+  - "<gray>Form bonds with wild creatures and train them as companions."
+material: BONE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  TAME_MOB:
+    WOLF: 100.0
+    CAT: 80.0
+    HORSE: 200.0
+    DONKEY: 150.0
+    MULE: 175.0
+    LLAMA: 150.0
+    PARROT: 120.0
+    FOX: 200.0
+    AXOLOTL: 120.0
+    CAMEL: 180.0
+
+rewards:
+  per-level:
+    - "variable add player.var.pet_luck 0.5"
+    - "variable add player.var.coins $param.level$*15"
+
+  milestones:
+    "5":
+      - "give BONE:16 notify"
+    "20":
+      - "give LEAD:4 notify"
+    "40":
+      - "give SADDLE:1 notify"

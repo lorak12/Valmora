@@ -1,0 +1,89 @@
+fierce:
+  name: "Fierce"
+  applicable-types:
+    - SWORD
+    - AXE
+  stat-bonuses:
+    strength: 20
+    crit_damage: 8
+  cost: 500
+
+sharp:
+  name: "Sharp"
+  applicable-types:
+    - SWORD
+    - AXE
+    - BOW
+  stat-bonuses:
+    damage: 15
+    crit_chance: 5
+  cost: 300
+
+fabled:
+  name: "Fabled"
+  applicable-types:
+    - SWORD
+    - AXE
+  stat-bonuses:
+    strength: 12
+    damage: 10
+    ferocity: 3
+  cost: 750
+
+heroic:
+  name: "Heroic"
+  applicable-types:
+    - SWORD
+    - AXE
+    - BOW
+    - CROSSBOW
+  stat-bonuses:
+    crit_chance: 8
+    crit_damage: 15
+  cost: 600
+
+rapid:
+  name: "Rapid"
+  applicable-types:
+    - BOW
+    - CROSSBOW
+  stat-bonuses:
+    bonus_attack_speed: 20
+    damage: 8
+  cost: 400
+
+fortified:
+  name: "Fortified"
+  applicable-types:
+    - HELMET
+    - CHESTPLATE
+    - LEGGINGS
+    - BOOTS
+  stat-bonuses:
+    defense: 25
+    health: 20
+  cost: 500
+
+reinforced:
+  name: "Reinforced"
+  applicable-types:
+    - HELMET
+    - CHESTPLATE
+    - LEGGINGS
+    - BOOTS
+  stat-bonuses:
+    true_defense: 10
+    defense: 15
+  cost: 650
+
+titanic:
+  name: "Titanic"
+  applicable-types:
+    - HELMET
+    - CHESTPLATE
+    - LEGGINGS
+    - BOOTS
+  stat-bonuses:
+    health: 50
+    defense: 10
+  cost: 800

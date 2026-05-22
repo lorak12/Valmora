@@ -1,0 +1,46 @@
+harvest_festival:
+  trigger:
+    season: AUTUMN
+    phase: EARLY
+    day-start: 1
+    day-end: 30
+  on-start:
+    - "notifyall io:title Harvest Festival!"
+    - "notifyall io:subtitle <gold>The crops are ready to harvest!"
+    - "notifyall io:chat <gold><bold>[Event] <yellow>The Harvest Festival has begun! Farming Fortune +25 for all players."
+    - "foreach @all stat_modify add farming_fortune 25"
+  on-end:
+    - "notifyall io:chat <gold><bold>[Event] <yellow>The Harvest Festival has ended. Thanks for participating!"
+    - "foreach @all stat_modify add farming_fortune -25"
+  recurring-daily:
+    - "notifyall io:actionbar <gold>✦ Harvest Festival active! <yellow>Bonus Farming Fortune!"
+
+winter_blessing:
+  trigger:
+    season: WINTER
+    phase: MID
+    day-start: 1
+    day-end: 30
+  on-start:
+    - "notifyall io:chat <aqua><bold>[Event] <white>The Winter Blessing has arrived! +10 Magic Find for all."
+    - "foreach @all stat_modify add magic_find 10"
+  on-end:
+    - "notifyall io:chat <aqua><bold>[Event] <white>The Winter Blessing has faded."
+    - "foreach @all stat_modify add magic_find -10"
+  recurring-daily:
+    - "notifyall io:actionbar <aqua>❄ Winter Blessing active! <white>Bonus Magic Find!"
+
+spring_renewal:
+  trigger:
+    season: SPRING
+    phase: EARLY
+    day-start: 1
+    day-end: 30
+  on-start:
+    - "notifyall io:chat <green><bold>[Event] <yellow>Spring Renewal! All players gain +5 Health Regen."
+    - "foreach @all stat_modify add health_regen 5"
+  on-end:
+    - "notifyall io:chat <green><bold>[Event] <yellow>Spring Renewal has ended."
+    - "foreach @all stat_modify add health_regen -5"
+  recurring-daily:
+    - "notifyall io:actionbar <green>✿ Spring Renewal active!"

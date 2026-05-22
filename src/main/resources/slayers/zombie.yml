@@ -1,0 +1,67 @@
+zombie_slayer:
+  name: "Zombie Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: UNDEAD
+      kills-required: 5
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 250"
+        - "notify chat <gold>[Slayer] Zombie Slayer T1 complete! +250 coins"
+    2:
+      cost: 500
+      target-category: UNDEAD
+      kills-required: 15
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 1000"
+        - "notify chat <gold>[Slayer] Zombie Slayer T2 complete! +1000 coins"
+    3:
+      cost: 2000
+      target-category: UNDEAD
+      kills-required: 30
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 5000"
+        - "notify chat <gold>[Slayer] Zombie Slayer T3 complete! +5000 coins"
+
+spider_slayer:
+  name: "Spider Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: SPIDER
+      kills-required: 5
+      boss-mob: spider
+      completion-events:
+        - "economy_add 250"
+        - "notify chat <gold>[Slayer] Spider Slayer T1 complete! +250 coins"
+    2:
+      cost: 500
+      target-category: SPIDER
+      kills-required: 20
+      boss-mob: spider
+      completion-events:
+        - "economy_add 1500"
+        - "notify chat <gold>[Slayer] Spider Slayer T2 complete! +1500 coins"
+
+wolf_slayer:
+  name: "Wolf Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: WOLF
+      kills-required: 5
+      boss-mob: wolf
+      completion-events:
+        - "economy_add 250"
+        - "notify chat <gold>[Slayer] Wolf Slayer T1 complete! +250 coins"
+    2:
+      cost: 1000
+      target-category: WOLF
+      kills-required: 25
+      boss-mob: wolf
+      completion-events:
+        - "economy_add 3000"
+        - "notify chat <gold>[Slayer] Wolf Slayer T2 complete! +3000 coins"

@@ -2,6 +2,7 @@ package org.nakii.valmora.module.ui;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -10,9 +11,9 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
-import org.nakii.valmora.module.economy.EconomyModule;
-import org.nakii.valmora.module.time.TimeManager;
-import org.nakii.valmora.module.time.TimeSnapshot;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.scripting.VariableResolver;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.ArrayList;
@@ -24,7 +25,6 @@ import java.util.UUID;
 public class ScoreboardUI {
 
     private static final int MAX_LINES = 16;
-    // Pre-built unique invisible entries (§0..§9, §a..§f)
     private static final String[] LINE_ENTRIES = new String[MAX_LINES];
 
     static {
@@ -39,8 +39,14 @@ public class ScoreboardUI {
     private final Map<UUID, Objective> playerObjectives = new HashMap<>();
     private final Map<UUID, DynamicSection> dynamicSections = new HashMap<>();
 
+    private UIConfig config;
+
     public ScoreboardUI(Valmora plugin) {
         this.plugin = plugin;
+    }
+
+    public void setConfig(UIConfig config) {
+        this.config = config;
     }
 
     private static class DynamicSection {
@@ -53,18 +59,10 @@ public class ScoreboardUI {
         }
     }
 
-    /**
-     * Sets the flexible part of the scoreboard using Components.
-     *
-     * @param locked If true, subsequent calls with non-empty lines will be ignored until unlocked.
-     */
     public void setDynamicSection(Player player, List<Component> lines, boolean locked) {
         UUID uuid = player.getUniqueId();
-
         DynamicSection current = dynamicSections.get(uuid);
-        if (current != null && current.locked && !lines.isEmpty()) {
-            return;
-        }
+        if (current != null && current.locked && !lines.isEmpty()) return;
 
         if (lines.isEmpty()) {
             dynamicSections.remove(uuid);
@@ -73,7 +71,6 @@ public class ScoreboardUI {
         }
     }
 
-    /** Convenience overload that accepts MiniMessage strings. */
     public void setDynamicSection(Player player, List<String> rawLines, boolean locked, boolean miniMessage) {
         setDynamicSection(player, rawLines.stream().map(Formatter::format).toList(), locked);
     }
@@ -84,14 +81,12 @@ public class ScoreboardUI {
         dynamicSections.remove(uuid);
     }
 
-    // Called automatically by the UIManager clock
     public void tick(Player player) {
         UUID uuid = player.getUniqueId();
 
         Scoreboard board = playerBoards.computeIfAbsent(uuid, k -> {
             Scoreboard b = Bukkit.getScoreboardManager().getNewScoreboard();
             Objective obj = b.registerNewObjective("valmora_hud", "dummy", "unused");
-            obj.displayName(Formatter.format("<gold><bold>VALMORA RPG"));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             playerObjectives.put(uuid, obj);
 
@@ -107,6 +102,10 @@ public class ScoreboardUI {
         Objective obj = playerObjectives.get(uuid);
         if (obj == null) return;
 
+        // Update title from config every tick so reloads take effect immediately
+        String titleTemplate = config != null ? config.getScoreboardTitle() : "<gold><bold>VALMORA RPG";
+        obj.displayName(Formatter.format(titleTemplate));
+
         List<Component> lines = buildLines(player);
         int lineCount = Math.min(lines.size(), MAX_LINES);
 
@@ -121,29 +120,68 @@ public class ScoreboardUI {
         for (int i = lineCount; i < MAX_LINES; i++) {
             board.resetScores(LINE_ENTRIES[i]);
         }
+
+        // Tab list header/footer
+        if (config != null && (!config.getTabHeader().isEmpty() || !config.getTabFooter().isEmpty())) {
+            ExecutionContext ctx = playerContext(player);
+            VariableResolver resolver = resolverOrNull();
+            if (resolver != null) {
+                player.sendPlayerListHeaderAndFooter(
+                        Formatter.format(resolver.resolveTemplate(config.getTabHeader(), ctx)),
+                        Formatter.format(resolver.resolveTemplate(config.getTabFooter(), ctx)));
+            }
+        }
     }
 
     private List<Component> buildLines(Player player) {
         List<Component> lines = new ArrayList<>();
 
+        if (config == null || config.getScoreboardLines().isEmpty()) {
+            return legacyLines(player);
+        }
+
+        ExecutionContext ctx = playerContext(player);
+        VariableResolver resolver = resolverOrNull();
+        DynamicSection dynamic = dynamicSections.get(player.getUniqueId());
+
+        for (String template : config.getScoreboardLines()) {
+            // Dynamic section placeholder
+            if (template.equals("$dynamic$")) {
+                if (dynamic != null && !dynamic.lines.isEmpty()) {
+                    lines.addAll(dynamic.lines);
+                    lines.add(Component.empty());
+                }
+                continue;
+            }
+            if (template.isEmpty()) {
+                lines.add(Component.empty());
+                continue;
+            }
+            String resolved = resolver != null ? resolver.resolveTemplate(template, ctx) : template;
+            lines.add(Formatter.format(resolved));
+        }
+
+        return lines;
+    }
+
+    // Fallback when config hasn't loaded yet (e.g. very early tick before UIManager finishes onEnable)
+    private List<Component> legacyLines(Player player) {
+        List<Component> lines = new ArrayList<>();
         lines.add(Formatter.format("<yellow>pay.valmora.net"));
         lines.add(Component.empty());
 
-        // Time display
-        TimeManager tm = ValmoraAPI.getInstance().getTimeManager();
-        if (tm != null) {
-            TimeSnapshot snap = tm.getSnapshot();
-            lines.add(Formatter.format(
-                    "<aqua>⏰ <white>" + snap.formattedTime()
-                    + "  " + snap.timeOfDayMiniColor() + snap.timeOfDayEmote()
-                    + " <gold>" + snap.phaseName() + " " + snap.seasonName()
-            ));
-            lines.add(Formatter.format(
-                    "<gray>Day <white>" + snap.dayInPhase()
-                    + "  <dark_gray>│  <gray>Year <white>" + snap.year()
-            ));
-            lines.add(Component.empty());
-        }
+        try {
+            var tm = ValmoraAPI.getInstance().getTimeManager();
+            if (tm != null) {
+                var snap = tm.getSnapshot();
+                lines.add(Formatter.format("<aqua>⏰ <white>" + snap.formattedTime()
+                        + "  " + snap.timeOfDayMiniColor() + snap.timeOfDayEmote()
+                        + " <gold>" + snap.phaseName() + " " + snap.seasonName()));
+                lines.add(Formatter.format("<gray>Day <white>" + snap.dayInPhase()
+                        + "  <dark_gray>│  <gray>Year <white>" + snap.year()));
+                lines.add(Component.empty());
+            }
+        } catch (Exception ignored) {}
 
         DynamicSection dynamic = dynamicSections.get(player.getUniqueId());
         if (dynamic != null && !dynamic.lines.isEmpty()) {
@@ -151,21 +189,45 @@ public class ScoreboardUI {
             lines.add(Component.empty());
         }
 
-        String zoneLine = "<green>Wilderness";
+        try {
+            var pm = ValmoraAPI.getInstance().getPlayerManager();
+            if (pm != null) {
+                var session = pm.getSession(player.getUniqueId());
+                if (session != null && session.getActiveProfile() != null)
+                    lines.add(Formatter.format("<gray>Profile: <yellow>" + session.getActiveProfile().getName()));
+            }
+        } catch (Exception ignored) {}
+
         try {
             var zm = ValmoraAPI.getInstance().getZoneManager();
-            if (zm != null) zoneLine = zm.getCurrentZone(player)
-                    .map(z -> z.getDisplayName()).orElse("<green>Wilderness");
+            String zoneLine = zm != null ? zm.getCurrentZone(player)
+                    .map(z -> z.getDisplayName()).orElse("<green>Wilderness") : "<green>Wilderness";
+            lines.add(Formatter.format("<gray>Zone: " + zoneLine));
         } catch (Exception ignored) {}
-        lines.add(Formatter.format("<gray>Zone: " + zoneLine));
 
-        String purseDisplay = "0 coins";
         try {
             var eco = ValmoraAPI.getInstance().getEconomyModule();
-            if (eco != null) purseDisplay = EconomyModule.formatCoinsDisplay(eco.getPurse(player.getUniqueId()));
+            if (eco != null)
+                lines.add(Formatter.format("<gray>Purse: <gold>" +
+                        org.nakii.valmora.module.economy.EconomyModule.formatCoinsDisplay(eco.getPurse(player.getUniqueId()))));
         } catch (Exception ignored) {}
-        lines.add(Formatter.format("<gray>Purse: <gold>" + purseDisplay));
 
         return lines;
+    }
+
+    private ExecutionContext playerContext(Player player) {
+        return new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
+    }
+
+    private VariableResolver resolverOrNull() {
+        try {
+            var api = ValmoraAPI.getInstance();
+            if (api == null) return null;
+            var script = api.getScriptModule();
+            if (script == null) return null;
+            return script.getVariableResolver();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

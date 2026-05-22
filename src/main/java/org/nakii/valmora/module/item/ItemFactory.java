@@ -38,6 +38,17 @@ public class ItemFactory {
             Rarity rarity = definition.getRarity() != null ? definition.getRarity() : Rarity.COMMON;
             meta.getPersistentDataContainer().set(Keys.RARITY_KEY, PersistentDataType.STRING, rarity.name());
 
+            // Custom model data
+            if (definition.getCustomModelData() > 0) {
+                meta.setCustomModelData(definition.getCustomModelData());
+            }
+
+            // Reforge stone pool
+            List<String> reforgePool = definition.getReforgePool();
+            if (!reforgePool.isEmpty()) {
+                meta.getPersistentDataContainer().set(Keys.REFORGE_POOL_KEY, PersistentDataType.STRING, String.join(",", reforgePool));
+            }
+
             // Add all stats to the stats map
             plugin.getStatModule().saveStats(meta, definition.getStats());
 
@@ -86,6 +97,12 @@ public class ItemFactory {
             name = (itemId != null && itemId.startsWith("vanilla_")) ? Formatter.capitalize(item.getType().name().replace("_", " ")) : null;
         }
 
+        // Prepend reforge prefix if item has been reforged
+        String reforgeDisplay = meta.getPersistentDataContainer().get(Keys.REFORGE_DISPLAY_KEY, PersistentDataType.STRING);
+        if (reforgeDisplay != null && name != null) {
+            name = reforgeDisplay + " " + name;
+        }
+
         // Set Display Name
         if (name != null) {
             meta.displayName(Formatter.format(rarityColor + name));
@@ -111,6 +128,19 @@ public class ItemFactory {
         if (!baseLore.isEmpty()) {
             if (!finalLore.isEmpty()) finalLore.add(Component.empty());
             finalLore.addAll(Formatter.formatList(baseLore));
+        }
+
+        // 1b. Lore template (resolved against item's own stats)
+        if (definitionOpt.isPresent()) {
+            List<String> loreTemplate = definitionOpt.get().getLoreTemplate();
+            if (!loreTemplate.isEmpty()) {
+                Map<String, Double> itemStats = plugin.getStatModule().loadStats(meta);
+                if (!finalLore.isEmpty()) finalLore.add(Component.empty());
+                for (String line : loreTemplate) {
+                    String resolved = resolveItemStatTokens(line, itemStats);
+                    finalLore.add(Formatter.format(resolved));
+                }
+            }
         }
 
         // 2. Stats Section
@@ -164,6 +194,22 @@ public class ItemFactory {
         finalLore.add(Formatter.format(rarityColor + "<bold>" + rarity.getName().toUpperCase() + typeDisplay));
 
         meta.lore(finalLore);
+    }
+
+    private String resolveItemStatTokens(String line, Map<String, Double> stats) {
+        StringBuilder result = new StringBuilder(line);
+        int start;
+        while ((start = result.indexOf("$item.stat.")) != -1) {
+            int end = result.indexOf("$", start + 1);
+            if (end == -1) break;
+            String statId = result.substring(start + 11, end);
+            Double val = stats.get(statId.toLowerCase());
+            String replacement = val != null
+                    ? (val == Math.floor(val) ? String.valueOf((long) val.doubleValue()) : String.valueOf(val))
+                    : "0";
+            result.replace(start, end + 1, replacement);
+        }
+        return result.toString();
     }
 
     private int getBreakingPower(Material material) {

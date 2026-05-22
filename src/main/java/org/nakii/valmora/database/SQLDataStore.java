@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariDataSource;
 
+import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -12,6 +13,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -56,13 +58,15 @@ public class SQLDataStore implements DataStore {
                     player_state TEXT,
                     tags TEXT,
                     variables TEXT,
-                    collections TEXT
+                    collections TEXT,
+                    inventory TEXT
                 )
             """).execute();
             // Migration for existing databases
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN tags TEXT").execute(); } catch (Exception ignored) {}
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN variables TEXT").execute(); } catch (Exception ignored) {}
             try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN collections TEXT").execute(); } catch (Exception ignored) {}
+            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN inventory TEXT").execute(); } catch (Exception ignored) {}
 
             // Economy Table
             conn.prepareStatement("""
@@ -140,6 +144,11 @@ public class SQLDataStore implements DataStore {
                         }
                     } catch (SQLException ignored) {}
 
+                    try {
+                        String inventoryJson = rsProfiles.getString("inventory");
+                        if (inventoryJson != null) deserializeInventory(profile, inventoryJson);
+                    } catch (SQLException ignored) {}
+
                     player.addProfile(profile);
                 }
 
@@ -176,8 +185,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -191,6 +200,7 @@ public class SQLDataStore implements DataStore {
                         String tagsJson = gson.toJson(profile.getTags());
                         String variablesJson = gson.toJson(profile.getVariables());
                         String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
+                        String inventoryJson = serializeInventory(profile);
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -198,15 +208,17 @@ public class SQLDataStore implements DataStore {
                         ps.setString(7, tagsJson);
                         ps.setString(8, variablesJson);
                         ps.setString(9, collectionsJson);
+                        ps.setString(10, inventoryJson);
 
                         // Update values
-                        ps.setString(10, profile.getName());
-                        ps.setString(11, statsJson);
-                        ps.setString(12, skillsJson);
-                        ps.setString(13, stateJson);
-                        ps.setString(14, tagsJson);
-                        ps.setString(15, variablesJson);
-                        ps.setString(16, collectionsJson);
+                        ps.setString(11, profile.getName());
+                        ps.setString(12, statsJson);
+                        ps.setString(13, skillsJson);
+                        ps.setString(14, stateJson);
+                        ps.setString(15, tagsJson);
+                        ps.setString(16, variablesJson);
+                        ps.setString(17, collectionsJson);
+                        ps.setString(18, inventoryJson);
 
                         ps.addBatch();
                     }
@@ -218,6 +230,80 @@ public class SQLDataStore implements DataStore {
                 e.printStackTrace();
             }
         }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteProfile(UUID profileId) {
+        return CompletableFuture.runAsync(() -> {
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM valmora_profiles WHERE id = ?")) {
+                ps.setString(1, profileId.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }, dbExecutor);
+    }
+
+    // Serialize slots 0-35 (storage) + 36-39 (armor) + 40 (offhand) as a base64 JSON array
+    private String serializeInventory(ValmoraProfile profile) {
+        ItemStack[] storage = profile.getSavedInventory();
+        ItemStack[] armor = profile.getSavedArmor();
+        ItemStack offhand = profile.getSavedOffhand();
+        if (storage == null && armor == null && offhand == null) return null;
+
+        String[] encoded = new String[41];
+        if (storage != null) {
+            for (int i = 0; i < Math.min(storage.length, 36); i++) {
+                encoded[i] = encodeItem(storage[i]);
+            }
+        }
+        if (armor != null) {
+            for (int i = 0; i < Math.min(armor.length, 4); i++) {
+                encoded[36 + i] = encodeItem(armor[i]);
+            }
+        }
+        encoded[40] = encodeItem(offhand);
+        return gson.toJson(encoded);
+    }
+
+    private void deserializeInventory(ValmoraProfile profile, String json) {
+        String[] encoded = gson.fromJson(json, String[].class);
+        if (encoded == null) return;
+
+        ItemStack[] storage = new ItemStack[36];
+        ItemStack[] armor = new ItemStack[4];
+        ItemStack offhand = null;
+
+        for (int i = 0; i < Math.min(encoded.length, 41); i++) {
+            if (encoded[i] == null) continue;
+            ItemStack item = decodeItem(encoded[i]);
+            if (item == null) continue;
+            if (i < 36) storage[i] = item;
+            else if (i < 40) armor[i - 36] = item;
+            else offhand = item;
+        }
+
+        profile.setSavedInventory(storage);
+        profile.setSavedArmor(armor);
+        profile.setSavedOffhand(offhand);
+    }
+
+    private String encodeItem(ItemStack item) {
+        if (item == null || item.getType().isAir()) return null;
+        try {
+            return Base64.getEncoder().encodeToString(item.serializeAsBytes());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private ItemStack decodeItem(String encoded) {
+        try {
+            return ItemStack.deserializeBytes(Base64.getDecoder().decode(encoded));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

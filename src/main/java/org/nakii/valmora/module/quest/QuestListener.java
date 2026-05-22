@@ -14,10 +14,15 @@ import org.bukkit.event.entity.EntityTameEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.module.npc.event.NpcInteractEvent;
+import org.nakii.valmora.module.profile.ValmoraPlayer;
+import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.module.skill.SkillLevelUpEvent;
+import org.nakii.valmora.module.skill.SkillXpGainEvent;
 import org.nakii.valmora.module.zone.event.ZoneEnterEvent;
 import org.nakii.valmora.util.Keys;
 
@@ -114,5 +119,53 @@ public class QuestListener implements Listener {
         if (!(event.getOwner() instanceof Player player)) return;
         questManager.progressObjective(player, QuestObjectiveType.TAME,
                 event.getEntity().getType().name(), 1);
+    }
+
+    @EventHandler
+    public void onDrinkPotion(PlayerItemConsumeEvent event) {
+        String mat = event.getItem().getType().name();
+        if (!mat.contains("POTION")) return;
+        questManager.progressObjective(event.getPlayer(), QuestObjectiveType.DRINK_POTION, mat, 1);
+    }
+
+    @EventHandler
+    public void onLoginQuest(PlayerJoinEvent event) {
+        questManager.progressObjective(event.getPlayer(), QuestObjectiveType.LOGIN, "login", 1);
+        checkStatReachObjectives(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onSkillLevelUp(SkillLevelUpEvent event) {
+        questManager.progressObjective(event.getPlayer(), QuestObjectiveType.LEVEL_SKILL,
+                event.getSkill().getId(), 1);
+    }
+
+    @EventHandler
+    public void onXpGain(SkillXpGainEvent event) {
+        questManager.progressObjective(event.getPlayer(), QuestObjectiveType.EXP_GAIN,
+                event.getSkill().getId(), (int) Math.ceil(event.getXp()));
+    }
+
+    private void checkStatReachObjectives(Player player) {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        if (api == null) return;
+        var pm = api.getPlayerManager();
+        if (pm == null) return;
+        ValmoraPlayer vp = pm.getSession(player.getUniqueId());
+        if (vp == null || vp.getActiveProfile() == null) return;
+        ValmoraProfile profile = vp.getActiveProfile();
+
+        questManager.getRegistry().values().forEach(quest -> {
+            if (!questManager.getStatus(profile, quest.getId()).equals(QuestManager.STATUS_IN_PROGRESS)) return;
+            quest.getObjectives().stream()
+                    .filter(o -> o.getType() == QuestObjectiveType.STAT_REACH)
+                    .forEach(o -> {
+                        double statVal = profile.getStatManager().getStat(o.getTarget());
+                        if (statVal >= o.getRequired()) {
+                            questManager.progressObjective(player, QuestObjectiveType.STAT_REACH,
+                                    o.getTarget(), o.getRequired());
+                        }
+                    });
+        });
     }
 }

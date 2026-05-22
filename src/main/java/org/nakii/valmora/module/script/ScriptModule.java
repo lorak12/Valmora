@@ -8,10 +8,8 @@ import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.script.variable.VariableResolverImpl;
 import org.nakii.valmora.module.script.variable.providers.*;
 import org.nakii.valmora.module.script.event.EventFactory;
-import org.nakii.valmora.module.script.event.impl.ConditionEvent;
-import org.nakii.valmora.module.script.event.impl.GiveEvent;
-import org.nakii.valmora.module.script.event.impl.TagEvent;
-import org.nakii.valmora.module.script.event.impl.VariableEvent;
+import org.nakii.valmora.module.script.event.impl.*;
+
 import org.nakii.valmora.module.script.expression.ExpressionParser;
 import org.nakii.valmora.module.script.expression.ExpressionEvaluatorImpl;
 import org.nakii.valmora.api.scripting.ExpressionEvaluator;
@@ -64,6 +62,11 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new GiveEvent());
         registerEvent(new VariableEvent());
         registerEvent(new TagEvent());
+        registerEvent(new TeleportEventFactory());
+        registerEvent(new SpawnMobEventFactory());
+        registerEvent(new StatModifyEventFactory());
+        registerEvent(new ForeachEventFactory(this));
+        registerEvent(new RunScriptEventFactory(this));
     }
 
     public void registerProvider(VariableProvider provider) {

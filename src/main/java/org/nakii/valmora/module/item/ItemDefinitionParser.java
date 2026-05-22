@@ -56,6 +56,21 @@ public class ItemDefinitionParser {
             builder.lore(section.getStringList("lore"));
         }
 
+        // Lore template (supports $item.stat.<id>$ tokens resolved at create-time)
+        if (section.contains("lore-template")) {
+            builder.loreTemplate(section.getStringList("lore-template"));
+        }
+
+        // Custom model data
+        if (section.contains("custom-model-data")) {
+            builder.customModelData(section.getInt("custom-model-data", 0));
+        }
+
+        // Reforge pool (for reforge stones: lists which reforge IDs this stone can apply)
+        if (section.contains("reforge-pool")) {
+            builder.reforgePool(section.getStringList("reforge-pool"));
+        }
+
         // Stats
         if (section.contains("stats")) {
             StatRegistry statRegistry = ValmoraAPI.getInstance().getStatRegistry();

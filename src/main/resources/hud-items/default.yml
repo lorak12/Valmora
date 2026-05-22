@@ -1,0 +1,25 @@
+menu_button:
+  slot: 8
+  prevent-move: true
+  glow: true
+  item:
+    material: NETHER_STAR
+    name: "<gold><bold>✦ Menu"
+    lore:
+      - "<gray>Right-click to open the menu"
+  on-right-click:
+    - "notifyall io:actionbar <yellow>Menu coming soon!"
+  on-left-click:
+    - "notifyall io:actionbar <yellow>Menu coming soon!"
+
+profile_button:
+  slot: 7
+  prevent-move: true
+  glow: false
+  item:
+    material: PLAYER_HEAD
+    name: "<aqua><bold>⚔ Profile"
+    lore:
+      - "<gray>Right-click to view your profile"
+  on-right-click:
+    - "notifyall io:actionbar <aqua>Profile coming soon!"

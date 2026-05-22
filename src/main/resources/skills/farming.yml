@@ -1,0 +1,40 @@
+id: "farming"
+name: "<green><bold>🌾 Farming</bold></green>"
+description:
+  - "<gray>Cultivate crops and master the art of agriculture."
+material: IRON_HOE
+max-level: 60
+xp-curve: "default"
+
+sources:
+  CROP_HARVEST:
+    WHEAT: 3.0
+    CARROTS: 3.0
+    POTATOES: 3.0
+    BEETROOTS: 3.0
+    NETHER_WART: 5.0
+    MELON: 4.0
+    PUMPKIN: 4.0
+    SUGAR_CANE: 2.0
+    COCOA: 4.0
+    SWEET_BERRY_BUSH: 2.0
+    BAMBOO: 1.0
+    TORCHFLOWER_CROP: 10.0
+    PITCHER_CROP: 10.0
+  BLOCK_BREAK:
+    BROWN_MUSHROOM_BLOCK: 3.0
+    RED_MUSHROOM_BLOCK: 3.0
+    CACTUS: 2.0
+
+rewards:
+  per-level:
+    - "variable add player.var.farming_fortune 0.5"
+    - "variable add player.var.coins $param.level$*10"
+
+  milestones:
+    "10":
+      - "give GOLDEN_HOE:1 notify"
+    "25":
+      - "give DIAMOND_HOE:1 notify"
+    "50":
+      - "give NETHERITE_HOE:1 notify"

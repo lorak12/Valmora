@@ -23,6 +23,20 @@ public class Keys {
     public static NamespacedKey MOB_HOME_KEY;
     public static NamespacedKey ZONE_WAND_KEY;
 
+    public static NamespacedKey HUD_ITEM_KEY;
+    public static NamespacedKey REFORGE_ID_KEY;
+    public static NamespacedKey REFORGE_POOL_KEY;
+    public static NamespacedKey REFORGE_DISPLAY_KEY;
+
+    public static NamespacedKey PET_ID_KEY;
+    public static NamespacedKey PET_XP_KEY;
+    public static NamespacedKey PET_LEVEL_KEY;
+
+    public static NamespacedKey SLAYER_BOSS_KEY;
+
+    public static NamespacedKey BACKPACK_CONTENTS_KEY;
+    public static NamespacedKey BACKPACK_SIZE_KEY;
+
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
         RARITY_KEY = new NamespacedKey(plugin, "rarity");
@@ -42,5 +56,19 @@ public class Keys {
         WARP_ID_KEY = new NamespacedKey(plugin, "valmora_warp_id");
         MOB_HOME_KEY = new NamespacedKey(plugin, "mob_home");
         ZONE_WAND_KEY = new NamespacedKey(plugin, "zone_wand");
+
+        HUD_ITEM_KEY = new NamespacedKey(plugin, "hud_item_id");
+        REFORGE_ID_KEY = new NamespacedKey(plugin, "reforge_id");
+        REFORGE_POOL_KEY = new NamespacedKey(plugin, "reforge_pool");
+        REFORGE_DISPLAY_KEY = new NamespacedKey(plugin, "reforge_display");
+
+        PET_ID_KEY = new NamespacedKey(plugin, "pet_id");
+        PET_XP_KEY = new NamespacedKey(plugin, "pet_xp");
+        PET_LEVEL_KEY = new NamespacedKey(plugin, "pet_level");
+
+        SLAYER_BOSS_KEY = new NamespacedKey(plugin, "slayer_boss");
+
+        BACKPACK_CONTENTS_KEY = new NamespacedKey(plugin, "backpack_contents");
+        BACKPACK_SIZE_KEY = new NamespacedKey(plugin, "backpack_size");
     }
 }
