@@ -1,25 +1,25 @@
 # =====================================================================
-# Valmora Reforge GUI  — 36 slots (4×9)
+# Valmora Reforge Anvil GUI  — 36 slots (4×9)
 #
 # Layout:
 #  B = Black glass border
 #  G = Grey glass filler
-#  I = Input slot  (item to reforge)
+#  I = Input slot 1 (item to reforge)
 #  A = Arrow display
-#  O = Output slot (reforged result)
-#  C = Reforge button (triggers forge_random machine)
+#  O = Output slot  (reforged result)
+#  R = Input slot 2 (reforge stone)
+#  C = Apply button (triggers reforge_anvil machine)
 # =====================================================================
 
-reforge:
-  title: "<dark_red><bold>⚒ Valmora Reforge</bold></dark_red>"
+reforge_anvil:
+  title: "<dark_gray>⚒ Reforge Anvil"
   rows: 4
-  machine: forge_random
-  update-interval: 0
+  machine: reforge_anvil
 
   layout:
     - "BBBBBBBBB"
     - "BGGGGGGGB"
-    - "BGIAOGGGB"
+    - "BGIAOGRGB"
     - "BBBBCBBBB"
 
   components:
@@ -52,15 +52,20 @@ reforge:
       type: OUTPUT
       id: result
 
+    R:
+      type: INPUT
+      id: reforge_stone
+
     C:
       type: DISPLAY
       display-item:
         material: ANVIL
-        name: "<gold><bold>⚒ Random Reforge!"
+        name: "<green><bold>⚒ Apply Reforge!"
         lore:
-          - "<gray>Place an item in the left slot."
-          - "<gray>A random reforge will be applied,"
-          - "<gray>replacing any existing one."
+          - "<gray>Place your item in the <white>left slot</gray>."
+          - "<gray>Place a <aqua>Reforge Stone</aqua> in the <white>right slot</gray>."
+          - "<gray>The reforge on the stone will"
+          - "<gray>be directly applied to your item."
           - ""
           - "<gray>Cost by item rarity:"
           - "<white>  Common       <yellow>250 Coins"
@@ -81,5 +86,5 @@ reforge:
 
   on-open:
     actions:
-      - "sound player block.blast_furnace.crack"
+      - "sound player block.anvil.use"
   on-close: {}

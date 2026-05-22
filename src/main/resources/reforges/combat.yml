@@ -3,10 +3,29 @@ fierce:
   applicable-types:
     - SWORD
     - AXE
-  stat-bonuses:
-    strength: 20
-    crit_damage: 8
-  cost: 500
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      strength: 5
+      crit_damage: 3
+    UNCOMMON:
+      strength: 12
+      crit_damage: 6
+    RARE:
+      strength: 20
+      crit_damage: 10
+    EPIC:
+      strength: 32
+      crit_damage: 15
+    LEGENDARY:
+      strength: 48
+      crit_damage: 22
+    MYTHIC:
+      strength: 65
+      crit_damage: 30
+    DIVINE:
+      strength: 85
+      crit_damage: 40
 
 sharp:
   name: "Sharp"
@@ -14,21 +33,65 @@ sharp:
     - SWORD
     - AXE
     - BOW
-  stat-bonuses:
-    damage: 15
-    crit_chance: 5
-  cost: 300
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      damage: 5
+      crit_chance: 2
+    UNCOMMON:
+      damage: 10
+      crit_chance: 3
+    RARE:
+      damage: 18
+      crit_chance: 5
+    EPIC:
+      damage: 28
+      crit_chance: 7
+    LEGENDARY:
+      damage: 42
+      crit_chance: 10
+    MYTHIC:
+      damage: 58
+      crit_chance: 14
+    DIVINE:
+      damage: 75
+      crit_chance: 18
 
 fabled:
   name: "Fabled"
   applicable-types:
     - SWORD
     - AXE
-  stat-bonuses:
-    strength: 12
-    damage: 10
-    ferocity: 3
-  cost: 750
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      strength: 3
+      damage: 4
+      ferocity: 1
+    UNCOMMON:
+      strength: 7
+      damage: 8
+      ferocity: 2
+    RARE:
+      strength: 12
+      damage: 14
+      ferocity: 4
+    EPIC:
+      strength: 18
+      damage: 22
+      ferocity: 6
+    LEGENDARY:
+      strength: 28
+      damage: 33
+      ferocity: 9
+    MYTHIC:
+      strength: 40
+      damage: 46
+      ferocity: 13
+    DIVINE:
+      strength: 55
+      damage: 62
+      ferocity: 18
 
 heroic:
   name: "Heroic"
@@ -37,20 +100,58 @@ heroic:
     - AXE
     - BOW
     - CROSSBOW
-  stat-bonuses:
-    crit_chance: 8
-    crit_damage: 15
-  cost: 600
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      crit_chance: 3
+      crit_damage: 6
+    UNCOMMON:
+      crit_chance: 5
+      crit_damage: 12
+    RARE:
+      crit_chance: 8
+      crit_damage: 20
+    EPIC:
+      crit_chance: 11
+      crit_damage: 30
+    LEGENDARY:
+      crit_chance: 15
+      crit_damage: 45
+    MYTHIC:
+      crit_chance: 20
+      crit_damage: 62
+    DIVINE:
+      crit_chance: 26
+      crit_damage: 82
 
 rapid:
   name: "Rapid"
   applicable-types:
     - BOW
     - CROSSBOW
-  stat-bonuses:
-    bonus_attack_speed: 20
-    damage: 8
-  cost: 400
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      bonus_attack_speed: 8
+      damage: 4
+    UNCOMMON:
+      bonus_attack_speed: 16
+      damage: 8
+    RARE:
+      bonus_attack_speed: 26
+      damage: 14
+    EPIC:
+      bonus_attack_speed: 38
+      damage: 22
+    LEGENDARY:
+      bonus_attack_speed: 55
+      damage: 33
+    MYTHIC:
+      bonus_attack_speed: 75
+      damage: 46
+    DIVINE:
+      bonus_attack_speed: 100
+      damage: 62
 
 fortified:
   name: "Fortified"
@@ -59,10 +160,29 @@ fortified:
     - CHESTPLATE
     - LEGGINGS
     - BOOTS
-  stat-bonuses:
-    defense: 25
-    health: 20
-  cost: 500
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      defense: 8
+      health: 10
+    UNCOMMON:
+      defense: 18
+      health: 20
+    RARE:
+      defense: 30
+      health: 35
+    EPIC:
+      defense: 45
+      health: 55
+    LEGENDARY:
+      defense: 65
+      health: 80
+    MYTHIC:
+      defense: 90
+      health: 110
+    DIVINE:
+      defense: 120
+      health: 150
 
 reinforced:
   name: "Reinforced"
@@ -71,10 +191,29 @@ reinforced:
     - CHESTPLATE
     - LEGGINGS
     - BOOTS
-  stat-bonuses:
-    true_defense: 10
-    defense: 15
-  cost: 650
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      true_defense: 3
+      defense: 6
+    UNCOMMON:
+      true_defense: 6
+      defense: 14
+    RARE:
+      true_defense: 10
+      defense: 24
+    EPIC:
+      true_defense: 15
+      defense: 37
+    LEGENDARY:
+      true_defense: 22
+      defense: 54
+    MYTHIC:
+      true_defense: 30
+      defense: 74
+    DIVINE:
+      true_defense: 40
+      defense: 100
 
 titanic:
   name: "Titanic"
@@ -83,7 +222,26 @@ titanic:
     - CHESTPLATE
     - LEGGINGS
     - BOOTS
-  stat-bonuses:
-    health: 50
-    defense: 10
-  cost: 800
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      health: 20
+      defense: 4
+    UNCOMMON:
+      health: 40
+      defense: 8
+    RARE:
+      health: 70
+      defense: 14
+    EPIC:
+      health: 110
+      defense: 20
+    LEGENDARY:
+      health: 160
+      defense: 30
+    MYTHIC:
+      health: 220
+      defense: 42
+    DIVINE:
+      health: 300
+      defense: 56

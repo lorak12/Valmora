@@ -77,6 +77,22 @@ public class ItemCommand implements TabExecutor {
                     }
                 }
                 
+                // Check for auto-generated reforge stone: <reforge_id>_reforge_stone
+                if (itemId.toLowerCase().endsWith("_reforge_stone")) {
+                    String reforgeId = itemId.substring(0, itemId.length() - "_reforge_stone".length());
+                    var reforgeModule = plugin.getReforgeModule();
+                    if (reforgeModule != null) {
+                        var reforgeDef = reforgeModule.getDefinition(reforgeId);
+                        if (reforgeDef != null && reforgeDef.isGenerateStone()) {
+                            ItemStack stone = reforgeModule.createReforgeStone(reforgeDef);
+                            stone.setAmount(amount);
+                            target.getInventory().addItem(stone);
+                            player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Gave <white>" + amount + "x " + itemId + " <green>to " + target.getName()));
+                            break;
+                        }
+                    }
+                }
+
                 ItemStack item = itemManager.createItemStack(itemId);
                 if (item != null) {
                     item.setAmount(amount);
