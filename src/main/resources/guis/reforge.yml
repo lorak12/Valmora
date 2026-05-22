@@ -1,0 +1,85 @@
+# =====================================================================
+# Valmora Reforge GUI  — 36 slots (4×9)
+#
+# Layout:
+#  B = Black glass border
+#  G = Grey glass filler
+#  I = Input slot  (item to reforge)
+#  A = Arrow display
+#  O = Output slot (reforged result)
+#  C = Reforge button (triggers forge_random machine)
+# =====================================================================
+
+reforge:
+  title: "<dark_red><bold>⚒ Valmora Reforge</bold></dark_red>"
+  rows: 4
+  machine: forge_random
+  update-interval: 0
+
+  layout:
+    - "BBBBBBBBB"
+    - "BGGGGGGGB"
+    - "BGIAOGGGB"
+    - "BBBBCBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    G:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+        amount: 1
+
+    I:
+      type: INPUT
+      id: base_item
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: ARROW
+        name: "<yellow>→"
+        amount: 1
+
+    O:
+      type: OUTPUT
+      id: result
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: ANVIL
+        name: "<gold><bold>⚒ Random Reforge!"
+        lore:
+          - "<gray>Place an item in the left slot."
+          - "<gray>A random reforge will be applied,"
+          - "<gray>replacing any existing one."
+          - ""
+          - "<gray>Cost by item rarity:"
+          - "<white>  Common       <yellow>250 Coins"
+          - "<green>  Uncommon     <yellow>500 Coins"
+          - "<blue>  Rare         <yellow>1,000 Coins"
+          - "<dark_purple>  Epic         <yellow>2,500 Coins"
+          - "<gold>  Legendary    <yellow>5,000 Coins"
+          - "<light_purple>  Mythic       <yellow>10,000 Coins"
+          - "<aqua>  Divine       <yellow>15,000 Coins"
+        amount: 1
+      actions:
+        LEFT:
+          actions:
+            - "gui_force_craft"
+        RIGHT:
+          actions:
+            - "gui_force_craft"
+
+  on-open:
+    actions:
+      - "sound player block.blast_furnace.crack"
+  on-close: {}

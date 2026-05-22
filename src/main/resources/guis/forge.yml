@@ -1,26 +1,26 @@
 # =====================================================================
-# Valmora Forge GUI  — 36 slots (4×9)
+# Valmora Forge GUI  - 36 slots (4x9)
 #
 # Layout:
 #  B = Black glass border
 #  G = Grey glass filler
-#  I = Input slot  (item to reforge)
-#  A = Arrow display
-#  O = Output slot (reforged result)
-#  C = Reforge button (triggers forge_random machine)
+#  I = Input slot 1 (base item)
+#  M = Input slot 2 (material)
+#  O = Output slot (result)
+#  F = Forge info button
 # =====================================================================
 
 forge:
   title: "<dark_red><bold>⚒ Valmora Forge</bold></dark_red>"
   rows: 4
-  machine: forge_random
+  machine: forge
   update-interval: 0
 
   layout:
     - "BBBBBBBBB"
     - "BGGGGGGGB"
-    - "BGIAOGGGB"
-    - "BBBBCBBBB"
+    - "BGIBMOGBB"
+    - "BBBBFBBBB"
 
   components:
     B:
@@ -39,45 +39,33 @@ forge:
 
     I:
       type: INPUT
-      id: base_item
+      id: input1
 
-    A:
-      type: DISPLAY
-      display-item:
-        material: ARROW
-        name: "<yellow>→"
-        amount: 1
+    M:
+      type: INPUT
+      id: input2
 
     O:
       type: OUTPUT
       id: result
 
-    C:
+    F:
       type: DISPLAY
       display-item:
-        material: ANVIL
-        name: "<gold><bold>⚒ Random Reforge!"
+        material: BLAST_FURNACE
+        name: "<red><bold>⚒ Forge Guide</bold></red>"
         lore:
-          - "<gray>Place an item in the left slot."
-          - "<gray>A random reforge will be applied,"
-          - "<gray>replacing any existing one."
+          - "<gray>Place your <yellow>base item</yellow>"
+          - "<gray>in the left input slot."
           - ""
-          - "<gray>Cost by item rarity:"
-          - "<white>  Common       <yellow>250 Coins"
-          - "<green>  Uncommon     <yellow>500 Coins"
-          - "<blue>  Rare         <yellow>1,000 Coins"
-          - "<dark_purple>  Epic         <yellow>2,500 Coins"
-          - "<gold>  Legendary    <yellow>5,000 Coins"
-          - "<light_purple>  Mythic       <yellow>10,000 Coins"
-          - "<aqua>  Divine       <yellow>15,000 Coins"
+          - "<gray>Place the <aqua>material</aqua>"
+          - "<gray>in the middle slot."
+          - ""
+          - "<gray>Collect the result from the"
+          - "<gray><green>right output slot</green>."
+          - ""
+          - "<dark_gray>Forge-specific recipes only."
         amount: 1
-      actions:
-        LEFT:
-          actions:
-            - "gui_force_craft"
-        RIGHT:
-          actions:
-            - "gui_force_craft"
 
   on-open:
     actions:
