@@ -6,7 +6,8 @@ public enum Rarity {
     RARE("Rare", "<blue>"),
     EPIC("Epic", "<dark_purple>"),
     LEGENDARY("Legendary", "<gold>"),
-    MYTHIC("Mythic", "<light_purple>");
+    MYTHIC("Mythic", "<light_purple>"),
+    DIVINE("Divine", "<aqua>");
 
     private final String name;
     private final String color;

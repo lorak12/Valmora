@@ -23,6 +23,10 @@ public class Keys {
     public static NamespacedKey MOB_HOME_KEY;
     public static NamespacedKey ZONE_WAND_KEY;
 
+    public static NamespacedKey REFORGE_ID_KEY;
+    public static NamespacedKey REFORGE_POOL_KEY;
+    public static NamespacedKey REFORGE_DISPLAY_KEY;
+
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
         RARITY_KEY = new NamespacedKey(plugin, "rarity");
@@ -42,5 +46,9 @@ public class Keys {
         WARP_ID_KEY = new NamespacedKey(plugin, "valmora_warp_id");
         MOB_HOME_KEY = new NamespacedKey(plugin, "mob_home");
         ZONE_WAND_KEY = new NamespacedKey(plugin, "zone_wand");
+
+        REFORGE_ID_KEY = new NamespacedKey(plugin, "reforge_id");
+        REFORGE_POOL_KEY = new NamespacedKey(plugin, "reforge_pool");
+        REFORGE_DISPLAY_KEY = new NamespacedKey(plugin, "reforge_display");
     }
 }
