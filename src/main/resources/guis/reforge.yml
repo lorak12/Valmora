@@ -2,75 +2,54 @@ reforge:
   title: "<dark_gray>⚒ Reforge Station"
   rows: 3
   machine: reforge
+
+  layout:
+    - "GGGGGGGGG"
+    - "GGIAOARGG"
+    - "GGGGCGGGG"
+
   components:
-    base_item:
-      type: INPUT
-      slot: 11
-      placeholder:
-        material: IRON_SWORD
-        name: "<gray>Place item here"
-        lore:
-          - "<dark_gray>Put the item you want"
-          - "<dark_gray>to reforge in this slot."
-    reforge_stone:
-      type: INPUT
-      slot: 15
-      placeholder:
-        material: MAGMA_CREAM
-        name: "<gray>Place reforge stone here"
-        lore:
-          - "<dark_gray>Put a reforge stone in"
-          - "<dark_gray>this slot to apply a reforge."
-    result:
-      type: OUTPUT
-      slot: 13
-    confirm:
+    G:
       type: DISPLAY
-      slot: 22
-      item:
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    I:
+      type: INPUT
+      id: base_item
+
+    R:
+      type: INPUT
+      id: reforge_stone
+
+    O:
+      type: OUTPUT
+      id: result
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: ARROW
+        name: "<yellow>→"
+
+    C:
+      type: DISPLAY
+      display-item:
         material: ANVIL
         name: "<green><bold>⚒ Reforge!"
         lore:
           - "<gray>Click to apply the reforge."
           - "<dark_gray>Cost depends on the reforge."
       actions:
-        RIGHT:
-          - "gui_force_craft"
         LEFT:
-          - "gui_force_craft"
-    filler_left:
-      type: DISPLAY
-      slot: 9
-      item:
-        material: GRAY_STAINED_GLASS_PANE
-        name: " "
-    filler_left2:
-      type: DISPLAY
-      slot: 10
-      item:
-        material: GRAY_STAINED_GLASS_PANE
-        name: " "
-    filler_right:
-      type: DISPLAY
-      slot: 16
-      item:
-        material: GRAY_STAINED_GLASS_PANE
-        name: " "
-    filler_right2:
-      type: DISPLAY
-      slot: 17
-      item:
-        material: GRAY_STAINED_GLASS_PANE
-        name: " "
-    filler_arrow:
-      type: DISPLAY
-      slot: 12
-      item:
-        material: ARROW
-        name: "<yellow>→"
-    filler_arrow2:
-      type: DISPLAY
-      slot: 14
-      item:
-        material: ARROW
-        name: "<yellow>→"
+          actions:
+            - "gui_force_craft"
+        RIGHT:
+          actions:
+            - "gui_force_craft"
+
+  on-open:
+    actions:
+      - "sound player block.anvil.use"
+  on-close: {}
