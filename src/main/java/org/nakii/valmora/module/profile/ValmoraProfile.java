@@ -14,6 +14,7 @@ import java.util.UUID;
 public class ValmoraProfile {
     private final UUID id;
     private final String name;
+    private final long createdAt;
     private final StatManager statManager = new StatManager();
     private final SkillManager skillManager = new SkillManager();
     private final CollectionManager collectionManager = new CollectionManager();
@@ -30,18 +31,21 @@ public class ValmoraProfile {
     // Accessory bag (45 slots)
     private ItemStack[] accessoryItems = new ItemStack[45];
 
-    public ValmoraProfile(UUID id, String name) {
+    public ValmoraProfile(UUID id, String name, long createdAt) {
         this.id = id;
         this.name = name;
+        this.createdAt = createdAt;
     }
 
     public ValmoraProfile(String name) {
         this.id = UUID.randomUUID();
         this.name = name;
+        this.createdAt = System.currentTimeMillis();
     }
 
     public UUID getId() { return id; }
     public String getName() { return name; }
+    public long getCreatedAt() { return createdAt; }
 
     public StatManager getStatManager() {
         return statManager;

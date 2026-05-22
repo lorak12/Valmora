@@ -1,12 +1,12 @@
 package org.nakii.valmora.module.profile;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class ValmoraPlayer {
     private UUID uuid;
-    private final Map<UUID, ValmoraProfile> profiles = new HashMap<>();
+    private final Map<UUID, ValmoraProfile> profiles = new LinkedHashMap<>();
     private UUID activeProfileId;
 
     public ValmoraPlayer(UUID uuid) {
