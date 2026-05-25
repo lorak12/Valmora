@@ -43,6 +43,11 @@
 31. [Rarity Reference Table](#31-rarity-reference-table)
 32. [Script Variable Reference](#32-script-variable-reference)
 33. [Script Event DSL Reference](#33-script-event-dsl-reference)
+34. [Notify Module](#34-notify-module)
+35. [Collections Module — collections/*.yml](#35-collections-module--collectionsyml)
+36. [Slayer Module — slayers/*.yml](#36-slayer-module--slayersyml)
+37. [Reforge Module — reforges/*.yml](#37-reforge-module--reforgesyml)
+38. [Points System](#38-points-system)
 
 ---
 
@@ -59,10 +64,15 @@ Valmora is a Paper MMORPG engine plugin. It provides a complete foundation for b
 - **Custom Items** — YAML-defined items with stats, rarity, and multi-mechanic abilities.
 - **Custom Mobs** — YAML-defined mobs with custom health, speed, damage, and equipment.
 - **Ability System** — Trigger-driven ability execution (RIGHT_CLICK, PASSIVE) backed by composable Mechanic objects.
-- **Skill System** — Five levelled skills (Mining, Farming, Foraging, Fishing, Combat) with XP and levels.
+- **Skill System** — Nine levelled skills (Mining, Farming, Foraging, Fishing, Combat, Alchemy, Carpentry, Enchanting, Taming) with XP, level rewards, and milestones.
 - **Combat Engine** — A fully custom damage pipeline that replaces vanilla damage with stat-driven, type-aware calculations and floating text damage indicators.
 - **Script Engine** — Expression parser, condition evaluator, and event DSL for data-driven logic in YAML configs.
 - **GUI Framework** — A layout-based inventory GUI system loaded entirely from YAML.
+- **Notify System** — Multi-channel notification engine (chat, actionbar, title, bossbar, sound, advancement) with per-quest custom categories.
+- **Collection System** — Tracks per-player item/action counts with staged unlock rewards.
+- **Slayer System** — Tiered kill-challenge missions activated by players at a cost, culminating in a boss mob encounter.
+- **Reforge System** — Applies rarity-scaled stat bonuses to custom items; supports stone-based and random forge machines.
+- **Points System** — Free-form per-player numeric counters for quest rewards, progression gating, and scripting.
 - **Database** — Async HikariCP-backed persistence via either SQLite or MySQL.
 - **Module Manager** — A lifecycle-aware module registry that enables hot-reloading without server restart.
 
@@ -232,27 +242,32 @@ The `LinkedHashMap` in `ModuleManager` preserves insertion order. Your module's 
 
 **Current registration order:**
 ```
-1.  ScriptModule    (script)
-2.  TimeModule      (time)
-3.  StatModule      (stat)
-4.  PlayerManager   (player)
-5.  EconomyModule   (economy)
-6.  UIManager       (ui)
-7.  AbilityManager  (ability)
-8.  ItemManager     (items)
-9.  MobManager      (mobs)
-10. SkillModule     (skills)
-11. CombatModule    (combat)
-12. GuiModule       (gui)
-13. RecipeModule    (recipe)
-14. AlchemyModule   (alchemy)
-15. EnchantModule   (enchants)
-16. ZoneModule      (zone)
-17. ResourceModule  (resource)
-18. FishingModule   (fishing)
-19. NpcModule       (npc)
-20. WarpModule      (warp)
-21. QuestModule     (quest)
+1.  ScriptModule      (script)
+2.  TimeModule        (time)
+3.  StatModule        (stat)
+4.  PlayerManager     (player)
+5.  EconomyModule     (economy)
+6.  UIManager         (ui)
+7.  AbilityManager    (ability)
+8.  ItemManager       (items)
+9.  MobManager        (mobs)
+10. SkillModule       (skills)
+11. CombatModule      (combat)
+12. GuiModule         (gui)
+13. RecipeModule      (recipe)
+14. AlchemyModule     (alchemy)
+15. EnchantModule     (enchants)
+16. ZoneModule        (zone)
+17. ResourceModule    (resource)
+18. FishingModule     (fishing)
+19. NpcModule         (npc)
+20. WarpModule        (warp)
+21. QuestModule       (quest)
+22. NotifyModule      (notify)
+23. CollectionModule  (collection)
+24. SlayerModule      (slayer)
+25. ReforgeModule     (reforge)
+26. PointsModule      (points)
 ```
 
 ---
@@ -1385,11 +1400,15 @@ Skills are levelled by performing in-game actions. XP is gained automatically vi
 
 | Skill | Internal Name | Max Level | XP Source |
 |---|---|---|---|
-| Mining | `MINING` | 60 | Breaking Stone blocks |
-| Farming | `FARMING` | 60 | Breaking Wheat blocks |
-| Foraging | `FORAGING` | 60 | Breaking Oak Log blocks |
-| Fishing | `FISHING` | 60 | (Not yet implemented — grants no XP) |
-| Combat | `COMBAT` | 60 | (Not yet implemented — grants no XP) |
+| Mining | `mining` | 60 | Breaking stone, ores, and deepslate |
+| Farming | `farming` | 60 | Breaking grown crop blocks |
+| Foraging | `foraging` | 60 | Breaking logs |
+| Fishing | `fishing` | 60 | Catching fish in Fishing Zones |
+| Combat | `combat` | 60 | Killing mobs |
+| Alchemy | `alchemy` | 60 | Brewing potions |
+| Carpentry | `carpentry` | 60 | Defined in `skills/carpentry.yml` — sources configured per-server |
+| Enchanting | `enchanting` | 60 | Applying Valmora enchantments |
+| Taming | `taming` | 60 | Taming animals |
 
 ### XP Thresholds
 
@@ -1511,6 +1530,7 @@ Damage types affect the color of the damage indicator and whether defense is app
 | `EPIC` | Epic | `<dark_purple>` | Multi-ability or high-stat items. |
 | `LEGENDARY` | Legendary | `<gold>` | Top-tier power items. |
 | `MYTHIC` | Mythic | `<light_purple>` | Reserved for the rarest items. |
+| `DIVINE` | Divine | `<aqua>` | Endgame tier. Used by the reforge system and high-end items. |
 
 The rarity name is automatically appended as a **bold** colored line at the bottom of an item's lore, and the rarity color is prepended to the item's display name.
 
@@ -1528,8 +1548,10 @@ Variables are used in conditions and expressions throughout the engine. The synt
 | `$player.stat.HEALTH$` | Double | `250.0` |
 | `$player.stat.DAMAGE$` | Double | `45.0` |
 | `$player.stat.MANA$` | Double | `100.0` |
-| `$player.stat.<ANY_STAT>$` | Double | Any stat from the Stat enum |
-| `$player.var.<varName>$` | Object | Custom variable value |
+| `$player.stat.<ANY_STAT>$` | Double | Any stat ID from the stat registry |
+| `$player.var.<varName>$` | Object | Custom profile variable value |
+| `$player.skill.<skillId>.level$` | Integer | Player's level in the given skill |
+| `$player.skill.<skillId>.xp$` | Double | Player's total XP in the given skill |
 
 ### World Variables (`$world.*$`)
 
@@ -1543,6 +1565,56 @@ Variables are used in conditions and expressions throughout the engine. The synt
 | Variable | Returns | Example |
 |---|---|---|
 | `$system.time$` | Long | Current Unix timestamp in milliseconds |
+
+### Time Variables (`$time.*$`)
+
+| Variable | Returns | Example |
+|---|---|---|
+| `$time.season$` | String | `"Summer"` |
+| `$time.hour$` | Integer | `14` (0–23) |
+| `$time.is_day$` | Boolean | `true` |
+| `$time.day$` | Integer | Current RPG day of the season |
+| `$time.year$` | Integer | Current RPG year |
+
+### Quest Variables (`$quest.*$`)
+
+| Variable | Returns | Example |
+|---|---|---|
+| `$quest.<questId>.status$` | String | `"ACTIVE"`, `"COMPLETED"`, `"NOT_STARTED"` |
+| `$quest.<questId>.objective.<objId>.progress$` | Integer | Current objective progress count |
+| `$quest.<questId>.objective.<objId>.required$` | Integer | Required count to complete the objective |
+| `$quest.objective.<objId>.active$` | Boolean | Whether this objective is currently active for the player |
+
+### Points Variables (`$point.*$`)
+
+| Variable | Returns | Example |
+|---|---|---|
+| `$point.<category>$` | Double | `15.0` — the player's current points in the given category |
+
+### Collection Variables (`$collection.*$`)
+
+These variables are used inside Collection GUIs and require session props `selected_category` and `selected_collection` to be set.
+
+| Variable | Returns | Description |
+|---|---|---|
+| `$collection.category_list$` | List | All collection category IDs |
+| `$collection.item_list$` | List | Collection IDs in the selected category |
+| `$collection.stage_list$` | List | Stage numbers for the selected collection |
+| `$collection.detail_name$` | String | Display name of the selected collection |
+| `$collection.detail_icon$` | String | Material name for the selected collection icon |
+| `$collection.detail_count$` | Integer | Player's current count for the selected collection |
+| `$collection.detail_stage$` | Integer | Player's current stage (0-indexed) |
+| `$collection.detail_max_stage$` | Integer | Total number of stages in the collection |
+| `$collection.detail_next_required$` | Integer | Count needed to reach the next stage |
+
+### GUI Variables (`$gui.*$`, `$prop.*$`)
+
+| Variable | Returns | Example |
+|---|---|---|
+| `$gui.input.<id>.id$` | String | Valmora item ID in the INPUT slot |
+| `$gui.input.<id>.amount$` | Integer | Stack size in the INPUT slot |
+| `$gui.input.<id>.material$` | String | Bukkit material name in the INPUT slot |
+| `$prop.<key>$` | Object | Per-GUI session property (transient) |
 
 ### Condition Strings
 
@@ -1638,6 +1710,86 @@ sound player <sound_id> [volume] [pitch]
 sound player block.brewing_stand.brew
 ```
 
+**`notify`** — Sends a notification to the player using the Notify system.
+```
+notify <message> [category:<name>] [io:<io-type>] [key:value ...]
+notify "Quest complete!" category:quest_complete
+notify "Not enough coins." io:actionbar
+notify "You found a chest!" io:title
+```
+The `category:` token selects a named category (which defines the default IO type and any extra settings). The `io:` token overrides the category's IO type. Any additional `key:value` tokens are passed as extra settings to the IO handler. If neither `category:` nor `io:` is given, defaults to the `info` category (chat).
+
+**`notifyall`** — Same syntax as `notify` but broadcasts to all online players.
+```
+notifyall "The server event has begun!" io:title
+```
+
+**`quest_start`** — Starts a quest for the player.
+```
+quest_start <quest-id>
+quest_start forgotten_mine_main
+```
+
+**`quest_complete`** — Marks a quest as completed (triggers rewards).
+```
+quest_complete <quest-id>
+```
+
+**`quest_cancel`** — Cancels an active quest (no rewards).
+```
+quest_cancel <quest-id>
+```
+
+**`quest_fail`** — Marks a quest as failed.
+```
+quest_fail <quest-id>
+```
+
+**`objective_start`** — Starts a specific objective within a quest.
+```
+objective_start <quest-id> <objective-id>
+```
+
+**`objective_delete`** — Removes an objective from the player's active tracking.
+```
+objective_delete <quest-id> <objective-id>
+```
+
+**`journal open`** — Opens the quest journal GUI for the player.
+```
+journal open
+```
+
+**`point`** — Modifies a point category for the player.
+```
+point <category> add <amount>
+point <category> set <amount>
+point <category> take <amount>
+
+point kills add 1
+point reputation set 0
+point slayer_xp add 250
+```
+Points are free-form named counters stored per-player. The category name is any string. Use `$point.<category>$` to read values in conditions and expressions.
+
+**`slayer_start`** — Starts a slayer quest for the player.
+```
+slayer_start <slayer-id> <tier>
+slayer_start zombie_slayer 1
+```
+
+**`economy_add`** — Adds coins to the player's balance.
+```
+economy_add <amount>
+economy_add 500
+```
+
+**`economy_remove`** — Removes coins from the player's balance.
+```
+economy_remove <amount>
+economy_remove 250
+```
+
 ### Event Examples
 
 ```yaml
@@ -1652,6 +1804,453 @@ on-complete:
 on-purchase:
   - "variable add player.var.coins -50"
   - "give IRON_SWORD:1 notify"
+```
+
+---
+
+---
+
+## 34. Notify Module
+
+`NotifyModule` (id: `"notify"`) provides a multi-channel notification engine used throughout the quest and game systems to show messages to players.
+
+### 34.1 Built-in Categories
+
+| Category | Default IO | Description |
+|---|---|---|
+| `info` | `chat` | General info messages. |
+| `error` | `actionbar` | Error/warning messages shown in the action bar. |
+
+Custom categories are defined per-quest-package in a `notifications.yml` file (see QUEST_SYSTEM.md §7).
+
+### 34.2 IO Types
+
+| IO Type | Description |
+|---|---|
+| `chat` | Sends a chat message. |
+| `actionbar` | Shows text in the action bar for a short duration. |
+| `title` | Shows a large title overlay. |
+| `subtitle` | Shows the subtitle part of a title overlay. |
+| `bossbar` | Shows a boss bar at the top of the screen. |
+| `sound` | Plays a sound effect (no text). |
+| `advancement` | Shows a toast notification (advancement-style). |
+
+### 34.3 Script Event Syntax
+
+```
+notify <message> [category:<name>] [io:<io-type>] [key:value ...]
+notifyall <message> [category:<name>] [io:<io-type>] [key:value ...]
+```
+
+- **`category:<name>`** — uses the named category's default IO and settings.
+- **`io:<type>`** — overrides the IO type (one of the values in the table above).
+- Any remaining `key:value` tokens are passed as extra settings to the IO handler (e.g., `duration:5`).
+
+If no category or IO is specified, the `info` category (chat) is used.
+
+### 34.4 Registering a Custom IO
+
+```java
+notifyModule.registerIO("my_io", new MyNotifyIO());
+// MyNotifyIO implements NotifyIO:
+public interface NotifyIO {
+    void send(Player player, Component message, Map<String, String> settings);
+}
+```
+
+---
+
+## 35. Collections Module — collections/*.yml
+
+`CollectionModule` (id: `"collection"`) tracks per-player counts of items collected or actions performed. When a player reaches a defined threshold (stage), they receive rewards.
+
+### 35.1 Directory Structure
+
+```
+plugins/Valmora/collections/
+├── <category>/                  ← Folder name is the category ID
+│   ├── category.yml             ← Category definition (name, icon, description)
+│   ├── coal.yml                 ← One collection per file
+│   ├── iron.yml
+│   └── ...
+```
+
+A folder becomes a category when it contains a `category.yml` file. All other `.yml` files in the folder are parsed as individual collection definitions.
+
+### 35.2 Category File — `category.yml`
+
+```yaml
+<category-id>:
+  name: "<MiniMessage name>"
+  icon: <MATERIAL>
+  description:
+    - "<line>"
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Display name shown in the collections GUI. MiniMessage. |
+| `icon` | Yes | Material used as the category icon in the GUI. |
+| `description` | No | Lore lines for the category. |
+
+### 35.3 Collection File
+
+```yaml
+<collection-id>:
+  category: <category-id>        # REQUIRED — links to a category folder
+  name: "<MiniMessage name>"
+  icon: <MATERIAL>
+  track:
+    - <TYPE>:<TARGET>            # See track source format below
+    - <TYPE>:<TARGET>
+  stages:
+    <stage-number>:              # Integer key (1, 2, 3 …)
+      required: <int>            # Total count needed to reach this stage
+      rewards:
+        - "<event string>"
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `category` | Yes | Must match a loaded category ID. |
+| `name` | Yes | Display name in the collections GUI. MiniMessage. |
+| `icon` | Yes | Material for the GUI icon. |
+| `track` | Yes | List of `TYPE:TARGET` track sources (see below). |
+| `stages` | Yes | Map of stage number → `required` count and `rewards` list. Stage numbers must be positive integers starting at 1. |
+
+### 35.4 Track Source Format
+
+```
+TYPE:TARGET
+```
+
+| Type | Target | Tracks |
+|---|---|---|
+| `BLOCK_BREAK` | Material name | Counts each block of this material the player breaks. |
+| `ITEM_PICKUP` | Material name or Valmora item ID | Counts each item picked up from the ground. |
+
+**Examples:**
+```yaml
+track:
+  - BLOCK_BREAK:COAL_ORE
+  - BLOCK_BREAK:DEEPSLATE_COAL_ORE
+  - ITEM_PICKUP:COAL
+```
+
+Multiple track sources are cumulative — breaking either `COAL_ORE` or `DEEPSLATE_COAL_ORE` increments the same counter.
+
+### 35.5 Complete Example
+
+```yaml
+# plugins/Valmora/collections/mining/coal.yml
+coal:
+  category: mining
+  name: "<gray>Coal Collection"
+  icon: COAL
+  track:
+    - BLOCK_BREAK:COAL_ORE
+    - BLOCK_BREAK:DEEPSLATE_COAL_ORE
+    - ITEM_PICKUP:COAL
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "economy_add 100"
+        - "notify Stage 1 unlocked! io:chat"
+    2:
+      required: 250
+      rewards:
+        - "economy_add 500"
+    3:
+      required: 1000
+      rewards:
+        - "give DIAMOND_PICKAXE:1 notify"
+    4:
+      required: 10000
+      rewards:
+        - "economy_add 5000"
+    5:
+      required: 100000
+      rewards:
+        - "give netherite_pickaxe:1 notify"
+```
+
+### 35.6 Script Variables
+
+Used inside collection GUI definitions. Require session props `selected_category` and `selected_collection` to be set (via `variable set prop.selected_category <id>`).
+
+| Variable | Returns |
+|---|---|
+| `$collection.category_list$` | List of all category IDs |
+| `$collection.item_list$` | List of collection IDs in the selected category |
+| `$collection.stage_list$` | List of stage numbers for the selected collection |
+| `$collection.detail_name$` | Display name of the selected collection |
+| `$collection.detail_icon$` | Material name of the selected collection icon |
+| `$collection.detail_count$` | Player's current count |
+| `$collection.detail_stage$` | Player's current stage (0 = not started) |
+| `$collection.detail_max_stage$` | Total number of stages |
+| `$collection.detail_next_required$` | Count needed for the next stage (`-1` if maxed) |
+
+---
+
+## 36. Slayer Module — slayers/*.yml
+
+`SlayerModule` (id: `"slayer"`) provides tiered kill-challenge quests. A player activates a slayer at a cost, accumulates kills from a target category, and then spawns and kills a boss mob to complete the tier.
+
+### 36.1 YAML Schema
+
+```yaml
+<slayer-id>:
+  name: "<display name>"
+  tiers:
+    <tier-number>:               # Integer key (1, 2, 3 …)
+      cost: <int>                # Coins deducted when the slayer is started
+      target-category: <STRING>  # Mob category tag to count kills for
+      kills-required: <int>      # Kills needed before the boss spawns
+      boss-mob: <mob-id>         # Valmora mob ID to spawn as the boss
+      completion-events:
+        - "<event string>"
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Display name used in the slayer GUI and notifications. |
+| `tiers` | Yes | Map of tier number → tier definition. |
+| `cost` | Yes | Coins deducted on activation. Player must have enough coins. |
+| `target-category` | Yes | Category string matched against mob PDC tags (e.g., `UNDEAD`, `SPIDER`, `WOLF`). |
+| `kills-required` | Yes | Number of category kills before the boss mob is eligible to spawn. |
+| `boss-mob` | Yes | A Valmora mob ID. The boss spawns at the player's location when the kill count is met. |
+| `completion-events` | No | Script events fired when the boss is killed. Receives the player as context. |
+
+### 36.2 Script Event
+
+```
+slayer_start <slayer-id> <tier>
+slayer_start zombie_slayer 1
+```
+
+Starts the specified slayer tier for the player. Deducts `cost` coins and begins tracking kills.
+
+### 36.3 Complete Example
+
+```yaml
+zombie_slayer:
+  name: "Zombie Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: UNDEAD
+      kills-required: 5
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 250"
+        - "notify <gold>[Slayer] Zombie Slayer T1 complete! +250 coins io:chat"
+    2:
+      cost: 500
+      target-category: UNDEAD
+      kills-required: 15
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 1000"
+        - "notify <gold>[Slayer] Zombie Slayer T2 complete! +1000 coins io:chat"
+    3:
+      cost: 2000
+      target-category: UNDEAD
+      kills-required: 30
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 5000"
+        - "notify <gold>[Slayer] Zombie Slayer T3 complete! +5000 coins io:chat"
+```
+
+---
+
+## 37. Reforge Module — reforges/*.yml
+
+`ReforgeModule` (id: `"reforge"`) applies stat bonuses to custom items, scaled by the item's rarity. Players access reforging through two GUI machines.
+
+### 37.1 How It Works
+
+1. A player opens a **Reforge Anvil** (`machine: reforge_anvil`) and places an item + a Reforge Stone.
+2. The stone identifies which reforge to apply. The coin cost is deducted (based on item rarity).
+3. The item's stats are replaced with its base stats + the reforge's rarity-tier bonuses.
+
+Alternatively, a **Random Forge** (`machine: forge_random`) accepts only the item and applies a random valid reforge (excluding the current one).
+
+### 37.2 YAML Schema
+
+```yaml
+<reforge-id>:
+  name: "<display name>"
+  applicable-types:            # Item types this reforge can be applied to
+    - SWORD
+    - AXE
+  generate-stone: true         # Whether to auto-create a Reforge Stone item for this reforge
+  stat-bonuses-by-rarity:
+    COMMON:
+      <stat-id>: <value>
+      <stat-id>: <value>
+    UNCOMMON:
+      <stat-id>: <value>
+    RARE:
+      <stat-id>: <value>
+    EPIC:
+      <stat-id>: <value>
+    LEGENDARY:
+      <stat-id>: <value>
+    MYTHIC:
+      <stat-id>: <value>
+    DIVINE:
+      <stat-id>: <value>
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Display name shown on the reforge stone and item lore. |
+| `applicable-types` | Yes | List of `ItemType` values the reforge can be applied to. See valid values below. |
+| `generate-stone` | No | If `true`, a Reforge Stone (AMETHYST_SHARD) for this reforge is auto-generated and can be given via `/item give <reforge-id>_stone`. Default: `false`. |
+| `stat-bonuses-by-rarity` | Yes | Map of rarity name → stat-id → bonus value. If a rarity tier is missing, the nearest lower rarity is used as a fallback. |
+
+### 37.3 Valid `applicable-types` Values
+
+```
+SWORD   AXE      BOW     CROSSBOW
+HELMET  CHESTPLATE  LEGGINGS  BOOTS
+NONE    ALL
+```
+
+`ALL` matches any item type. `NONE` matches items with no type assigned.
+
+### 37.4 Rarity Tiers & Coin Costs
+
+| Rarity | Cost to Reforge |
+|---|---|
+| `COMMON` | 250 |
+| `UNCOMMON` | 500 |
+| `RARE` | 1,000 |
+| `EPIC` | 2,500 |
+| `LEGENDARY` | 5,000 |
+| `MYTHIC` | 10,000 |
+| `DIVINE` | 15,000 |
+
+Costs are fixed in the engine. The player must have enough coins in their economy balance before the recipe will match.
+
+### 37.5 Machine IDs
+
+| Machine ID | Inputs | Behavior |
+|---|---|---|
+| `reforge_anvil` | `base_item` + `reforge_stone` | Applies the exact reforge encoded in the stone. Consumes both items. |
+| `forge_random` | `base_item` only | Applies a random valid reforge (excluding the item's current reforge). Consumes the item (it is replaced by the reforged output). |
+
+### 37.6 Stat Application
+
+When a reforge is applied:
+1. The item's **base stats** are loaded fresh from the `ItemDefinition` (ignoring any previous reforge).
+2. The **rarity-scaled reforge bonuses** are merged on top.
+3. The merged stat map is written back to the item's PDC.
+4. Lore is regenerated to reflect the new stats.
+
+This means reforges do not stack — reforging always replaces the previous reforge.
+
+### 37.7 Complete Example
+
+```yaml
+fierce:
+  name: "Fierce"
+  applicable-types:
+    - SWORD
+    - AXE
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      strength: 5
+      crit_damage: 3
+    UNCOMMON:
+      strength: 12
+      crit_damage: 6
+    RARE:
+      strength: 20
+      crit_damage: 10
+    EPIC:
+      strength: 32
+      crit_damage: 15
+    LEGENDARY:
+      strength: 48
+      crit_damage: 22
+    MYTHIC:
+      strength: 65
+      crit_damage: 30
+    DIVINE:
+      strength: 85
+      crit_damage: 40
+```
+
+---
+
+## 38. Points System
+
+`PointsModule` (id: `"points"`) provides free-form per-player numeric counters keyed by a category string. Points are stored in the player's profile variables and persist across sessions.
+
+### 38.1 Script Event
+
+```
+point <category> add <amount>
+point <category> set <amount>
+point <category> take <amount>
+```
+
+| Sub-command | Effect |
+|---|---|
+| `add <amount>` | Increases the player's points in `<category>` by `<amount>`. |
+| `set <amount>` | Sets the player's points in `<category>` to exactly `<amount>`. |
+| `take <amount>` | Decreases the player's points (floors at 0). |
+
+**Examples:**
+```
+point reputation add 10
+point kills set 0
+point slayer_xp add 250
+point currency take 50
+```
+
+### 38.2 Script Variable
+
+```
+$point.<category>$
+```
+
+Returns the player's current point total in the given category as a `Double`. If the player has never been given points in that category, returns `0.0`.
+
+**Example in conditions:**
+```yaml
+- "condition $point.reputation$ >= 100"
+```
+
+**Example in expressions:**
+```yaml
+- "condition $point.kills$ > $point.kills_required$"
+```
+
+### 38.3 Usage Pattern
+
+Points are most commonly used to:
+- Track progress toward repeatable rewards (`kills`, `quests_done`, `bosses_slain`).
+- Gate content behind reputation thresholds.
+- Store skill-like progression that doesn't fit the fixed skill system.
+- Act as a currency separate from the main economy.
+
+```yaml
+# Reward 10 reputation points for completing a quest:
+rewards:
+  - "point reputation add 10"
+  - "notify <green>+10 Reputation io:actionbar"
+
+# Gate a quest behind a reputation threshold:
+on-open:
+  conditions:
+    - "condition $point.reputation$ >= 50"
+  fail-actions:
+    - "notify <red>You need 50 Reputation to start this quest. io:actionbar"
 ```
 
 ---

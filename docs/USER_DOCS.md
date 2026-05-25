@@ -29,16 +29,21 @@ This document covers everything you need to know to install, configure, and get 
 14. [NPCs — `npcs/*.yml`](#14-npcs--npcsyml)
 15. [Dialogues — `dialogues/*.yml`](#15-dialogues--dialoguesyml)
 16. [Warps — `warps/*.yml`](#16-warps--warpsyml)
-17. [Quests — `quests/*.yml`](#17-quests--questsyml)
-18. [GUIs — `guis/*.yml`](#18-guis--guisyml)
-19. [Recipes — `recipes/*.yml`](#19-recipes--recipesyml)
-20. [Skills YAML — `skills/*.yml`](#20-skills-yaml--skillsyml)
-21. [Script Variables & Events DSL](#21-script-variables--events-dsl)
-22. [Stat Reference](#22-stat-reference)
-23. [Rarity Reference](#23-rarity-reference)
-24. [Damage Type Reference](#24-damage-type-reference)
-25. [MiniMessage Formatting](#25-minimessage-formatting)
-26. [Tutorials](#26-tutorials)
+17. [Quests — `quests/`](#17-quests--quests)
+18. [Notifications — `notifications.yml`](#18-notifications--notificationsyml)
+19. [Collections — `collections/*.yml`](#19-collections--collectionsyml)
+20. [Slayers — `slayers/*.yml`](#20-slayers--slayersyml)
+21. [Reforges — `reforges/*.yml`](#21-reforges--reforgesyml)
+22. [Points System](#22-points-system)
+23. [GUIs — `guis/*.yml`](#23-guis--guisyml)
+24. [Recipes — `recipes/*.yml`](#24-recipes--recipesyml)
+25. [Skills YAML — `skills/*.yml`](#25-skills-yaml--skillsyml)
+26. [Script Variables & Events DSL](#26-script-variables--events-dsl)
+27. [Stat Reference](#27-stat-reference)
+28. [Rarity Reference](#28-rarity-reference)
+29. [Damage Type Reference](#29-damage-type-reference)
+30. [MiniMessage Formatting](#30-minimessage-formatting)
+31. [Tutorials](#31-tutorials)
 
 ---
 
@@ -58,7 +63,12 @@ Valmora is a **modular RPG engine** for Paper 1.21.x. It replaces and extends Mi
 - **Zone system** — named world regions with resource nodes, mob spawners, and fishing tables
 - **NPC system** — custom named entities with dialogue trees and GUI interactions
 - **Warp system** — teleport pads with named destinations
-- **Quest system** — branching quests with objectives, rewards, and on-start hooks
+- **Quest system** — package-based quests with objectives, conversations, named events, conditions, and staged rewards (see §17)
+- **Notification system** — multi-channel player messaging (chat, actionbar, title, bossbar, sound) with per-quest custom categories
+- **Collections** — per-player item/action tracking with staged unlock rewards
+- **Slayer system** — tiered kill-challenge missions with boss mob encounters
+- **Reforge system** — apply rarity-scaled stat bonuses to items via Reforge Stones or random forging
+- **Points system** — free-form per-player numeric counters for reputation, progression, and scripting
 - **Hot-reload** — reload all content with `/valmora reload` — no server restart needed
 
 Everything is defined in plain YAML files. No coding required to create content.
@@ -316,6 +326,9 @@ Skills are levelled by performing in-game actions. XP sources and per-level rewa
 | Fishing | 60 | Catching fish in Fishing Zones |
 | Combat | 60 | Killing mobs |
 | Alchemy | 60 | Brewing potions |
+| Carpentry | 60 | Sources configured in `skills/carpentry.yml` |
+| Enchanting | 60 | Applying Valmora enchantments |
+| Taming | 60 | Taming animals |
 
 Players receive an **action bar notification** on XP gain and a **chat announcement** on level-up. Admins can grant XP or set levels directly with `/skill givexp` and `/skill setlevel`.
 
@@ -1106,58 +1119,537 @@ coal_mine_warp:
 
 ---
 
-## 17. Quests — `quests/*.yml`
+## 17. Quests — `quests/`
 
-Quests have objectives, rewards, and on-start hooks. Place files in `plugins/Valmora/quests/`.
+> **Full Reference:** See **`docs/QUEST_SYSTEM.md`** for the complete quest authoring guide — every YAML field, all objective types, conversation system, named events, conditions, notifications, player hider, worked examples, and common mistakes.
 
-### Schema
+Quests are organised as **packages** — one folder per quest line. Each package folder must contain a `quest.yml` manifest, plus any number of content files (`quests.yml`, `conversations.yml`, `events.yml`, `conditions.yml`, `notifications.yml`, `player_hider.yml`).
+
+### Package Folder Structure
+
+```
+plugins/Valmora/quests/
+└── my_quest_line/
+    ├── quest.yml           ← Package manifest (REQUIRED)
+    ├── events.yml          ← Named reusable event lists
+    ├── conditions.yml      ← Named reusable conditions
+    ├── quests.yml          ← Quest and objective definitions
+    ├── conversations.yml   ← NPC conversation trees
+    ├── notifications.yml   ← Per-package notification categories
+    └── player_hider.yml    ← Conditional player-visibility rules
+```
+
+### `quest.yml` — Package Manifest
+
+```yaml
+package:
+  enabled: true                        # Set false to disable entire package
+  npc_conversations:
+    <npc-id>: <conversation-id>        # Bind a conversation to an NPC
+```
+
+### `quests.yml` — Quest Definitions
 
 ```yaml
 <quest-id>:
   name: "<MiniMessage name>"
   objectives:
-    - type: <OBJECTIVE_TYPE>    # COLLECT, KILL, REACH_ZONE, INTERACT_NPC
-      target: <value>           # Material name, mob ID, or zone ID depending on type
-      amount: <int>             # How many times to complete this objective
-  rewards:                      # Script events executed on quest completion
-    - "<event string>"
-  on-start-actions:             # Script events executed when the quest starts
-    - "<event string>"
-```
-
-### Objective Types
-
-| Type | `target` | Description |
-|---|---|---|
-| `COLLECT` | Material name or item ID | Player must have N of this item in their inventory. |
-| `KILL` | Mob ID | Player must kill N of this mob. |
-| `REACH_ZONE` | Zone ID | Player must enter the named zone at least N times. |
-| `INTERACT_NPC` | NPC ID | Player must right-click the named NPC N times. |
-
-### Example
-
-```yaml
-hub_intro:
-  name: "<yellow>A Miner's Errand"
-  objectives:
-    - type: COLLECT
-      target: COAL
-      amount: 10
-    - type: REACH_ZONE
-      target: coal_mine
-      amount: 1
+    <objective-id>:                    # Named key (not a list)
+      type: <OBJECTIVE_TYPE>
+      target: <value>
+      amount: <int>
+      notify: <int>                    # Optional: notify player every N progress
+      persistent: true                 # Optional: objective survives quest restarts
+      auto-once: true                  # Optional: auto-completes if already done
+      conditions:                      # Optional: conditions to begin tracking
+        - "<condition string>"
+      events:                          # Optional: events fired when objective completes
+        - "<named-event-id or inline>"
   rewards:
-    - "give GOLD_NUGGET:5"
-    - "sound player entity.player.levelup"
-  on-start-actions:
-    - "sound player entity.villager.yes"
+    - "<named-event-id or inline>"
+  on-start-events:
+    - "<named-event-id or inline>"
 ```
 
-To start a quest from a dialogue, use `quest_start <quest-id>` as an action string.
+### Objective Types (Quick Reference)
+
+| Type | `target` | What it tracks |
+|---|---|---|
+| `KILL` | Mob ID | Kill this mob N times |
+| `COLLECT` | Material or item ID | Pick up or have N of this item |
+| `REACH_ZONE` | Zone ID | Enter the zone N times |
+| `TALK_TO_NPC` | NPC ID | Right-click the NPC N times |
+| `CRAFT` | Item ID | Craft the item N times |
+| `BLOCK_BREAK` | Material name | Break N blocks of this type |
+| `BLOCK_PLACE` | Material name | Place N blocks of this type |
+| `BREED` | Entity type | Breed N animals of this type |
+| `TAME` | Entity type | Tame N animals of this type |
+| `FISH` | — | Catch N fish |
+| `SHEAR` | — | Shear N sheep |
+| `BREW` | — | Brew N potions |
+| `SMELT` | Material name | Smelt N items of this type |
+| `DIE` | — | Die N times |
+| `LOGIN` | — | Log in N times |
+| `LEVEL_SKILL` | Skill ID | Reach level N in the skill |
+| `STAT_REACH` | Stat ID | Have N total of this stat |
+| `EXP_GAIN` | — | Gain N Minecraft XP |
+
+### Script Events for Quests
+
+| Event | Description |
+|---|---|
+| `quest_start <id>` | Starts a quest for the player |
+| `quest_complete <id>` | Completes a quest (triggers rewards) |
+| `quest_cancel <id>` | Cancels an active quest |
+| `quest_fail <id>` | Fails an active quest |
+| `objective_start <questId> <objId>` | Activates a specific objective |
+| `objective_delete <questId> <objId>` | Removes an objective from tracking |
+| `journal open` | Opens the quest journal GUI |
+
+### Script Variables for Quests
+
+| Variable | Returns |
+|---|---|
+| `$quest.<questId>.status$` | `ACTIVE`, `COMPLETED`, `NOT_STARTED` |
+| `$quest.<questId>.objective.<objId>.progress$` | Current progress count |
+| `$quest.<questId>.objective.<objId>.required$` | Required count |
+| `$quest.objective.<objId>.active$` | `true`/`false` |
+
+> For the full conversation system, named events/conditions, player hider, notification categories, and worked examples, read **`docs/QUEST_SYSTEM.md`**.
 
 ---
 
-## 18. GUIs — `guis/*.yml`
+## 18. Notifications — `notifications.yml`
+
+The Notify system sends messages to players through different display channels. You can define custom notification categories inside quest packages (in `notifications.yml`) or use them inline from any event string.
+
+### Built-in Categories
+
+| Category | IO Type | Use |
+|---|---|---|
+| `info` | `chat` | General info and rewards messages |
+| `error` | `actionbar` | Error and warning messages |
+
+### Notification YAML (inside a quest package)
+
+```yaml
+<category-id>:
+  io: <io-type>          # Channel to use (see IO Types below)
+  # Optional extra settings depend on the IO type:
+  duration: <ticks>      # For actionbar, title, bossbar
+  fade-in: <ticks>       # For title
+  stay: <ticks>          # For title
+  fade-out: <ticks>      # For title
+```
+
+### IO Types
+
+| Type | Description |
+|---|---|
+| `chat` | Sends a chat message. |
+| `actionbar` | Shows text in the action bar. |
+| `title` | Large title overlay. |
+| `subtitle` | Sub-title part of a title overlay. |
+| `bossbar` | Boss health bar at the top of the screen. |
+| `sound` | Plays a sound effect (message is the sound key). |
+| `advancement` | Toast notification (advancement-style popup). |
+
+### `notify` Script Event Syntax
+
+```
+notify <message> [category:<name>] [io:<type>] [key:value ...]
+notifyall <message> [category:<name>] [io:<type>] [key:value ...]
+```
+
+- `category:<name>` — use the named category's defaults.
+- `io:<type>` — override the IO type.
+- `notifyall` broadcasts to all online players instead of just the caster.
+
+```yaml
+# Examples:
+- "notify Quest complete! category:quest_complete"
+- "notify <red>Not enough coins. io:actionbar"
+- "notify <gold>Boss Spawned! io:title"
+- "notifyall <green>Server event started! io:title"
+```
+
+### Example `notifications.yml`
+
+```yaml
+quest_complete:
+  io: title
+  fade-in: 10
+  stay: 60
+  fade-out: 20
+
+quest_progress:
+  io: actionbar
+
+info:
+  io: actionbar
+```
+
+---
+
+## 19. Collections — `collections/*.yml`
+
+Collections track how many times a player has broken a block, picked up an item, or completed another action. When counts reach defined thresholds (stages), rewards are granted automatically.
+
+### Directory Structure
+
+```
+plugins/Valmora/collections/
+└── <category-id>/
+    ├── category.yml       ← Category definition
+    └── <collection>.yml   ← One or more collection files
+```
+
+### `category.yml`
+
+```yaml
+<category-id>:
+  name: "<MiniMessage name>"
+  icon: <MATERIAL>
+  description:
+    - "<line>"
+```
+
+### Collection File
+
+```yaml
+<collection-id>:
+  category: <category-id>
+  name: "<MiniMessage name>"
+  icon: <MATERIAL>
+  track:
+    - <TYPE>:<TARGET>      # See track source format below
+  stages:
+    1:
+      required: <int>
+      rewards:
+        - "<event string>"
+    2:
+      required: <int>
+      rewards:
+        - "<event string>"
+    # ... add as many stages as needed
+```
+
+### Track Source Format
+
+| Format | Example | Tracks |
+|---|---|---|
+| `BLOCK_BREAK:<MATERIAL>` | `BLOCK_BREAK:COAL_ORE` | Each time the player breaks this block |
+| `ITEM_PICKUP:<MATERIAL>` | `ITEM_PICKUP:COAL` | Each time the player picks up this item |
+
+Multiple track lines are summed into the same counter.
+
+### Complete Example
+
+```yaml
+# plugins/Valmora/collections/mining/coal.yml
+coal:
+  category: mining
+  name: "<gray>Coal Collection"
+  icon: COAL
+  track:
+    - BLOCK_BREAK:COAL_ORE
+    - BLOCK_BREAK:DEEPSLATE_COAL_ORE
+    - ITEM_PICKUP:COAL
+  stages:
+    1:
+      required: 50
+      rewards:
+        - "economy_add 100"
+        - "notify <gray>Coal I unlocked! io:actionbar"
+    2:
+      required: 250
+      rewards:
+        - "economy_add 500"
+    3:
+      required: 1000
+      rewards:
+        - "give DIAMOND_PICKAXE:1 notify"
+    4:
+      required: 10000
+      rewards:
+        - "economy_add 5000"
+    5:
+      required: 100000
+      rewards:
+        - "give netherite_pickaxe:1 notify"
+```
+
+### Collection Variables (for GUI use)
+
+| Variable | Returns |
+|---|---|
+| `$collection.category_list$` | List of all category IDs |
+| `$collection.item_list$` | Collection IDs in the selected category |
+| `$collection.detail_count$` | Player's current count |
+| `$collection.detail_stage$` | Player's current stage |
+| `$collection.detail_next_required$` | Count needed for the next stage |
+
+---
+
+## 20. Slayers — `slayers/*.yml`
+
+Slayer quests are tiered kill-challenges. A player pays a coin cost to activate a tier, kills the required number of target mobs, then defeats a boss mob to earn completion rewards.
+
+### Schema
+
+```yaml
+<slayer-id>:
+  name: "<display name>"
+  tiers:
+    <tier>:
+      cost: <int>
+      target-category: <STRING>
+      kills-required: <int>
+      boss-mob: <mob-id>
+      completion-events:
+        - "<event string>"
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Display name used in notifications and the slayer GUI. |
+| `tiers` | Yes | Map of tier number (integer) to tier definition. |
+| `cost` | Yes | Coins deducted on activation. Player must have enough. |
+| `target-category` | Yes | Mob category tag (e.g., `UNDEAD`, `SPIDER`, `WOLF`). Must match what mobs report. |
+| `kills-required` | Yes | Number of category kills needed before the boss spawns. |
+| `boss-mob` | Yes | Valmora mob ID. Spawns at the player's location when the kill count is reached. |
+| `completion-events` | No | Script events fired when the boss is killed. |
+
+### Script Event
+
+```
+slayer_start <slayer-id> <tier>
+slayer_start zombie_slayer 2
+```
+
+### Complete Example
+
+```yaml
+zombie_slayer:
+  name: "Zombie Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: UNDEAD
+      kills-required: 5
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 250"
+        - "notify <gold>[Slayer] Zombie T1 complete! +250 coins io:chat"
+    2:
+      cost: 500
+      target-category: UNDEAD
+      kills-required: 15
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 1000"
+        - "notify <gold>[Slayer] Zombie T2 complete! +1000 coins io:chat"
+    3:
+      cost: 2000
+      target-category: UNDEAD
+      kills-required: 30
+      boss-mob: zombie
+      completion-events:
+        - "economy_add 5000"
+        - "notify <gold>[Slayer] Zombie T3 complete! +5000 coins io:chat"
+
+spider_slayer:
+  name: "Spider Slayer"
+  tiers:
+    1:
+      cost: 100
+      target-category: SPIDER
+      kills-required: 5
+      boss-mob: spider
+      completion-events:
+        - "economy_add 250"
+```
+
+---
+
+## 21. Reforges — `reforges/*.yml`
+
+Reforges apply stat bonuses to items, scaled by the item's rarity. Players apply reforges through a Reforge Anvil (stone-based) or a Random Forge machine.
+
+### Schema
+
+```yaml
+<reforge-id>:
+  name: "<display name>"
+  applicable-types:
+    - SWORD          # Item types this reforge can be applied to
+    - AXE
+  generate-stone: true     # Auto-generate a Reforge Stone item
+  stat-bonuses-by-rarity:
+    COMMON:
+      <stat-id>: <value>
+    UNCOMMON:
+      <stat-id>: <value>
+    RARE:
+      <stat-id>: <value>
+    EPIC:
+      <stat-id>: <value>
+    LEGENDARY:
+      <stat-id>: <value>
+    MYTHIC:
+      <stat-id>: <value>
+    DIVINE:
+      <stat-id>: <value>
+```
+
+### Field Reference
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Display name on the stone and in item lore. |
+| `applicable-types` | Yes | Item type names: `SWORD`, `AXE`, `BOW`, `CROSSBOW`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `NONE`, `ALL`. |
+| `generate-stone` | No | When `true`, a Reforge Stone item is auto-created. Default: `false`. |
+| `stat-bonuses-by-rarity` | Yes | Stats applied per rarity tier. If a tier is missing, the nearest lower rarity is used as a fallback. |
+
+### Coin Costs by Rarity
+
+| Rarity | Cost |
+|---|---|
+| COMMON | 250 |
+| UNCOMMON | 500 |
+| RARE | 1,000 |
+| EPIC | 2,500 |
+| LEGENDARY | 5,000 |
+| MYTHIC | 10,000 |
+| DIVINE | 15,000 |
+
+### Machine IDs
+
+| Machine ID | How to use |
+|---|---|
+| `reforge_anvil` | Place item + Reforge Stone → applies the exact reforge |
+| `forge_random` | Place item only → random valid reforge (not current) |
+
+### How Reforging Works
+
+1. The item's base stats are loaded fresh from the item definition (previous reforge cleared).
+2. The rarity-scaled reforge bonuses are added on top.
+3. The stat map is written back and the lore is regenerated.
+
+Reforges do **not** stack — reforging always replaces the previous one.
+
+### Complete Example
+
+```yaml
+sharp:
+  name: "Sharp"
+  applicable-types:
+    - SWORD
+    - AXE
+    - BOW
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      damage: 5
+      crit_chance: 2
+    UNCOMMON:
+      damage: 10
+      crit_chance: 3
+    RARE:
+      damage: 18
+      crit_chance: 5
+    EPIC:
+      damage: 28
+      crit_chance: 7
+    LEGENDARY:
+      damage: 42
+      crit_chance: 10
+    MYTHIC:
+      damage: 58
+      crit_chance: 14
+    DIVINE:
+      damage: 75
+      crit_chance: 18
+
+fortified:
+  name: "Fortified"
+  applicable-types:
+    - HELMET
+    - CHESTPLATE
+    - LEGGINGS
+    - BOOTS
+  generate-stone: true
+  stat-bonuses-by-rarity:
+    COMMON:
+      defense: 8
+      health: 10
+    UNCOMMON:
+      defense: 18
+      health: 20
+    RARE:
+      defense: 30
+      health: 35
+    EPIC:
+      defense: 45
+      health: 55
+    LEGENDARY:
+      defense: 65
+      health: 80
+    MYTHIC:
+      defense: 90
+      health: 110
+    DIVINE:
+      defense: 120
+      health: 150
+```
+
+---
+
+## 22. Points System
+
+Points are free-form per-player numeric counters. Use them for reputation, progression gating, kill counts, currencies — anything that doesn't fit the fixed skill system.
+
+### Script Event
+
+```
+point <category> add <amount>
+point <category> set <amount>
+point <category> take <amount>
+```
+
+```yaml
+# Examples:
+- "point reputation add 10"
+- "point kills set 0"
+- "point slayer_xp add 250"
+- "point currency take 50"
+```
+
+### Script Variable
+
+```
+$point.<category>$
+```
+
+Returns the player's current point total as a number. Defaults to `0` if never set.
+
+```yaml
+# Gate content behind reputation:
+conditions:
+  - "condition $point.reputation$ >= 100"
+fail-actions:
+  - "notify <red>Need 100 Reputation. io:actionbar"
+
+# Use in skill-level-style rewards:
+on-complete:
+  - "point slayer_xp add 500"
+  - "notify <gold>+500 Slayer XP! io:actionbar"
+```
+
+---
+
+## 23. GUIs — `guis/*.yml`
 
 GUIs are data-driven inventory screens loaded entirely from YAML. Place files in `plugins/Valmora/guis/`. The filename (without `.yml`) is the GUI's ID.
 
@@ -1314,7 +1806,7 @@ forge:
 
 ---
 
-## 19. Recipes — `recipes/*.yml`
+## 24. Recipes — `recipes/*.yml`
 
 Recipes define what crafting machines produce from given inputs. Place files in `plugins/Valmora/recipes/` — sub-folders are supported.
 
@@ -1396,7 +1888,7 @@ basic_plank_board:
 
 ---
 
-## 20. Skills YAML — `skills/*.yml`
+## 25. Skills YAML — `skills/*.yml`
 
 Skill definitions control XP sources, per-level rewards, and milestone rewards. Place files in `plugins/Valmora/skills/`.
 
@@ -1474,7 +1966,7 @@ rewards:
 
 ---
 
-## 21. Script Variables & Events DSL
+## 26. Script Variables & Events DSL
 
 The script DSL is used in `on-open`, `on-slot-update`, `on-update`, skill rewards, quest actions, and dialogue choice actions.
 
@@ -1496,9 +1988,20 @@ Variables are embedded in strings with `$namespace.path$`:
 | `$param.<key>$` | Object | Mechanic/skill parameter |
 | `$gui.input.<id>.id$` | String | Item ID in INPUT slot |
 | `$gui.input.<id>.amount$` | Int | Item count in INPUT slot |
+| `$gui.input.<id>.material$` | String | Material name in INPUT slot |
 | `$range.<min>.<max>$` | Int | Random integer in range |
 | `$time.season$` | String | Current RPG season |
 | `$time.hour$` | Int | Current hour 0–23 |
+| `$time.is_day$` | Boolean | Whether it is daytime |
+| `$player.skill.<skillId>.level$` | Int | Player's level in the skill |
+| `$player.skill.<skillId>.xp$` | Double | Player's total XP in the skill |
+| `$quest.<id>.status$` | String | `ACTIVE`, `COMPLETED`, `NOT_STARTED` |
+| `$quest.<id>.objective.<objId>.progress$` | Int | Current objective count |
+| `$quest.<id>.objective.<objId>.required$` | Int | Required count |
+| `$quest.objective.<objId>.active$` | Boolean | Whether objective is active |
+| `$point.<category>$` | Double | Player's points in this category |
+| `$collection.detail_count$` | Int | Count for the selected collection |
+| `$collection.detail_stage$` | Int | Current stage for the selected collection |
 
 Expressions support arithmetic: `$param.level$*10`, `$player.stat.HEALTH$ + 50`.
 
@@ -1570,9 +2073,52 @@ enchant_apply 10 sharpness 5
 open_gui skills_list
 ```
 
+**`notify`** — Send a notification to the player.
+```
+notify <message> [category:<name>] [io:<type>]
+notify Quest complete! category:quest_complete
+notify <red>Not enough coins. io:actionbar
+notify <gold>Boss Spawned! io:title
+```
+
+**`notifyall`** — Broadcast a notification to all online players.
+```
+notifyall The server event has begun! io:title
+```
+
+**`point`** — Modify a point counter for the player.
+```
+point <category> add <amount>
+point <category> set <amount>
+point <category> take <amount>
+
+point reputation add 10
+point kills set 0
+```
+
+**`economy_add`** — Add coins to the player's balance.
+```
+economy_add 500
+```
+
+**`economy_remove`** — Remove coins from the player's balance.
+```
+economy_remove 250
+```
+
+**`slayer_start`** — Start a slayer tier for the player.
+```
+slayer_start zombie_slayer 1
+```
+
+**`journal open`** — Open the quest journal GUI.
+```
+journal open
+```
+
 ---
 
-## 22. Stat Reference
+## 27. Stat Reference
 
 These stat IDs are used under `stats:` in item YAML files and in script variables as `$player.stat.<ID>$`.
 
@@ -1594,7 +2140,7 @@ These stat IDs are used under `stats:` in item YAML files and in script variable
 
 ---
 
-## 23. Rarity Reference
+## 28. Rarity Reference
 
 | Rarity | Color | Notes |
 |---|---|---|
@@ -1604,12 +2150,13 @@ These stat IDs are used under `stats:` in item YAML files and in script variable
 | `EPIC` | Dark Purple | Multi-ability or high-stat items. |
 | `LEGENDARY` | Gold | Top-tier power. |
 | `MYTHIC` | Light Purple | Reserved for the rarest possible items. |
+| `DIVINE` | Aqua | Endgame tier. Used by high-end items and the reforge system. |
 
 The rarity name is automatically added as a **bold colored line** at the bottom of the item lore, and the rarity color is prepended to the display name.
 
 ---
 
-## 24. Damage Type Reference
+## 29. Damage Type Reference
 
 Damage types affect indicator color and whether defense is applied.
 
@@ -1630,7 +2177,7 @@ Damage types affect indicator color and whether defense is applied.
 
 ---
 
-## 25. MiniMessage Formatting
+## 30. MiniMessage Formatting
 
 All display text in Valmora uses **MiniMessage**. Never use `§` or `&` color codes.
 
@@ -1657,7 +2204,7 @@ Close tags with `</tag>` or reset all with `<!>` / `<reset>`.
 
 ---
 
-## 26. Tutorials
+## 31. Tutorials
 
 ### Tutorial 1: Creating Your First Custom Item
 
@@ -1802,47 +2349,61 @@ silver_mine:
 
 **Goal:** Place an NPC that starts a quest when the player chooses "Yes".
 
-1. Create the quest in `plugins/Valmora/quests/my_quest.yml`:
+1. Create the quest package at `plugins/Valmora/quests/woodcutter/`:
 
+**`plugins/Valmora/quests/woodcutter/quest.yml`:**
+```yaml
+package:
+  enabled: true
+  npc_conversations:
+    woodcutter: woodcutter_main
+```
+
+**`plugins/Valmora/quests/woodcutter/quests.yml`:**
 ```yaml
 deliver_wood:
   name: "<green>The Woodcutter's Request"
   objectives:
-    - type: COLLECT
+    collect_logs:
+      type: COLLECT
       target: OAK_LOG
       amount: 20
+      notify: 5
   rewards:
     - "give EMERALD:3 notify"
-    - "variable add player.var.coins 500"
-  on-start-actions:
+    - "economy_add 500"
+  on-start-events:
     - "sound player entity.villager.yes"
 ```
 
-2. Create the dialogue in `plugins/Valmora/dialogues/woodcutter.yml`:
-
+**`plugins/Valmora/quests/woodcutter/conversations.yml`:**
 ```yaml
-woodcutter_dialogue:
-  start: greeting
-  nodes:
+woodcutter_main:
+  quester: woodcutter
+  first:
+    - greeting
+  NPC_options:
     greeting:
       text: "<green>Greetings, traveler! I need 20 Oak Logs. Can you help?"
-      actions: []
-      choices:
-        - text: "Sure, I'll gather them!"
-          next-node: accepted
-          actions:
-            - "quest_start deliver_wood"
-        - text: "Not right now."
-          next-node: null
+      pointer:
+        - yes_help
+        - no_thanks
+  player_options:
+    yes_help:
+      text: "Sure, I'll gather them!"
+      events:
+        - "quest_start deliver_wood"
+      pointer:
+        - accepted
+    no_thanks:
+      text: "Not right now."
+      pointer: []
     accepted:
-      text: "<green>Wonderful! Return when you have the logs."
-      actions: []
-      choices:
-        - text: "I'll be back soon."
-          next-node: null
+      text: "Wonderful! Return when you have the logs."
+      pointer: []
 ```
 
-3. Create the NPC in `plugins/Valmora/npcs/woodcutter.yml`:
+2. Create the NPC in `plugins/Valmora/npcs/woodcutter.yml`:
 
 ```yaml
 woodcutter:
@@ -1854,10 +2415,9 @@ woodcutter:
   y: 65.0
   z: 50.5
   yaw: 180
-  dialogue: woodcutter_dialogue
 ```
 
-4. Run `/valmora reload`. The NPC will spawn at the defined coordinates.
+3. Run `/valmora reload`. The NPC will spawn, and right-clicking it will trigger the conversation bound in `quest.yml`.
 
 ---
 
