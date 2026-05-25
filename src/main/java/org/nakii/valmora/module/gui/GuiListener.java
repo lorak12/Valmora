@@ -94,11 +94,12 @@ public class GuiListener implements Listener {
         }
     }
 
-   private void handlePaginatedClick(InventoryClickEvent event, GuiSession session, 
+   private void handlePaginatedClick(InventoryClickEvent event, GuiSession session,
                                      PaginatedComponent paginated, int slot, char clickedChar) {
         GuiRenderer renderer = new GuiRenderer(plugin);
         java.util.List<?> items = renderer.resolveList(paginated.getListExpression(), session);
         if (items == null) return;
+        items = renderer.sortList(items, paginated);
 
         int itemsPerPage = (paginated.getPath() != null && !paginated.getPath().isEmpty()) ?
                            paginated.getPath().length() :
@@ -300,7 +301,9 @@ public class GuiListener implements Listener {
             if (recipe.isVanilla()) {
                 ItemStack result = recipe.getVanillaResult();
                 if (result != null) {
-                    session.getInventory().setItem(outputSlot, result.clone());
+                    ItemStack translated = result.clone();
+                    plugin.getItemManager().getItemTranslator().translate(translated);
+                    session.getInventory().setItem(outputSlot, translated);
                 }
                 return;
             }

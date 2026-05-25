@@ -99,6 +99,9 @@ public class PlayerVariableProvider implements VariableProvider {
 
                     obj.addProperty("id", skill.getId());
                     obj.addProperty("name", skill.getName());
+                    String unformatted = skill.getName().toLowerCase()
+                            .replaceAll("[^a-z ]", "").trim().replaceAll("\\s+", " ");
+                    obj.addProperty("unformatted", unformatted);
                     obj.addProperty("description", skill.getDescription());
                     obj.addProperty("material", skill.getMaterial().name());
                     obj.addProperty("level", data.currentLevel());

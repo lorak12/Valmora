@@ -22,6 +22,8 @@ skills_list:
       type: PAGINATED
       list: "$player.skill.list$"
       iterator: "skill"
+      sort: asc
+      sort-key: name
       states:
         default:
           item: "$skill.material$"

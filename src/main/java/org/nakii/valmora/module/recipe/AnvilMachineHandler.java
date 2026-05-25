@@ -26,15 +26,13 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
         if (base == null || base.getType() == Material.AIR) return Optional.empty();
         if (material == null || material.getType() == Material.AIR) return Optional.empty();
 
-        ItemStack result = base.clone();
         Map<String, Integer> baseEnchants = EnchantmentHelper.getEnchantments(base);
         Map<String, Integer> matEnchants = EnchantmentHelper.getEnchantments(material);
 
-        if (matEnchants.isEmpty() && material.getType() != base.getType()) {
-             // If no Valmora enchants on material and it's not the same type, maybe it's not a valid anvil merge
-             // (Vanilla anvil also handles repairs, but let's focus on Valmora enchants for now)
-             return Optional.empty();
-        }
+        // Both items must carry Valmora enchantments to use this machine
+        if (matEnchants.isEmpty()) return Optional.empty();
+
+        boolean isBook = base.getType() == Material.ENCHANTED_BOOK;
 
         Map<String, Integer> newEnchants = new HashMap<>(baseEnchants);
 
@@ -44,6 +42,9 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
 
             EnchantmentDefinition def = plugin.getEnchantModule().getRegistry().get(id).orElse(null);
             if (def == null) continue;
+
+            // Books: reject inputs that are already above the enchanting-table ceiling
+            if (isBook && matLevel > def.getEtableMaxLevel()) return Optional.empty();
 
             // Conflict check
             boolean hasConflict = false;
@@ -56,39 +57,43 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
             }
             if (hasConflict) continue;
 
+            int maxLevel = isBook ? def.getEtableMaxLevel() : def.getAbsoluteMaxLevel();
+
             if (newEnchants.containsKey(id)) {
                 int baseLevel = newEnchants.get(id);
+
+                // Books: base side must also be within the enchanting-table ceiling
+                if (isBook && baseLevel > def.getEtableMaxLevel()) return Optional.empty();
+
                 int finalLevel;
                 if (baseLevel == matLevel) {
-                    finalLevel = Math.min(baseLevel + 1, def.getAbsoluteMaxLevel());
+                    finalLevel = baseLevel + 1;
                 } else {
                     finalLevel = Math.max(baseLevel, matLevel);
                 }
-                newEnchants.put(id, finalLevel);
+
+                // Books: cancel if combining would exceed the enchanting-table ceiling
+                if (isBook && finalLevel > def.getEtableMaxLevel()) return Optional.empty();
+
+                newEnchants.put(id, Math.min(finalLevel, maxLevel));
             } else {
-                newEnchants.put(id, matLevel);
+                newEnchants.put(id, Math.min(matLevel, maxLevel));
             }
         }
 
-        // Apply new enchants to the result
-        for (Map.Entry<String, Integer> entry : newEnchants.entrySet()) {
-            EnchantmentHelper.applyEnchantment(result, entry.getKey(), entry.getValue());
-        }
+        // Nothing actually changed — no valid merge
+        if (newEnchants.equals(baseEnchants)) return Optional.empty();
 
-        // Check if anything actually changed
-        if (result.isSimilar(base) && newEnchants.equals(baseEnchants)) {
-            // No change, but maybe it's a repair?
-            // For now, let's return empty if no enchants were merged
-            if (matEnchants.isEmpty()) return Optional.empty();
-        }
+        ItemStack result = base.clone();
+        EnchantmentHelper.applyEnchantmentMap(result, newEnchants);
 
         // Calculate cost: 10 coins per level of the merged enchants
         int totalLevel = newEnchants.values().stream().mapToInt(Integer::intValue).sum();
         int cost = totalLevel * 10;
-        
+
         String script = "variable add player.var.coins -" + cost;
         org.nakii.valmora.api.scripting.CompiledEvent onCraft = plugin.getScriptModule().getEventParser().parseList(java.util.List.of(script));
-        
+
         return Optional.of(RecipeDefinition.vanilla(result, onCraft));
     }
 }

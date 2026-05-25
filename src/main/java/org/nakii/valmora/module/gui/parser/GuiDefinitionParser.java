@@ -101,6 +101,8 @@ public class GuiDefinitionParser {
                 boolean destructure = section.getBoolean("destructure", false);
                 List<PaginatedState> states = new ArrayList<>();
                 String path = section.getString("path", key.length() > 1 ? key : null);
+                String sortOrder = section.getString("sort", "none");
+                String sortKey = section.getString("sort-key", null);
 
                 ConfigurationSection statesSection = section.getConfigurationSection("states");
                 if (statesSection != null) {
@@ -118,7 +120,7 @@ public class GuiDefinitionParser {
                         states.add(new PaginatedState(condition, displayItem, actions));
                     }
                 }
-                yield new PaginatedComponent(list, iterator, destructure, states, path);
+                yield new PaginatedComponent(list, iterator, destructure, states, path, sortOrder, sortKey);
             }
             case "PREVIOUS_PAGE" -> {
                 GuiItemStack item = parseItemStack(section.getConfigurationSection("display-item"));

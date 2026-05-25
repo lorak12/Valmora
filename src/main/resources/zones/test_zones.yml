@@ -1,0 +1,342 @@
+mine:
+  display-name: <gray>Mine
+  world: world
+  min:
+    - -100
+    - 131
+    - -100
+  max:
+    - -79
+    - 153
+    - -89
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false
+    hunger: false
+    entry: true
+    teleportation: true
+    leaf-decay: false
+  resource-blocks:
+    # --- Normal stone ores (→ COBBLESTONE → BEDROCK) ---
+    COAL_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: COAL
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    IRON_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_IRON
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    COPPER_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_COPPER
+              min: 2
+              max: 5
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    GOLD_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_GOLD
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    REDSTONE_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: REDSTONE
+              min: 4
+              max: 5
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    LAPIS_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: LAPIS_LAZULI
+              min: 4
+              max: 9
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DIAMOND_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: DIAMOND
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    EMERALD_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: EMERALD
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLESTONE
+        - drops:
+            - item: COBBLESTONE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    # --- Deepslate ores (→ COBBLED_DEEPSLATE → BEDROCK) ---
+    DEEPSLATE_COAL_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: COAL
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_IRON_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_IRON
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_COPPER_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_COPPER
+              min: 2
+              max: 5
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_GOLD_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: RAW_GOLD
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_REDSTONE_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: REDSTONE
+              min: 4
+              max: 5
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_LAPIS_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: LAPIS_LAZULI
+              min: 4
+              max: 9
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_DIAMOND_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: DIAMOND
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+    DEEPSLATE_EMERALD_ORE:
+      regen-delay: 200
+      stages:
+        - drops:
+            - item: EMERALD
+              min: 1
+              max: 1
+              chance: 1.0
+          next: COBBLED_DEEPSLATE
+        - drops:
+            - item: COBBLED_DEEPSLATE
+              min: 1
+              max: 1
+              chance: 1.0
+          next: BEDROCK
+forest:
+  display-name: <green>forest
+  world: world
+  min:
+    - -78
+    - 131
+    - -100
+  max:
+    - -59
+    - 153
+    - -89
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false
+    hunger: true
+    entry: true
+    teleportation: true
+    leaf-decay: true
+mob_spawn:
+  display-name: <green>mob_spawn
+  world: world
+  min:
+    - -58
+    - 131
+    - -100
+  max:
+    - -39
+    - 141
+    - -89
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false
+    hunger: true
+    entry: true
+    teleportation: true
+    leaf-decay: true
+  mob-spawners:
+    test_zombie_1:
+      mob: test_zombie
+      x: -43
+      y: 131
+      z: -96
+      spawn-interval: 400
+      max-alive: 2
+      radius: 3.0
+      spawn-radius: 3
+    test_skeleton_2:
+      mob: test_skeleton
+      x: -55
+      y: 131
+      z: -96
+      spawn-interval: 400
+      max-alive: 2
+      radius: 3.0
+      spawn-radius: 3
+test_site:
+  display-name: <green>test_site
+  world: world
+  min:
+    - -100
+    - 130
+    - -100
+  max:
+    - 100
+    - 170
+    - 100
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false
+    hunger: false
+    entry: true
+    teleportation: true
+    leaf-decay: false

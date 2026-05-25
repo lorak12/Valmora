@@ -90,6 +90,15 @@ public class GuiRenderer {
                 Optional<RecipeDefinition> match = matchRecipe(session);
                 if (match.isPresent()) {
                     RecipeDefinition recipe = match.get();
+
+                    // Vanilla/dynamic recipes carry the pre-built result item (preserves enchantments etc.)
+                    if (recipe.isVanilla() && recipe.getVanillaResult() != null) {
+                        ItemStack result = recipe.getVanillaResult().clone();
+                        plugin.getItemManager().getItemTranslator().translate(result);
+                        inv.setItem(slot, result);
+                        continue;
+                    }
+
                     if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) continue;
                     RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
 
@@ -197,6 +206,7 @@ public class GuiRenderer {
     private void renderPaginatedSlot(GuiSession session, Inventory inv, int slot, PaginatedComponent paginated, char currentChar) {
         List<?> items = resolveList(paginated.getListExpression(), session);
         if (items == null) return;
+        items = sortList(items, paginated);
 
         int itemsPerPage;
         int indexInPage;
@@ -409,6 +419,32 @@ public class GuiRenderer {
             }
         }
         return false;
+    }
+
+    public List<?> sortList(List<?> items, PaginatedComponent paginated) {
+        String order = paginated.getSortOrder();
+        if (order == null || order.equals("none")) return items;
+
+        String key = paginated.getSortKey();
+        List<Object> mutable = new ArrayList<>(items);
+
+        Comparator<Object> comparator = (a, b) -> {
+            String aStr = getSortValue(a, key);
+            String bStr = getSortValue(b, key);
+            return aStr.compareToIgnoreCase(bStr);
+        };
+        if (order.equals("desc")) comparator = comparator.reversed();
+
+        try { mutable.sort(comparator); } catch (Exception ignored) {}
+        return mutable;
+    }
+
+    private String getSortValue(Object item, String key) {
+        if (key != null && item instanceof Map<?, ?> map) {
+            Object val = map.get(key);
+            return val != null ? val.toString() : "";
+        }
+        return item != null ? item.toString() : "";
     }
 
     public List<?> resolveList(String path, GuiSession session) {

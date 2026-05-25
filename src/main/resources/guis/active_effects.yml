@@ -1,67 +1,69 @@
 active_effects:
-  title: "<light_purple>✦ Active Effects</light_purple>"
+  title: <light_purple>✦ Active Effects</light_purple>
   rows: 6
   update-interval: 20
-
   layout:
     - "BBBBBBBBB"
     - "BEEEEEEEB"
     - "BEEEEEEEB"
     - "BEEEEEEEB"
     - "BBBBBBBBB"
-    - "BBB<BBB>BB"
-
+    - "BBB<C>BBB"
   components:
     B:
       type: DISPLAY
       display-item:
         material: BLACK_STAINED_GLASS_PANE
         name: " "
-
     E:
       type: PAGINATED
-      list: "$alchemy.effects.list$"
-      iterator: "effect"
+      list: $alchemy.effects.list$
+      iterator: effect
       states:
         buff:
-          condition: "$effect.type$ == BUFF"
-          item: "$effect.material$"
-          name: "<green>$effect.name$"
+          condition: $effect.type$ == BUFF
+          item: $effect.material$
+          name: <green>$effect.name$
           lore:
             - "<gray>Type: <green>Buff"
             - "<gray>Duration: <white>$effect.remaining$s remaining"
             - ""
             - "<gray>Rarity: <white>$effect.rarity$"
         debuff:
-          condition: "$effect.type$ == DEBUFF"
-          item: "$effect.material$"
-          name: "<red>$effect.name$"
+          condition: $effect.type$ == DEBUFF
+          item: $effect.material$
+          name: <red>$effect.name$
           lore:
             - "<gray>Type: <red>Debuff"
             - "<gray>Duration: <white>$effect.remaining$s remaining"
             - ""
             - "<gray>Rarity: <white>$effect.rarity$"
         default:
-          condition: "default"
+          condition: default
           item: GLASS_BOTTLE
-          name: "<gray>$effect.name$"
+          name: <gray>$effect.name$
           lore:
             - "<gray>Duration: <white>$effect.remaining$s remaining"
-
-    "<":
+    <:
       type: PREVIOUS_PAGE
       display-item:
         material: ARROW
-        name: "<green>Previous Page"
+        name: <green>Previous Page
       fallback:
         material: GRAY_STAINED_GLASS_PANE
         name: " "
-
     ">":
       type: NEXT_PAGE
       display-item:
         material: ARROW
-        name: "<green>Next Page"
+        name: <green>Next Page
       fallback:
         material: GRAY_STAINED_GLASS_PANE
         name: " "
+    C:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: <red>Close
+        lore: []
+        amount: 1

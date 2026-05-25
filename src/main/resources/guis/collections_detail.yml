@@ -15,7 +15,7 @@ collections_detail:
     - "BSSSSSSSB"
     - "BSSSSSSSB"
     - "BBBBBBBBB"
-    - "BBBPPNBBB"
+    - "BBBPENBBB"
 
   components:
     B:
@@ -23,6 +23,11 @@ collections_detail:
       display-item:
         material: BLACK_STAINED_GLASS_PANE
         name: " "
+    E:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
 
     # Collection summary icon
     I:

@@ -1,201 +1,673 @@
-# Valmora Quest System — Author's Guide
+# Valmora Quest System — Complete Author's Reference
 
-This document covers everything you need to create quests, conversations, notification categories, and player-hider rules using Valmora's quest system. It is written for server content authors, not developers.
+This document covers every YAML key the quest system parses. It is written for server content authors and designers — no Java knowledge needed. Every single field, every allowed value, every flag, and every script action is described here with examples.
 
 ---
 
 ## Table of Contents
 
-1. [Package Overview](#1-package-overview)
-2. [quest.yml — Package Header](#2-questyml--package-header)
-3. [Quest Definitions](#3-quest-definitions)
-4. [Objective Types](#4-objective-types)
-5. [Objective Suffixes](#5-objective-suffixes)
-6. [Conditions Reference](#6-conditions-reference)
-7. [Events (Actions) Reference](#7-events-actions-reference)
-8. [Variables Reference](#8-variables-reference)
-9. [NPC Conversations](#9-npc-conversations)
-10. [NPCs](#10-npcs)
-11. [Notification Categories](#11-notification-categories)
-12. [Points System](#12-points-system)
-13. [Player Hider](#13-player-hider)
-14. [Templates](#14-templates)
-15. [Cross-Package References](#15-cross-package-references)
-16. [Commands](#16-commands)
-17. [Full Example — The Forgotten Mine](#17-full-example--the-forgotten-mine)
+1. [Core Concepts](#1-core-concepts)
+2. [Folder Layout & Package Detection](#2-folder-layout--package-detection)
+3. [quest.yml — Package Manifest](#3-questyml--package-manifest)
+4. [events: — Named Action Lists](#4-events--named-action-lists)
+5. [conditions: — Named Conditions](#5-conditions--named-conditions)
+6. [objectives: — Named Objectives](#6-objectives--named-objectives)
+7. [Objective Types — Full Reference](#7-objective-types--full-reference)
+8. [Objective Flags — Full Reference](#8-objective-flags--full-reference)
+9. [quests: — Quest Definitions](#9-quests--quest-definitions)
+10. [conversations: — NPC Dialogue Trees](#10-conversations--npc-dialogue-trees)
+11. [notifications: — Display Categories](#11-notifications--display-categories)
+12. [player_hider: — Conditional Visibility](#12-player_hider--conditional-visibility)
+13. [Script Events — All Quest Actions](#13-script-events--all-quest-actions)
+14. [Variables — Reading Quest Data](#14-variables--reading-quest-data)
+15. [Points System](#15-points-system)
+16. [Templates](#16-templates)
+17. [Cross-Package References](#17-cross-package-references)
+18. [In-Game Commands](#18-in-game-commands)
+19. [Full Worked Example — The Forgotten Mine](#19-full-worked-example--the-forgotten-mine)
+20. [Common Mistakes & Gotchas](#20-common-mistakes--gotchas)
 
 ---
 
-## 1. Package Overview
+## 1. Core Concepts
 
-All quest content lives inside **packages** — folders inside `plugins/Valmora/quests/`. A folder becomes a package the moment it contains a `quest.yml` file. You can have as many YAML files inside a package as you want; the engine reads all of them.
-
-```
-plugins/Valmora/
-  quests/
-    forgotten_mine/           ← one package
-      quest.yml               ← required — marks the folder as a package
-      quests.yml              ← quest definitions (any file name works)
-      conversations.yml       ← NPC conversations
-      notifications.yml       ← custom notification presets
-      items/                  ← sub-folder — still part of this package
-        rare_drops.yml
-    daily_tasks/              ← a second, independent package
-      quest.yml
-      tasks.yml
-```
-
-**Sub-packages:** If a sub-folder also has its own `quest.yml`, it is treated as a completely separate package, not a child of the parent.
-
-Everything defined in a package (quests, conditions, events, conversations) shares the same namespace — IDs must be unique within the package. Two different packages can use the same IDs without conflict.
+| Term | What it is |
+|------|-----------|
+| **Package** | A folder containing `quest.yml`. Every `.yml` file inside (not in sub-packages) belongs to this package. |
+| **Quest** | A named task with one or more objectives. Starts, tracks, and completes per player. |
+| **Objective** | A single trackable action (kill N mobs, collect N items, etc.) that belongs to a quest. |
+| **Named event** | A reusable list of script actions with a short name, referenced anywhere in the package. |
+| **Named condition** | A reusable condition string with a short name, required in conversation nodes. |
+| **Conversation** | A branching NPC dialogue tree. Independent of quests but can trigger quest actions. |
+| **Points** | Free-form per-player numeric counters (e.g. `currency`, `reputation`). |
+| **Notification category** | A named display preset (`io: title`, `io: actionbar`, etc.) used by `notify` actions. |
+| **Player hider** | A rule that makes one player invisible to another based on conditions. |
+| **Template** | A shared package in `templates/` whose features are inherited by other packages. |
 
 ---
 
-## 2. quest.yml — Package Header
+## 2. Folder Layout & Package Detection
 
-The `quest.yml` file at the root of a package folder configures the package itself.
+### What makes a package
+
+A folder becomes a **package** the moment it contains a file named exactly `quest.yml`.  
+The engine scans all directories inside `plugins/Valmora/quests/` recursively. Every directory that has `quest.yml` is loaded as its own package.
+
+Sub-folders that also contain `quest.yml` are **separate, independent packages** and are not included in the parent's file scan.
+
+```
+plugins/Valmora/quests/
+├── forgotten_mine/          ← PACKAGE (has quest.yml)
+│   ├── quest.yml            ← required marker
+│   ├── quests.yml           ← any .yml files you like
+│   ├── conversations.yml
+│   └── notifications.yml
+│
+├── side_content/            ← NOT a package (no quest.yml); sub-folders scanned
+│   └── blacksmith/          ← PACKAGE (has quest.yml)
+│       ├── quest.yml
+│       └── quests.yml
+│
+└── main_story/              ← PACKAGE
+    ├── quest.yml
+    ├── chapter1/            ← SEPARATE PACKAGE (own quest.yml; not part of main_story scan)
+    │   └── quest.yml
+    └── chapter2.yml         ← part of main_story (no quest.yml in chapter2 folder)
+```
+
+### File scanning
+
+All `.yml` files inside the package directory are read, **including** those inside sub-folders that do **not** have their own `quest.yml`. You can split your content across as many files as you want with any names you choose.
+
+Every file can contain any combination of: `events:`, `conditions:`, `objectives:`, `quests:`, `conversations:`, `notifications:`, `player_hider:`. Keys within a file type are merged into the package namespace.
+
+### Package path
+
+The package's internal path uses `-` to join folder names from the `quests/` root:
+
+```
+quests/forgotten_mine          →  forgotten_mine
+quests/main_story/chapter1     →  main_story-chapter1
+```
+
+Used in cross-package references (see §17).
+
+---
+
+## 3. quest.yml — Package Manifest
+
+`quest.yml` is the **only required file**. It must exist in a folder for the folder to be treated as a package. It can also be the only file — all other section types (`events:`, `quests:`, etc.) can be placed here too.
 
 ```yaml
+# ── Package settings ──────────────────────────────────────────────
 package:
-  enabled: true          # set false to skip loading this package on startup
-  templates:             # optional — list of template names to inherit from
-    - rewardTemplate
-    - mobDropTemplate
+  enabled: true            # optional; default true
+  templates:               # optional; list of template package names to inherit
+    - common_rewards
+    - shared_conditions
+
+# ── NPC → Conversation bindings ───────────────────────────────────
+npc_conversations:
+  thorin: thorin_main      # <npc_id>: <conversation_id>
+  bjorn:  bjorn_main
 ```
 
-The `templates:` list references folders inside `plugins/Valmora/templates/`. Template features are merged into the package with package features taking priority (templates are defaults, not overrides).
+### `package` fields
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `enabled` | `true` / `false` | `true` | When `false`, the entire package is **skipped** at load time. Use to disable work-in-progress content without deleting files. |
+| `templates` | string list | `[]` | Names of template packages (folders under `plugins/Valmora/templates/`). Their events, conditions, objectives, quests, conversations, and notifications are merged into this package. Template values are added with **putIfAbsent** — the package's own definitions always win. |
+
+### `npc_conversations` fields
+
+Binds an NPC ID to a conversation ID defined anywhere in this package.
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `<npc_id>` | `<conversation_id>` | When the player right-clicks the NPC with this ID, the named conversation starts. Overrides any default conversation set on the NPC definition itself. |
 
 ---
 
-## 3. Quest Definitions
+## 4. events: — Named Action Lists
 
-Quests are defined inside any YAML file in the package under a `quests:` key.
+Named events are reusable lists of script actions. Define them once; reference them by name in objectives, quests, and conversations.
+
+### Defining events
 
 ```yaml
-quests:
+events:
 
-  my_quest_id:
-    name: "<yellow>My Quest"
+  # Single action as a quoted string
+  startQuest: "quest_start forgotten_mine"
 
-    objectives:
-      obj_id_1:
-        type: KILL
-        target: zombie
-        amount: 10
-        notify: 2
+  # Multiple actions as a YAML list
+  reward_coins_large:
+    - "point currency add 500"
+    - "sound player entity.player.levelup"
+    - "notify <gold>You earned 500 coins! category:quest_complete"
 
-      obj_id_2:
-        type: COLLECT
-        target: ROTTEN_FLESH
-        amount: 5
-        conditions:
-          - "zone graveyard"
-        actions:
-          - "sound player entity.experience_orb.pickup"
+  # Multiple actions as a comma-separated string
+  quick_reward: "point currency add 100, sound player entity.experience_orb.pickup"
 
-    rewards:
-      - "point currency add 100"
-      - "give DIAMOND:1"
-      - "sound player entity.player.levelup"
-      - "tag add my_quest.done"
-
-    on-start-actions:
-      - "notify <yellow>Quest started! Head to the graveyard. category:quest_progress"
-      - "sound player entity.villager.yes"
+  # Folder event — expands to the concatenated action lists of other named events
+  # Only one level of expansion is performed (no recursive folders)
+  big_reward: "folder reward_coins_large, startQuest"
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | yes | Display name shown in the journal (MiniMessage) |
-| `objectives` | yes | Map of objective ID → objective definition |
-| `rewards` | no | Action list run when all objectives are complete |
-| `on-start-actions` | no | Action list run the moment the quest starts |
+### Parsing rules
 
----
+| Value format | How it is parsed |
+|---|---|
+| `"single action string"` | Treated as one action, **or** multiple actions split on `,`. |
+| YAML list (`- "..."`) | Each list entry is one action. |
+| `"folder <name1>, <name2>"` | Expands to the concatenated action lists of the named events. One level only — the referenced events must not themselves be folder events. |
 
-## 4. Objective Types
+### Referencing named events
 
-Each objective needs a `type`, a `target`, and an `amount`.
+Wherever an `events:` field is accepted (objective `events:`, quest `rewards:`, quest `on-start-events:`, conversation `events:`), you can put either:
 
-| Type | Target | Fires when… |
-|------|--------|-------------|
-| `KILL` | Entity type ID (e.g. `zombie`, `cave_spider`) | Player kills that entity |
-| `COLLECT` | Material name (e.g. `IRON_ORE`) | Player picks up that item |
-| `BLOCK_BREAK` | Material name or `any` | Player breaks a block of that type |
-| `BLOCK_PLACE` | Material name or `any` | Player places a block of that type |
-| `REACH_ZONE` | Zone ID | Player enters a defined zone |
-| `TALK_TO_NPC` | NPC ID | Player right-clicks that NPC |
-| `CRAFT` | Material name (e.g. `IRON_PICKAXE`) | Player crafts that item |
-| `SMELT` | Material name (e.g. `IRON_INGOT`) | A furnace produces that item |
-| `BREW` | Potion type name | A brewing stand produces that potion |
-| `FISH` | Fish type or `any` | Player catches a fish |
-| `ENCHANT` | Material name or `any` | Player enchants an item |
-| `TAME` | Entity type ID | Player tames that entity |
-| `BREED` | Entity type ID | Player breeds that entity |
-| `SHEAR` | Entity type ID (usually `sheep`) | Player shears that entity |
-| `DIE` | `any` | Player dies (target is ignored) |
-| `JUMP` | `any` | Player jumps (counts each jump) |
-| `LOCATION` | `x;y;z;world` | Player walks within 3 blocks of that point |
-| `VARIABLE` | Variable path | Player's variable equals a specific value |
-
----
-
-## 5. Objective Suffixes
-
-These fields are added alongside `type`, `target`, and `amount`:
-
-### `notify` / `notify: N`
-
-Sends a progress message to the player. With a number, it fires every `N` units of progress (e.g. every 5 kills). Without a number it fires on every point of progress.
+- **A named event key** — the engine looks it up and expands the full action list.
+- **An inline DSL string** — if no named event matches, the value is executed directly as a script action.
 
 ```yaml
-mine_coal:
-  type: BLOCK_BREAK
-  target: COAL_ORE
-  amount: 20
-  notify: 5          # message sent at 5, 10, 15, 20
+# All of these are valid:
+events: "reward_coins_large"              # named event
+events: "point currency add 100"          # inline DSL (no matching named event → executed directly)
+events:
+  - "reward_coins_large"                  # named event in a list
+  - "sound player entity.player.levelup"  # inline DSL in the same list
 ```
+
+> **Tip:** A typo in a named event name silently becomes an invalid DSL action. Double-check your names.
+
+---
+
+## 5. conditions: — Named Conditions
+
+Named conditions are single condition strings stored under a short name. They are **required** in conversation nodes (inline DSL is rejected there with a warning). In objective `conditions:` fields, you can use either named conditions or inline DSL.
+
+### Defining conditions
+
+```yaml
+conditions:
+
+  in_mine:          "zone coal_mine"
+  is_day:           "$time.is_day$ == true"
+  mine_not_done:    "!quest forgotten_mine completed"
+  mine_done:        "tag forgotten_mine.done"
+  has_currency:     "$point.currency$ >= 100"
+  not_in_progress:  "!quest blacksmith_hub in_progress"
+```
+
+The value is a **condition DSL string** (see the full condition syntax in §10 and §9 of VALMORA_DOCUMENTATION.md).
+
+### Negation in references
+
+Prefix the name with `!` when referencing it to invert the result:
+
+```yaml
+# In a conversation node:
+conditions: "!mine_done"           # equivalent to NOT tag forgotten_mine.done
+conditions: "mine_not_done, is_day"  # both must be true (AND)
+```
+
+### Where conditions are used
+
+| Location | Named only? | Behaviour |
+|----------|-------------|-----------|
+| Objective `conditions:` | No — inline DSL accepted | All must be true for a player action to count. |
+| `NPC_options` node `conditions:` | **Yes — named only** | All must be true for this node to pass in `first:` resolution. |
+| `player_options` node `conditions:` | **Yes — named only** | All must be true for this reply to be shown to the player. |
+
+---
+
+## 6. objectives: — Named Objectives
+
+Standalone named objectives live under the top-level `objectives:` key. They are defined with the DSL compact format and can be referenced by name or used across quests. They are also used for `auto-once` background tracking that is independent of any quest.
+
+> Most of the time you will define objectives **inline inside a quest** (see §9). Use top-level `objectives:` when you need to share or reference an objective by name across multiple quests, or when using `auto-once`.
+
+### DSL compact format
+
+```
+<TYPE> <target> <amount> [flags...]
+```
+
+```yaml
+objectives:
+  mine_coal:      "BLOCK_BREAK COAL_ORE 20 conditions:in_mine notify:5"
+  kill_wolves:    "KILL WOLF 8 events:reward_coins_large notify:2"
+  login_tracker:  "LOGIN login 1 auto-once persistent"
+```
+
+All flags are space-separated tokens appended after `<TYPE> <target> <amount>`.
+
+Full flag list in DSL format:
+
+| DSL token | Meaning |
+|-----------|---------|
+| `conditions:<n1>,<n2>` | Named or inline conditions, comma-separated (no spaces). All must be true. |
+| `events:<n1>,<n2>` | Named events or inline DSL, comma-separated. Fired on objective completion. |
+| `persistent` | After completion, reset progress to 0 and continue tracking. |
+| `auto-once` | Activate automatically on first player join; never re-activated. |
+| `notify` | Send a progress notification on every step. |
+| `notify:<n>` | Send a progress notification every `n` steps. |
+
+See §7 for all objective types and §8 for detailed flag descriptions.
+
+---
+
+## 7. Objective Types — Full Reference
+
+Every objective has three required fields: `type`, `target`, and (optionally) `amount`.
+
+---
+
+### `KILL` — Kill entities
+
+Fires when the player (as the killer) kills a living entity.
+
+```yaml
+type: KILL
+target: cave_spider    # custom mob ID checked first; falls back to Bukkit EntityType name
+amount: 5
+```
+
+**Target values:**
+- A Valmora custom mob ID (lowercase, from your `mobs/` YAML files). These are checked first via the PDC `mob_id` key.
+- A vanilla Bukkit `EntityType` name in **UPPERCASE** (e.g. `ZOMBIE`, `SKELETON`, `CREEPER`, `WOLF`, `COW`).
+
+---
+
+### `COLLECT` — Pick up items
+
+Fires when the player touches and picks up an item entity from the ground. Does **not** fire for items obtained through crafting, trading, or commands.
+
+```yaml
+type: COLLECT
+target: COAL           # Valmora item ID or Bukkit Material name
+amount: 10
+```
+
+**Target values:**
+- A Valmora custom item ID (checked first via the PDC `item_id` key).
+- A Bukkit `Material` name in **UPPERCASE** (e.g. `COAL`, `IRON_ORE`, `DIAMOND`).
+
+The amount from the item stack is added to progress — picking up a stack of 5 coal counts as 5.
+
+---
+
+### `REACH_ZONE` — Enter a zone
+
+Fires when the player enters a named zone (defined in your `zones/` files).
+
+```yaml
+type: REACH_ZONE
+target: coal_mine      # zone ID, case-insensitive
+amount: 1
+```
+
+**Target values:** The `id` of any zone defined in `plugins/Valmora/zones/`. Case-insensitive.
+
+---
+
+### `TALK_TO_NPC` — Interact with an NPC
+
+Fires when the player right-clicks an NPC.
+
+```yaml
+type: TALK_TO_NPC
+target: thorin         # NPC ID, case-insensitive
+amount: 1
+```
+
+**Target values:** The `id` of any NPC defined in `plugins/Valmora/npcs/`. Case-insensitive.
+
+---
+
+### `CRAFT` — Craft an item
+
+Fires when the player crafts an item through any crafting mechanism.
+
+```yaml
+type: CRAFT
+target: IRON_PICKAXE   # Valmora item ID or Bukkit Material name
+amount: 1
+```
+
+---
+
+### `BLOCK_BREAK` — Break a block
+
+Fires when the player breaks a block.
+
+```yaml
+type: BLOCK_BREAK
+target: COAL_ORE       # Bukkit Material name, UPPERCASE
+amount: 20
+```
+
+**Common target values:** `STONE`, `COAL_ORE`, `DEEPSLATE_COAL_ORE`, `OAK_LOG`, `GRASS_BLOCK`, `SAND`.
+
+---
+
+### `BLOCK_PLACE` — Place a block
+
+Fires when the player places a block.
+
+```yaml
+type: BLOCK_PLACE
+target: STONE          # Bukkit Material name, UPPERCASE
+amount: 10
+```
+
+---
+
+### `FISH` — Catch something while fishing
+
+Fires when the player successfully reels in a catch (state `CAUGHT_FISH`).
+
+```yaml
+type: FISH
+target: any            # entity/item type of the catch, or "any" for any catch
+amount: 3
+```
+
+**Target values:** Use `any` to match any successful catch, or a specific caught entity type name.
+
+---
+
+### `SHEAR` — Shear an entity
+
+Fires when the player shears an entity with shears.
+
+```yaml
+type: SHEAR
+target: SHEEP          # Bukkit EntityType name, UPPERCASE
+amount: 5
+```
+
+---
+
+### `BREED` — Breed animals
+
+Fires when the player successfully breeds two animals.
+
+```yaml
+type: BREED
+target: COW            # Bukkit EntityType name, UPPERCASE
+amount: 3
+```
+
+---
+
+### `TAME` — Tame an animal
+
+Fires when the player tames an animal.
+
+```yaml
+type: TAME
+target: WOLF           # Bukkit EntityType name, UPPERCASE
+amount: 1
+```
+
+---
+
+### `DRINK_POTION` — Consume a potion
+
+Fires when the player consumes any item whose Bukkit material name contains the word `POTION`.
+
+```yaml
+type: DRINK_POTION
+target: POTION                   # or SPLASH_POTION, LINGERING_POTION
+amount: 3
+```
+
+**Target values:** `POTION`, `SPLASH_POTION`, `LINGERING_POTION`.
+
+---
+
+### `DIE` — Player death
+
+Fires every time the player dies.
+
+```yaml
+type: DIE
+target: die            # always the literal string "die" — the value is required but ignored
+amount: 3              # die 3 times
+```
+
+---
+
+### `LOGIN` — Log in to the server
+
+Fires every time the player joins the server.
+
+```yaml
+type: LOGIN
+target: login          # always the literal string "login" — required but ignored
+amount: 5              # log in 5 total times
+```
+
+Commonly combined with `auto-once: true` and `persistent: true` for daily login tracking.
+
+---
+
+### `LEVEL_SKILL` — Level up a skill
+
+Fires when the player gains a level in the named skill.
+
+```yaml
+type: LEVEL_SKILL
+target: mining         # skill ID, case-insensitive
+amount: 10             # reach 10 total level-ups in mining
+```
+
+**Target values:** The `id` of any skill defined in your `skills/` YAML files.
+
+---
+
+### `EXP_GAIN` — Accumulate skill experience
+
+Fires each time the player earns XP in a skill. The XP amount (rounded up to the nearest integer) is added to objective progress.
+
+```yaml
+type: EXP_GAIN
+target: mining         # skill ID, case-insensitive
+amount: 1000           # accumulate 1000 total mining XP
+```
+
+---
+
+### `STAT_REACH` — Reach a stat threshold
+
+Triggers when the player's current stat value is at or above the required amount. Checked on player join and when the listener evaluates `STAT_REACH` objectives.
+
+```yaml
+type: STAT_REACH
+target: HEALTH         # stat ID, case-insensitive
+amount: 100            # stat must be >= 100 to complete
+```
+
+**Target values:** Any stat ID (e.g. `HEALTH`, `STRENGTH`, `DEFENSE`).
+
+---
+
+### `ENCHANT` — Enchant an item
+
+⚠️ *Defined in the system but the in-game listener is not yet fully implemented. The objective will be registered but may not automatically track player enchanting actions.*
+
+```yaml
+type: ENCHANT
+target: SHARPNESS
+amount: 1
+```
+
+---
+
+### `SMELT` — Smelt items in a furnace
+
+⚠️ *Player attribution is limited.* The `FurnaceSmeltEvent` does not directly expose which player placed the item. Attribution currently only works if the player who placed the item in the furnace is tracked through prior inventory interactions on that server session.
+
+```yaml
+type: SMELT
+target: IRON_INGOT     # the resulting material, UPPERCASE
+amount: 10
+```
+
+---
+
+### `BREW` — Brew potions
+
+⚠️ *Defined in the system; in-game listener attribution is pending implementation.*
+
+```yaml
+type: BREW
+target: POTION
+amount: 5
+```
+
+---
+
+### `VARIABLE` — Custom variable gate
+
+⚠️ *Defined in the system; the dedicated listener is not yet implemented. Progress cannot be automatically tracked.*
+
+```yaml
+type: VARIABLE
+target: my_custom_var
+amount: 1
+```
+
+---
+
+### `JUMP` — Count jumps
+
+⚠️ *Defined in the system; listener is not yet implemented.*
+
+```yaml
+type: JUMP
+target: any
+amount: 100
+```
+
+---
+
+### `LOCATION` — Reach a coordinate
+
+⚠️ *Defined in the system; listener is not yet implemented.*
+
+```yaml
+type: LOCATION
+target: "100;64;-200;world"    # x;y;z;worldName
+amount: 1
+```
+
+---
+
+## 8. Objective Flags — Full Reference
+
+These apply to both the **structured format** (inside a quest's `objectives:` map) and the **DSL compact format** (standalone `objectives:` map or single-line value).
+
+### `type` *(required)*
+
+The objective type. Must be one of the values listed in §7 (uppercase). If the value is unrecognised the objective is skipped with a warning.
+
+---
+
+### `target` *(required)*
+
+What the player must interact with. The meaning depends on the `type`. See §7 for the exact accepted values per type.
+
+---
+
+### `amount`
+
+**Type:** integer  
+**Default:** `1`
+
+How many times the action must occur before the objective completes. Progress is capped at this value — no over-counting.
+
+```yaml
+amount: 20     # must mine 20 coal ore blocks
+```
+
+---
 
 ### `conditions`
 
-A list of condition strings (see [§6](#6-conditions-reference)). Progress on this objective is only counted when ALL conditions pass.
+**Type:** string or list  
+**Default:** *(none — all actions count)*
+
+One or more condition strings (named or inline DSL). **All** conditions must be true at the moment the action occurs for progress to be counted.
 
 ```yaml
-kill_spiders:
-  type: KILL
-  target: cave_spider
-  amount: 5
-  conditions:
-    - "zone coal_mine"              # must be inside this zone
-    - "health 10"                   # must have at least 10 HP
+# Structured format — one named condition:
+conditions: "in_mine"
+
+# Structured format — multiple conditions as a list:
+conditions:
+  - "in_mine"
+  - "$time.is_day$ == true"
+
+# DSL compact format:
+"KILL cave_spider 5 conditions:in_mine,is_day"
 ```
 
-### `actions`
+In the DSL compact format, conditions are comma-separated with no spaces, and can be named conditions or inline DSL strings.
 
-A list of script events (see [§7](#7-events-actions-reference)) that fire each time the objective completes. For `persistent` objectives this fires every cycle.
+---
+
+### `events`
+
+**Type:** string or list  
+**Default:** *(none)*
+
+Script actions to fire when the objective **completes** (progress reaches `amount`). For `persistent` objectives this fires every time the cycle ends.
 
 ```yaml
-bonus_ore:
-  type: BLOCK_BREAK
-  target: any
-  amount: 50
-  persistent: true
-  actions:
-    - "point currency add 25"
-    - "notify <gray>+25 coins for mining! category:info"
+# Structured format:
+events: "reward_coins_small"           # named event
+events:
+  - "reward_coins_small"
+  - "sound player entity.player.levelup"
+
+# DSL compact format:
+"BLOCK_BREAK any 50 events:reward_coins_small,notify_player"
 ```
+
+Named event references are expanded to their full action lists. Unrecognised names are treated as inline DSL.
+
+---
 
 ### `persistent`
 
-When `true`, the objective **restarts** after completion instead of locking. The quest never completes from this objective alone. Use it for repeating bonus tasks.
+**Type:** boolean  
+**Default:** `false`  
+**DSL token:** `persistent`
+
+When `true`, after the objective completes (progress reaches `amount`), the progress is **reset to 0** and tracking continues. The objective fires its `events` each cycle. Persistent objectives are **ignored** when the engine checks whether all objectives are done — the quest completes when all **non-persistent** objectives are finished.
+
+Use case: repeating bonus tasks ("mine 50 blocks for a reward, then again, then again…").
 
 ```yaml
 persistent: true
 ```
 
+---
+
 ### `auto-once`
 
-When `true`, this objective is automatically activated for every player exactly once (tracked by a tag). They do not need to start a quest to get it — it activates on join and after reloads.
+**Type:** boolean  
+**Default:** `false`  
+**DSL token:** `auto-once`
+
+When `true`, the objective is **automatically activated** for the player the first time they join. The activation is guarded by a profile tag (`<questId>.auto-once-<objectiveId>`), so it only ever happens once per player lifetime — not once per session.
+
+After a reload, the guard tag is checked, so players who already have the objective active are not re-activated.
+
+To manually reset a player's `auto-once` guard: `tag remove <questId>.auto-once-<objectiveId>`.
 
 ```yaml
 auto-once: true
@@ -203,608 +675,1172 @@ auto-once: true
 
 ---
 
-## 6. Conditions Reference
+### `notify`
 
-Conditions appear in:
-- Objective `conditions:` lists
-- Conversation option `conditions:` lists
-- Event instruction `conditions:` suffix (inline)
+**Type:** integer  
+**Default:** `0` (no notifications)  
+**DSL tokens:** `notify` (every step) or `notify:<n>` (every N steps)
 
-All conditions in a list are combined with AND. Prefix any condition with `!` to negate it.
+Sends a progress notification to the player's action bar when progress milestones are hit. Uses the `info` notification category (which can be overridden in `notifications:`).
 
-### `tag <name>`
-Player has the named profile tag.
 ```yaml
-- "tag forgotten_mine.done"
-- "!tag pvp.disabled"    # negated — player does NOT have this tag
+notify: 5     # notify at progress 5, 10, 15, 20 (and always at completion)
+notify: 1     # notify on every single progress step
 ```
 
-### `quest <questId> <status>`
-Quest is in the given status. Valid statuses: `not_started`, `in_progress`, `completed`, `failed`.
-```yaml
-- "quest forgotten_mine completed"
-- "!quest blacksmith_request in_progress"
-```
+The notification format is: `<target> (<current>/<required>)`.
 
-### `objective <objectiveId>`
-The named objective is currently active for the player.
-```yaml
-- "objective mine_coal"
+In DSL:
 ```
-
-### `zone <zoneId>`
-Player is currently inside the named zone.
-```yaml
-- "zone coal_mine"
-```
-
-### `health <amount>`
-Player's current health is at least `amount`.
-```yaml
-- "health 15"    # at least 15 HP (half-hearts * 2)
-```
-
-### `hunger <level>`
-Player's food level is at least `level` (0–20).
-```yaml
-- "hunger 10"
-```
-
-### `point <category> <amount>`
-Player has at least `amount` points in the named category.
-```yaml
-- "point currency 100"
-```
-
-### `location <x;y;z;world> <radius>`
-Player is within `radius` blocks of the given location.
-```yaml
-- "location 100;64;-200;world 5"
-```
-
-### `variable <path> <operator> <value>`
-A resolved variable matches the condition. Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
-```yaml
-- "variable $player.skill.mining.level$ >= 10"
-- "variable $quest.forgotten_mine.status$ == completed"
-```
-
-### Expression conditions
-Any expression not matching a keyword above is treated as a boolean expression. See the Script DSL reference for full expression syntax.
-```yaml
-- "$time.is_day$ == true"
-- "$player.stat.HEALTH$ > 20"
+notify         # every step
+notify:5       # every 5 steps
 ```
 
 ---
 
-## 7. Events (Actions) Reference
+## 9. quests: — Quest Definitions
 
-These strings go in `rewards`, `on-start-actions`, objective `actions`, NPC option `actions`, or player option `actions`.
+Quests are defined under the `quests:` top-level key in any YAML file inside the package.
 
-### Quest events
 ```yaml
-- "quest_start <questId>"          # start a quest for the player
-- "quest_complete <questId>"       # force-complete a quest (runs rewards)
-- "quest_cancel <questId>"         # cancel — resets to not_started
-- "quest_fail <questId>"           # mark as failed
-- "objective_start <objectiveId>"  # activate a standalone objective
-- "objective_delete <objectiveId>" # deactivate and remove an objective
+quests:
+
+  forgotten_mine:
+    name: "<yellow>A Miner's Burden"
+
+    objectives:
+
+      meet_thorin:
+        type: TALK_TO_NPC
+        target: thorin
+        amount: 1
+
+      mine_coal:
+        type: BLOCK_BREAK
+        target: COAL_ORE
+        amount: 20
+        notify: 5
+
+      kill_spiders:
+        type: KILL
+        target: cave_spider
+        amount: 5
+        conditions: "in_mine"
+
+      reach_mine:
+        type: REACH_ZONE
+        target: coal_mine
+        amount: 1
+
+    rewards:
+      - "notify <green>Quest complete! category:quest_complete"
+      - "point currency add 250"
+      - "tag add forgotten_mine.done"
+      - "sound player entity.player.levelup"
+      - "give COAL:32"
+
+    on-start-events:
+      - "notify <yellow>Head to the Coal Mine east of the village. category:quest_progress"
+      - "sound player entity.villager.yes"
 ```
 
-### Notification events
-```yaml
-- "notify <message>"
-- "notify <message> category:<categoryName>"
-- "notify <message> io:<ioType> [key:value ...]"
-- "notifyall <message>"            # sends to ALL online players
-```
+### Quest field reference
 
-IO types: `chat`, `actionbar`, `title`, `subtitle`, `bossbar`, `sound`, `advancement`
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | No (defaults to quest ID) | Display name shown in the Quest Journal and completion messages. Supports MiniMessage colour tags. |
+| `objectives` | map | No | Map of `objectiveId: <objective>`. Values are either a **structured section** (§8 fields) or a **DSL compact string** (§6 format). Objective IDs must be unique within the quest. |
+| `rewards` | string / list | No | Script actions run once when the quest completes (all non-persistent objectives done). Accepts named events or inline DSL. |
+| `on-start-events` | string / list | No | Script actions run the moment the quest starts via `quest_start`. Accepts named events or inline DSL. |
 
-### Point events
-```yaml
-- "point <category> add <amount>"
-- "point <category> set <amount>"
-- "point <category> take <amount>"   # floors at 0
-```
+> **Legacy note:** Files loaded by the legacy flat-file loader (not inside a package) use `on-start-actions` instead of `on-start-events`, and objective `actions:` instead of `events:`. Package-based files always use `on-start-events` and `events:`.
 
-### Tag events
-```yaml
-- "tag add <tagName>"
-- "tag remove <tagName>"
-```
+### Quest statuses
 
-### Item events
-```yaml
-- "give <MATERIAL>:<amount>"
-- "give <customItemId>:<amount>"
-```
+A quest is always in one of four states:
 
-### Sound events
-```yaml
-- "sound player <sound.key>"         # plays to the caster only
-- "sound world <sound.key>"          # plays at the caster's location
-```
+| Status | Meaning |
+|--------|---------|
+| `not_started` | Default. The player has never started this quest. |
+| `in_progress` | Quest has been started. Objectives are being tracked. |
+| `completed` | All non-persistent objectives are done. Rewards have been given. |
+| `failed` | Quest was failed via `quest_fail`. |
 
-### GUI events
-```yaml
-- "gui open <guiId>"
-```
+### Completion logic
 
-### Dialogue events
-```yaml
-- "dialogue start <conversationId>"
-```
+The quest completes automatically when every **non-persistent** objective has reached its `amount`. Persistent objectives are never checked for completion — they run indefinitely in the background.
 
-### Variable events
-```yaml
-- "variable set <path> <value>"
-- "variable add <path> <number>"
-- "variable remove <path>"
-```
+A quest with **zero non-persistent objectives** (only persistent ones, or none at all) completes immediately on start.
 
-### Journal events
-```yaml
-- "journal open"                     # opens the quest journal for the player
-```
+### Objective IDs are your keys
 
-### Event suffixes
-Any event can have these appended:
-```yaml
-- "give DIAMOND:1 delay:100"                          # runs after 100 ticks (5 s)
-- "give DIAMOND:1 conditions:tag vip,point currency 100"  # only if conditions pass (comma-separated)
-```
+Objective IDs are the keys in the `objectives:` map. Progress is stored using these IDs. **Renaming an objective ID after players have started the quest will reset their progress for that objective.** Choose stable names upfront.
 
 ---
 
-## 8. Variables Reference
+## 10. conversations: — NPC Dialogue Trees
 
-Variables are resolved inside any action string or condition expression using the `$namespace.path$` syntax.
-
-### Quest variables
-| Variable | Returns |
-|----------|---------|
-| `$quest.<id>.status$` | `not_started`, `in_progress`, `completed`, or `failed` |
-| `$quest.<id>.objective.<objId>.progress$` | Current progress int |
-| `$quest.<id>.objective.<objId>.required$` | Required count int |
-| `$objective.<objId>.active$` | `true` / `false` |
-
-### Point variables
-| Variable | Returns |
-|----------|---------|
-| `$point.<category>$` | Current point total (int) |
-
-### Player variables
-| Variable | Returns |
-|----------|---------|
-| `$player.name$` | Player display name |
-| `$player.stat.<STAT_ID>$` | Stat value (double) |
-| `$player.skill.<skillId>.level$` | Skill level (int) |
-| `$player.var.<path>$` | Profile variable |
-
-### Time variables
-| Variable | Returns |
-|----------|---------|
-| `$time.is_day$` | `true` / `false` |
-| `$time.hour$` | 0–23 (int) |
-| `$time.season$` | Season name (String) |
-
----
-
-## 9. NPC Conversations
-
-Conversations are defined in any YAML file within a quest package under a `conversations:` key.
+Conversations are branching dialogue trees displayed when a player interacts with an NPC. Define them under the `conversations:` top-level key.
 
 ```yaml
 conversations:
-
-  my_conversation:
-    quester: "<gold>NPC Name"    # display name shown above NPC speech
-    stop: false                  # true = freeze player movement during chat
-    final_actions:               # run when conversation ends for any reason
-      - "sound player entity.villager.no"
-
-    # firstOptions: list of NPC option IDs tried in order.
-    # The first one whose conditions pass is shown.
+  thorin_main:
+    quester: "<gold><bold>Elder Thorin"
+    stop: true
     first:
-      - option_a
-      - option_b
-      - option_fallback
+      - greeting_new
+      - greeting_progress
+      - greeting_done
+
+    final_events:
+      - "sound player entity.villager.no"
 
     NPC_options:
 
-      option_a:
-        text: "<yellow>Hello, new adventurer!"
-        conditions:
-          - "!tag met_npc"    # only shown the first time
-        actions:
-          - "tag add met_npc"
+      greeting_new:
+        text: "<yellow>The mine has gone silent. Will you help us?"
+        conditions: "mine_not_started, mine_not_completed"
+        events: "some_named_event"
         pointers:
-          - player.choice_1
-          - player.choice_2
-
-      option_b:
-        text: "<yellow>Welcome back."
-        conditions:
-          - "tag met_npc"
-        pointers:
-          - player.choice_2
-
-      option_fallback:
-        text: "<yellow>..."    # shown if no other option qualifies
-        pointers:
-          - player.goodbye
-
-      npc_response_yes:
-        text: "<yellow>Wonderful! Here is your reward."
-        actions:
-          - "give DIAMOND:1"
-        pointers:
-          - player.goodbye
-
-      npc_response_no:
-        text: "<yellow>Very well."
-        pointers:
-          - player.goodbye
+          - accept_quest
+          - decline_quest
 
     player_options:
 
-      choice_1:
-        text: "<white>I will help you."
-        actions:
-          - "quest_start my_quest"
-        conditions: []        # shown to everyone (no condition = always visible)
+      accept_quest:
+        text: "<white>I will investigate."
+        events: "start_forgotten_mine"
         pointers:
-          - npc_response_yes
-
-      choice_2:
-        text: "<white>Not right now."
-        pointers:
-          - npc_response_no
-
-      goodbye:
-        text: "<white>Farewell."
-        # no pointers = ends the conversation
+          - quest_accepted_msg
 ```
 
-### Conversation flow rules
+### Top-level conversation fields
 
-1. When a player right-clicks the NPC, the engine iterates `first:` and picks the first NPC option whose `conditions:` all pass.
-2. It displays the NPC option's `text` and `actions` fire immediately.
-3. The `pointers:` list on an NPC option names **player options** to show as clickable choices.
-4. When the player picks a player option, its `actions` fire and the engine follows the option's `pointers:` to the next NPC option.
-5. If a player option has no `pointers:`, or all pointers point to nothing, the conversation ends.
-6. `final_actions` always fire when the conversation ends.
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `quester` | string | conversation ID | The NPC's display name shown above each dialogue line. Supports MiniMessage tags. |
+| `stop` | boolean | `false` | When `true`, right-clicking elsewhere closes the conversation. |
+| `first` | string / list | `"start"` | Ordered list of **NPC node IDs** to evaluate when the conversation opens. The first node whose `conditions` all pass is displayed. |
+| `final_events` | string / list | *(none)* | Script actions fired when the conversation ends for **any** reason (player closes it, runs out of nodes, etc.). Accepts named events or inline DSL. |
+| `NPC_options` | map | *(none)* | NPC speech nodes. See below. |
+| `player_options` | map | *(none)* | Player reply nodes. See below. |
 
-### Cross-conversation pointers
+---
 
-A pointer can jump to a conversation in another package:
+### NPC option nodes
+
+```yaml
+NPC_options:
+  greeting_new:
+    text: "<yellow>The mine has gone silent. Will you help us?"
+    conditions: "mine_not_started, mine_not_completed"
+    events: "log_npc_speak"
+    pointers:
+      - accept_quest
+      - decline_quest
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `text` | string | `""` | The NPC's spoken line. Supports MiniMessage tags. |
+| `conditions` | string / list | *(none)* | **Named condition references only** (from this package's `conditions:` blocks). Comma-separated or as a list. All must pass for this node to be selected in `first:` evaluation. Inline DSL here produces a warning and is ignored. |
+| `events` | string / list | *(none)* | Script actions fired when this node is shown. Accepts named events or inline DSL. |
+| `pointers` | string list | *(none)* | Ordered list of node IDs this NPC node leads to. Usually these are player option IDs — they become the clickable replies. If a pointer exactly matches a player option key (without the `player.` prefix), it is resolved automatically. |
+
+---
+
+### Player option nodes
+
+```yaml
+player_options:
+  accept_quest:
+    text: "<white>I will investigate the mine."
+    conditions: "mine_not_started"
+    events: "start_forgotten_mine"
+    pointers:
+      - quest_accepted_msg
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `text` | string | `""` | The player reply text shown as a clickable button. Supports MiniMessage tags. |
+| `conditions` | string / list | *(none)* | **Named condition references only.** All must pass for this reply to be visible. Inline DSL is rejected with a warning. |
+| `events` | string / list | *(none)* | Script actions fired when the player clicks this reply. Accepts named events or inline DSL. |
+| `pointers` | string list | *(none)* | NPC nodes to display after this reply is chosen. Usually a single pointer. If empty or all targets are unresolvable, the conversation ends. |
+
+---
+
+### How `first:` resolution works
+
+On conversation open, the engine walks the `first:` list **top to bottom**. The **first NPC node whose `conditions` all pass** is displayed. If no node passes, the conversation does not open.
+
+```yaml
+first:
+  - greeting_new        # passes when: mine_not_started AND mine_not_completed
+  - greeting_progress   # passes when: mine_in_progress
+  - greeting_done       # passes when: mine_completed
+  - idle_chat           # no conditions — always passes (fallback)
+```
+
+> **Always put the most specific conditions first.** A node with no conditions will always match and must go last.
+
+### Pointer auto-resolution
+
+When a pointer name in `NPC_options.pointers` or the `first:` list matches a key from `player_options` (without the `player.` prefix), it is automatically prefixed:
+
 ```yaml
 pointers:
-  - otherConversation.npcOptionId        # same package, different conversation
-  - otherPackage>otherConv.npcOptionId   # cross-package reference
+  - accept_quest    # stored internally as player.accept_quest
+```
+
+You can also write `player.accept_quest` explicitly — both work.
+
+### Conversation flow summary
+
+```
+Player right-clicks NPC
+   └─ first: list evaluated top-to-bottom
+      └─ First passing NPC node displayed (text shown, events fired)
+         └─ Player clicks a reply (player option)
+            └─ Player option events fired
+               └─ Player option pointers resolve to next NPC node
+                  └─ Next NPC node shown ... (repeats)
+                     └─ No more pointers → conversation ends → final_events fire
 ```
 
 ---
 
-## 10. NPCs
+## 11. notifications: — Display Categories
 
-NPCs are defined in `plugins/Valmora/npcs/` (not inside quest packages — they need world coordinates).
-
-```yaml
-thorin:
-  display-name: "<gold>Elder Thorin"
-  entity-type: VILLAGER          # any Bukkit EntityType name
-  world: world
-  x: -8.5
-  y: 65.0
-  z: 8.5
-  yaw: 90                        # facing direction (degrees, 0 = south)
-  on-right-click: []             # action list (overridden by conversation binding)
-  on-left-click:
-    - "sound player entity.villager.ambient"
-
-# Bind conversations loaded from quest packages.
-# Conversation takes priority over on-right-click actions.
-npc_conversations:
-  thorin: thorin_main
-  bjorn: bjorn_main
-```
-
-Alternatively, set `conversation:` directly on the NPC:
-```yaml
-thorin:
-  display-name: "<gold>Elder Thorin"
-  entity-type: VILLAGER
-  world: world
-  x: -8.5
-  y: 65.0
-  z: 8.5
-  yaw: 90
-  conversation: thorin_main     # inline binding
-  on-right-click: []
-  on-left-click: []
-```
-
----
-
-## 11. Notification Categories
-
-Categories define how notifications are delivered. Define them per-package.
+Notification categories define *how* messages are displayed. Reference a category in any `notify` action with `category:<name>`.
 
 ```yaml
 notifications:
 
-  # Override the built-in "info" category (defaults to chat)
-  info:
-    io: actionbar
-
-  # Custom category — used in: notify <msg> category:quest_complete
   quest_complete:
     io: title
-    fadeIn: "10"       # ticks
+    fadeIn: "10"
     stay: "60"
     fadeOut: "20"
 
-  boss_warning:
-    io: bossbar
-    barColor: RED      # RED, BLUE, GREEN, YELLOW, PURPLE, PINK, WHITE
-    barStyle: SOLID    # SOLID, SEGMENTED_6, SEGMENTED_10, SEGMENTED_12, SEGMENTED_20
-    stay: "200"        # ticks before the bar disappears
+  quest_progress:
+    io: actionbar
 
-  level_up_sound:
-    io: sound
-    soundKey: "entity.player.levelup"
-    soundVolume: "1.0"
-    soundPitch: "1.0"
+  # Override the built-in "info" category (used by objective progress notifications)
+  info:
+    io: actionbar
 ```
 
-**Built-in categories** (can be overridden per-package):
-- `info` → `chat`
-- `error` → `actionbar`
+### Structure
 
-**IO types:**
+Each key under `notifications:` is the **category name** (case-insensitive). Reference it in actions:
 
-| IO | Key | Description |
-|----|-----|-------------|
-| `chat` | — | Chat message |
-| `actionbar` | — | Action bar above hotbar |
-| `title` | `fadeIn`, `stay`, `fadeOut` | Title text; put NPC lines in the message |
-| `subtitle` | `fadeIn`, `stay`, `fadeOut` | Subtitle only |
-| `bossbar` | `barColor`, `barStyle`, `stay` | Boss bar; auto-hides after `stay` ticks |
-| `sound` | `soundKey`, `soundVolume`, `soundPitch`, `soundCategory` | Sound only (message ignored) |
-| `advancement` | — | Falls back to actionbar (Paper API limitation) |
+```yaml
+"notify <green>Quest complete! category:quest_complete"
+"notify <yellow>5 more coal needed! category:quest_progress"
+```
+
+### Per-category fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `io` | string | Display type. See the IO type table below. |
+| `fadeIn` | string (ticks) | For `title` only: ticks to fade in. Default `10`. |
+| `stay` | string (ticks) | For `title` only: ticks to stay visible. Default `70`. |
+| `fadeOut` | string (ticks) | For `title` only: ticks to fade out. Default `20`. |
+
+### `io` types
+
+| Value | Display method |
+|-------|---------------|
+| `actionbar` | Shown in the action bar above the hotbar. Replaces previous action bar messages. |
+| `title` | Large screen title. Supports `fadeIn`, `stay`, `fadeOut`. |
+| `chat` | Sent as a regular chat message. |
+| `subtitle` | Subtitle line beneath the main title. |
+
+### Built-in categories
+
+These exist by default and can be overridden per-package by defining them in your `notifications:` block:
+
+| Category | Default IO |
+|----------|-----------|
+| `info` | `actionbar` — used by the automatic objective progress notifications |
+
+### The `notify` action syntax
+
+```yaml
+"notify <message>"                                    # uses "info" category
+"notify <message> category:<categoryName>"            # uses named category
+"notify <message> io:<ioType>"                        # inline IO type
+"notify <message> io:title fadeIn:10 stay:60 fadeOut:20"  # inline with extra keys
+```
 
 ---
 
-## 12. Points System
+## 12. player_hider: — Conditional Visibility
 
-Points are per-player counters stored per category. Use them for currency, reputation, faction standing, etc.
-
-**DSL:**
-```yaml
-- "point currency add 250"
-- "point currency take 100"
-- "point currency set 0"
-```
-
-**Condition:**
-```yaml
-- "point currency 500"     # player has at least 500 currency points
-```
-
-**Variable:**
-```yaml
-"$point.currency$"         # resolves to the int count
-```
-
-Points are persisted in the player's profile JSON — no extra database table needed.
-
----
-
-## 13. Player Hider
-
-Player hiders conditionally hide players from each other. Define them in any YAML file in a package under `player_hider:`.
+The player hider makes certain players invisible to other players based on conditions. It re-evaluates every 20 ticks (1 second).
 
 ```yaml
 player_hider:
 
-  hide_in_mine:
-    # Players matching source_player conditions will have target_player-matching
-    # players hidden from their view. Evaluated every 20 ticks.
-    source_player:
-      - "zone coal_mine"
-    target_player:
-      - "!zone coal_mine"       # target is NOT in the mine
+  hide_outside_mine:
+    source_player:          # conditions on the OBSERVER (who cannot see the target)
+      - "zone coal_mine"    # observer must be in the mine
+    target_player:          # conditions on the TARGET (who is hidden)
+      - "!zone coal_mine"   # target must NOT be in the mine
 
-  pvp_zone_hider:
+  pvp_hider:
     source_player:
       - "zone pvp_arena"
     target_player:
       - "!tag pvp_participant"
 ```
 
-Both `source_player` and `target_player` accept any condition from [§6](#6-conditions-reference). Leave a list empty to match all players.
+### Structure
+
+```yaml
+player_hider:
+  <hider_id>:
+    source_player:    # list of inline condition DSL strings evaluated on the OBSERVER
+      - "<condition>"
+    target_player:    # list of inline condition DSL strings evaluated on the TARGET
+      - "<condition>"
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `<hider_id>` | string | Unique ID for this rule (any name). |
+| `source_player` | string list | Inline condition DSL strings. Evaluated on the **observer** (the player who will not see the target). Empty list matches all players. |
+| `target_player` | string list | Inline condition DSL strings. Evaluated on the **target** (the player being hidden). Empty list matches all players. |
+
+When **all** source conditions pass for player A **and** all target conditions pass for player B, player B is hidden from player A's view.
+
+> Unlike conversation conditions, player hider conditions accept **inline DSL directly** — named conditions are not required.
 
 ---
 
-## 14. Templates
+## 13. Script Events — All Quest Actions
 
-Templates are packages stored in `plugins/Valmora/templates/` that other packages can inherit from.
+These are the action strings you write in `rewards:`, `on-start-events:`, objective `events:`, conversation `events:`, and named `events:` blocks.
+
+---
+
+### Quest lifecycle
+
+```yaml
+"quest_start <questId>"
+```
+Start a quest for the player. If already `in_progress` or `completed`, this is silently ignored. Resets all objective progress to 0 and fires `on-start-events`.
+
+```yaml
+"quest_complete <questId>"
+```
+Force-complete a quest. Fires `rewards:` and marks status `completed`, regardless of current objective progress.
+
+```yaml
+"quest_cancel <questId>"
+```
+Reset a quest back to `not_started`. Clears all objective flags and progress. Does **not** fire rewards.
+
+```yaml
+"quest_fail <questId>"
+```
+Mark a quest as `failed`. Clears objective flags. Sends a failure message to the player.
+
+---
+
+### Standalone objective lifecycle
+
+```yaml
+"objective_start <objectiveId>"
+```
+Activate a named objective independently of any quest. Sets its progress to 0 and marks it active.
+
+```yaml
+"objective_delete <objectiveId>"
+```
+Deactivate and remove a named objective. Clears its progress and active flag.
+
+---
+
+### Quest Journal
+
+```yaml
+"journal open"
+```
+Open the Quest Journal inventory for the player. Shows all known quests with their status and progress bars.
+
+---
+
+### Points
+
+```yaml
+"point <category> add <amount>"    # increase by amount (can't go below 0)
+"point <category> take <amount>"   # decrease by amount (floors at 0)
+"point <category> set <amount>"    # set to exact value
+```
+
+`category` is any string you choose (e.g. `currency`, `reputation`, `kills`). It is case-insensitive and stored lowercase.
+
+---
+
+### Notifications
+
+```yaml
+"notify <message> category:<categoryName>"
+"notify <message> io:<ioType>"
+"notify <message>"                              # uses the "info" category
+```
+
+MiniMessage tags are supported in `<message>`:
+
+```yaml
+"notify <green>Quest complete! <bold>Well done! category:quest_complete"
+```
+
+---
+
+### Tags (from the base script system)
+
+```yaml
+"tag add <tagName>"
+"tag remove <tagName>"
+```
+
+Tags are profile-level boolean flags stored as strings. They persist across sessions.
+
+---
+
+### Items (from the base script system)
+
+```yaml
+"give <MATERIAL>:<amount>"
+"give <customItemId>:<amount>"
+```
+
+---
+
+### Sounds (from the base script system)
+
+```yaml
+"sound player <sound.key>"       # plays to the caster only
+"sound world <sound.key>"        # plays at the caster's location for nearby players
+```
+
+Examples of sound keys: `entity.player.levelup`, `entity.villager.yes`, `entity.villager.no`, `block.brewing_stand.brew`.
+
+---
+
+### Variables (from the base script system)
+
+```yaml
+"variable set <path> <value>"
+"variable add <path> <number>"
+"variable remove <path>"
+```
+
+---
+
+### Event suffixes
+
+Any action can have `delay:<ticks>` appended to defer execution:
+
+```yaml
+"give DIAMOND:1 delay:100"       # fires after 100 ticks (5 seconds)
+```
+
+---
+
+## 14. Variables — Reading Quest Data
+
+Variables are embedded in any string using `$namespace.path$` syntax. They resolve to live data at execution time.
+
+### Quest status
+
+```
+$quest.<questId>.status$
+```
+
+Returns: `not_started`, `in_progress`, `completed`, or `failed`.
+
+```yaml
+conditions:
+  quest_done:     "$quest forgotten_mine.status$ == completed"
+  quest_active:   "$quest forgotten_mine.status$ == in_progress"
+```
+
+### Objective progress
+
+```
+$quest.<questId>.objective.<objectiveId>.progress$
+```
+
+Returns: current progress integer (0 to `amount`).
+
+```
+$quest.<questId>.objective.<objectiveId>.required$
+```
+
+Returns: the `amount` field value — how many are required.
+
+```yaml
+# Example: check if at least half done
+conditions:
+  halfway: "$quest forgotten_mine.objective.mine_coal.progress$ >= 10"
+```
+
+### Legacy index-based progress
+
+```
+$quest.<questId>.progress.<index>$
+```
+
+Returns the progress for the objective at zero-based position `index` in the definition order. Prefer named objective IDs.
+
+### Objective active flag
+
+```
+$quest.objective.<objectiveId>.active$
+```
+
+Returns: `true` or `false`. Whether the named standalone objective is currently active for the player.
+
+### Points
+
+```
+$point.<category>$
+```
+
+Returns: integer — the player's current point total in that category.
+
+```yaml
+conditions:
+  can_afford:   "$point.currency$ >= 500"
+  wealthy:      "$point.currency$ >= 10000"
+```
+
+### Player variables (from base system)
+
+| Variable | Returns |
+|----------|---------|
+| `$player.name$` | Player display name |
+| `$player.stat.<STAT_ID>$` | Stat value (double) |
+| `$player.skill.<skillId>.level$` | Skill level (int) |
+| `$player.var.<path>$` | Custom profile variable |
+
+### Time variables (from base system)
+
+| Variable | Returns |
+|----------|---------|
+| `$time.is_day$` | `true` / `false` |
+| `$time.hour$` | 0–23 (int) |
+| `$time.season$` | Season name |
+
+---
+
+## 15. Points System
+
+Points are per-player numeric counters. Each counter is identified by a **category** name you choose freely — there are no predefined categories. Values are stored in the player's profile and persist across sessions.
+
+### Actions
+
+```yaml
+"point currency add 250"      # += 250 (floors at 0)
+"point currency take 100"     # -= 100 (floors at 0 — never negative)
+"point currency set 0"        # set to exactly 0
+"point reputation add 10"
+```
+
+### Conditions (using the base condition system)
+
+```yaml
+conditions:
+  can_afford:   "$point.currency$ >= 500"
+  respected:    "$point.reputation$ > 50"
+```
+
+Or using the shorthand condition (if registered):
+
+```yaml
+- "point currency 500"        # player has at least 500 currency
+```
+
+### Variables
+
+```yaml
+"$point.currency$"            # resolves to the integer count
+"$point.reputation$"
+```
+
+### Example — shop purchase gate
+
+```yaml
+conditions:
+  can_buy_sword: "$point.currency$ >= 200"
+
+# In a conversation player option:
+accept_purchase:
+  text: "Buy the iron sword for 200 coins."
+  conditions: "can_buy_sword"
+  events:
+    - "point currency take 200"
+    - "give IRON_SWORD:1"
+    - "notify <green>Purchased! category:quest_complete"
+```
+
+---
+
+## 16. Templates
+
+Templates let you define shared events, conditions, objectives, and quests in one place and inherit them in multiple packages.
+
+### Template folder location
 
 ```
 plugins/Valmora/
-  templates/
-    reward_template/
-      quest.yml       ← package header (must exist)
-      rewards.yml     ← named event lists and conditions
-  quests/
-    my_quest/
-      quest.yml       ← package:  templates: [reward_template]
+└── templates/
+    ├── common_rewards/          ← each sub-folder is one template
+    │   ├── events.yml           ← can contain events:, conditions:, quests:, etc.
+    │   └── conditions.yml
+    └── shared_conditions/
+        └── conditions.yml
 ```
 
-Package features **always win** over template features — templates supply defaults, not overrides. Merging uses `putIfAbsent`, so if you define `events.reward_coins_small` in both the template and the package, the package version is used.
+Template folders follow the exact same YAML format as regular packages. They do **not** need a `quest.yml` to be detected — every direct sub-folder of `templates/` is loaded automatically.
+
+### Using a template
+
+In your package's `quest.yml`:
+
+```yaml
+package:
+  templates:
+    - common_rewards          # matches the folder name (case-insensitive)
+    - shared_conditions
+```
+
+### Merge rules
+
+| Scenario | Result |
+|----------|--------|
+| Package defines `events.reward_full` | Package version used |
+| Template defines `events.reward_full`, package does not | Template version used |
+| Both define `events.reward_full` | **Package wins** (`putIfAbsent`) |
+
+Templates are defaults, not overrides. Multiple templates are merged in the order listed; the first one to define a key wins among templates.
 
 ---
 
-## 15. Cross-Package References
+## 17. Cross-Package References
 
-Any feature from another package can be referenced using the `>` separator.
+You can reference events from another package using the `>` separator.
 
-**Event reference in an action list:**
+### Event reference from another package
+
 ```yaml
 rewards:
-  - "forgotten_mine>reward_coins_large"    # runs the named event from another package
+  - "forgotten_mine>reward_coins_large"      # absolute package path
+  - "main_story-chapter1>start_chapter_two"  # nested package path
 ```
 
-**Conversation pointer:**
+### Relative paths
+
+Use `_` to go up one level and `-<name>` to go into a child:
+
 ```yaml
-pointers:
-  - otherPackagePath>otherConversation.npcOptionId
+"_>sibling_event"          # sibling package (same parent folder)
+"-child>child_event"       # child package
+"_-uncle>uncle_event"      # go up one, go into uncle
 ```
 
-**Package path syntax:**
-- `forgotten_mine` — absolute path (folder name directly under `quests/`)
-- `forgotten_mine-dungeon` — nested: `quests/forgotten_mine/dungeon/` (sub-package)
-- `_-sibling` — relative: go up one level, then into `sibling/`
+The source package's path is used as the base for relative resolution.
 
 ---
 
-## 16. Commands
+## 18. In-Game Commands
 
-| Command | Permission | Description |
-|---------|------------|-------------|
-| `/quest` | — | Opens the Quest Journal |
-| `/quest journal` | — | Same as above |
-| `/valmora reload` | `valmora.admin` | Reloads all modules including quests |
-| `/npc list` | `valmora.admin` | Lists all registered NPCs |
-| `/npc reload` | `valmora.admin` | Reloads all modules |
-
-**Script commands (in-game, for debugging):**
-You can trigger quest events manually by running them through an NPC action or a `/valmora` admin tool once that is implemented.
+| Command | Who can use | Description |
+|---------|-------------|-------------|
+| `/quest` | All players | Opens the Quest Journal. |
+| `/quest journal` | All players | Same as `/quest`. |
+| `/valmora reload` | `valmora.admin` | Hot-reloads all modules. Quest packages are re-scanned and re-loaded. Player progress in profiles is preserved. |
 
 ---
 
-## 17. Full Example — The Forgotten Mine
+## 19. Full Worked Example — The Forgotten Mine
 
-The full example package ships with Valmora and lives at:
-```
-plugins/Valmora/quests/forgotten_mine/
-```
+This is a complete, self-contained two-quest package demonstrating every major feature.
 
-It demonstrates:
-- Two chained quests (`forgotten_mine` → `blacksmith_request`)
-- A persistent auto-once daily bonus quest (`daily_mining`)
-- All major objective types (KILL, BLOCK_BREAK, CRAFT, SMELT, FISH, TALK_TO_NPC, REACH_ZONE)
-- Objective conditions (zone gate, time-of-day gate)
-- Per-objective notifications
-- Named events and conditions
-- Full NPC conversations with `firstOptions` context switching
-- Custom notification categories (title, actionbar)
-- Points as a currency reward
-
-### Package layout
-```
-forgotten_mine/
-  quest.yml           ← package header
-  quests.yml          ← quest + objective definitions, named events/conditions
-  conversations.yml   ← thorin_main and bjorn_main conversations
-  notifications.yml   ← quest_complete (title) and quest_progress (actionbar) categories
-```
-
-### Quest chain overview
+### Folder layout
 
 ```
-[Player joins server]
-       │
-       ▼
-daily_mining activates (auto-once, persistent)
-       │  +25 coins every 50 blocks mined
-       │
-       ▼
-Right-click Elder Thorin (NPC: thorin)
-       │  firstOptions: greeting_new → greeting_progress → greeting_done
-       │  Player accepts → quest_start forgotten_mine
-       │
-       ▼
-Objectives (all required, any order):
-  ✓ TALK_TO_NPC thorin           (met Thorin)
-  ✓ BLOCK_BREAK COAL_ORE × 20   (notify every 5)
-  ✓ KILL cave_spider × 5         (only in zone coal_mine)
-  ✓ REACH_ZONE coal_mine         (entering the zone)
-       │
-       ▼
-Rewards: 250 currency, 32 coal, level-up sound, tag forgotten_mine.done
-       │
-       ▼
-Right-click Bjorn (NPC: bjorn)
-       │  firstOptions: bjorn_offer_quest (gated by tag)
-       │  Player accepts → quest_start blacksmith_request
-       │
-       ▼
-Objectives:
-  ✓ TALK_TO_NPC bjorn
-  ✓ CRAFT IRON_PICKAXE × 1
-  ✓ SMELT IRON_INGOT × 10        (notify every 2)
-  ✓ FISH any × 3                 (only during daytime)
-       │
-       ▼
-Rewards: 500 currency, 1 iron pickaxe, tag blacksmith_request.done
+plugins/Valmora/quests/
+└── forgotten_mine/
+    ├── quest.yml           ← package manifest + NPC bindings
+    ├── quests.yml          ← events, conditions, quest definitions
+    ├── conversations.yml   ← NPC dialogue trees
+    └── notifications.yml   ← display category overrides
 ```
 
-### NPC file (`npcs/hub.yml`)
+---
+
+### `quest.yml`
 
 ```yaml
-thorin:
-  display-name: "<gold>Elder Thorin"
-  entity-type: VILLAGER
-  world: world
-  x: -8.5
-  y: 65.0
-  z: 8.5
-  yaw: 90
-  on-right-click: []
-  on-left-click: []
-
-bjorn:
-  display-name: "<red>Bjorn"
-  entity-type: VILLAGER
-  world: world
-  x: 8.5
-  y: 65.0
-  z: 8.5
-  yaw: 270
-  on-right-click: []
-  on-left-click: []
+package:
+  enabled: true
 
 npc_conversations:
-  thorin: thorin_main
-  bjorn: bjorn_main
-```
-
-### Conversation flow for Elder Thorin
-
-```
-Player right-clicks Thorin
-   │
-   ├── conditions pass?  !quest forgotten_mine in_progress
-   │                     !quest forgotten_mine completed
-   │   YES → greeting_new
-   │           "The mine has gone silent..."
-   │           choices: [Accept] [Decline]
-   │               Accept → quest_start forgotten_mine → quest_accepted node
-   │               Decline → quest_declined node
-   │
-   ├── conditions pass?  quest forgotten_mine in_progress
-   │   YES → greeting_progress
-   │           "How goes your work in the mine?"
-   │
-   └── conditions pass?  quest forgotten_mine completed
-       YES → greeting_done
-               "You have done the village a great service..."
+  thorin: thorin_main    # Elder Thorin NPC → thorin_main conversation
+  bjorn:  bjorn_main     # Bjorn the Blacksmith → bjorn_main conversation
 ```
 
 ---
 
-*For scripting internals (EventFactory, VariableProvider, ConditionParser), see `docs/VALMORA_DOCUMENTATION.md` and `docs/MODULE_DEVELOPMENT.md`.*
+### `notifications.yml`
+
+```yaml
+notifications:
+
+  quest_complete:
+    io: title
+    fadeIn: "10"
+    stay: "80"
+    fadeOut: "20"
+
+  quest_progress:
+    io: actionbar
+
+  info:
+    io: actionbar
+```
+
+---
+
+### `quests.yml`
+
+```yaml
+# ── Named events ──────────────────────────────────────────────────────────
+
+events:
+  start_forgotten_mine:     "quest_start forgotten_mine"
+  start_blacksmith_request: "quest_start blacksmith_request"
+
+  reward_coins_small:
+    - "point currency add 100"
+    - "sound player entity.experience_orb.pickup"
+
+  reward_coins_large:
+    - "point currency add 500"
+    - "sound player entity.player.levelup"
+    - "notify <gold>You earned 500 coins! category:quest_complete"
+
+  bonus_mining_reward: "folder reward_coins_small"   # expands reward_coins_small
+
+
+# ── Named conditions ──────────────────────────────────────────────────────
+
+conditions:
+  in_mine:             "zone coal_mine"
+  is_day:              "$time.is_day$ == true"
+
+  mine_not_started:    "!quest forgotten_mine in_progress"
+  mine_not_completed:  "!quest forgotten_mine completed"
+  mine_in_progress:    "quest forgotten_mine in_progress"
+  mine_completed:      "quest forgotten_mine completed"
+
+  smith_not_started:   "!quest blacksmith_request in_progress"
+  smith_not_completed: "!quest blacksmith_request completed"
+  smith_in_progress:   "quest blacksmith_request in_progress"
+  smith_completed:     "quest blacksmith_request completed"
+
+
+# ── Quest definitions ─────────────────────────────────────────────────────
+
+quests:
+
+  # ── Quest 1: A Miner's Burden ──────────────────────────────────────────
+  forgotten_mine:
+    name: "<yellow>A Miner's Burden"
+
+    objectives:
+
+      meet_thorin:
+        type: TALK_TO_NPC
+        target: thorin
+        amount: 1
+
+      mine_coal:
+        type: BLOCK_BREAK
+        target: COAL_ORE
+        amount: 20
+        notify: 5                    # notify at 5, 10, 15, 20
+
+      kill_spiders:
+        type: KILL
+        target: cave_spider          # custom mob ID
+        amount: 5
+        conditions: "in_mine"        # only counts kills inside coal_mine zone
+
+      reach_mine:
+        type: REACH_ZONE
+        target: coal_mine
+        amount: 1
+
+    rewards:
+      - "notify <green>You have completed A Miner's Burden! category:quest_complete"
+      - "point currency add 250"
+      - "tag add forgotten_mine.done"
+      - "sound player entity.player.levelup"
+      - "give COAL:32"
+
+    on-start-events:
+      - "notify <yellow>Head to the Coal Mine east of the village. category:quest_progress"
+      - "sound player entity.villager.yes"
+
+
+  # ── Quest 2: The Blacksmith's Request ─────────────────────────────────
+  blacksmith_request:
+    name: "<gold>The Blacksmith's Request"
+
+    objectives:
+
+      meet_bjorn:
+        type: TALK_TO_NPC
+        target: bjorn
+        amount: 1
+
+      craft_pickaxe:
+        type: CRAFT
+        target: IRON_PICKAXE
+        amount: 1
+
+      smelt_iron:
+        type: SMELT
+        target: IRON_INGOT
+        amount: 10
+        notify: 2
+
+      catch_fish:
+        type: FISH
+        target: any
+        amount: 3
+        conditions: "is_day"         # only during daytime
+
+    rewards:
+      - "notify <gold>You have completed The Blacksmith's Request! category:quest_complete"
+      - "point currency add 500"
+      - "tag add blacksmith_request.done"
+      - "sound player entity.player.levelup"
+      - "give IRON_PICKAXE:1"
+
+    on-start-events:
+      - "notify <yellow>Visit Bjorn in the forge. category:quest_progress"
+
+
+  # ── Quest 3: Daily Mining Bonus (persistent + auto-once) ──────────────
+  daily_mining:
+    name: "<gray>Daily Mining Bonus"
+
+    objectives:
+      bonus_mining:
+        type: BLOCK_BREAK
+        target: any                  # any block material
+        amount: 50
+        persistent: true             # resets after each 50 blocks — never ends
+        auto-once: true              # activates automatically on first join
+        notify: 10                   # notify every 10 blocks
+        events: "bonus_mining_reward"
+
+    rewards: []        # no quest completion rewards (persistent never triggers normal completion)
+    on-start-events: []
+```
+
+---
+
+### `conversations.yml`
+
+```yaml
+conditions:
+  mine_not_started_c:    "!quest forgotten_mine in_progress"
+  mine_not_completed_c:  "!quest forgotten_mine completed"
+  mine_in_progress_c:    "quest forgotten_mine in_progress"
+  mine_completed_c:      "quest forgotten_mine completed"
+  smith_not_started_c:   "!quest blacksmith_request in_progress"
+  smith_not_completed_c: "!quest blacksmith_request completed"
+  smith_in_progress_c:   "quest blacksmith_request in_progress"
+  smith_completed_c:     "quest blacksmith_request completed"
+  mine_done_c:           "tag forgotten_mine.done"
+
+conversations:
+
+  # ── Elder Thorin ───────────────────────────────────────────────────────
+  thorin_main:
+    quester: "<gold><bold>Elder Thorin"
+    stop: true
+    first:
+      - greeting_new        # shown when quest not yet started
+      - greeting_progress   # shown when quest in progress
+      - greeting_done       # shown when quest complete
+
+    final_events:
+      - "sound player entity.villager.no"
+
+    NPC_options:
+
+      greeting_new:
+        text: "<yellow>The mine has gone silent. Our coal supply dwindles and something lurks in the tunnels. Will you help us?"
+        conditions: "mine_not_started_c, mine_not_completed_c"
+        pointers:
+          - accept_quest
+          - decline_quest
+
+      greeting_progress:
+        text: "<yellow>How goes your work in the mine? We are counting on you."
+        conditions: "mine_in_progress_c"
+        pointers:
+          - report_progress
+          - say_goodbye
+
+      greeting_done:
+        text: "<green>You have done the village a great service. If you seek more work, speak to Bjorn the blacksmith."
+        conditions: "mine_completed_c"
+        pointers:
+          - say_goodbye
+
+      quest_accepted:
+        text: "<yellow>Excellent! Head east past the old oak — the mine entrance is marked by a lantern."
+        pointers:
+          - say_goodbye
+
+      quest_declined:
+        text: "<gray>I understand. Return when you are ready."
+        pointers:
+          - say_goodbye
+
+    player_options:
+
+      accept_quest:
+        text: "<white>I will investigate the mine and deal with whatever lurks there."
+        events: "start_forgotten_mine"
+        pointers:
+          - quest_accepted
+
+      decline_quest:
+        text: "<white>I am not ready for that yet."
+        pointers:
+          - quest_declined
+
+      report_progress:
+        text: "<white>I am working on it."
+        pointers:
+          - greeting_progress
+
+      say_goodbye:
+        text: "<white>Farewell, Elder."
+
+
+  # ── Bjorn the Blacksmith ───────────────────────────────────────────────
+  bjorn_main:
+    quester: "<red><bold>Bjorn"
+    stop: true
+    first:
+      - bjorn_offer_quest    # only after mine quest done; not yet offered smith quest
+      - bjorn_in_progress    # smith quest in progress
+      - bjorn_done           # smith quest complete
+      - bjorn_idle           # fallback if mine quest not done
+
+    final_events:
+      - "sound player entity.villager.no"
+
+    NPC_options:
+
+      bjorn_offer_quest:
+        text: "<red>The Elder said you cleared out the mine. Good. I need coal ore, smelted iron, a pickaxe, and some fish. Interested?"
+        conditions: "mine_done_c, smith_not_started_c, smith_not_completed_c"
+        pointers:
+          - accept_blacksmith
+          - decline_blacksmith
+
+      bjorn_in_progress:
+        text: "<red>Still gathering my order? I need the ore, iron ingots, the pickaxe. Oh — and fish. Wife's recipe. Don't ask."
+        conditions: "smith_in_progress_c"
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_done:
+        text: "<red>My forge burns bright thanks to you. Come back anytime."
+        conditions: "smith_completed_c"
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_idle:
+        text: "<red>I am busy. Come back after you've proven yourself out there."
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_quest_accepted:
+        text: "<red>Don't take all day. Catch the fish during daylight — they taste better."
+        pointers:
+          - say_goodbye_bjorn
+
+      bjorn_quest_declined:
+        text: "<red>Suit yourself."
+        pointers:
+          - say_goodbye_bjorn
+
+    player_options:
+
+      accept_blacksmith:
+        text: "<white>Consider it done, Bjorn."
+        events: "start_blacksmith_request"
+        pointers:
+          - bjorn_quest_accepted
+
+      decline_blacksmith:
+        text: "<white>Not right now."
+        pointers:
+          - bjorn_quest_declined
+
+      say_goodbye_bjorn:
+        text: "<white>See you around."
+```
+
+---
+
+### Quest flow diagram
+
+```
+Player joins server
+  └─ daily_mining auto-once activates
+       └─ Every 50 blocks mined: +100 currency (repeats indefinitely)
+
+Player right-clicks Elder Thorin
+  └─ first: evaluated → greeting_new passes (not started, not completed)
+       └─ NPC: "The mine has gone silent..."
+            ├─ [Accept] → quest_start forgotten_mine → on-start-events fire
+            │     └─ Objectives tracking:
+            │          ✓ TALK_TO_NPC thorin           (1/1)
+            │          ✓ BLOCK_BREAK COAL_ORE × 20   (notify every 5)
+            │          ✓ KILL cave_spider × 5          (only inside coal_mine zone)
+            │          ✓ REACH_ZONE coal_mine           (1/1)
+            │     └─ Quest complete → rewards run → 250 currency, 32 coal, tag
+            └─ [Decline] → quest_declined node
+
+Player right-clicks Bjorn
+  └─ greeting_new passes only if mine_done tag set → offers quest
+       └─ [Accept] → quest_start blacksmith_request
+              ✓ TALK_TO_NPC bjorn
+              ✓ CRAFT IRON_PICKAXE × 1
+              ✓ SMELT IRON_INGOT × 10   (notify every 2)
+              ✓ FISH any × 3            (only during daytime)
+          └─ Quest complete → 500 currency, iron pickaxe, tag
+```
+
+---
+
+## 20. Common Mistakes & Gotchas
+
+### Conversation conditions must be named
+
+```yaml
+# ✗ Wrong — inline DSL in a conversation condition (produces a warning and is ignored)
+NPC_options:
+  greeting:
+    conditions: "$quest wolf_hunt.status$ == not_started"
+
+# ✓ Correct — define a named condition, then reference it
+conditions:
+  wolf_not_started: "$quest wolf_hunt.status$ == not_started"
+
+NPC_options:
+  greeting:
+    conditions: "wolf_not_started"
+```
+
+---
+
+### `first:` order always matters
+
+The first node whose conditions pass is shown. Put the most specific cases first:
+
+```yaml
+# ✗ Wrong — idle has no conditions, so it always matches first
+first:
+  - idle_chat        # no conditions — always matches → completed and progress nodes never show
+  - quest_complete
+  - quest_progress
+
+# ✓ Correct — specific to general
+first:
+  - quest_complete   # most specific
+  - quest_progress
+  - idle_chat        # fallback with no conditions last
+```
+
+---
+
+### Objective IDs are permanent keys
+
+Once a player has started a quest, objective progress is stored using the objective ID as the storage key. Renaming an objective ID resets progress for that objective for all players who have started the quest.
+
+---
+
+### Persistent-only quests complete immediately
+
+A quest whose only objectives all have `persistent: true` has **zero non-persistent objectives**. The completion check passes immediately when the quest starts, running rewards at once. If you want the quest to actually complete at some point, include at least one non-persistent objective.
+
+---
+
+### `final_events` not `final_actions`
+
+The parser looks for **`final_events`** in conversations. The field name `final_actions` is not recognised and will silently do nothing.
+
+---
+
+### `on-start-events` not `on-start-actions` (in packages)
+
+The package-system parser looks for `on-start-events` in quest definitions. The legacy flat-file loader uses `on-start-actions`. If you are writing a package (which you almost certainly are), use `on-start-events`.
+
+Similarly, objective on-complete actions must use `events:` in packages (not `actions:`).
+
+---
+
+### Material names are case-sensitive and must be uppercase
+
+```yaml
+target: COAL_ORE     # ✓ correct
+target: coal_ore     # ✗ wrong — will not match
+target: Coal_Ore     # ✗ wrong — will not match
+```
+
+Custom mob IDs and NPC IDs are case-insensitive.
+
+---
+
+### `auto-once` is per-player, permanent
+
+Once activated (guarded by a profile tag), an `auto-once` objective never re-activates for that player — even across reloads and restarts. To reset it for a player: remove the tag `<questId>.auto-once-<objectiveId>` using the `tag remove` action.
+
+---
+
+### Named events are expanded before DSL execution
+
+If you write `events: "my_event"` and `my_event` is not defined in your package, the string `"my_event"` is sent to the script executor as a raw DSL action. A typo in a named event name produces no warning — it just fails silently as an invalid action. Always verify event names match exactly.
+
+---
+
+### The `smelt` objective has player attribution limits
+
+The `FurnaceSmeltEvent` does not expose which player placed the item. Only the player who placed the raw material into the furnace during the current server session will receive credit. Items smelted from a furnace loaded by a different player or before the player joined will not count.
+
+---
+
+### Notify fires at completion regardless of interval
+
+Even if `notify: 5` is set, a notification is always sent when progress reaches `amount` (completion). The notify interval controls intermediate updates only.
+
+---
+
+*For the scripting DSL, variable system, and condition syntax in full depth, see `docs/VALMORA_DOCUMENTATION.md`. For the NPC module's YAML format (entity spawning, on-click actions), see `docs/USER_DOCS.md`.*

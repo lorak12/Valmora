@@ -15,7 +15,7 @@ collections_categories:
     - "BBCBCBCBB"
     - "BBCBCBCBB"
     - "BBBBBBBBB"
-    - "BBBPPNBBB"
+    - "BBBPENBBB"
 
   components:
     B:
@@ -23,6 +23,11 @@ collections_categories:
       display-item:
         material: BLACK_STAINED_GLASS_PANE
         name: " "
+    E:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
 
     C:
       type: PAGINATED

@@ -45,6 +45,18 @@ public class EnchantmentHelper {
         }
     }
 
+    /**
+     * Writes a complete enchantment map directly to the item, bypassing the item-type check.
+     * Use this when the caller has already validated the enchant set (e.g. anvil merging).
+     */
+    public static void applyEnchantmentMap(ItemStack item, Map<String, Integer> enchantMap) {
+        if (item == null || !item.hasItemMeta() || enchantMap.isEmpty()) return;
+        ItemMeta meta = item.getItemMeta();
+        saveEnchantMap(meta.getPersistentDataContainer(), enchantMap);
+        applyGlowAndLore(item, meta, enchantMap);
+        item.setItemMeta(meta);
+    }
+
     public static void applyEnchantment(ItemStack item, String enchantId, int level) {
         if (item == null || !item.hasItemMeta()) {
             return;
