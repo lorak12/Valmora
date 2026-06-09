@@ -3,9 +3,9 @@ package org.nakii.valmora.module.quest;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.quest.ObjectiveHandler;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
-import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.notify.NotifyManager;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
@@ -23,12 +23,17 @@ public class QuestManager {
 
     private final Valmora plugin;
     private final Registry<QuestDefinition> registry = new SimpleRegistry<>();
+    private final Registry<ObjectiveHandler> handlerRegistry = new SimpleRegistry<>();
 
     public QuestManager(Valmora plugin) {
         this.plugin = plugin;
     }
 
     public Registry<QuestDefinition> getRegistry() { return registry; }
+
+    public void registerObjectiveHandler(ObjectiveHandler handler) {
+        handlerRegistry.register(handler.getTypeId(), handler);
+    }
 
     // -------------------------------------------------------------------------
     // Status / progress queries
@@ -39,7 +44,6 @@ public class QuestManager {
         return s != null ? s.toString() : STATUS_NOT_STARTED;
     }
 
-    /** Legacy index-based progress (kept for backward compatibility). */
     public int getProgress(ValmoraProfile profile, String questId, int index) {
         Object p = profile.getVariables().get("quest." + questId + ".obj." + index);
         return p instanceof Number n ? n.intValue() : 0;
@@ -53,6 +57,22 @@ public class QuestManager {
     public boolean isObjectiveActive(ValmoraProfile profile, String objectiveId) {
         Object v = profile.getVariables().get("objective." + objectiveId + ".active");
         return Boolean.TRUE.equals(v) || "true".equals(String.valueOf(v));
+    }
+
+    /**
+     * Returns true if the player has at least one in-progress objective of the given type.
+     * Use this as a cheap guard before expensive listeners (e.g. PlayerMoveEvent).
+     */
+    public boolean hasActiveObjectiveType(Player player, String typeId) {
+        ValmoraProfile profile = getProfile(player);
+        if (profile == null) return false;
+        for (QuestDefinition quest : registry.values()) {
+            if (!getStatus(profile, quest.getId()).equals(STATUS_IN_PROGRESS)) continue;
+            for (QuestObjective obj : quest.getObjectives()) {
+                if (obj.getType().equalsIgnoreCase(typeId)) return true;
+            }
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------
@@ -78,13 +98,11 @@ public class QuestManager {
             if (obj.getId() != null) {
                 vars.put("objective." + obj.getId() + ".active", true);
             }
+            // Notify registered handler (e.g. DELAY scheduling)
+            handlerRegistry.get(obj.getType()).ifPresent(h -> h.onQuestStart(player, obj, this));
         }
 
         player.sendMessage(Formatter.format("<gold>Quest started: " + quest.getName()));
-        if (!quest.getOnStartEvents().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(quest.getOnStartEvents()).execute(ctx);
-        }
     }
 
     public void completeQuest(Player player, String questId) {
@@ -92,7 +110,7 @@ public class QuestManager {
         if (profile == null) return;
         QuestDefinition quest = registry.get(questId).orElse(null);
         if (quest == null) return;
-        runQuestRewards(player, profile, quest);
+        finishQuest(player, profile, quest);
     }
 
     public void cancelQuest(Player player, String questId) {
@@ -129,11 +147,15 @@ public class QuestManager {
     }
 
     /**
-     * Called by listeners when a player performs an action. Scans all in-progress quests
-     * for matching objectives, evaluates their conditions, increments progress, and fires
-     * completion logic (or restart logic for persistent objectives).
+     * Public entry point for triggering objective progress from any Bukkit listener
+     * or external plugin. Scans all in-progress quests for matching objectives,
+     * evaluates conditions, increments progress, and fires completion logic.
+     *
+     * @param typeId  lowercase type ID, e.g. {@code "kill"}, {@code "my_custom_type"}
+     * @param target  type-specific target string, e.g. a mob ID or material name
+     * @param amount  how much progress to add (usually 1)
      */
-    public void progressObjective(Player player, QuestObjectiveType type, String target, int amount) {
+    public void trigger(Player player, String typeId, String target, int amount) {
         ValmoraProfile profile = getProfile(player);
         if (profile == null) return;
         SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
@@ -145,9 +167,15 @@ public class QuestManager {
 
             for (int i = 0; i < objectives.size(); i++) {
                 QuestObjective obj = objectives.get(i);
-                if (obj.getType() != type || !obj.getTarget().equalsIgnoreCase(target)) continue;
+                if (!obj.getType().equalsIgnoreCase(typeId)) continue;
 
-                // Evaluate per-objective conditions
+                // DELAY matches by objective ID; all other types match by target string
+                if (typeId.equalsIgnoreCase(QuestObjectiveTypes.DELAY)) {
+                    if (obj.getId() == null || !obj.getId().equalsIgnoreCase(target)) continue;
+                } else {
+                    if (!obj.getTarget().equalsIgnoreCase(target) && !obj.getTarget().equalsIgnoreCase("any")) continue;
+                }
+
                 if (!evaluateConditions(obj.getConditions(), ctx)) continue;
 
                 String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
@@ -158,10 +186,8 @@ public class QuestManager {
                 profile.getVariables().put("quest." + quest.getId() + ".obj." + key, newVal);
                 anyChanged = true;
 
-                // Per-objective notify
                 sendProgressNotification(player, obj, newVal);
 
-                // Objective complete
                 if (newVal >= obj.getRequired()) {
                     if (obj.getId() != null)
                         profile.getVariables().put("objective." + obj.getId() + ".active", false);
@@ -170,7 +196,6 @@ public class QuestManager {
                         plugin.getScriptModule().getEventParser().parseList(obj.getEvents()).execute(ctx);
 
                     if (obj.isPersistent()) {
-                        // Restart the objective
                         profile.getVariables().put("quest." + quest.getId() + ".obj." + key, 0);
                         if (obj.getId() != null)
                             profile.getVariables().put("objective." + obj.getId() + ".active", true);
@@ -182,7 +207,7 @@ public class QuestManager {
     }
 
     // -------------------------------------------------------------------------
-    // Auto-once handling (called on player join and on reload)
+    // Auto-once handling
     // -------------------------------------------------------------------------
 
     public void startAutoOnceObjectivesForPlayer(Player player) {
@@ -191,7 +216,7 @@ public class QuestManager {
         for (QuestDefinition quest : registry.values()) {
             for (QuestObjective obj : quest.getObjectives()) {
                 if (!obj.isAutoOnce()) continue;
-                String guardTag = quest.getId() + ".auto-once-" + (obj.getId() != null ? obj.getId() : obj.getType().name());
+                String guardTag = quest.getId() + ".auto-once-" + (obj.getId() != null ? obj.getId() : obj.getType());
                 if (profile.getTags().contains(guardTag)) continue;
                 profile.getTags().add(guardTag);
                 startObjectiveInQuest(player, profile, quest, obj);
@@ -204,7 +229,7 @@ public class QuestManager {
     // -------------------------------------------------------------------------
 
     private void startObjectiveInQuest(Player player, ValmoraProfile profile, QuestDefinition quest, QuestObjective obj) {
-        String key = obj.getId() != null ? obj.getId() : obj.getType().name();
+        String key = obj.getId() != null ? obj.getId() : obj.getType();
         profile.getVariables().put("quest." + quest.getId() + ".obj." + key, 0);
         if (obj.getId() != null) profile.getVariables().put("objective." + obj.getId() + ".active", true);
     }
@@ -213,21 +238,17 @@ public class QuestManager {
         List<QuestObjective> objectives = quest.getObjectives();
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
-            if (obj.isPersistent()) continue; // persistent objectives never block completion
+            if (obj.isPersistent()) continue;
             String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
             if (getProgressByKey(profile, quest.getId(), key) < obj.getRequired()) return;
         }
-        runQuestRewards(player, profile, quest);
+        finishQuest(player, profile, quest);
     }
 
-    private void runQuestRewards(Player player, ValmoraProfile profile, QuestDefinition quest) {
+    private void finishQuest(Player player, ValmoraProfile profile, QuestDefinition quest) {
         clearObjectiveFlags(profile, quest.getId());
         profile.getVariables().put("quest." + quest.getId() + ".status", STATUS_COMPLETED);
         player.sendMessage(Formatter.format("<gold><bold>Quest Completed: " + quest.getName()));
-        if (!quest.getRewards().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(quest.getRewards()).execute(ctx);
-        }
     }
 
     private void clearObjectiveFlags(ValmoraProfile profile, String questId) {
@@ -244,8 +265,6 @@ public class QuestManager {
     }
 
     private boolean isAnyPersistentPending(QuestDefinition quest) {
-        // Persistent objectives never block the quest; this is just a placeholder
-        // for future logic that might need it.
         return false;
     }
 

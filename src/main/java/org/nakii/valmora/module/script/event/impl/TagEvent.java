@@ -1,9 +1,11 @@
 package org.nakii.valmora.module.script.event.impl;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
+import org.nakii.valmora.module.profile.event.TagAddedEvent;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
 
@@ -35,6 +37,11 @@ public class TagEvent implements EventFactory {
                     .ifPresent(profile -> {
                         if (action.equalsIgnoreCase("add")) {
                             profile.getTags().add(tagName);
+                            context.getPlayerCaster()
+                                    .filter(e -> e instanceof Player)
+                                    .map(e -> (Player) e)
+                                    .ifPresent(p -> Bukkit.getPluginManager()
+                                            .callEvent(new TagAddedEvent(p, tagName)));
                         } else if (action.equalsIgnoreCase("remove")) {
                             profile.getTags().remove(tagName);
                         }

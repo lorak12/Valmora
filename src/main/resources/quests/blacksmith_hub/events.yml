@@ -1,3 +1,11 @@
 events:
-  startQuest:    "quest_start blacksmith_hub"
-  completeQuest: "quest_complete blacksmith_hub"
+  startQuest:
+    - "quest_start blacksmith_hub"
+    - "notify <yellow>Collect <bold>10 Coal<reset><yellow> and bring it to the Blacksmith. category:quest_progress"
+    - "sound player entity.villager.yes"
+
+  completeQuest:
+    - "quest_complete blacksmith_hub"
+    - "tag add blacksmith_hub.discount"
+    - "notify <green>You earned a <bold>Reforge Discount<reset><green>! category:quest_complete"
+    - "sound player entity.player.levelup"

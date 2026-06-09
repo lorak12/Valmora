@@ -1,0 +1,635 @@
+Objectives List🔗
+Action🔗
+Context:
+Syntax: action <action> <block> [location] [range] [cancel] [hand]
+Description: The player has to interact with the specified block.
+
+It works great with the location condition and the item in hand condition to further limit the counted clicks.
+
+Parameter Syntax Default Value Explanation
+Click Type right, left or any What type of click should be handled
+Block Type Block Selector or any The block which must be clicked, or any for even air
+Location loc:Location Optional. Default: none Adds an optional location to the objective, only counting blocks clicked at the specific location.
+range range:number 0 The range around the location where to count the clicks.
+cancel Keyword (cancel) Not Set Prevents the player from interacting with the block.
+hand hand:(hand,off_hand, any) hand The hand the player must use to click the block, any can the objective cause to be completed multiple times
+Example
+
+objectives:
+door: "action right DOOR conditions:holding_key loc:100;200;300;world range:5"
+customWand: "action any any conditions:holding_magicWand events:fireSpell"
+Placeholder Properties
+The objective contains one property, location. It's a string formatted like X: 100, Y: 200, Z:300. It does not show the radius.
+
+Arrow🔗
+Context:
+Syntax: arrow <location> <radius>
+Description: The player has to shoot an arrow into the specified area.
+
+There are two arguments, location of the target and precision number (radius around location where the arrow must land, should be small). Note that the position of an arrow after hit is on the wall of a full block, which means that shooting not full blocks (like heads) won't give accurate results. Experiment with this objective a bit to make sure you've set the numbers correctly.
+
+Example
+
+objectives:
+shootTarget: "arrow 100.5;200.5;300.5;world 1.1 events:reward conditions:correct_player_position"
+Block🔗
+Context:
+Syntax: block <block> <amount> [safetyCheck] [notifications] [location] [region] [ignorecancel]
+Description: The player has to break or place the specified amount of blocks.
+
+Parameter Syntax Default Value Explanation
+Block Type Block Selector The block which must be broken / placed.
+Amount Number The amount of blocks to break / place. Less than 0 for breaking and more than 0 for placing blocks.
+Safety Check Keyword (noSafety) Safety Check Enabled The Safety Check prevents faking the objective. The progress will be reduced when the player does to opposite of what they are supposed to do. Example: Player must break 10 blocks. They place 10 of their stored blocks. Now the total amount of blocks to break is 20.
+Notifications Keyword (notify) Disabled Displays messages to the player each time they progress the objective. Optionally with the notification interval after colon.
+Location loc:location Optional. Default: none Adds an optional location to the objective, only counting blocks broken/placed at the specific location.
+Region definer region:location Optional. Default: none Adds an optional second location to only count blocks broken/placed in a rectangle between the specified location and this location. This won't have an effect if parameter location isn't set.
+ignorecancel Keyword (ignorecancel) Protected blocks will not affect the objective Allows the objective to progress, even if the action is cancelled by the Server. For example if the player is not allowed to build.
+Example
+
+objectives:
+breakLogs: "block .\*\_LOG -16 events:reward notify"
+placeBricks: "block BRICKS 64 events:epicReward notify:5"
+breakIron: "block IRON_ORE -16 noSafety notify events:dailyReward"
+Placeholder Properties
+Note that these follow the same rules as the amount argument, meaning that blocks to break are a negative number!
+
+Name Example Output Explanation
+amount -6 / 6 Shows the amount of blocks already broken / placed.
+left -4 / 4 Shows the amount of blocks that still need to be broken / placed for the objective to be completed.
+total -10 / 10 Shows the initial amount of blocks that needed to be broken / placed.
+You can use these placeholders to always get positive values:
+
+Name Example Output Explanation
+absoluteAmount 6 Shows the absolute amount of blocks already broken / placed.
+absoluteLeft 4 Shows the absolute amount of blocks that still need to be broken / placed for the objective to be completed.
+absoluteTotal 10 Shows the initial absolute amount of blocks that needed to be broken / placed.
+Breed🔗
+Context:
+Syntax: breed <animal> <amount>
+Description: The player has to breed animals of the specified type.
+
+The first argument is the animal type and the second argument is the amount (positive integer). You can add the notify argument to display a message with the remaining amount each time the animal is bred, optionally with the notification interval after a colon. While you can specify any entity, the objective will be completable only for breedable ones.
+
+This objective has three properties: amount, left and total. amount is the amount of animals already breed, left is the amount of animals still needed to breed and total is the amount of animals initially required.
+
+Example
+
+objectives:
+10Cows: "breed cow 10 notify:2 events:reward"
+Brew🔗
+Context:
+Syntax: brew <item> [amount]
+Description: The player has to brew the specified items.
+
+The first argument is a potion ID from the items section. Second argument is amount of potions. You can optionally add notify argument to make the objective display progress to players, optionally with the notification interval after a colon.
+
+Progress will be counted for the player who last added or changed an item before the brew process completed. Only newly created potions are counted.
+
+This objective has three properties: amount, left and total. amount is the amount of potions already brewed, left is the amount of potions still needed to brew and total is the amount of potions initially required.
+
+Example
+
+objectives:
+weird: "brew weird_concoction 4 events:add_tag"
+ChestPut🔗
+Context:
+Syntax: chestput <location> <items> [items-stay]
+Description: The player has to put the specified items into the specified chest.
+
+First argument is a location of the chest, second argument is a list of items (from items section), separated with a comma. You can also add amount of items after a colon. The items will be removed upon completing the objective unless you add items-stay optional argument. By default, only one player can look into the chest at the same time. You can change it by adding the key multipleaccess.
+
+Example
+
+objectives:
+emeraldsAndSword: "chestput 100;200;300;world emerald:5,sword events:tag,message"
+apples: "chestput 0;50;100;world apple:42 events:message multipleaccess:true"
+Command🔗
+Context:
+Syntax: command <command> [ignoreCase] [exact] [cancel] [failActions]
+Description: The player has to execute the specified command.
+
+It can be both an existing or a new, custom command. The first argument is the command text. To allow spaces use quoting syntax. The command argument is case-sensitive and also supports using placeholders. The second required argument is a list of actions to execute when the objective ismet.
+
+Example
+
+objectives:
+warp: 'command "/warp %player% farms" events:event1,event2'
+replace: 'command "//replace oak_wood" events:event1,evenr2'
+With this configuration, the command objective requires the player to execute /warp MyName farms to be completed. The command objective matches from the start of the command that was executed, therefore if the player executed /warp MyName farms other arguments it would still be completed.
+
+Optional arguments:
+
+ignoreCase: If provided, instructs the objective to ignore case for the command to match.
+exact: If provided, requires an exact command match, not just the command start.
+cancel: If provided, the objective will cancel the execution of the command on a match. This needs to be enabled to suppress the Unknown Command message when using custom commands.
+failevents: If provided, specifies a list of actions to execute if a non-matching command is run and conditions are met.
+Example
+
+objectives:
+warp: 'command "/warp %player% farms" ignoreCase exact cancel failevents:failEvent1,failEvent2 events:event1,event2'
+Consume🔗
+Context:
+Syntax: consume <item> [amount]
+Description: The player has to consume the specified item.
+
+Parameter Syntax Default Value Explanation
+Item Quest Item The item or potion that must be consumed.
+Amount amount:number 1 The amount of items to consume.
+Example
+
+objectives:
+eatApple: "consume apple events:faster_endurance_regen"
+eatSteak: "consume steak amount:4 events:health_boost"
+Placeholder Properties
+Name Example Output Explanation
+amount 6 Shows the amount of items already consumed.
+left 4 Shows the amount of items that still need to be consumed for the objective to be completed.
+total 10 Shows the initial amount of items that needed to be consumed.
+Craft🔗
+Context:
+Syntax: craft <item> [amount]
+Description: The player has to craft the specified item.
+
+First argument is ID of the item, as in the items section. Next is amount (integer). You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the amount of items already crafted, left is the amount of items still needed to craft and total is the amount of items initially required.
+
+Example
+
+objectives:
+craftSaddle: "craft saddle 5 events:reward"
+Delay🔗
+Context:
+Syntax: delay <time> [unit] [precision]
+Description: The player has to wait for certain amount of real time.
+
+The player must be online and meet all conditions. If the player is not online the objective is completed on the player's next login.
+
+Parameter Syntax Default Value Explanation
+time Any Number The time after which the objective is completed.
+unit Keyword minutes The unit of time. Either minutes, seconds or ticks.
+precision interval:number interval:200 The interval in which the objective checks if the time is up. Measured in ticks. Low values cost more performance but make the objective preciser.
+Example
+
+objectives:
+waitDay: "delay 1440 events:resetDaily"
+wait50sec: "delay 1000 ticks interval:5 events:failQuest"
+Placeholder Properties
+Name Example Output Explanation
+left 23 days 5 hours 45 minutes 17 seconds Shows the time left until the objective is completed.
+date 17.04.2022 16:14 Shows the date the objective is completed at using the config's date_format setting.
+rawSeconds 5482 Shows the amount of seconds until objective completion.
+Die🔗
+Context:
+Syntax: die [respawn] [cancel]
+Description: The player has to die.
+
+If you set the respawn location the player will spawn at that location, after pressing respawn, and the objective will be completed then, not immediately on death.
+
+Optionally you can also add the cancel argument to prevent the player from dying. In this case, the player will be healed and all status effects will be removed. You can also specify the respawn location to which the player will be teleported to.
+
+Example
+
+objectives:
+respawn: "die respawn:100;200;300;world;90;0 events:respawned"
+preventDying: "die cancel respawn:100;200;300;world;90;0 events:respawned"
+Enchant🔗
+Context:
+Syntax: enchant <item> <enchants> [requirementMode] [amount]
+Description: The player has to enchant the specified item with the specified enchantment.
+
+Parameter Syntax Default Value Explanation
+item Quest Item The quest item that must be enchanted.
+enchants enchantment:level The enchants that must be added to the item. Enchantment names are different from the vanilla ones. If a level is present, the enchanted level must be equal or bigger then the specified one. Multiple enchants are supported: ARROW_DAMAGE:1,ARROW_FIRE:1
+requirementMode requirementMode:mode all Use one if any enchantment from enchants should complete the objective. Use all if all are required at the same time.
+amount amount:number 1 The amount of items to enchant.
+Example
+
+objectives:
+lordSword: "enchant lordsSword damage_all,knockback events:rewardLord"
+kingSword: "enchant kingsSword damage_all:2,knockback:1 events:rewardKing"
+massProduction: "enchant ironSword sharpness amount:10 events:blacksmithLevel2Reward"
+Placeholder Properties
+Name Example Output Explanation
+amount 6 Shows the amount of items already enchanted.
+left 4 Shows the amount of items that still need to be enchanted for the objective to be completed.
+total 10 Shows the initial amount of items that needed to be enchanted.
+Equip🔗
+Context:
+Syntax: equip <slot> <item>
+Description: The player has to equip the specified item to the specified slot.
+
+The item must be any quest item as defined in the items section. Available slot types: HEAD, CHEST, LEGS, FEET.
+
+Example
+
+objectives:
+eqHelm: "equip HEAD amazing_helmet events:event1,event2"
+equipBody: "equip CHEST amazing_armor events:event1,event2"
+Experience🔗
+Context:
+Syntax: experience <amount>
+Description: The player has to reach at least the specified amount of experience levels.
+
+You can also define decimal numbers, for example experience 1.5 will complete when the player reaches 1.5 experience levels or more. If you want to check for an absolute amount of experience points you can convert it to decimal levels. The objective is checked every time the player gets experience naturally, such as killing mobs or mining blocks. Additionally, it is checked if the player reaches a new level in any way (vanilla level up, commands or other plugins). The objective will also imminently complete if the player already has the experience level or more. And it will also be completed if the player joins the game with the specified amount of experience levels or more. You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the current amount of experience levels, left is the amount of experience levels still needed and total is the amount of experience required.
+
+Example
+
+objectives:
+25Level: "experience 25 events:reward"
+Fish🔗
+Context:
+Syntax: fish <item> <amount> [hookLocation] [range]
+Description: The player has to catch something with the fishing rod.
+
+It doesn't have to be a fish, it can also be any other item.
+
+Parameter Syntax Default Value Explanation
+Item Quest Item The item that must be caught.
+amount Any Number The amount that must be caught.
+notifications notify:number notify:0 Add notify to display a notification when a fish is caught. Optionally with the notification interval after a colon.
+hookLocation hookLocation:Location Everywhere The location at which the item must be caught. Range must also be defined.
+range range:number Everywhere The range around the hookLocation.
+Example
+
+objectives:
+fisherman: "fish SALMON 5 notify events:tag_fish_caught"
+fishAtPond: "fish COD 5 hookLocation:123;456;789;fishWorld range:10 events:giveSpecialFish"
+Placeholder Properties
+Name Example Output Explanation
+left 4 The amount of fish still left to be caught.
+amount 6 The amount of already caught fish.
+total 10 The initially required amount of fish needed to be caught.
+Interact🔗
+Context:
+Syntax: interact <type> <entity> <amount> [name] [realname] [marked] [hand] [cancel] [location] [range]
+Description: The player has to interact with the specified entities.
+
+Parameter Syntax Default Value Explanation
+Click Type right, left or any What type of click should be handled
+Entity Type EntityType type or any The entity which must be clicked
+amount number The amount of different entities which must be interacted with.
+name name:text Disabled Only count named mobs.
+realname realname:text Disabled To check for the real name (e.g. if you renamed players to include their rank).
+marked marked:text Disabled If the clicked entity needs to be marked by the spawn event (see its description for marking explanation)
+hand hand:(hand,off_hand, any) hand The hand the player must use to click the block, any can the objective cause to be completed multiple times
+Notifications Keyword (notify) Disabled Displays messages to the player each time they progress the objective. Optionally with the notification interval after colon.
+Cancel Keyword (cancel) Disabled if the click shouldn't do what it usually does (i.e. left click won't hurt the entity).
+Location loc:Location Everywhere The location at which the entity must be interacted.
+range range:number 1 The range around the loc. Requires defined loc.
+Example
+
+objectives:
+rightCreeper: "interact right creeper 1 marked:sick conditions:syringeInHand cancel"
+anyAnyInteract: "interact any any 1 cancel"
+Placeholder Properties
+Name Example Output Explanation
+amount 7 The amount of already interacted entities.
+left 13 The amount of entities still needed to be interacted with.
+total 20 The initially required amount of entities to interact.
+Jump🔗
+Context:
+Syntax: jump <amount>
+Description: The player has to jump.
+
+The only argument is amount. You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the amount of jumps already done, left is the amount of jumps still needed and total is the amount of jumps initially required.
+
+Example
+
+objectives:
+jump: "jump 15 events:legExerciseDone"
+Kill🔗
+Context:
+Syntax: kill <amount> [name] [required]
+Description: The player has to kill another player.
+
+The first argument is amount of players to kill. You can also specify additional arguments: name: followed by the name will only accept killing players with this name, required: followed by a list of conditions separated with commas will only accept killing players meeting these conditions and notify will display notifications when a player is killed, optionally with the notification interval after a colon.
+
+The kill objective has three properties: left is the amount of players still left to kill, amount is the amount of already killed players and total is the initially required amount to kill.
+
+Example
+
+objectives:
+kill5: "kill 5 required:team_B"
+Location🔗
+Context:
+Syntax: location <location> [range] [entry] [exit]
+Description: The player has to reach the specified location.
+
+It is not required to specify entry or exit then the objective also completes if the player just moves inside the location's range.
+
+Parameter Syntax Default Value Explanation
+location ULF The location to go to
+range number The range around the location where the player must be.
+entry entry Disabled The player must enter (go from outside to inside) the location to complete the objective.
+exit exit Disabled The player must exit (go from inside to outside) the location to complete the objective.
+Example
+
+objectives:
+welcome: "location 100;200;300;world 5 conditions:started events:notifyWelcome,start"
+goodBy: "location 100;200;300;world 5 exit conditions:started events:notifyBye"
+Placeholder Properties
+Name Example Output Explanation
+location X: 100, Y: 200, Z:300 The target location of this objective
+Login🔗
+Context:
+Syntax: login
+Description: The player has to log in.
+
+If you use auto-once this objective will be also completed directly when a new player joins for the first time. If you use persistent it will be permanent. Don't forget that if you use auto-once and persistent you can still remove the objective explicitly.
+
+Example
+
+objectives:
+welcome: "login events:welcome_message"
+Logout🔗
+Context:
+Syntax: logout
+Description: The player has to log out.
+
+Example
+
+objectives:
+clean: "logout events:delete_objective"
+MobKill🔗
+Context:
+Syntax: mobkill <type> <amount> [name] [marked]
+Description: The player has to kill the specified living entities.
+
+All entities work, make sure to use their correct types.
+
+Parameter Syntax Default Value Explanation
+type ENTITY_TYPE,ENTITY_TYPE A list of entities, e.g. ZOMBIE,SKELETON.
+amount Positive Number Amount of mobs to kill in total.
+name name:text Disabled Only count named mobs.
+marked marked:keyword Disabled Only count marked mobs. See the spawn event for more information.
+notify notify:interval Disabled Display a message to the player each time they kill a mob. Optionally with the notification interval after colon.
+Example
+
+objectives:
+monsterHunter: "mobkill ZOMBIE,SKELETON,SPIDER 10 notify"
+specialMob: "mobkill PIG 1 marked:special"
+bossZombie: "mobkill ZOMBIE 1 name:Uber_Zombie"
+Placeholder Properties
+Name Example Output Explanation
+amount 2 Shows the amount of mobs already killed.
+left 8 Shows the amount of mobs that still need to be killed.
+total 10 Shows the amount of mobs initially required to kill.
+NpcInteract🔗
+Context:
+Syntax: npcinteract <npc> [cancel] [interaction]
+Description: The player has to interact with the specified NPC.
+
+Parameter Syntax Default Value Explanation
+Npc Npc The ID of the Npc.
+Cancel cancel False If the interaction with the Npc should be cancelled, so a conversation won't start.
+Interaction interaction:Keyword right The interaction type. Either left, right or any.
+Example
+
+objectives:
+stealItem: "npcinteract mayor cancel conditions:sneak events:steal"
+punchThief: "npcinteract thief interaction:left events:poke"
+NpcRange🔗
+Context:
+Syntax: npcrange <npc> <action> <range>
+Description: The player has to enter or leave the specified area around the NPC.
+
+It is also possible to define multiple NPCs separated with ,. The objective will be completed as soon as you meet the requirement of just one NPC.
+
+Parameter Syntax Default Value Explanation
+Npcs Npc List The IDs of the Npcs
+Action Keyword The required action. Either enter, leave, inside or outside.
+Range Number The maximum distance to a Npc
+Info
+
+The types enter, leave force the player to actually enter the radius after you were outside of it and vice versa. This means that enter is not completed when the player gets the objective and is already in the range, while inside is instantly completed.
+
+Example
+
+objectives:
+goToVillage: "npcrange farmer,guard enter 20 events:master_inRange"
+Password🔗
+Context:
+Syntax: password <password> [prefix] [ignoreCase] [fail]
+Description: The player has to write the specifed password in chat.
+
+All attempts of a player will be hidden from public chat. The password consists of a prefix followed by the actual secret word:
+
+Solution: The Cake is a lie!  
+^prefix ^secret word(s)
+The objective's instruction string is defined as follows:
+
+The first argument is the password, use quoting for spaces The password is a regular expression.
+
+The prefix can be changed: The default (when no prefix is set) is the translated prefix from the messages.yml config in the user's language.
+Note that every custom prefix is suffixed with :⠀, so prefix:Library_password will require the user to enter Library password: myfancypassword.
+To disable the prefix use an empty prefix: declaration, e.g. password myfancypassword prefix: events:success. Be aware of these side effects that come with disabling the prefix:
+
+Nothing will be hidden on failure, so tries will be visible in chat and commands will get executed!
+If a command was used to enter the password, the command will not be canceled on success and thus still be executed!
+This ensures that even if your password is quest you can still execute the /quest command.
+You can also add the ignoreCase argument if you want a password's capitalization to be ignored. This is especially important for regex matching.
+
+If you want to trigger one or more events when the player failed to guess the password you can use the argument fail with a list of events (comma separated). With disabled prefix every command or chat message will trigger these events!
+
+Example
+
+objectives:
+theBetonPassword: "password beton ignoreCase prefix:secret fail:failevent1,failevent2 events:message,reward"
+theBetonPasswordSpaced: 'password "beton quest" ignoreCase prefix:secret fail:failevent1,failevent2 events:message,reward'
+Pickup🔗
+Context:
+Syntax: pickup <items> [amount]
+Description: The player has to pick up the specified items.
+
+The first argument must be the internal name of an item defined in the items section. This can also be a comma-separated list of multiple items. You can optionally add the amount: argument to specify how many of these items the player needs to pickup. This amount is a total amount though, it does not count per each individual item. You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+You can also add the notify keyword to display how many items are left to pickup.
+
+This objective has three properties: amount, left and total. amount is the amount of items already picked up, left is the amount of items still needed to pick up and total is the amount of items initially required.
+
+Example
+
+objectives:
+emeralds: "pickup emerald amount:3 events:reward notify"
+emeraldsAndDiamonds: "pickup emerald,diamond amount:6 events:reward notify"
+Point🔗
+Context:
+Syntax: point <category> <amount> [mode] [operation]
+Description: The player has to have the specified amount of points in the specified category.
+
+If the player is not online the objective is completed on the player's next login.
+
+Parameter Syntax Default Value Explanation
+category category The category to have the points in.
+amount Number The required amount of points.
+mode mode:mode ABSOLUTE How the amount should be interpreted. Either ABSOLUTE or RELATIVE. With relative the current points are added to the target value.
+operation operation:symbol Greater or Equals (>=) How the actual value is compared to the wanted. The valid operations are: <, <=, =, !=, >=, >.
+Example
+
+objectives:
+reach100: "point counter 100"
+punish: "point reputation -100 operation:<"
+progressFive: "point reputation 5 mode:relative"
+Placeholder Properties
+Name Example Output Explanation
+amount 100 Shows the amount of points to reach.
+left 8 Shows the amount of points that still need to be gained.
+ResourcePack🔗
+Context:
+Syntax: resourcepack <state>
+Description: The player has to have the specified resource pack state.
+
+The first argument is the state of the resource pack. It can be successfully_loaded, declined, failed_download and accepted.
+
+Example
+
+objectives:
+successful: "resourcepack successfully_loaded events:reward"
+declined: "resourcepack declined events:declined"
+Ride🔗
+Context:
+Syntax: ride <entity>
+Description: The player has to ride the specified entity.
+
+any is also a valid input and matches any entity.
+
+Example
+
+objectives:
+horse: "ride horse"
+any: "ride any"
+Shear🔗
+Context:
+Syntax: shear <amount> [name] [color]
+Description: The player has to shear the specified amount of sheep.
+
+The first, required argument is amount (integer). Optionally, you can add a name: argument to only count specific sheep. If you want to use spaces use quoting syntax. You can also check for the sheep's color: using these color names. You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the amount of sheep already sheared, left is the amount of sheep still needed to shear and total is the amount of sheep initially required.
+
+Example
+
+objectives:
+bob: "shear 1 name:Bob color:black"
+jeb: "shear 1 name:jeb"
+jeb2: 'shear 1 "name:jeb 2"'
+Smelt🔗
+Context:
+Syntax: smelt <item> [amount]
+Description: The player has to gain the specified item by smelting.
+
+Note that you must define the output item, not the ingredient. The first argument is the name of a Quest Item. The second one is the amount (integer).
+
+You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the amount of items already smelted, left is the amount of items still needed to smelt and total is the amount of items initially required.
+
+Example
+
+objectives:
+smeltIron: "smelt ironIngot 5 events:reward"
+Stage🔗
+Context:
+Syntax: stage <stages> [preventCompletion]
+Description: The player has to complete the specified stages.
+
+The Stage objective is a special objective that can be used to track the progress of a quest or a part of a quest. It can be completed in two ways, the first one is by increasing the stage more than there are stages defined and the second one is by completing the objective with the objective event. The behaviour of completing the objective by increasing the stage can be disabled by setting the preventCompletion flag.
+
+When the conditions of the stage objective are not met, the stage of the player can not be modified.
+You can modify the stages with the stage event and check it's state with the stage condition.
+
+Parameter Syntax Default Value Explanation
+stages List of stage names The stages that must be completed.
+preventCompletion Keyword Completion Enabled Prevents the objective from being completed by increasing the stage.
+Example
+
+objectives:
+questProgress: "stage part1,part2,part3"
+bakeCookies: "stage collectIngredients,cookCookies,deliverCookies preventCompletion"
+Placeholder Properties
+Name Example Output Explanation
+index 2 The index of the players current stage beginning at 0.
+current cookCookies The current stage name of the player or empty if the objective is not active.
+next deliverCookies The next stage name of the player or empty if the objective is not active.
+previous collectIngredients The previous stage name of the player or empty if the objective is not active.
+Step🔗
+Context:
+Syntax: step <location>
+Description: The player has to step on a pressure plate at the specified location.
+
+The type of plate does not matter. The first and only required argument is a location. If the pressure plate is not present at that location, the objective will not be completable and will log errors in the console.
+
+Step objective contains one property, location. It shows the exact location of the pressure plate in a string formatted like X: 100, Y: 200, Z:300.
+
+Example
+
+objectives:
+step: "step 100;200;300;world events:done"
+Tag🔗
+Context:
+Syntax: tag <tag>
+Description: The player has to receive the specified tag.
+
+The only argument is the tag to receive.
+
+If the player is not online the objective is completed on the player's next login.
+
+Example
+
+objectives:
+finish: "tag finishedTag"
+Placeholder Properties
+The name property of the objective is the tag to receive.
+
+Tame🔗
+Context:
+Syntax: tame <entity> <amount> Description: The player has to tame the specified animals.
+
+First argument is type, second is amount. The mob must be tamable for the objective to be valid, e.g.: CAT, DONKEY, HORSE, LLAMA, PARROT or WOLF. You can use the notify keyword to display a message each time the player advances the objective, optionally with the notification interval after a colon.
+
+This objective has three properties: amount, left and total. amount is the amount of animals already tamed, left is the amount of animals still needed to tame and total is the amount of animals initially required.
+
+Example
+
+objectives:
+wolf: "tame WOLF 2 events:wolfs_tamed"
+Timer🔗
+Context:
+Syntax: timer [name] [interval] [amount] [done]
+Description: The player has to wait for a specified amount of ingame time.
+
+Tracks time in seconds from the start of the objective to the completion of the objective. If you simply want to have something like wait for 10 minutes, you can use the amount argument. If you don't define the amount, the objective will run indefinitely until you complete it with the objective action.
+
+Parameter Syntax Default Value Explanation
+name name:text Disabled A display name for the objective that can be accessed as property.
+interval interval:number interval:20 How often the objective checks the conditions and adds time, in seconds.
+amount amount:number Disabled The amount of time in seconds to track before the objective is completed.
+done done:events Disabled Events that will be executed when the objective is done, but before it is removed.
+If you want to access the time tracked by this objective in seconds, you can use the amount, left and total properties. They are only available while the objective is active, this is still the case in the done events, but not in the normal events as they are executed after the objective is already removed.
+
+Example
+
+objectives:
+track: 'timer "name:This is the Display Name" interval:10 done:done_in events:done conditions:in_region'
+Variable🔗
+Context:
+Syntax: variable [no-chat]
+Description: This objective is unable to complete.
+
+This objective is different. You cannot complete it, it will also ignore defined actions and conditions. You can start it and that's it. While this objective is active though, everything the player types in chat (and matches a special pattern) will become a variable. The pattern is key: value. So if the player types MyFirstVariable: Hello!, it will create a variable called MyFirstVariable, which will resolve as a Hello! string. You can access them as objective properties. Let's say you defined this objective as CustomVariable in your objectives.yml file. You can access the placeholder everywhere with %objective.CustomVariable.MyFirstVariable% - and in this example, it will resolve to Hello!. The player can type something else and the variable will change its value. Variables are per-player, so the value of one player's MyFirstVariable will be different from other players' MyFirstVariable values, depending on what they typed in chat. There is no limit to the amount of variables that can be created and assigned to players. To remove this objective, use objective delete action - there is no other way.
+
+You can also use variable event to change variables stored in this objective. There is one optional argument, no-chat. If you use it, the objective won't be modified by what players type in chat which is only useful when you're also using the variable event.
+
+Also, the key is interpreted in lower case. That means there is no difference between MyFirstVariable, myfirstvariable or MYfirstVARIABLE.
+
+Example
+
+objectives:
+storage: "variable"
+storeChat: "variable no-chat"

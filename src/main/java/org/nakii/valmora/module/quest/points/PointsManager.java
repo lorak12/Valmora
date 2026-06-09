@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.quest.points;
 
+import org.bukkit.Bukkit;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
@@ -21,6 +22,9 @@ public class PointsManager {
         ValmoraProfile profile = getProfile(playerUuid);
         if (profile == null) return;
         profile.getVariables().put(KEY_PREFIX + category.toLowerCase(), amount);
+        var player = Bukkit.getPlayer(playerUuid);
+        if (player != null)
+            Bukkit.getPluginManager().callEvent(new PointsChangedEvent(player, category, amount));
     }
 
     public void addPoints(UUID playerUuid, String category, int amount) {

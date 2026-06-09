@@ -9,12 +9,3 @@ quests:
         amount: 10
         notify: 5
         events: "completeQuest"
-
-    rewards:
-      - "tag add blacksmith_hub.discount"
-      - "notify <green>You earned a <bold>Reforge Discount<reset><green>! category:quest_complete"
-      - "sound player entity.player.levelup"
-
-    on-start-events:
-      - "notify <yellow>Collect <bold>10 Coal<reset><yellow> and bring it to the Blacksmith. category:quest_progress"
-      - "sound player entity.villager.yes"

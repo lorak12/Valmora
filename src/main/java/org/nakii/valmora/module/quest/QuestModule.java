@@ -6,6 +6,9 @@ import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.module.quest.hider.PlayerHiderManager;
 import org.nakii.valmora.module.quest.journal.JournalEventFactory;
 import org.nakii.valmora.module.quest.journal.JournalManager;
+import org.nakii.valmora.module.quest.objective.DelayObjectiveHandler;
+import org.nakii.valmora.module.quest.objective.NpcRangeObjectiveHandler;
+import org.nakii.valmora.module.quest.objective.TimerObjectiveHandler;
 import org.nakii.valmora.module.quest.pkg.QuestPackageManager;
 
 public class QuestModule implements ReloadableModule {
@@ -16,6 +19,8 @@ public class QuestModule implements ReloadableModule {
     private QuestListener listener;
     private JournalManager journalManager;
     private PlayerHiderManager playerHiderManager;
+    private NpcRangeObjectiveHandler npcRangeHandler;
+    private TimerObjectiveHandler timerHandler;
 
     public QuestModule(Valmora plugin) {
         this.plugin = plugin;
@@ -25,6 +30,11 @@ public class QuestModule implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Enabling Quest Module...");
         this.questManager = new QuestManager(plugin);
+        questManager.registerObjectiveHandler(new DelayObjectiveHandler(plugin));
+        this.timerHandler = new TimerObjectiveHandler(plugin, questManager);
+        questManager.registerObjectiveHandler(timerHandler);
+        this.npcRangeHandler = new NpcRangeObjectiveHandler(plugin, questManager);
+        questManager.registerObjectiveHandler(npcRangeHandler);
         this.playerHiderManager = new PlayerHiderManager(plugin);
         this.journalManager = new JournalManager();
         // Load legacy flat quests/ files first, then package-based quests on top
@@ -32,6 +42,7 @@ public class QuestModule implements ReloadableModule {
         this.packageManager = new QuestPackageManager(plugin);
         packageManager.loadAll();
         playerHiderManager.start();
+        npcRangeHandler.start();
         new QuestEventFactory(questManager).all().forEach(plugin.getScriptModule()::registerEvent);
         plugin.getScriptModule().registerProvider(new QuestVariableProvider());
         plugin.getScriptModule().registerEvent(new JournalEventFactory(journalManager));
@@ -48,6 +59,8 @@ public class QuestModule implements ReloadableModule {
     @Override
     public void onDisable() {
         plugin.getLogger().info("Disabling Quest Module...");
+        if (npcRangeHandler != null) { npcRangeHandler.stop(); npcRangeHandler = null; }
+        if (timerHandler != null) { timerHandler.cancelAll(); timerHandler = null; }
         if (playerHiderManager != null) { playerHiderManager.stop(); playerHiderManager = null; }
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
         if (journalManager != null) { HandlerList.unregisterAll(journalManager); journalManager = null; }

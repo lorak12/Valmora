@@ -1,9 +1,0 @@
-package org.nakii.valmora.module.quest;
-
-public enum QuestObjectiveType {
-    KILL, COLLECT, REACH_ZONE, TALK_TO_NPC, CRAFT,
-    DIE, LOCATION, BLOCK_BREAK, BLOCK_PLACE,
-    JUMP, BREED, TAME, ENCHANT, SMELT, BREW, FISH, SHEAR,
-    VARIABLE,
-    DRINK_POTION, LOGIN, LEVEL_SKILL, STAT_REACH, EXP_GAIN
-}

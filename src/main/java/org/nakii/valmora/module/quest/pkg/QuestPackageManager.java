@@ -10,7 +10,6 @@ import org.nakii.valmora.module.notify.NotifyManager;
 import org.nakii.valmora.module.quest.QuestDefinition;
 import org.nakii.valmora.module.quest.QuestManager;
 import org.nakii.valmora.module.quest.QuestObjective;
-import org.nakii.valmora.module.quest.QuestObjectiveType;
 import org.nakii.valmora.module.quest.hider.PlayerHiderEntry;
 import org.nakii.valmora.module.quest.hider.PlayerHiderManager;
 
@@ -283,14 +282,21 @@ public class QuestPackageManager {
     /**
      * Parses the compact DSL format:
      *   <type> <target> <amount> [conditions:...] [events:...] [persistent] [auto-once] [notify[:<n>]]
+     *
+     * For DELAY type:
+     *   delay <amount> [ticks] [interval:<n>] [events:...]
+     *   Default unit for amount is seconds; add "ticks" flag to use ticks directly.
      */
     private QuestObjective parseObjectiveDsl(String id, String instruction, QuestPackage pkg) {
         if (instruction == null || instruction.isBlank()) return null;
         String[] parts = instruction.trim().split("\\s+");
         if (parts.length == 0) return null;
 
-        QuestObjectiveType type;
-        try { type = QuestObjectiveType.valueOf(parts[0].toUpperCase()); } catch (Exception e) { return null; }
+        String type = parts[0].toLowerCase();
+
+        if (type.equals("delay")) {
+            return parseDelayDsl(id, parts, pkg);
+        }
 
         String target = parts.length > 1 ? parts[1] : "";
         int required = 1;
@@ -317,10 +323,36 @@ public class QuestPackageManager {
             } else if (p.equalsIgnoreCase("notify")) notifyInterval = 1;
         }
 
-        // Resolve named event references
         List<String> resolvedEvents = resolveEventRefs(events, pkg);
-
         return new QuestObjective(id, type, target, required, conditions, resolvedEvents, persistent, autoOnce, notifyInterval);
+    }
+
+    /** Parses: delay <amount> [ticks] [interval:<n>] [events:...] */
+    private QuestObjective parseDelayDsl(String id, String[] parts, QuestPackage pkg) {
+        long rawAmount = 0;
+        if (parts.length > 1) {
+            try { rawAmount = Long.parseLong(parts[1]); } catch (NumberFormatException ignored) {}
+        }
+
+        boolean isTicks = false;
+        int intervalTicks = 0;
+        List<String> events = new ArrayList<>();
+
+        for (int i = 2; i < parts.length; i++) {
+            String p = parts[i];
+            if (p.equalsIgnoreCase("ticks")) isTicks = true;
+            else if (p.startsWith("interval:")) {
+                try { intervalTicks = Integer.parseInt(p.substring(9)); } catch (NumberFormatException ignored) {}
+            } else if (p.startsWith("events:") || p.startsWith("event:")) {
+                Collections.addAll(events, p.substring(p.indexOf(':') + 1).split(","));
+            }
+        }
+
+        long delayTicks = isTicks ? rawAmount : rawAmount * 20L;
+        int required = (intervalTicks > 0 && delayTicks > 0) ? (int)(delayTicks / intervalTicks) : 1;
+        List<String> resolvedEvents = resolveEventRefs(events, pkg);
+        return new QuestObjective(id, "delay", id, required,
+                List.of(), resolvedEvents, false, false, 0, delayTicks, intervalTicks);
     }
 
     /**
@@ -328,9 +360,19 @@ public class QuestPackageManager {
      * Objectives can be either a DSL string or a full ConfigurationSection.
      */
     private QuestObjective parseStructuredObjective(String id, ConfigurationSection sec, QuestPackage pkg) {
-        String typeStr = sec.getString("type", "").toUpperCase();
-        QuestObjectiveType type;
-        try { type = QuestObjectiveType.valueOf(typeStr); } catch (Exception e) { return null; }
+        String type = sec.getString("type", "").toLowerCase();
+        if (type.isBlank()) return null;
+
+        if (type.equals("delay")) {
+            long rawAmount = sec.getLong("delay", 0L);
+            boolean isTicks = sec.getBoolean("ticks", false);
+            int intervalTicks = sec.getInt("interval", 0);
+            long delayTicks = isTicks ? rawAmount : rawAmount * 20L;
+            int required = (intervalTicks > 0 && delayTicks > 0) ? (int)(delayTicks / intervalTicks) : 1;
+            List<String> events = resolveEventRefs(parseStringOrList(sec, "events"), pkg);
+            return new QuestObjective(id, "delay", id, required,
+                    List.of(), events, false, false, 0, delayTicks, intervalTicks);
+        }
 
         String target = sec.getString("target", "");
         int required = sec.getInt("amount", 1);
@@ -371,10 +413,7 @@ public class QuestPackageManager {
             }
         }
 
-        List<String> rewards = parseStringOrList(sec, "rewards");
-        List<String> onStartEvents = resolveEventRefs(parseStringOrList(sec, "on-start-events"), pkg);
-
-        return new QuestDefinition(questId, name, objectives, rewards, onStartEvents);
+        return new QuestDefinition(questId, name, objectives);
     }
 
     // -------------------------------------------------------------------------

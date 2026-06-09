@@ -32,16 +32,14 @@ public class QuestLoader {
             List<QuestObjective> objectives = new ArrayList<>();
             for (Map<?, ?> m : sec.getMapList("objectives")) {
                 String objId = m.containsKey("id") ? m.get("id").toString() : null;
-                String typeStr = m.containsKey("type") ? m.get("type").toString().toUpperCase() : "KILL";
-                QuestObjectiveType type;
-                try { type = QuestObjectiveType.valueOf(typeStr); } catch (Exception e) { type = QuestObjectiveType.KILL; }
+                String type = m.containsKey("type") ? m.get("type").toString().toLowerCase() : "kill";
                 String target = m.containsKey("target") ? m.get("target").toString() : "";
                 int amount = m.containsKey("amount") ? ((Number) m.get("amount")).intValue() : 1;
 
                 List<String> conditions = new ArrayList<>();
-                List<String> actions = new ArrayList<>();
+                List<String> events = new ArrayList<>();
                 if (m.get("conditions") instanceof List<?> cl) cl.forEach(o -> conditions.add(o.toString()));
-                if (m.get("actions") instanceof List<?> al) al.forEach(o -> actions.add(o.toString()));
+                if (m.get("events") instanceof List<?> el) el.forEach(o -> events.add(o.toString()));
                 boolean persistent = m.containsKey("persistent") && Boolean.parseBoolean(m.get("persistent").toString());
                 boolean autoOnce = m.containsKey("auto-once") && Boolean.parseBoolean(m.get("auto-once").toString());
                 int notifyInterval = 0;
@@ -51,13 +49,9 @@ public class QuestLoader {
                 }
 
                 objectives.add(new QuestObjective(objId, type, target, amount,
-                        conditions, actions, persistent, autoOnce, notifyInterval));
+                        conditions, events, persistent, autoOnce, notifyInterval));
             }
-            return LoadResult.success(new QuestDefinition(
-                    id, name, objectives,
-                    sec.getStringList("rewards"),
-                    sec.getStringList("on-start-actions")
-            ));
+            return LoadResult.success(new QuestDefinition(id, name, objectives));
         } catch (Exception e) {
             return LoadResult.failure("[" + path + "] Error parsing quest '" + id + "': " + e.getMessage());
         }

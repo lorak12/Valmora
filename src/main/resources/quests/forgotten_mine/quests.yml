@@ -46,17 +46,12 @@ quests:
         type: REACH_ZONE
         target: coal_mine
         amount: 1
-
-    rewards:
-      - "notify <green>You have completed <bold>A Miner's Burden<reset><green>! category:quest_complete"
-      - "point currency add 250"
-      - "tag add forgotten_mine.done"
-      - "sound player entity.player.levelup"
-      - "give COAL:32"
-
-    on-start-events:
-      - "notify <yellow>Head to the <bold>Coal Mine<reset><yellow> east of the village. category:quest_progress"
-      - "sound player entity.villager.yes"
+        events:
+          - "notify <green>You have completed <bold>A Miner's Burden<reset><green>! category:quest_complete"
+          - "point currency add 250"
+          - "tag add forgotten_mine.done"
+          - "sound player entity.player.levelup"
+          - "give COAL:32"
 
   # ----------------------------------------------------------
   # Quest 2: The Blacksmith's Request
@@ -87,16 +82,12 @@ quests:
         target: any
         amount: 3
         conditions: "is_day"
-
-    rewards:
-      - "notify <gold>You have completed <bold>The Blacksmith's Request<reset><gold>! category:quest_complete"
-      - "point currency add 500"
-      - "tag add blacksmith_request.done"
-      - "sound player entity.player.levelup"
-      - "give IRON_PICKAXE:1"
-
-    on-start-events:
-      - "notify <yellow>Visit <bold>Bjorn<reset><yellow> in the forge. category:quest_progress"
+        events:
+          - "notify <gold>You have completed <bold>The Blacksmith's Request<reset><gold>! category:quest_complete"
+          - "point currency add 500"
+          - "tag add blacksmith_request.done"
+          - "sound player entity.player.levelup"
+          - "give IRON_PICKAXE:1"
 
   # ----------------------------------------------------------
   # Quest 3: Daily Mining Bonus (persistent + auto-once)
@@ -114,6 +105,3 @@ quests:
         auto-once: true
         notify: 10
         events: "reward_coins_small"
-
-    rewards: []
-    on-start-events: []

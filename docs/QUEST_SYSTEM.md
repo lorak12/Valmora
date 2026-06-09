@@ -165,7 +165,7 @@ events:
 
 ### Referencing named events
 
-Wherever an `events:` field is accepted (objective `events:`, quest `rewards:`, quest `on-start-events:`, conversation `events:`), you can put either:
+Wherever an `events:` field is accepted (objective `events:`, conversation `events:`), you can put either:
 
 - **A named event key** — the engine looks it up and expands the full action list.
 - **An inline DSL string** — if no named event matches, the value is executed directly as a script action.
@@ -494,6 +494,37 @@ amount: 100            # stat must be >= 100 to complete
 
 ---
 
+### `DELAY` — Wait for a duration
+
+Completes after a fixed time elapses from when the quest starts. Fires `events:` once the delay expires. The objective ID is used internally as the trigger target — it must be non-null.
+
+**Structured format:**
+
+```yaml
+waitDay:
+  type: DELAY
+  delay: 1440      # amount; unit is seconds by default
+  ticks: false     # set to true to treat delay as Minecraft ticks instead of seconds
+  interval: 5      # optional: if set, fires in steps of this many ticks (events fire once at the end)
+  events: "resetDaily"
+```
+
+**DSL compact format:**
+
+```yaml
+# 1440 seconds (≈ 24 real minutes)
+waitDay:   "delay 1440 events:resetDaily"
+
+# 1000 ticks (50 seconds) checked every 5 ticks
+wait50sec: "delay 1000 ticks interval:5 events:failQuest"
+```
+
+When `interval` is set, the scheduler fires every `interval` ticks and accumulates until `delay / interval` iterations complete (i.e., the total wall-time equals `delay`). Without `interval`, a single one-shot task is scheduled for the full `delay`.
+
+⚠️ *DELAY tasks are in-memory and are lost if the server restarts or the plugin is reloaded before they expire. They also keep running after a player logs out and resume progress when `progressObjective` is called — if the player is offline when the timer fires, the call is silently ignored.*
+
+---
+
 ### `ENCHANT` — Enchant an item
 
 ⚠️ *Defined in the system but the in-game listener is not yet fully implemented. The objective will be registered but may not automatically track player enchanting actions.*
@@ -731,18 +762,15 @@ quests:
         type: REACH_ZONE
         target: coal_mine
         amount: 1
-
-    rewards:
-      - "notify <green>Quest complete! category:quest_complete"
-      - "point currency add 250"
-      - "tag add forgotten_mine.done"
-      - "sound player entity.player.levelup"
-      - "give COAL:32"
-
-    on-start-events:
-      - "notify <yellow>Head to the Coal Mine east of the village. category:quest_progress"
-      - "sound player entity.villager.yes"
+        events:
+          - "notify <green>Quest complete! category:quest_complete"
+          - "point currency add 250"
+          - "tag add forgotten_mine.done"
+          - "sound player entity.player.levelup"
+          - "give COAL:32"
 ```
+
+Reward and start-notification events live inside objective `events:` blocks — there is no separate `rewards:` or `on-start-events:` field on a quest. Put completion rewards on the last meaningful objective; put start notifications in whatever event or dialogue node triggers `quest_start`.
 
 ### Quest field reference
 
@@ -750,10 +778,6 @@ quests:
 |-------|------|----------|-------------|
 | `name` | string | No (defaults to quest ID) | Display name shown in the Quest Journal and completion messages. Supports MiniMessage colour tags. |
 | `objectives` | map | No | Map of `objectiveId: <objective>`. Values are either a **structured section** (§8 fields) or a **DSL compact string** (§6 format). Objective IDs must be unique within the quest. |
-| `rewards` | string / list | No | Script actions run once when the quest completes (all non-persistent objectives done). Accepts named events or inline DSL. |
-| `on-start-events` | string / list | No | Script actions run the moment the quest starts via `quest_start`. Accepts named events or inline DSL. |
-
-> **Legacy note:** Files loaded by the legacy flat-file loader (not inside a package) use `on-start-actions` instead of `on-start-events`, and objective `actions:` instead of `events:`. Package-based files always use `on-start-events` and `events:`.
 
 ### Quest statuses
 
@@ -1022,7 +1046,7 @@ When **all** source conditions pass for player A **and** all target conditions p
 
 ## 13. Script Events — All Quest Actions
 
-These are the action strings you write in `rewards:`, `on-start-events:`, objective `events:`, conversation `events:`, and named `events:` blocks.
+These are the action strings you write in objective `events:`, conversation `events:`, and named `events:` blocks.
 
 ---
 
@@ -1031,17 +1055,17 @@ These are the action strings you write in `rewards:`, `on-start-events:`, object
 ```yaml
 "quest_start <questId>"
 ```
-Start a quest for the player. If already `in_progress` or `completed`, this is silently ignored. Resets all objective progress to 0 and fires `on-start-events`.
+Start a quest for the player. If already `in_progress` or `completed`, this is silently ignored. Resets all objective progress to 0 and schedules any `DELAY` objectives.
 
 ```yaml
 "quest_complete <questId>"
 ```
-Force-complete a quest. Fires `rewards:` and marks status `completed`, regardless of current objective progress.
+Force-complete a quest. Marks status `completed` regardless of current objective progress.
 
 ```yaml
 "quest_cancel <questId>"
 ```
-Reset a quest back to `not_started`. Clears all objective flags and progress. Does **not** fire rewards.
+Reset a quest back to `not_started`. Clears all objective flags and progress.
 
 ```yaml
 "quest_fail <questId>"
@@ -1339,7 +1363,8 @@ You can reference events from another package using the `>` separator.
 ### Event reference from another package
 
 ```yaml
-rewards:
+# Inside an objective's events:
+events:
   - "forgotten_mine>reward_coins_large"      # absolute package path
   - "main_story-chapter1>start_chapter_two"  # nested package path
 ```
@@ -1487,18 +1512,12 @@ quests:
         type: REACH_ZONE
         target: coal_mine
         amount: 1
-
-    rewards:
-      - "notify <green>You have completed A Miner's Burden! category:quest_complete"
-      - "point currency add 250"
-      - "tag add forgotten_mine.done"
-      - "sound player entity.player.levelup"
-      - "give COAL:32"
-
-    on-start-events:
-      - "notify <yellow>Head to the Coal Mine east of the village. category:quest_progress"
-      - "sound player entity.villager.yes"
-
+        events:
+          - "notify <green>You have completed A Miner's Burden! category:quest_complete"
+          - "point currency add 250"
+          - "tag add forgotten_mine.done"
+          - "sound player entity.player.levelup"
+          - "give COAL:32"
 
   # ── Quest 2: The Blacksmith's Request ─────────────────────────────────
   blacksmith_request:
@@ -1527,17 +1546,12 @@ quests:
         target: any
         amount: 3
         conditions: "is_day"         # only during daytime
-
-    rewards:
-      - "notify <gold>You have completed The Blacksmith's Request! category:quest_complete"
-      - "point currency add 500"
-      - "tag add blacksmith_request.done"
-      - "sound player entity.player.levelup"
-      - "give IRON_PICKAXE:1"
-
-    on-start-events:
-      - "notify <yellow>Visit Bjorn in the forge. category:quest_progress"
-
+        events:
+          - "notify <gold>You have completed The Blacksmith's Request! category:quest_complete"
+          - "point currency add 500"
+          - "tag add blacksmith_request.done"
+          - "sound player entity.player.levelup"
+          - "give IRON_PICKAXE:1"
 
   # ── Quest 3: Daily Mining Bonus (persistent + auto-once) ──────────────
   daily_mining:
@@ -1552,9 +1566,6 @@ quests:
         auto-once: true              # activates automatically on first join
         notify: 10                   # notify every 10 blocks
         events: "bonus_mining_reward"
-
-    rewards: []        # no quest completion rewards (persistent never triggers normal completion)
-    on-start-events: []
 ```
 
 ---
@@ -1719,13 +1730,12 @@ Player joins server
 Player right-clicks Elder Thorin
   └─ first: evaluated → greeting_new passes (not started, not completed)
        └─ NPC: "The mine has gone silent..."
-            ├─ [Accept] → quest_start forgotten_mine → on-start-events fire
+            ├─ [Accept] → quest_start forgotten_mine (start events in dialogue node)
             │     └─ Objectives tracking:
             │          ✓ TALK_TO_NPC thorin           (1/1)
             │          ✓ BLOCK_BREAK COAL_ORE × 20   (notify every 5)
             │          ✓ KILL cave_spider × 5          (only inside coal_mine zone)
-            │          ✓ REACH_ZONE coal_mine           (1/1)
-            │     └─ Quest complete → rewards run → 250 currency, 32 coal, tag
+            │          ✓ REACH_ZONE coal_mine           (1/1) → fires events: 250 currency, 32 coal, tag
             └─ [Decline] → quest_declined node
 
 Player right-clicks Bjorn
@@ -1734,8 +1744,7 @@ Player right-clicks Bjorn
               ✓ TALK_TO_NPC bjorn
               ✓ CRAFT IRON_PICKAXE × 1
               ✓ SMELT IRON_INGOT × 10   (notify every 2)
-              ✓ FISH any × 3            (only during daytime)
-          └─ Quest complete → 500 currency, iron pickaxe, tag
+              ✓ FISH any × 3            (only during daytime) → fires events: 500 currency, iron pickaxe, tag
 ```
 
 ---
@@ -1789,7 +1798,7 @@ Once a player has started a quest, objective progress is stored using the object
 
 ### Persistent-only quests complete immediately
 
-A quest whose only objectives all have `persistent: true` has **zero non-persistent objectives**. The completion check passes immediately when the quest starts, running rewards at once. If you want the quest to actually complete at some point, include at least one non-persistent objective.
+A quest whose only objectives all have `persistent: true` has **zero non-persistent objectives**. The completion check passes immediately when the quest starts. If you want the quest to actually complete at some point, include at least one non-persistent objective.
 
 ---
 
@@ -1799,11 +1808,9 @@ The parser looks for **`final_events`** in conversations. The field name `final_
 
 ---
 
-### `on-start-events` not `on-start-actions` (in packages)
+### Objective on-complete field is `events:` only
 
-The package-system parser looks for `on-start-events` in quest definitions. The legacy flat-file loader uses `on-start-actions`. If you are writing a package (which you almost certainly are), use `on-start-events`.
-
-Similarly, objective on-complete actions must use `events:` in packages (not `actions:`).
+Objectives use `events:` for their on-complete script actions. Any key named `actions:` is not recognised. Always use `events:`.
 
 ---
 
