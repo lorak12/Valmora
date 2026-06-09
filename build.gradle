@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.nakii'
-version = '0.1'
+version = '1.0.0-beta1'
 
 repositories {
     mavenCentral()
@@ -41,13 +41,13 @@ test {
 }
 
 tasks.register('testUnit', Test) {
-    useJUnitPlatform { includeTags 'unit', 'config' }
+    useJUnitPlatform { includeTags 'unit', 'config', 'database' }
     group = 'verification'
-    description = 'Runs pure unit tests and YAML config validation (no Bukkit server needed).'
+    description = 'Runs pure unit tests, YAML config validation, and DB tests (no Bukkit server needed).'
 }
 
 tasks.register('testFull', Test) {
-    useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration' }
+    useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration', 'database' }
     group = 'verification'
     description = 'Runs the full automated test suite (all tags except live-server tests).'
 }

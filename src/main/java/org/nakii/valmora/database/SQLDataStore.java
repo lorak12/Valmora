@@ -40,53 +40,124 @@ public class SQLDataStore implements DataStore {
         this.gson = new Gson();
     }
 
+    /**
+     * The schema version this build of the plugin expects. Bump this and add a
+     * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
+     * the database layout changes.
+     */
+    static final int LATEST_SCHEMA_VERSION = 1;
+
     @Override
     public void init() {
         try (Connection conn = hikari.getConnection()) {
-            // Player Table
-            conn.prepareStatement("""
-                CREATE TABLE IF NOT EXISTS valmora_players (
-                    uuid VARCHAR(36) PRIMARY KEY,
-                    active_profile VARCHAR(36)
-                )
-            """).execute();
+            ensureSchemaVersionTable(conn);
+            int current = getSchemaVersion(conn);
 
-            // Profiles Table
-            conn.prepareStatement("""
-                CREATE TABLE IF NOT EXISTS valmora_profiles (
-                    id VARCHAR(36) PRIMARY KEY,
-                    player_uuid VARCHAR(36),
-                    name VARCHAR(255),
-                    stats TEXT,
-                    skills TEXT,
-                    player_state TEXT,
-                    tags TEXT,
-                    variables TEXT,
-                    collections TEXT,
-                    inventory TEXT
-                )
-            """).execute();
-            // Migration for existing databases
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN tags TEXT").execute(); } catch (Exception ignored) {}
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN variables TEXT").execute(); } catch (Exception ignored) {}
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN collections TEXT").execute(); } catch (Exception ignored) {}
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN inventory TEXT").execute(); } catch (Exception ignored) {}
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN created_at BIGINT NOT NULL DEFAULT 0").execute(); } catch (Exception ignored) {}
-            try { conn.prepareStatement("ALTER TABLE valmora_profiles ADD COLUMN last_used BIGINT NOT NULL DEFAULT 0").execute(); } catch (Exception ignored) {}
-
-            // Economy Table
-            conn.prepareStatement("""
-                CREATE TABLE IF NOT EXISTS valmora_economy (
-                    uuid VARCHAR(36) PRIMARY KEY,
-                    purse DOUBLE NOT NULL DEFAULT 0,
-                    bank  DOUBLE NOT NULL DEFAULT 0
-                )
-            """).execute();
+            if (current > LATEST_SCHEMA_VERSION) {
+                logger.warning("Valmora database schema version (" + current + ") is newer than this plugin "
+                        + "supports (" + LATEST_SCHEMA_VERSION + "). Update the plugin to avoid problems.");
+                return;
+            }
+            if (current < LATEST_SCHEMA_VERSION) {
+                logger.info("Migrating Valmora database schema from v" + current + " to v" + LATEST_SCHEMA_VERSION + "...");
+                applyMigrations(conn, current);
+                logger.info("Valmora database schema migration complete.");
+            }
         } catch (SQLException e) {
             // Schema initialization failing means every subsequent read/write will
             // fail too — fail fast so the plugin disables instead of silently losing data.
             logger.log(Level.SEVERE, "Failed to initialize Valmora database schema", e);
             throw new IllegalStateException("Valmora database initialization failed", e);
+        }
+    }
+
+    private void ensureSchemaVersionTable(Connection conn) throws SQLException {
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_schema_version (
+                id INTEGER PRIMARY KEY,
+                version INTEGER NOT NULL
+            )
+        """).execute();
+    }
+
+    /** Returns the stored schema version, or 0 for a fresh / pre-versioning database. */
+    private int getSchemaVersion(Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT version FROM valmora_schema_version WHERE id = 1");
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getInt("version");
+        }
+        return 0;
+    }
+
+    private void setSchemaVersion(Connection conn, int version) throws SQLException {
+        String sql = isMySQL
+                ? "INSERT INTO valmora_schema_version (id, version) VALUES (1, ?) ON DUPLICATE KEY UPDATE version = ?"
+                : "INSERT INTO valmora_schema_version (id, version) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET version = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, version);
+            ps.setInt(2, version);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Applies every migration newer than {@code from} in order, recording progress as it goes. */
+    private void applyMigrations(Connection conn, int from) throws SQLException {
+        if (from < 1) {
+            migrateToV1(conn);
+            setSchemaVersion(conn, 1);
+        }
+        // Future migrations go here, each gated on `from` and ending with setSchemaVersion(conn, N):
+        // if (from < 2) { migrateToV2(conn); setSchemaVersion(conn, 2); }
+    }
+
+    /** v1 — baseline schema. Idempotent so it can also upgrade pre-versioning databases in place. */
+    private void migrateToV1(Connection conn) throws SQLException {
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_players (
+                uuid VARCHAR(36) PRIMARY KEY,
+                active_profile VARCHAR(36)
+            )
+        """).execute();
+
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_profiles (
+                id VARCHAR(36) PRIMARY KEY,
+                player_uuid VARCHAR(36),
+                name VARCHAR(255),
+                stats TEXT,
+                skills TEXT,
+                player_state TEXT,
+                tags TEXT,
+                variables TEXT,
+                collections TEXT,
+                inventory TEXT
+            )
+        """).execute();
+
+        // Bring pre-versioning databases (whose profiles table predates these columns) up to date.
+        addColumnIfMissing(conn, "valmora_profiles", "tags", "TEXT");
+        addColumnIfMissing(conn, "valmora_profiles", "variables", "TEXT");
+        addColumnIfMissing(conn, "valmora_profiles", "collections", "TEXT");
+        addColumnIfMissing(conn, "valmora_profiles", "inventory", "TEXT");
+        addColumnIfMissing(conn, "valmora_profiles", "created_at", "BIGINT NOT NULL DEFAULT 0");
+        addColumnIfMissing(conn, "valmora_profiles", "last_used", "BIGINT NOT NULL DEFAULT 0");
+
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_economy (
+                uuid VARCHAR(36) PRIMARY KEY,
+                purse DOUBLE NOT NULL DEFAULT 0,
+                bank  DOUBLE NOT NULL DEFAULT 0
+            )
+        """).execute();
+    }
+
+    /** Adds a column, tolerating the "already exists" error so it is safe on fresh and re-run databases. */
+    private void addColumnIfMissing(Connection conn, String table, String column, String type) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "ALTER TABLE " + table + " ADD COLUMN " + column + " " + type)) {
+            ps.execute();
+        } catch (SQLException ignored) {
+            // Column already present — expected for fresh databases and idempotent re-runs.
         }
     }
 

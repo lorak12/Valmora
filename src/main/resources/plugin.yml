@@ -1,5 +1,5 @@
 name: Valmora
-version: "0.1"
+version: "${version}"
 main: org.nakii.valmora.Valmora
 api-version: "1.21"
 authors: [nakii]
