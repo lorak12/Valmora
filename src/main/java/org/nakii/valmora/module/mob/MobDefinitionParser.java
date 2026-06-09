@@ -1,15 +1,22 @@
 package org.nakii.valmora.module.mob;
 
+import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.combat.DamageType;
 import org.nakii.valmora.module.item.ItemManager;
+import org.nakii.valmora.module.item.MechanicRegistry;
+import org.nakii.valmora.module.mob.ability.MobAbility;
+import org.nakii.valmora.module.mob.ability.MobAbilityParser;
 import org.nakii.valmora.api.config.LoadResult;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 public class MobDefinitionParser {
 
@@ -47,7 +54,19 @@ public class MobDefinitionParser {
         }
         builder.entityType(entityType);
 
-        // Stats
+        // Stats. The canonical form is a nested 'stats:' block; legacy flat keys
+        // (health, base-damage, speed) at the top level are read as a fallback.
+        ConfigurationSection statsSection = section.getConfigurationSection("stats");
+        if (statsSection != null) {
+            if (statsSection.contains("health")) builder.health(statsSection.getDouble("health"));
+            if (statsSection.contains("damage")) builder.baseDamage(statsSection.getDouble("damage"));
+            if (statsSection.contains("speed")) builder.speed(statsSection.getDouble("speed"));
+            if (statsSection.contains("defense")) builder.defense(statsSection.getDouble("defense"));
+            if (statsSection.contains("strength")) builder.strength(statsSection.getDouble("strength"));
+            if (statsSection.contains("crit-chance")) builder.critChance(statsSection.getDouble("crit-chance"));
+            if (statsSection.contains("crit-damage")) builder.critDamage(statsSection.getDouble("crit-damage"));
+        }
+        // Flat fallback / overrides
         if (section.contains("health")) {
             builder.health(section.getDouble("health"));
         }
@@ -57,6 +76,37 @@ public class MobDefinitionParser {
         if (section.contains("speed")) {
             builder.speed(section.getDouble("speed"));
         }
+        if (section.contains("defense")) {
+            builder.defense(section.getDouble("defense"));
+        }
+
+        // Damage resistances / immunities (DamageType -> fraction 0..1, 1.0 = immune)
+        ConfigurationSection resistSection = section.getConfigurationSection("resistances");
+        if (resistSection != null) {
+            Map<DamageType, Double> resistances = new EnumMap<>(DamageType.class);
+            for (String typeKey : resistSection.getKeys(false)) {
+                DamageType type;
+                try {
+                    type = DamageType.valueOf(typeKey.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid resistance damage-type '" + typeKey + "'.");
+                }
+                double value = Math.max(0.0, Math.min(1.0, resistSection.getDouble(typeKey)));
+                resistances.put(type, value);
+            }
+            builder.resistances(resistances);
+        }
+
+        // Behavior flags
+        if (section.contains("knockback-resistance")) {
+            builder.knockbackResistance(section.getDouble("knockback-resistance"));
+        }
+        if (section.contains("no-ai")) builder.noAi(section.getBoolean("no-ai"));
+        if (section.contains("silent")) builder.silent(section.getBoolean("silent"));
+        if (section.contains("glowing")) builder.glowing(section.getBoolean("glowing"));
+        if (section.contains("persistent")) builder.persistent(section.getBoolean("persistent"));
+        if (section.contains("baby")) builder.baby(section.getBoolean("baby"));
+        if (section.contains("prevent-sun-burn")) builder.preventSunBurn(section.getBoolean("prevent-sun-burn"));
 
         // Level
         if (section.contains("level")) {
@@ -147,7 +197,48 @@ public class MobDefinitionParser {
             }
         }
 
+        // Boss bar
+        ConfigurationSection barSection = section.getConfigurationSection("boss-bar");
+        if (barSection != null && barSection.getBoolean("enabled", false)) {
+            BossBar.Color color;
+            try {
+                color = BossBar.Color.valueOf(barSection.getString("color", "RED").toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar color '" + barSection.getString("color") + "'.");
+            }
+            BossBar.Overlay overlay = parseOverlay(barSection.getString("style", "PROGRESS"));
+            if (overlay == null) {
+                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar style '" + barSection.getString("style") + "'.");
+            }
+            double range = barSection.getDouble("range", 40.0);
+            builder.bossBar(new BossBarConfig(true, color, overlay, range));
+        }
+
+        // Abilities (boss attacks). Reuses the shared mechanic registry from the ability module.
+        ConfigurationSection abilitiesSection = section.getConfigurationSection("abilities");
+        if (abilitiesSection != null) {
+            MechanicRegistry registry = ValmoraAPI.getInstance().getAbilityManager().getMechanicRegistry();
+            try {
+                List<MobAbility> abilities = MobAbilityParser.parse(abilitiesSection, registry);
+                builder.abilities(abilities);
+            } catch (MobAbilityParser.ParseException e) {
+                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': " + e.getMessage());
+            }
+        }
+
         return LoadResult.success(builder.build());
+    }
+
+    /** Maps both Adventure overlay names and common Bukkit-style names to an Adventure overlay. */
+    private static BossBar.Overlay parseOverlay(String raw) {
+        return switch (raw.toUpperCase()) {
+            case "PROGRESS", "SOLID" -> BossBar.Overlay.PROGRESS;
+            case "NOTCHED_6", "SEGMENTED_6" -> BossBar.Overlay.NOTCHED_6;
+            case "NOTCHED_10", "SEGMENTED_10" -> BossBar.Overlay.NOTCHED_10;
+            case "NOTCHED_12", "SEGMENTED_12" -> BossBar.Overlay.NOTCHED_12;
+            case "NOTCHED_20", "SEGMENTED_20" -> BossBar.Overlay.NOTCHED_20;
+            default -> null;
+        };
     }
 
     private static LootEntry parseLootEntry(ConfigurationSection section, String mobId, String fileName, ItemManager itemManager) {

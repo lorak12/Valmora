@@ -15,10 +15,12 @@ public class MobManager implements ReloadableModule {
     private final MobFactory mobFactory;
     private final MobLoader mobLoader;
     private final MobDeathListener deathListener;
+    private final BossController bossController;
 
     public MobManager(Valmora plugin) {
         this.plugin = plugin;
-        this.mobFactory = new MobFactory(plugin);
+        this.bossController = new BossController(plugin);
+        this.mobFactory = new MobFactory(plugin, bossController);
         this.mobRegistry = new MobRegistry();
         this.mobLoader = new MobLoader(plugin, mobRegistry);
         this.deathListener = new MobDeathListener(plugin);
@@ -29,11 +31,13 @@ public class MobManager implements ReloadableModule {
         plugin.getLogger().info("Starting Mob Module...");
         Bukkit.getPluginManager().registerEvents(deathListener, plugin);
         mobLoader.loadMobs();
+        bossController.start();
     }
 
     @Override
     public void onDisable() {
         plugin.getLogger().info("Stopping Mob Module...");
+        bossController.stop();
         mobRegistry.clear();
     }
 
@@ -72,5 +76,7 @@ public class MobManager implements ReloadableModule {
         return mobLoader;
     }
 
-
+    public BossController getBossController() {
+        return bossController;
+    }
 }

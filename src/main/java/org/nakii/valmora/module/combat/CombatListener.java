@@ -37,16 +37,25 @@ public class CombatListener implements Listener {
         }
 
         if (attacker != null) {
-            event.setDamage(0); 
-            
-            DamageType damageType = event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.ARROW) || 
-                                    event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.MOB_PROJECTILE) ? 
+            event.setDamage(0);
+
+            DamageType damageType = event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.ARROW) ||
+                                    event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.MOB_PROJECTILE) ?
                                     DamageType.PROJECTILE : DamageType.MELEE;
-            
+
             DamageResult damageResult = DamageCalculator.calculateDamage(attacker, victim, damageType);
             damageResult.apply();
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
+
+            // Boss ability triggers
+            var bossController = ValmoraAPI.getInstance().getMobManager().getBossController();
+            if (bossController.isTracked(attacker.getUniqueId())) {
+                bossController.onAttack(attacker, victim);
+            }
+            if (bossController.isTracked(victim.getUniqueId())) {
+                bossController.onDamaged(victim, attacker);
+            }
         }
     }
 
@@ -70,6 +79,11 @@ public class CombatListener implements Listener {
             DamageType customType = mapCauseToType(event.getCause());
             DamageResult damageResult = DamageCalculator.calculateDamage(victim, customType, baseDamage);
             damageResult.apply();
+
+            // Fully fire/lava-immune mobs should not keep burning
+            if (damageResult.isImmune() && (customType == DamageType.FIRE || customType == DamageType.LAVA)) {
+                victim.setFireTicks(0);
+            }
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
         }

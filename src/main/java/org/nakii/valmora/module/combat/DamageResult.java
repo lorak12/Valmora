@@ -11,6 +11,7 @@ public class DamageResult {
     private final boolean isCritical;
     private final LivingEntity attacker;
     private final LivingEntity victim;
+    private boolean immune = false;
 
     public DamageResult(double finalDamage, DamageType damageType, boolean isCritical, LivingEntity attacker, LivingEntity victim) {
         this.finalDamage = finalDamage;
@@ -18,6 +19,14 @@ public class DamageResult {
         this.isCritical = isCritical;
         this.attacker = attacker;
         this.victim = victim;
+    }
+
+    public boolean isImmune() {
+        return immune;
+    }
+
+    public void setImmune(boolean immune) {
+        this.immune = immune;
     }
 
     public void apply() {

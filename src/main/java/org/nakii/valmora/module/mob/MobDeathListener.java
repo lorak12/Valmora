@@ -2,7 +2,11 @@ package org.nakii.valmora.module.mob;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityCombustByBlockEvent;
+import org.bukkit.event.entity.EntityCombustByEntityEvent;
+import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
@@ -39,6 +43,11 @@ public class MobDeathListener implements Listener {
             return;
         }
 
+        // Fire ON_DEATH boss abilities and stop tracking this entity
+        if (mobManager.getBossController().isTracked(entity.getUniqueId())) {
+            mobManager.getBossController().onDeath(entity);
+        }
+
         Player killer = entity.getKiller();
         double luck = 0;
 
@@ -72,6 +81,26 @@ public class MobDeathListener implements Listener {
                     event.getDrops().add(drop);
                 }
             }
+        }
+    }
+
+    /** Cancels sunlight/ambient burning for mobs flagged {@code prevent-sun-burn}. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onMobCombust(EntityCombustEvent event) {
+        // Only suppress ambient (sunlight) combustion, not fire from blocks/entities (lava, flint & steel, etc.)
+        if (event instanceof EntityCombustByBlockEvent || event instanceof EntityCombustByEntityEvent) {
+            return;
+        }
+        if (!(event.getEntity() instanceof LivingEntity entity)) {
+            return;
+        }
+        String mobId = entity.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
+        if (mobId == null) {
+            return;
+        }
+        MobDefinition definition = plugin.getMobManager().getMobDefinition(mobId);
+        if (definition != null && definition.isPreventSunBurn()) {
+            event.setCancelled(true);
         }
     }
 }

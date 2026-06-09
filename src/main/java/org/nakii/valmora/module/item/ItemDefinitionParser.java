@@ -115,24 +115,12 @@ public class ItemDefinitionParser {
 
                     // Parse Mechanics List
                     if (abSec.contains("mechanics")) {
-                        for (Map<?, ?> map : abSec.getMapList("mechanics")) {
-                            String type = (String) map.get("type");
-                            if (type == null) continue;
-
-                            Optional<AbilityMechanic> mechOpt = mechanicRegistry.getMechanic(type);
-                            if (mechOpt.isEmpty()) {
-                                return LoadResult.failure("[" + fileName + "] Unknown mechanic type '" + type + "' in ability '" + abKey + "'.");
+                        try {
+                            for (ConfiguredMechanic mechanic : MechanicParser.parse(abSec.getMapList("mechanics"), mechanicRegistry)) {
+                                abBuilder.addMechanic(mechanic);
                             }
-
-                            // Convert the "params" map into a ConfigurationSection for easy Java reading
-                            MemoryConfiguration params = new MemoryConfiguration();
-                            if (map.containsKey("params")) {
-                                Map<?, ?> paramsMap = (Map<?, ?>) map.get("params");
-                                for (Map.Entry<?, ?> entry : paramsMap.entrySet()) {
-                                    params.set(entry.getKey().toString(), entry.getValue());
-                                }
-                            }
-                            abBuilder.addMechanic(new ConfiguredMechanic(mechOpt.get(), params));
+                        } catch (MechanicParser.UnknownMechanicException e) {
+                            return LoadResult.failure("[" + fileName + "] Unknown mechanic type '" + e.getMessage() + "' in ability '" + abKey + "'.");
                         }
                     }
                     builder.ability(abKey, abBuilder.build());

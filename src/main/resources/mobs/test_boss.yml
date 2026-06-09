@@ -1,0 +1,91 @@
+# Example boss showcasing the expanded mob system:
+# stats (defense + offensive), graded resistances, a boss bar, behavior flags, and abilities.
+forge_titan:
+  category: BOSS
+  type: IRON_GOLEM
+  name: "<red>Forge Titan</red>"
+  level: 50
+  damage-type: MELEE
+  base-xp: 500
+  gold-reward: 1000
+  stats:
+    health: 25000
+    damage: 300
+    defense: 400
+    speed: 0.25
+    strength: 60
+    crit-chance: 25
+    crit-damage: 80
+  resistances:
+    FIRE: 1.0        # immune
+    LAVA: 1.0        # immune
+    EXPLOSION: 0.5   # takes half
+    MAGIC: 0.25      # takes 75%
+  knockback-resistance: 1.0
+  persistent: true
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: RED
+    style: SEGMENTED_10
+    range: 40
+  abilities:
+    ground-slam:
+      name: "Ground Slam"
+      trigger: ON_TIMER
+      interval: 120
+      chance: 0.5
+      cooldown: 6.0
+      target-range: 12
+      announce: "<red>The Forge Titan slams the ground!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            amount: 250
+            type: MELEE
+            target: "@target"
+        - type: APPLY_EFFECT
+          params:
+            effect: slowness
+            duration: 3
+            amplifier: 2
+            target: "@target"
+    enrage:
+      name: "Enrage"
+      trigger: ON_HEALTH
+      health-percent: 33
+      announce: "<dark_red>The Forge Titan enrages and summons help!"
+      mechanics:
+        - type: SCRIPT
+          params:
+            events:
+              - "spawn_mob forge_imp 3 radius:4"
+    death-blast:
+      name: "Death Blast"
+      trigger: ON_DEATH
+      target-range: 15
+      announce: "<gold>The Forge Titan erupts as it falls!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            amount: 500
+            type: EXPLOSION
+            target: "@target"
+
+# Minion summoned by the Forge Titan's enrage ability.
+forge_imp:
+  category: NETHER
+  type: MAGMA_CUBE
+  name: "<gold>Forge Imp</gold>"
+  level: 20
+  damage-type: FIRE
+  base-xp: 20
+  gold-reward: 10
+  stats:
+    health: 400
+    damage: 60
+    defense: 50
+    speed: 0.3
+  resistances:
+    FIRE: 1.0
+    LAVA: 1.0
