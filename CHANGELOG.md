@@ -16,6 +16,10 @@ First public beta. Production-readiness hardening pass.
   upgraded in place.
 - Automated database tests (`SQLDataStoreTest`): schema creation, idempotent re-init,
   pre-versioning upgrade, and economy persistence round-trip.
+- MockBukkit-based persistence test (`ProfilePersistenceMockTest`): full player/profile
+  save+load round-trip including real `ItemStack` inventory serialization. Runs in an isolated
+  JVM via the dedicated `testMock` Gradle task (wired into `check`/`build`) to avoid Bukkit
+  static-state pollution from the rest of the suite.
 - Configurable MySQL SSL via `database.mysql.use-ssl` (default `false`).
 - `README.md`, `CHANGELOG.md`, and a GitHub Actions build workflow.
 - `LICENSE` (GNU AGPL-3.0); the project is open-sourced under AGPL-3.0 with a separate

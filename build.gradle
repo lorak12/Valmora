@@ -33,12 +33,24 @@ dependencies {
     testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
+    testImplementation('org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0')
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
-    useJUnitPlatform()
+    // MockBukkit boots a mock server and is sensitive to Bukkit static state left behind by
+    // other tests sharing the JVM, so it runs in its own isolated task (see 'testMock').
+    useJUnitPlatform { excludeTags 'mockbukkit' }
 }
+
+tasks.register('testMock', Test) {
+    useJUnitPlatform { includeTags 'mockbukkit' }
+    forkEvery = 1 // fresh JVM per class — avoids cross-test Bukkit static pollution
+    group = 'verification'
+    description = 'Runs MockBukkit-based server tests in an isolated JVM.'
+}
+
+tasks.named('check') { dependsOn('testMock') }
 
 tasks.register('testUnit', Test) {
     useJUnitPlatform { includeTags 'unit', 'config', 'database' }
@@ -48,6 +60,7 @@ tasks.register('testUnit', Test) {
 
 tasks.register('testFull', Test) {
     useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration', 'database' }
+    dependsOn('testMock') // MockBukkit tests run in their own isolated JVM
     group = 'verification'
     description = 'Runs the full automated test suite (all tags except live-server tests).'
 }
