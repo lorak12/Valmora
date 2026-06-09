@@ -32,74 +32,7 @@ public enum Skill {
         return maxLevel;
     }
 
-    public static int[] xpTresholds = {
-    10,
-    20,
-    50,
-    100,
-    200,
-    500,
-    1000,
-    1500,
-    2000,
-    3000,
-    5000,
-    7500,
-    10000,
-    15000,
-    20000,
-    30000,
-    40000,
-    50000,
-    60000,
-    75000,
-    100000,
-    125000,
-    150000,
-    175000,
-    200000,
-    250000,
-    300000,
-    350000,
-    400000,
-    450000,
-    500000,
-    600000,
-    700000,
-    800000,
-    900000,
-    1000000,
-    1200000,
-    1400000,
-    1600000,
-    1800000,
-    2000000,
-    2300000,
-    2600000,
-    3000000,
-    3400000,
-    3800000,
-    4200000,
-    4600000,
-    5000000,
-    5500000,
-    6000000,
-    6500000,
-    7000000,
-    7500000,
-    8000000,
-    8500000,
-    9000000,
-    9500000,
-    10000000
-};
-
-    public int getLevelFromXp(double totalXp){
-        for (int i = 0; i < xpTresholds.length; i++) {
-            if (totalXp < xpTresholds[i]) {
-                return i;
-            }
-        }
-        return maxLevel;
-    }
+    // NOTE: The XP-per-level curve lives in SkillRegistry (DEFAULT_XP_THRESHOLDS),
+    // which is the single source of truth used by SkillManager. A duplicate copy
+    // and getLevelFromXp(double) that previously lived here were unused and removed.
 }

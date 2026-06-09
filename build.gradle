@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.nakii'
-version = '0.1'
+version = '1.0.0-beta1'
 
 repositories {
     mavenCentral()
@@ -41,13 +41,13 @@ test {
 }
 
 tasks.register('testUnit', Test) {
-    useJUnitPlatform { includeTags 'unit', 'config' }
+    useJUnitPlatform { includeTags 'unit', 'config', 'database' }
     group = 'verification'
-    description = 'Runs pure unit tests and YAML config validation (no Bukkit server needed).'
+    description = 'Runs pure unit tests, YAML config validation, and DB tests (no Bukkit server needed).'
 }
 
 tasks.register('testFull', Test) {
-    useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration' }
+    useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration', 'database' }
     group = 'verification'
     description = 'Runs the full automated test suite (all tags except live-server tests).'
 }
@@ -78,6 +78,14 @@ tasks {
         dependsOn('syncResources')
     }
     shadowJar {
+        // Relocate libraries that the server (or other plugins) also ship, to avoid
+        // classpath collisions. Gson is bundled by Paper; HikariCP is commonly shaded
+        // by other plugins. The JDBC drivers (sqlite-jdbc, mysql-connector) are NOT
+        // relocated: sqlite-jdbc loads a native library by resource path and its driver
+        // class is referenced as a string in DatabaseFactory, both of which relocation
+        // would break. They stay safe inside the isolated plugin classloader.
+        relocate 'com.google.gson', 'org.nakii.valmora.lib.gson'
+        relocate 'com.zaxxer.hikari', 'org.nakii.valmora.lib.hikari'
     }
 
     build {

@@ -23,6 +23,9 @@ database:
   #   database: "valmora"
   #   username: "root"
   #   password: "password123"
+  #   # Set to true if your MySQL server requires/serves over SSL/TLS.
+  #   # Leave false for a typical local or private-network database.
+  #   use-ssl: false
 
 # ========================================================== #
 #                      Profile Settings                      #

@@ -1,5 +1,5 @@
 name: Valmora
-version: "0.1"
+version: "${version}"
 main: org.nakii.valmora.Valmora
 api-version: "1.21"
 authors: [nakii]
@@ -13,13 +13,18 @@ commands:
     usage: /stat help
   item:
     usage: /item help
+    permission: valmora.admin
+    description: Give custom Valmora items. Admin only.
   mob:
     usage: /mob help
+    permission: valmora.admin
+    description: Spawn and manage custom mobs. Admin only.
   skill:
     usage: /skill help
     description: Master command for skills interactions.
   gui:
     usage: /gui help
+    permission: valmora.admin.gui
     description: Gui debugging and opening commands.
   time:
     usage: /time [info|reset]
