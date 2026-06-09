@@ -50,3 +50,15 @@ Player-facing menu commands (`/profile`, `/skill`, `/warp`, `/quest`, `/collecti
 
 Developer and design documentation lives in [`docs/`](docs/), with `CLAUDE.md` and
 `docs/VALMORA_DOCUMENTATION.md` as the primary references.
+
+## License
+
+Valmora is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0) — see
+[`LICENSE`](LICENSE). In short: you may use, study, modify, and share it, but any distributed or
+network-hosted derivative must also be released under the AGPL with its source available.
+
+The project is also available under a separate **commercial license**. If you want to use Valmora
+in a way the AGPL does not permit (for example, a closed-source or paid distribution), contact the
+copyright holder to arrange commercial terms.
+
+Copyright © 2026 nakii. All rights reserved.

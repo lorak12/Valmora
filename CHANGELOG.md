@@ -18,6 +18,8 @@ First public beta. Production-readiness hardening pass.
   pre-versioning upgrade, and economy persistence round-trip.
 - Configurable MySQL SSL via `database.mysql.use-ssl` (default `false`).
 - `README.md`, `CHANGELOG.md`, and a GitHub Actions build workflow.
+- `LICENSE` (GNU AGPL-3.0); the project is open-sourced under AGPL-3.0 with a separate
+  commercial license available from the copyright holder.
 
 ### Changed
 - `plugin.yml` version is now sourced from the Gradle build version (single source of truth).
