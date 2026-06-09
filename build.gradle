@@ -78,6 +78,14 @@ tasks {
         dependsOn('syncResources')
     }
     shadowJar {
+        // Relocate libraries that the server (or other plugins) also ship, to avoid
+        // classpath collisions. Gson is bundled by Paper; HikariCP is commonly shaded
+        // by other plugins. The JDBC drivers (sqlite-jdbc, mysql-connector) are NOT
+        // relocated: sqlite-jdbc loads a native library by resource path and its driver
+        // class is referenced as a string in DatabaseFactory, both of which relocation
+        // would break. They stay safe inside the isolated plugin classloader.
+        relocate 'com.google.gson', 'org.nakii.valmora.lib.gson'
+        relocate 'com.zaxxer.hikari', 'org.nakii.valmora.lib.hikari'
     }
 
     build {

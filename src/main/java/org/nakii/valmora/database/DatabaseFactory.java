@@ -21,22 +21,23 @@ public class DatabaseFactory {
             String host = config.getString("database.mysql.host", "localhost");
             int port = config.getInt("database.mysql.port", 3306);
             String db = config.getString("database.mysql.database", "valmora");
-            
-            hikariConfig.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + db + "?useSSL=false");
+            boolean useSsl = config.getBoolean("database.mysql.use-ssl", false);
+
+            hikariConfig.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + db + "?useSSL=" + useSsl);
             hikariConfig.setUsername(config.getString("database.mysql.username", "root"));
             hikariConfig.setPassword(config.getString("database.mysql.password", ""));
             hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
             hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
             hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
 
-            return new SQLDataStore(new HikariDataSource(hikariConfig), true);
+            return new SQLDataStore(new HikariDataSource(hikariConfig), true, plugin.getLogger());
         } else {
             // Default to SQLite
             File dbFile = new File(plugin.getDataFolder(), "database.db");
             hikariConfig.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
             hikariConfig.setDriverClassName("org.sqlite.JDBC");
-            
-            return new SQLDataStore(new HikariDataSource(hikariConfig), false);
+
+            return new SQLDataStore(new HikariDataSource(hikariConfig), false, plugin.getLogger());
         }
     }
 }

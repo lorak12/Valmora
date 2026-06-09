@@ -20,19 +20,23 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SQLDataStore implements DataStore {
 
     private final HikariDataSource hikari;
     private final Gson gson;
     private final boolean isMySQL;
-    
+    private final Logger logger;
+
     // Dedicated thread pool for database operations
     private final ExecutorService dbExecutor = Executors.newFixedThreadPool(4);
 
-    public SQLDataStore(HikariDataSource hikari, boolean isMySQL) {
+    public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger) {
         this.hikari = hikari;
         this.isMySQL = isMySQL;
+        this.logger = logger;
         this.gson = new Gson();
     }
 
@@ -79,7 +83,10 @@ public class SQLDataStore implements DataStore {
                 )
             """).execute();
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Schema initialization failing means every subsequent read/write will
+            // fail too — fail fast so the plugin disables instead of silently losing data.
+            logger.log(Level.SEVERE, "Failed to initialize Valmora database schema", e);
+            throw new IllegalStateException("Valmora database initialization failed", e);
         }
     }
 
@@ -165,7 +172,7 @@ public class SQLDataStore implements DataStore {
 
                 return player;
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "Failed to load player data for " + uuid, e);
                 return null;
             }
         }, dbExecutor);
@@ -237,7 +244,7 @@ public class SQLDataStore implements DataStore {
 
                 conn.commit(); // Commit Transaction
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "Failed to save player data for " + player.getUuid(), e);
             }
         }, dbExecutor);
     }
@@ -250,7 +257,7 @@ public class SQLDataStore implements DataStore {
                 ps.setString(1, profileId.toString());
                 ps.executeUpdate();
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "Failed to delete profile " + profileId, e);
             }
         }, dbExecutor);
     }
@@ -327,7 +334,7 @@ public class SQLDataStore implements DataStore {
                 if (!rs.next()) return null;
                 return new double[]{rs.getDouble("purse"), rs.getDouble("bank")};
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "Failed to load economy data for " + uuid, e);
                 return null;
             }
         }, dbExecutor);
@@ -348,7 +355,7 @@ public class SQLDataStore implements DataStore {
                 ps.setDouble(5, bank);
                 ps.executeUpdate();
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "Failed to save economy data for " + uuid, e);
             }
         }, dbExecutor);
     }

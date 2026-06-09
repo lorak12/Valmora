@@ -136,7 +136,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
         // 1. Initialize Database first
         this.dataStore = DatabaseFactory.createDataStore(this);
-        this.dataStore.init();
+        try {
+            this.dataStore.init();
+        } catch (RuntimeException e) {
+            getLogger().severe("Database initialization failed — disabling Valmora to avoid data loss.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
         this.economyModule = new EconomyModule(this, dataStore);
         this.economyService = economyModule;
 
