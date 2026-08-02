@@ -1,1 +1,7 @@
+plugins {
+    // Lets the Java toolchain auto-download a matching JDK (e.g. 21) when one
+    // is not installed locally.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'Valmora'

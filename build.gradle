@@ -108,20 +108,15 @@ tasks {
 
 def targetJavaVersion = 21
 java {
-    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
-    sourceCompatibility = javaVersion
-    targetCompatibility = javaVersion
-    if (JavaVersion.current() < javaVersion) {
-        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
-    }
+    // Always build against a Java 21 toolchain so the output class files are
+    // major version 65, regardless of the JDK running Gradle. Paper 1.21.x's
+    // plugin remapper (ASM) cannot read newer class file versions.
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
+    options.release.set(targetJavaVersion)
 }
 
 processResources {
