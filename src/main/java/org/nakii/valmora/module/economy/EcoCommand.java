@@ -70,8 +70,8 @@ public class EcoCommand implements TabExecutor {
                 double amount = parseAmount(args[3]);
                 if (amount < 0) { sender.sendMessage(Formatter.format("<red>Amount must be ≥ 0.")); return true; }
                 switch (wallet) {
-                    case "purse" -> economy.getOrCreateData(uuid).setPurse(amount);
-                    case "bank"  -> economy.getOrCreateData(uuid).setBank(amount);
+                    case "purse" -> economy.setPurse(uuid, amount);
+                    case "bank"  -> economy.setBank(uuid, amount);
                     default -> { sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>.")); return true; }
                 }
                 sender.sendMessage(Formatter.format(
