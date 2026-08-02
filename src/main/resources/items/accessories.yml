@@ -1,0 +1,22 @@
+lucky_charm:
+  name: "<yellow>Lucky Charm"
+  material: "GOLD_INGOT"
+  rarity: "RARE"
+  item-type: "ACCESSORY"
+  lore:
+    - "<gray>Legend says this charm brings"
+    - "<gray>fortune to its owner."
+  stats:
+    LUCK: 10
+    HEALTH: 20
+
+speed_scarab:
+  name: "<aqua>Speed Scarab"
+  material: "EMERALD"
+  rarity: "EPIC"
+  item-type: "ACCESSORY"
+  lore:
+    - "<gray>A carved beetle that quickens"
+    - "<gray>the step of whoever carries it."
+  stats:
+    SPEED: 15

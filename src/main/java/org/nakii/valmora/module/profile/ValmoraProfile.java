@@ -29,8 +29,10 @@ public class ValmoraProfile {
     private ItemStack[] savedArmor = null;
     private ItemStack savedOffhand = null;
 
-    // Accessory bag (45 slots)
+    // Accessory bag. Backing array is grown on demand up to the configured
+    // max-slots-cap by AccessoryModule; -1 means "use the configured starting-slots default".
     private ItemStack[] accessoryItems = new ItemStack[45];
+    private int accessorySlotsUnlocked = -1;
 
     // Quiver (27 slots, arrow-type items only)
     private ItemStack[] quiverItems = new ItemStack[27];
@@ -93,6 +95,10 @@ public class ValmoraProfile {
 
     public ItemStack[] getAccessoryItems() { return accessoryItems; }
     public void setAccessoryItems(ItemStack[] items) { this.accessoryItems = items; }
+
+    /** -1 means unset — caller should fall back to the configured starting-slots default. */
+    public int getAccessorySlotsUnlocked() { return accessorySlotsUnlocked; }
+    public void setAccessorySlotsUnlocked(int slots) { this.accessorySlotsUnlocked = slots; }
 
     public ItemStack[] getQuiverItems() { return quiverItems; }
     public void setQuiverItems(ItemStack[] items) { this.quiverItems = items; }

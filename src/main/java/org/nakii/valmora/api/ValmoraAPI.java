@@ -67,6 +67,8 @@ public interface ValmoraAPI {
     org.nakii.valmora.module.quest.pkg.QuestPackageManager getQuestPackageManager();
 
     org.nakii.valmora.module.progression.ProgressionManager getProgressionManager();
+
+    org.nakii.valmora.module.accessory.AccessoryModule getAccessoryModule();
 }
 
 class Holder {

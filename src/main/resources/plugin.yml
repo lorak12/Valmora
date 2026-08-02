@@ -64,6 +64,10 @@ commands:
   accessories:
     usage: /accessories
     description: Open your accessory bag.
+  accessory:
+    usage: /accessory <setcap|setslots|addslots|info>
+    permission: valmora.admin
+    description: Admin command for managing accessory bag slot caps.
   quiver:
     usage: /quiver
     description: Open your quiver.

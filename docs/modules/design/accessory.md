@@ -1,28 +1,32 @@
 # Accessory Module — Design & Code
 
-> **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21 | **Module ID:** `accessories`
+> **Version:** 0.2 | **API:** Paper 1.21.x | **Java:** 21 | **Module ID:** `accessories`
 
 ---
 
 ## Overview
 
-The Accessory module adds a per-profile **Accessory Bag** — a 45-slot, always-active equipment
-inventory that lives on each `ValmoraProfile` rather than in the player's normal inventory. Any item
-tagged `item-type: ACCESSORY` can be stored in the bag, and every item inside it contributes its
-stat bonuses to the player at **all times** (no slot needs to be "equipped" — all 45 slots are
-treated as equipped simultaneously).
+The Accessory module adds a per-profile **Accessory Bag** — a dynamically sized, paginated,
+always-active equipment inventory that lives on each `ValmoraProfile` rather than in the player's
+normal inventory. Any item tagged `item-type: ACCESSORY` can be stored in the bag, and every item in
+an *unlocked* slot contributes its stat bonuses to the player at **all times** (no slot needs to be
+"equipped" — every unlocked slot counts as equipped simultaneously).
 
-It is a deliberately small, storage-oriented module:
-
-- The bag itself is a vanilla `Inventory` with a custom `AccessoryInventoryHolder`.
+- The bag itself is a vanilla `Inventory` with a custom `AccessoryInventoryHolder`, resized per-page
+  by an `AccessoryModule.AccessoryLayout` record.
 - Content filtering is enforced by an `AccessoryListener` at click time via the item's PDC
-  `ITEM_TYPE_KEY` (`valmora:item_type`), never by display name.
-- Stat application is **not** done here — the `stat` module's `StatManager.recalculateStats()`
-  reads `ValmoraProfile.getAccessoryItems()` and folds them into the player's effective stats.
-- Persistence is **not** currently wired to the database (see [Unfinished Things](#unfinished-things--todos)).
+  `ITEM_TYPE_KEY` (`valmora:item_type`), never by display name — including shift-click transfers in
+  both directions.
+- Each profile has an **unlocked slot count** (`ValmoraProfile.accessorySlotsUnlocked`, default
+  unset → falls back to `accessories.starting-slots`), which admins can raise up to a server-wide
+  `accessories.max-slots-cap` via `/accessory`.
+- Stat application is **not** done here — the `stat` module's `StatManager.recalculateStats()` reads
+  `ValmoraProfile.getAccessoryItems()` and folds them into the player's effective stats.
+- Persistence is wired to the database as of schema v3 (`accessory_items`, `accessory_slots`
+  columns).
 
 Target audience: players who want permanent, always-on stat bonuses from collectible accessory
-items, and admins who define those items in the standard item YAML.
+items, and admins who define those items in the standard item YAML and manage slot progression.
 
 ---
 
@@ -30,11 +34,19 @@ items, and admins who define those items in the standard item YAML.
 
 All module code lives in `src/main/java/org/nakii/valmora/module/accessory/`:
 
-| File | Lines | Responsibility |
-|---|---|---|
-| `AccessoryModule.java` | 93 | The `ReloadableModule`. Owns the listener, the bag size constant, opens/saves the bag, and identifies accessory items. |
-| `AccessoryListener.java` | 34 | Bukkit event handler. Saves the bag on close and rejects non-accessory items on click. |
-| `AccessoryInventoryHolder.java` | 22 | `InventoryHolder` used to tag the bag inventory so the listener can recognise it. |
+| File | Responsibility |
+|---|---|
+| `AccessoryModule.java` | The `ReloadableModule`. Owns the listener, slot-cap config, layout computation, opens/saves the bag, and identifies accessory items. |
+| `AccessoryListener.java` | Bukkit event handler. Saves the bag on close, handles control-row clicks (page nav / close), rejects non-accessory items on click/shift-click in both directions. |
+| `AccessoryInventoryHolder.java` | `InventoryHolder` used to tag the bag inventory and carry its `AccessoryLayout` so the listener knows the current page's slot geometry without recomputing it mid-interaction. |
+| `AccessoryCommand.java` | Admin `TabExecutor` for `/accessory setcap\|setslots\|addslots\|info`. |
+
+Script DSL integration lives outside the module package, alongside the rest of the script system:
+
+| File | Responsibility |
+|---|---|
+| `module/script/event/impl/AccessorySlotsEventFactory.java` | `accessory_slots add\|remove\|set <amount>` event — lets quest/skill/GUI/ability scripts grant or revoke a caster's unlocked slots without an admin running a command. Mirrors `StatModifyEventFactory`'s add/set/reset shape and `$variable$` value resolution. |
+| `module/script/variable/providers/PlayerVariableProvider.java` | Extended with a `resolveAccessories(...)` branch under the existing `player` namespace, so `$player.accessories.*$` resolves alongside `$player.stat.*$`, `$player.skill.*$`, etc. |
 
 There is **no** `AccessoryRegistry`, `AccessoryLoader`, or `AccessoryDefinition` class. Unlike
 `item`, `mob`, `skill`, etc., this module does not load any definitions of its own — it reuses the
@@ -44,14 +56,15 @@ generic item pipeline (`ItemType.ACCESSORY`) for item identity.
 
 | Type | Location | Role in this module |
 |---|---|---|
-| `ItemType.ACCESSORY` | `module/item/ItemType.java:25` | The enum value that makes an item an accessory. |
-| `ItemFactory.create()` | `module/item/ItemFactory.java:33-35` | Writes `ItemType` enum name into `Keys.ITEM_TYPE_KEY` PDC on item creation. |
-| `ItemDefinitionParser` | `module/item/ItemDefinitionParser.java:44-52` | Parses `item-type:` from item YAML into the `ItemType` enum. |
-| `Keys.ITEM_TYPE_KEY` | `util/Keys.java:9`, `:45` | NamespacedKey `valmora:item_type` — the identity tag checked by `isAccessoryItem()`. |
-| `ValmoraProfile.accessoryItems` | `module/profile/ValmoraProfile.java:32-33`, `:94-95` | The 45-slot `ItemStack[]` backing store for the bag. |
-| `StatManager.recalculateStats()` | `module/stat/StatManager.java:143-155` | Consumer — folds accessory item stats into effective stats. |
-| `Valmora.java` | `:120`, `:181`, `:219`, `:250-254`, `:428` | Wiring: field, instantiation, registration, `/accessories` command, getter. |
-| `SQLDataStore` | `database/SQLDataStore.java` | *Should* persist the bag — see [Unfinished Things](#unfinished-things--todos). |
+| `ItemType.ACCESSORY` | `module/item/ItemType.java` | The enum value that makes an item an accessory. |
+| `ItemFactory.create()` | `module/item/ItemFactory.java` | Writes `ItemType` enum name into `Keys.ITEM_TYPE_KEY` PDC on item creation. |
+| `ItemDefinitionParser` | `module/item/ItemDefinitionParser.java` | Parses `item-type:` from item YAML into the `ItemType` enum. |
+| `Keys.ITEM_TYPE_KEY` | `util/Keys.java` | NamespacedKey `valmora:item_type` — the identity tag checked by `isAccessoryItem()`. |
+| `ValmoraProfile.accessoryItems` / `accessorySlotsUnlocked` | `module/profile/ValmoraProfile.java` | The variable-length `ItemStack[]` backing store, plus the profile's unlocked slot count (`-1` = unset/default). |
+| `StatManager.recalculateStats()` | `module/stat/StatManager.java` | Consumer — folds accessory item stats into effective stats. |
+| `Valmora.java` | — | Wiring: field, instantiation, registration, `/accessories` + `/accessory` command registration, `getAccessoryModule()`. |
+| `ValmoraAPI` | `api/ValmoraAPI.java` | Exposes `getAccessoryModule()` so downstream code doesn't need to cast to the concrete `Valmora` instance. |
+| `SQLDataStore` | `database/SQLDataStore.java` | Persists the bag (`accessory_items`) and slot count (`accessory_slots`) as of schema v3. |
 
 ---
 
@@ -59,172 +72,205 @@ generic item pipeline (`ItemType.ACCESSORY`) for item identity.
 
 ### Registration order and lifecycle
 
-The module is registered at `Valmora.java:219`:
-
-```java
-moduleManager.registerModule(accessoryModule);    // Depends on statModule for recalc
-```
-
-Load order context (`Valmora.java`): ... `slayer` (218) → **`accessory` (219)** → `backpack`
-(220) → `quiver` (221) → `progression` (222). It loads late, after `stat`, `player`, and `item` —
-all of which it relies on. Its own comment states the dependency: `statModule` for recalc.
-
-The module is instantiated in `Valmora.onEnable()` at `Valmora.java:181` and disabled normally via
-`ModuleManager.disableModules()` on plugin shutdown (`Valmora.java:264-266`). There is no special
-handling in `/valmora reload` beyond the standard disable/enable cycle — which has persistence
-consequences (see below).
-
-### Lifecycle implementation (`AccessoryModule`)
+Unchanged from v0.1: registered after `stat`, `player`, and `item` (all of which it relies on), with
+the same textbook `ReloadableModule` hygiene — one listener, registered in `onEnable()`, unregistered
+and nulled in `onDisable()`.
 
 ```java
 @Override
 public void onEnable() {
+    this.startingSlots = plugin.getConfig().getInt("accessories.starting-slots", 25);
+    this.maxSlotsCap = Math.max(1, plugin.getConfig().getInt("accessories.max-slots-cap", 90));
+    if (this.startingSlots > this.maxSlotsCap) this.startingSlots = this.maxSlotsCap;
+
     this.listener = new AccessoryListener(this);
     plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 }
 ```
-— `AccessoryModule.java:27-31`
+
+Config is re-read every `onEnable()`, so `/valmora reload` picks up edits to `starting-slots` /
+`max-slots-cap` in `config.yml` (in addition to runtime changes via `/accessory setcap`, which write
+straight back to config).
+
+### Slot cap model
 
 ```java
-@Override
-public void onDisable() {
-    if (listener != null) {
-        HandlerList.unregisterAll(listener);
-        listener = null;
+public int getUnlockedSlots(ValmoraProfile profile) {
+    int stored = profile.getAccessorySlotsUnlocked();          // -1 = unset
+    int base = stored < 0 ? startingSlots : stored;
+    return Math.max(0, Math.min(base, maxSlotsCap));            // always clamped to the live cap
+}
+
+public void setUnlockedSlots(ValmoraProfile profile, int slots) {
+    int clamped = Math.max(0, Math.min(slots, maxSlotsCap));
+    profile.setAccessorySlotsUnlocked(clamped);
+    ensureCapacity(profile);
+}
+```
+
+Clamping happens on **read**, not just on write — so if an admin lowers `max-slots-cap` below a
+profile's stored value, the player's effective slot count drops immediately without needing to touch
+every profile's stored number. `ensureCapacity()` grows (never shrinks) the backing `ItemStack[]` to
+`maxSlotsCap`, copying existing contents by reference-safe `System.arraycopy`.
+
+### Layout — dynamic resize + pagination
+
+The bag has no fixed size. `AccessoryModule.AccessoryLayout` is computed fresh for every open/nav:
+
+```java
+public record AccessoryLayout(int page, int totalPages, int itemsStart, int itemsOnPage, int rows,
+                               int size, int controlRowStart) {}
+
+public AccessoryLayout computeLayout(ValmoraProfile profile, int requestedPage) {
+    int unlocked = getUnlockedSlots(profile);
+    int totalPages = Math.max(1, (int) Math.ceil(unlocked / (double) PAGE_ITEM_CAP)); // PAGE_ITEM_CAP = 45
+    int page = Math.max(0, Math.min(requestedPage, totalPages - 1));
+    int itemsStart = page * PAGE_ITEM_CAP;
+    int itemsOnPage = Math.max(0, Math.min(PAGE_ITEM_CAP, unlocked - itemsStart));
+    int rows = Math.max(1, (int) Math.ceil(itemsOnPage / 9.0));
+    int controlRowStart = rows * 9;
+    int size = controlRowStart + CONTROL_ROW_SIZE;                                    // CONTROL_ROW_SIZE = 9
+    return new AccessoryLayout(page, totalPages, itemsStart, itemsOnPage, rows, size, controlRowStart);
+}
+```
+
+Key properties:
+
+- **The last row is always the control row.** `size` is always a multiple of 9 with the final 9
+  reserved, regardless of how many item rows precede it (1–5 rows → 18–54 total size).
+- **Pagination** kicks in once `unlocked > 45`; each page holds up to 45 real item slots
+  (`PAGE_ITEM_CAP`), addressed by a global index (`itemsStart + local index`) into the profile's
+  backing array.
+- **Locked filler**: within the item rows, any local slot `>= itemsOnPage` but `< controlRowStart` is
+  a "not yet unlocked" slot for *this row* — shown as a gray glass pane and rejected on click. This
+  is what makes the bag look like it's "growing into" a fully unlocked row rather than jumping in
+  9-slot increments.
+
+### Opening / saving
+
+```java
+public void openAccessoryBag(Player player, int page) {
+    ValmoraProfile profile = getProfile(player);
+    if (profile == null) return;
+    ensureCapacity(profile);
+    AccessoryLayout layout = computeLayout(profile, page);
+    // ... build inventory sized layout.size(), populate item slots [0, itemsOnPage) from
+    // profile.getAccessoryItems()[itemsStart + i] (cloned), fill [itemsOnPage, controlRowStart)
+    // with locked filler, populate the control row, player.openInventory(inv)
+}
+```
+
+`openAccessoryBag(Player)` (no page arg) is kept as a convenience overload defaulting to page 0 — the
+existing `/accessories` command wiring in `Valmora.java` calls this unchanged.
+
+```java
+public void saveAccessories(Player player, Inventory inv, AccessoryLayout layout) {
+    ValmoraProfile profile = getProfile(player);
+    if (profile == null) return;
+    ensureCapacity(profile);
+    ItemStack[] items = profile.getAccessoryItems();
+    for (int i = 0; i < layout.itemsOnPage(); i++) {
+        ItemStack item = inv.getItem(i);
+        items[layout.itemsStart() + i] = (item == null || item.getType().isAir()) ? null : item.clone();
     }
+    profile.setAccessoryItems(items);
+    // recalc stats via ValmoraAPI.getInstance().getPlayerManager()...getStatManager().recalculateStats(player)
 }
 ```
-— `AccessoryModule.java:33-39`
 
-The lifecycle is textbook `ReloadableModule` hygiene: exactly one listener, registered in
-`onEnable()`, unregistered (and nulled) in `onDisable()`. This is idempotent and reload-safe. No
-caches or tasks exist to clean up. `getId()` returns `"accessories"` (`:42`), `getName()` returns
-`"Accessory System"` (`:45`).
+Both directions now `clone()` items — closing the item 8 gap from v0.1 (stale shared `ItemStack`
+references between the profile array and the live inventory).
 
-### The bag itself
-
-The bag is a plain 45-slot `Inventory` (one row of 5 double-chest rows), created on demand:
-
-```java
-static final int ACCESSORY_SLOTS = 45;                            // AccessoryModule.java:18
-...
-Component title = Formatter.format("<dark_gray>✦ Accessory Bag"); // :51
-AccessoryInventoryHolder holder = new AccessoryInventoryHolder(player); // :52
-Inventory inv = Bukkit.createInventory(holder, ACCESSORY_SLOTS, title); // :53
-holder.setInventory(inv);                                          // :54
-```
-— `AccessoryModule.java:47-63`
-
-`openAccessoryBag(Player)`:
-1. Resolves the player's active `ValmoraProfile` via `PlayerManager.getSession(uuid)` and
-   `session.getActiveProfile()` (`:82-85`); returns silently if there is no session/profile (`:49`).
-2. Creates the inventory with an `AccessoryInventoryHolder` so the listener can identify it.
-3. Copies the profile's saved `ItemStack[]` into the inventory (`:57-60`) — note it sets the items
-   directly by reference, no cloning.
-4. Opens the inventory for the player (`:62`).
-
-`saveAccessories(Player, Inventory)`:
-1. Reads the profile; returns if missing (`:66-67`).
-2. Copies all 45 slots back into a fresh `ItemStack[45]` and calls `profile.setAccessoryItems(items)`
-   (`:69-73`).
-3. Triggers a full stat recalculation so accessory bonuses apply/clear immediately:
-
-```java
-ValmoraPlayer session = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
-if (session != null && session.getActiveProfile() != null) {
-    session.getActiveProfile().getStatManager().recalculateStats(player);
-}
-```
-— `AccessoryModule.java:76-79`
-
-This recalc call is the concrete realisation of the `Depends on statModule for recalc` comment in
-`Valmora.java:219`. The module talks to other systems exclusively through `ValmoraAPI.getInstance()`
-(`:76`, `:83`) — it never holds direct sibling-module references.
+**Page navigation reuses the close-save path for free.** Calling `player.openInventory(newInv)` while
+an inventory is already open triggers `InventoryCloseEvent` for the old one before the new one opens,
+so `AccessoryListener.onClose` fires and saves the just-viewed page's slots — no separate "save before
+navigating" call is needed in the Previous/Next handlers.
 
 ### Accessory item identity
+
+Unchanged from v0.1 — PDC-driven, never display-name or lore matching:
 
 ```java
 public boolean isAccessoryItem(ItemStack item) {
     if (item == null || !item.hasItemMeta()) return false;
     String typeStr = item.getItemMeta().getPersistentDataContainer()
-            .get(org.nakii.valmora.util.Keys.ITEM_TYPE_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+            .get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
     return "ACCESSORY".equalsIgnoreCase(typeStr);
 }
 ```
-— `AccessoryModule.java:87-92`
-
-Identification is **PDC-driven**, matching AGENTS §11.12 / §11.5 — never display-name or lore
-matching. The tag is written at item-creation time by `ItemFactory.create()`:
-
-```java
-meta.getPersistentDataContainer().set(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING, definition.getItemType().name());
-```
-— `module/item/ItemFactory.java:33-35`
-
-and originates from `item-type: ACCESSORY` in the item YAML, parsed in
-`module/item/ItemDefinitionParser.java:44-52` (which validates against the `ItemType` enum and
-fails item load on an unknown value).
 
 ### Listener logic
 
-`AccessoryListener` (`AccessoryListener.java`) guards the bag:
+`AccessoryListener` (`AccessoryListener.java`):
 
-- **`onClose(InventoryCloseEvent)`** — `:18-23`. If the closed inventory's holder is an
-  `AccessoryInventoryHolder` and the closer is a `Player`, calls `module.saveAccessories(player,
-  event.getInventory())`. This is the only save path — the bag persists to the profile whenever it
-  is closed (including hot-bar drop / teleport-triggered closes).
+- **`onClose(InventoryCloseEvent)`** — resolves the holder's stored `AccessoryLayout` and calls
+  `module.saveAccessories(player, event.getInventory(), layout)`. Only the current page's slots are
+  written back into the profile array at `layout.itemsStart() + i`.
 
-- **`onClick(InventoryClickEvent)`** — `:25-33`. If the clicked inventory is an accessory bag and
-  the **cursor** holds a non-accessory item, the click is cancelled:
+- **`onClick(InventoryClickEvent)`** — dispatches on `event.getClickedInventory()` rather than
+  `event.getInventory()`, so top (bag) and bottom (player inventory) clicks are handled distinctly:
+  - **Locked filler slot** (`itemsOnPage <= slot < controlRowStart`): always cancelled, no exceptions.
+  - **Control row** (`slot >= controlRowStart`): always cancelled (never accepts items), and dispatches
+    by fixed relative offset — `0` = Previous Page (only if `page > 0`), `4` = Close
+    (`player.closeInventory()`), `8` = Next Page (only if another page exists). These offsets are
+    positional, not PDC- or name-matched, and are not player-forgeable since they're pure inventory
+    slot indices, not item metadata.
+  - **Real item slot in the bag**: rejects non-accessory items both via cursor (drag/place) and via
+    `event.isShiftClick()` + `event.getCurrentItem()` (fixes the v0.1 shift-click bypass — moving a
+    non-accessory *out* of the bag was always fine, but a shift-click *of* a non-accessory item that
+    happened to be sitting in the bag, or shift-clicking from the player's own inventory into the bag,
+    previously slipped past the cursor-only check).
+  - **Bottom inventory (player's own) click**: if it's a shift-click of a non-accessory item, cancel
+    it — this is the other half of the shift-click fix, since vanilla shift-click from the bottom
+    inventory always targets the top inventory first.
 
-```java
-ItemStack cursor = event.getCursor();
-if (cursor != null && !cursor.getType().isAir() && !module.isAccessoryItem(cursor)) {
-    event.setCancelled(true);
-}
-```
-— `AccessoryListener.java:28-32`
-
-This only inspects `event.getCursor()` — it catches drags/pick-ups-and-places of foreign items but
-does **not** cover Shift-click transfers (see [Unfinished Things](#unfinished-things--todos)).
-
-`AccessoryInventoryHolder` (`AccessoryInventoryHolder.java`) is a trivial `InventoryHolder`
-carrying the owning `Player` (`getPlayer()`, `:16`) and a set-once `Inventory` (`getInventory()`
-`:18-19`, `setInventory()` `:21`). Its sole purpose is to act as a type token so the listener can
-distinguish the accessory bag from any other inventory.
+`AccessoryInventoryHolder` now additionally carries the `AccessoryLayout` computed at open time
+(`getLayout()`), so the listener never needs to recompute slot geometry against a profile that may
+have changed underneath the open GUI (e.g. an admin running `/accessory setslots` while the bag is
+open) — the currently-open page keeps behaving consistently until the player closes and reopens it.
 
 ### Data flow summary
 
 ```
-/item give <id>                          → ItemFactory.create() writes ITEM_TYPE_KEY = "ACCESSORY"
-player runs /accessories                 → AccessoryModule.openAccessoryBag(player) (Valmora.java:250-254)
-  → Bukkit.createInventory(holder, 45)   → AccessoryModule.java:53
-  → populates from profile.getAccessoryItems() (:57-60)
-player clicks a non-accessory item in    → AccessoryListener.onClick cancels (AccessoryListener.java:25-33)
-player closes the bag                    → AccessoryListener.onClose → AccessoryModule.saveAccessories (:18-23, :65-80)
-  → profile.setAccessoryItems(items)     → ValmoraProfile.java:95
-  → session.activeProfile.statManager.recalculateStats(player)   → AccessoryModule.java:78
-    → StatManager reads profile.getAccessoryItems() → StatManager.java:146
-    → statModule.loadStats(meta) per item → adds to effective stats via addModifier (StatManager.java:149-152)
+/item give <id>                              → ItemFactory.create() writes ITEM_TYPE_KEY = "ACCESSORY"
+/accessory setcap 90                          → AccessoryModule.setMaxSlotsCap() → config.yml persisted
+/accessory addslots <player> 65               → AccessoryModule.addUnlockedSlots() → profile.accessorySlotsUnlocked
+player runs /accessories                      → AccessoryModule.openAccessoryBag(player, 0)
+  → computeLayout(profile, 0)                 → sizes inventory to fit unlocked slots (+ control row)
+  → populates from profile.getAccessoryItems()[itemsStart..itemsStart+itemsOnPage) (cloned)
+player clicks Next Page                        → AccessoryListener control-row dispatch → openAccessoryBag(player, page+1)
+  → (Bukkit fires InventoryCloseEvent on the old page first) → saveAccessories() writes page N back
+player closes the bag                          → AccessoryListener.onClose → saveAccessories(..., layout)
+  → profile.setAccessoryItems(items)          → recalculateStats(player)
+    → StatManager reads profile.getAccessoryItems() (full array, all pages) → folds stats
+player quits / server saves                    → SQLDataStore.savePlayer → accessory_items + accessory_slots columns
 ```
 
 ---
 
 ## Configuration (YAML)
 
-**The accessory module has no dedicated YAML configuration.**
+`config.yml`:
 
-- There is no `accessories/` resource folder and no `.yml` files read by this module.
-- `config.yml` (`src/main/resources/config.yml`) contains **no** `accessory` section.
-- The bag size is a hardcoded constant: `ACCESSORY_SLOTS = 45` (`AccessoryModule.java:18`).
-- The GUI title is hardcoded in code: `<dark_gray>✦ Accessory Bag` (`AccessoryModule.java:51`).
-- There is **no** permission node and no tab-completer for `/accessories`; the command is open to
-  any player (`plugin.yml:64-66`).
+```yaml
+accessories:
+  starting-slots: 25
+  max-slots-cap: 90
+```
 
-The only "configuration" the module consumes is the standard **item definition** schema (see
-`docs/VALMORA_DOCUMENTATION.md` §23) — accessory items are just items with `item-type: ACCESSORY`.
-Because of `saveAllResources()` (`Valmora.java:456-490`), only files under known prefixes are
-auto-copied; accessory item definitions belong in `items/*.yml`, which **is** in the copied set.
+- Read in `AccessoryModule.onEnable()` via `plugin.getConfig().getInt(...)`, with the same defaults
+  as fallbacks if the keys are missing.
+- `/accessory setcap <amount>` calls `plugin.getConfig().set(...)` + `plugin.saveConfig()`, so runtime
+  changes persist across restarts without manual file edits.
+- The GUI title and control-row item names/lore remain hardcoded in `AccessoryModule.java` — no
+  localization layer for those yet (unchanged from v0.1, considered out of scope for this pass).
+- `/accessories` still has **no** permission node (open to every player). `/accessory` (the new admin
+  command) requires `valmora.admin`, matching the `/eco`-style admin command pattern.
+
+The only other "configuration" the module consumes is the standard **item definition** schema — see
+`docs/VALMORA_DOCUMENTATION.md` §23. Accessory items belong in `items/*.yml`, which `saveAllResources()`
+auto-copies on first run; `items/accessories.yml` now ships two example accessories
+(`lucky_charm`, `speed_scarab`) so the bag is usable out of the box.
 
 ---
 
@@ -232,55 +278,50 @@ auto-copied; accessory item definitions belong in `items/*.yml`, which **is** in
 
 ### In-memory model
 
-`ValmoraProfile` owns the bag:
+`ValmoraProfile` owns the bag and the unlocked-slot count:
 
 ```java
-// Accessory bag (45 slots)
-private ItemStack[] accessoryItems = new ItemStack[45];
-...
+private ItemStack[] accessoryItems = new ItemStack[45];   // grown on demand up to maxSlotsCap
+private int accessorySlotsUnlocked = -1;                  // -1 = unset → use configured starting-slots
+
 public ItemStack[] getAccessoryItems() { return accessoryItems; }
 public void setAccessoryItems(ItemStack[] items) { this.accessoryItems = items; }
-```
-— `module/profile/ValmoraProfile.java:32-33`, `:94-95`
-
-The array is per-profile, so switching profiles switches accessory sets in memory. The array is
-always 45 elements (never null); entries may be `null` for empty slots. `openAccessoryBag`/
-`saveAccessories` copy slots **by reference** — no `clone()` — so the profile array and the live
-inventory briefly share `ItemStack` instances until the next save.
-
-### Database — NOT persisted (confirmed gap)
-
-The `valmora_profiles` table schema (`database/SQLDataStore.java`):
-
-- `migrateToV1` creates columns: `id, player_uuid, name, stats, skills, player_state, tags,
-  variables, collections, inventory, created_at, last_used` (`SQLDataStore.java:124-144`).
-- `migrateToV2` adds a **quiver** column only: `addColumnIfMissing(conn, "valmora_profiles",
-  "quiver", "TEXT")` (`SQLDataStore.java:117-120`).
-- The profile upsert in `savePlayer` serializes `stats, skills, player_state, tags, variables,
-  collections, inventory, quiver` (`SQLDataStore.java:286-312`) — **not** the accessory bag.
-- `loadPlayer` deserializes the same set, plus inventory (`:241-244`) and quiver (`:246-249`) —
-  again **not** the accessory bag.
-
-There is even a ready-made generic serialization helper that was written for exactly this kind of
-field but is only used by the quiver:
-
-```java
-// Generic fixed-size ItemStack[] <-> base64 JSON array, used for the quiver (and any
-// future flat item-array profile field that isn't the multi-part player inventory).
-private String serializeItemArray(ItemStack[] items) { ... }        // SQLDataStore.java:399-406
-private ItemStack[] deserializeItemArray(String json, int size) { ... } // SQLDataStore.java:408-418
+public int getAccessorySlotsUnlocked() { return accessorySlotsUnlocked; }
+public void setAccessorySlotsUnlocked(int slots) { this.accessorySlotsUnlocked = slots; }
 ```
 
-**Consequences of the gap:**
+The array's *length* is a capacity, not a slot count in use — `AccessoryModule.ensureCapacity()` grows
+it to `maxSlotsCap` the first time a profile's bag is touched (open, save, or slot-count change) each
+session, preserving existing contents. It's never shrunk, even if `max-slots-cap` is later lowered —
+lowering the cap only affects `getUnlockedSlots()`'s clamp, not the backing array size, so no items are
+ever silently dropped by an admin tightening the cap. `openAccessoryBag`/`saveAccessories` now
+`clone()` items on both the populate and save paths (closing the v0.1 shared-reference gap).
 
-| Event | What happens to bag contents |
+### Database — persisted as of schema v3
+
+`SQLDataStore`:
+
+- `migrateToV3` adds `accessory_items TEXT` and `accessory_slots INTEGER` (nullable) to
+  `valmora_profiles`, following the exact `migrateToV2` (quiver) pattern. `LATEST_SCHEMA_VERSION` is
+  bumped to `3`.
+- `savePlayer` serializes `profile.getAccessoryItems()` with the existing generic
+  `serializeItemArray()` helper (shared with the quiver) and writes `accessorySlotsUnlocked` as
+  `NULL` when it's `-1` (unset) or the raw int otherwise.
+- `loadPlayer` deserializes `accessory_items` with a new **variable-size** overload,
+  `deserializeItemArray(String json)` (distinct from the quiver's fixed-size
+  `deserializeItemArray(String json, int size)`), because the accessory array's length is itself
+  meaningful — it reflects how many slots a profile had grown to at last save, independent of the
+  *current* `maxSlotsCap`. `accessory_slots` is read with `rs.getInt(...)` + `rs.wasNull()` to
+  correctly round-trip the "unset" sentinel through a nullable SQL column.
+
+| Event | What happens to bag contents (v0.2+) |
 |---|---|
-| Player quits (`PlayerManager.handleQuit` → `dataStore.savePlayer(stored)`, `PlayerManager.java:127-137`) | **Lost** — not serialized. |
-| Server restart (`Valmora.onDisable` → `savePlayer(player).join()`, `Valmora.java:270-274`) | **Lost.** |
-| `/valmora reload` (PlayerManager.onDisable saves + clears `activeSession` `:116-119`, then `onEnable` → `handleJoin(uuid, true)` re-loads from DB `:50-53`, `:96-97`) | **Lost** for online players — profiles are rebuilt from the DB without the bag. |
-| Profile switch in-session (`PlayerManager.switchProfile`, `:150-163`) | **Preserved** — `accessoryItems` stays on the in-memory `ValmoraProfile`. |
+| Player quits | Saved — `accessory_items` + `accessory_slots` written in the normal `savePlayer` batch. |
+| Server restart | Saved on clean shutdown; restored on next join via `loadPlayer`. |
+| `/valmora reload` | Saved before profiles are torn down, restored from DB on re-enable — same as every other profile field. |
+| Profile switch in-session | Preserved — unchanged from v0.1, still purely an in-memory `ValmoraProfile` swap. |
 
-This is the single largest defect in the module; see [Possible Improvements](#possible-improvements--changes).
+This closes what was previously "the single largest defect in the module."
 
 ---
 
@@ -288,150 +329,145 @@ This is the single largest defect in the module; see [Possible Improvements](#po
 
 ### Public methods on `AccessoryModule`
 
-| Method | Signature | Location | Purpose |
-|---|---|---|---|
-| `openAccessoryBag` | `void openAccessoryBag(Player player)` | `AccessoryModule.java:47` | Opens the player's accessory bag, populated from the active profile. |
-| `saveAccessories` | `void saveAccessories(Player player, Inventory inv)` | `AccessoryModule.java:65` | Copies the bag inventory into the profile and triggers stat recalc. |
-| `isAccessoryItem` | `boolean isAccessoryItem(ItemStack item)` | `AccessoryModule.java:87` | True if the item's PDC `item_type` equals `ACCESSORY`. |
+| Method | Signature | Purpose |
+|---|---|---|
+| `openAccessoryBag` | `void openAccessoryBag(Player player)` | Opens page 0 of the player's bag. |
+| `openAccessoryBag` | `void openAccessoryBag(Player player, int page)` | Opens a specific page, clamped to `[0, totalPages-1]`. |
+| `saveAccessories` | `void saveAccessories(Player player, Inventory inv, AccessoryLayout layout)` | Writes one page's slots back into the profile and triggers stat recalc. |
+| `isAccessoryItem` | `boolean isAccessoryItem(ItemStack item)` | True if the item's PDC `item_type` equals `ACCESSORY`. |
+| `computeLayout` | `AccessoryLayout computeLayout(ValmoraProfile profile, int requestedPage)` | Pure function — derives page geometry from a profile's unlocked slot count. |
+| `getUnlockedSlots` / `setUnlockedSlots` / `addUnlockedSlots` | on `ValmoraProfile` | Per-player slot management, clamped to the live server cap. |
+| `getStartingSlots` / `getMaxSlotsCap` / `setMaxSlotsCap` | — | Server-wide config accessors; `setMaxSlotsCap` persists to `config.yml`. |
 
-### Accessor on the plugin
+### Accessor on the plugin / API
 
 ```java
-public AccessoryModule getAccessoryModule() { return accessoryModule; }
+public AccessoryModule getAccessoryModule() { return accessoryModule; }   // Valmora.java
+org.nakii.valmora.module.accessory.AccessoryModule getAccessoryModule();  // ValmoraAPI.java — new in v0.2
 ```
-— `Valmora.java:428`
 
-**Not exposed via `ValmoraAPI`.** `org.nakii.valmora.api.ValmoraAPI` (`ValmoraAPI.java:19-69`)
-has no `getAccessoryModule()` entry, so third-party code must cast to the concrete `Valmora`
-instance (`Valmora.getInstance()`, `Valmora.java:278-280`) rather than use the interface.
-Compare with modules such as `quest`, `warp`, or `npc`, which are proper API members.
+`AccessoryModule` is now a proper `ValmoraAPI` member, matching the pattern used by `quest`, `warp`,
+`npc`, etc. Third-party code no longer needs to cast to the concrete `Valmora` instance.
 
 ### `AccessoryInventoryHolder`
 
 ```java
-public Player getPlayer();              // AccessoryInventoryHolder.java:16
-public Inventory getInventory();        // :18-19
-public void setInventory(Inventory);    // :21
+public Player getPlayer();
+public AccessoryModule.AccessoryLayout getLayout();   // new in v0.2
+public Inventory getInventory();
+public void setInventory(Inventory inv);
 ```
 
 ---
 
 ## Dependencies & Consumers
 
-### What this module depends on
+Unchanged from v0.1: depends on `playerManager` (active profile resolution), `statModule`
+(`recalculateStats`), and the `item` system (`ItemType.ACCESSORY`, `ItemFactory`,
+`Keys.ITEM_TYPE_KEY`). All cross-module access goes through `ValmoraAPI.getInstance()` — no direct
+sibling references.
 
-| Dependency | How it is used |
-|---|---|
-| `playerManager` (`PlayerManager.getSession`, active profile) | Resolving the player's `ValmoraProfile` in `getProfile()` (`AccessoryModule.java:82-85`) and the recalc in `saveAccessories` (`:76-79`). Drives the "loads after playerManager" ordering (`Valmora.java:219` vs `:191`). |
-| `statModule` / `StatManager.recalculateStats` | Applying/removing accessory bonuses when the bag changes (`AccessoryModule.java:78`). |
-| `item` system (`ItemType.ACCESSORY`, `ItemFactory`, `Keys.ITEM_TYPE_KEY`) | Defining and recognising accessory items (`AccessoryModule.java:87-92`). |
-| `util.Keys`, `util.Formatter` | PDC keys and MiniMessage formatting (`Keys.java:9,45`, `Formatter.java:13`). |
-
-All cross-module access goes through `ValmoraAPI.getInstance()` — no direct sibling references
-(`AccessoryModule.java:76`, `:83`), consistent with AGENTS §6.4.
-
-### What uses this module
-
-| Consumer | Location | Use |
-|---|---|---|
-| `StatManager.recalculateStats` | `module/stat/StatManager.java:143-155` | Iterates `profile.getAccessoryItems()`, loads each item's stat map via `statModule.loadStats(meta)` (`StatManager.java:148-149`) and folds the values into **effective** stats with `addModifier` (`:151`). This is the entire gameplay effect of the module. |
-| `Valmora.onEnable` `/accessories` command | `Valmora.java:250-254` | Sole entry point for players; routes to `openAccessoryBag`. |
-| `AccessoryListener` | `AccessoryListener.java:18-33` | Feeds clicks/closes back into the module. |
-
-Notably, `StatManager`'s accessory loop (`StatManager.java:146-154`) applies **stats only** — it
-does **not** execute `PASSIVE` abilities, unlike the equipment loop (`StatManager.java:113-127`)
-which runs `PASSIVE` ability mechanics for held/armor items. Accessory `RIGHT_CLICK` abilities
-would only fire if the item were physically held, which the bag does not support.
-
-### Non-dependents
-
-The `accessory` module is not referenced by any other module, command (other than its own
-`/accessories` executor), GUI, script, or progression feature. `grep` across the codebase for
-`getAccessoryModule`, `AccessoryManager`, and `isAccessoryItem` returns only `Valmora.java`,
-`AccessoryModule.java`, and `AccessoryListener.java`.
+`StatManager.recalculateStats` (`module/stat/StatManager.java`) still applies **stats only** from the
+accessory loop — it does **not** execute `PASSIVE` abilities, unlike the equipment loop. This remains
+an intentional design decision (see "Decisions carried over" below), not an oversight.
 
 ---
 
-## Unfinished Things / TODOs
+## Decisions carried over from v0.1
 
-There are no literal `TODO`/`FIXME` comments in the module source, but several documented-in-code
-gaps exist:
+These items from the original "Possible Improvements" list were considered and explicitly **not**
+implemented in this pass:
 
-1. **Bag contents are never persisted to the database.** No `accessory` column in
-   `valmora_profiles` (schema in `SQLDataStore.java:124-144` + `:117-120`), and neither
-   `savePlayer` (`:286-312`) nor `loadPlayer` (`:241-249`) touches `accessoryItems`. The generic
-   `serializeItemArray`/`deserializeItemArray` helpers exist (`SQLDataStore.java:399-418`) and even
-   carry a comment anticipating "future flat item-array profile field[s]" — the accessory bag is
-   exactly that field, yet it is not wired up. Data is lost on restart, quit, and hot-reload.
+- **Accessory `PASSIVE` abilities are still stats-only.** Extending the accessory loop in
+  `StatManager.recalculateStats` to also execute `PASSIVE` ability mechanics would blur the line
+  between "collectible passive stat stick" and "equipped gear," and interacts with ability
+  cooldown/mana systems designed around actively worn/held items. Decision: accessories stay
+  stat-only by design.
+- **No localization layer** for the bag title or control-button text — still hardcoded MiniMessage
+  strings in `AccessoryModule.java`, consistent with how most other GUI modules in this codebase
+  currently work.
 
-2. **Shift-click validation bypass.** `AccessoryListener.onClick` only checks `event.getCursor()`
-   (`AccessoryListener.java:28-32`). A `SHIFT_CLICK` of a non-accessory item from the player's
-   inventory has an empty cursor, so the guard never fires and the foreign item enters the bag.
-   Because the close handler saves whatever is in the inventory (`AccessoryListener.java:18-23`),
-   the stray item is then stored and its stats picked up by `StatManager.recalculateStats`
-   (`StatManager.java:146-154`).
+## Script DSL Integration
 
-3. **Hardcoded constants.** `ACCESSORY_SLOTS = 45` (`AccessoryModule.java:18`) and the GUI title
-   (`:51`) are compile-time literals; no `config.yml` knobs, no permission node, no localization.
+### `AccessorySlotsEventFactory`
 
-4. **No `ValmoraAPI` exposure.** The module is reachable only through the concrete
-   `Valmora.getInstance().getAccessoryModule()` (`Valmora.java:428`); `ValmoraAPI` has no
-   accessor.
+```java
+public class AccessorySlotsEventFactory implements EventFactory {
+    @Override public String getName() { return "accessory_slots"; }
 
-5. **No default accessory items shipped.** `item-type: ACCESSORY` appears nowhere in the bundled
-   `src/main/resources/items/*.yml` (the only "Accessory" string is a lore reference to an
-   "Intimidation Accessory" on the Parrot Mask, `items/individual_pieces.yml:290`). A fresh install
-   has a bag GUI but no way to obtain accessories without admin item definitions.
+    @Override
+    public CompiledEvent compile(String[] args, EventOptions options) {
+        if (args.length < 2) return ctx -> {};
+        String action = args[0].toLowerCase();
+        String rawValue = args[1];
 
-6. **Single fixed-size page, no pagination or filler slots.** All 45 slots are usable storage;
-   there is no locked padding, no navigation, and no per-slot restrictions beyond the ACCESSORY tag.
+        return ctx -> ctx.getPlayerCaster().ifPresent(player -> {
+            ValmoraProfile profile = /* resolve via ValmoraAPI.getInstance().getPlayerManager() */;
+            AccessoryModule module = ValmoraAPI.getInstance().getAccessoryModule();
+            if (profile == null || module == null) return;
 
-7. **Saves only on close.** There is no periodic save, so a server crash or forced kick mid-bag
-   loses changes made since the last `InventoryCloseEvent`.
+            int amount = (int) Math.round(resolveDouble(rawValue, ctx, player)); // supports $var$ exprs
+            switch (action) {
+                case "add" -> module.addUnlockedSlots(profile, amount);
+                case "remove" -> module.addUnlockedSlots(profile, -amount);
+                case "set" -> module.setUnlockedSlots(profile, amount);
+            }
+        });
+    }
+}
+```
 
-8. **No cloning on save/populate.** Items are handed between the profile array and the inventory
-   by reference (`AccessoryModule.java:57-60`, `:69-73`), allowing a stale `ItemStack` reference to
-   be mutated by other systems between saves.
+Registered in `ScriptModule.onEnable()` alongside `StatModifyEventFactory`. Because it resolves
+`ValmoraAPI.getInstance().getAccessoryModule()` lazily inside the returned `CompiledEvent` (not at
+registration time), it's safe that `script` is registered and enabled *before* `accessories` in the
+module load order (`CLAUDE.md` §5) — the factory object itself carries no direct module reference.
+
+All three actions route through `AccessoryModule.setUnlockedSlots`/`addUnlockedSlots`, which already
+clamp to `[0, maxSlotsCap]` and call `ensureCapacity` — so a script-granted slot count can never
+exceed the server cap or leave the backing `ItemStack[]` undersized, matching `/accessory`'s
+guarantees exactly.
+
+### `$player.accessories.*$`
+
+Added as a branch inside `PlayerVariableProvider.resolve()` (the existing `player` namespace
+provider — same file that already handles `stat`, `skill`, `var`, etc.), not a new provider/namespace.
+This keeps `$player.*$` as the single place script authors look for anything about "the player,"
+consistent with how `stat`/`skill` are nested rather than split into their own top-level namespaces.
+
+```java
+private Object resolveAccessories(String[] path, ValmoraAPI api, ValmoraProfile profile) {
+    AccessoryModule accessoryModule = api.getAccessoryModule();
+    if (accessoryModule == null) return null;
+
+    int unlocked = accessoryModule.getUnlockedSlots(profile);
+    int cap = accessoryModule.getMaxSlotsCap();
+    // used = count of non-null/non-air entries in profile.getAccessoryItems()[0, unlocked)
+    // empty, remainingToCap, totalPages (via computeLayout(profile, 0).totalPages()), percentFull derived from the above
+    ...
+}
+```
+
+`used` deliberately only scans the `[0, unlocked)` range of the backing array, not its full capacity
+— slots beyond the current unlocked count are inert even if they still hold an item from before an
+admin lowered the cap (see "In-memory model" above), so counting them as "used" would misrepresent
+what's actually contributing stats right now.
+
+Supported sub-keys: `unlocked`/`slots`, `cap`/`max`, `used`/`count`/`filled`, `empty`/`free`,
+`remaining_to_cap`/`lockable`, `pages`/`total_pages`, `percent_full`/`percent`, `is_full`, `is_maxed`.
+The bare `$player.accessories$` (no sub-key) defaults to `unlocked`, matching the convention where a
+namespace's "obvious" value is what you get without drilling further in.
 
 ---
 
-## Possible Improvements / Changes
+## Remaining known limitations
 
-All suggestions are grounded in the code referenced above.
-
-1. **Persist the bag.** Add an `accessory` `TEXT` column in a new `migrateToV3` step (following
-   the `migrateToV2` pattern, `SQLDataStore.java:117-120`), serialize with
-   `serializeItemArray(profile.getAccessoryItems())` in `savePlayer` (`:302-326`), and hydrate with
-   `deserializeItemArray(..., 45)` in `loadPlayer` (mirroring the quiver block, `:246-249`). Also
-   bump `LATEST_SCHEMA_VERSION` from 2 (`SQLDataStore.java:48`). This resolves items 1, 7 (for
-   normal quits) and the reload data loss simultaneously.
-
-2. **Close the shift-click hole.** In `AccessoryListener.onClick`, when
-   `event.getClick() == ClickType.SHIFT_LEFT || SHIFT_RIGHT`, validate `event.getCurrentItem()`
-   against `module.isAccessoryItem(...)` instead of the cursor, and cancel the move when the target
-   slot is inside the bag (`event.getClickedInventory()` instanceof `AccessoryInventoryHolder`).
-   Optionally add a defence-in-depth pass in `saveAccessories` that strips or rejects non-accessory
-   slots at save time.
-
-3. **Make it configurable.** Drive `ACCESSORY_SLOTS` and the title from `config.yml` (with the
-   current values as defaults), add a `valmora.accessories` permission checked in the `/accessories`
-   executor (`Valmora.java:250-254`), and use `NamespacedKey`/message config for the title.
-
-4. **Expose through `ValmoraAPI`.** Add `AccessoryModule getAccessoryModule()` to
-   `ValmoraAPI` (and implement it in `Valmora.java`, which already implements the interface at
-   `:75`) so downstream code follows the documented API pattern instead of casting.
-
-5. **Apply accessory `PASSIVE` abilities.** Extend the accessory loop in
-   `StatManager.recalculateStats` (`StatManager.java:146-154`) to also execute `PASSIVE` ability
-   mechanics, matching the equipment loop (`:113-127`), or decide explicitly that accessories are
-   stat-only and document it.
-
-6. **Ship example accessories.** Add a default `items/*.yml` entry (e.g., a `PLAYER_HEAD` with
-   `item-type: ACCESSORY`) so the bag is usable out of the box and serves as a documented example.
-
-7. **Harden saves.** `clone()` items when copying into and out of the bag
-   (`AccessoryModule.java:57-60`, `:69-73`), and consider saving on every mutation rather than only
-   on close.
-
-8. **UX polish.** Add locked filler rows, a header item with the bag's name, and/or pagination if
-   the slot count is made configurable and grows beyond 45.
+- `/accessory setslots` / `addslots` only work on **online** players (mirrors the `/eco` command
+  pattern) — there's no offline-player profile lookup path in this command yet.
+- Locked filler slots and control-row buttons are identified by fixed slot position within the
+  computed layout, not by a PDC marker — correct and non-forgeable since slot position isn't item
+  metadata, but it does mean any change to `PAGE_ITEM_CAP` / `CONTROL_ROW_SIZE` must be made
+  consistently across `computeLayout`, `populateControlRow`, and the listener's slot dispatch logic.
+- `accessory_slots` only ever targets `context.getPlayerCaster()` — there's no `@target`-style variant
+  to grant slots to someone other than whoever the script is executing for (matches how
+  `stat_modify`/`tag` behave for the same reason: caster-scoped is the norm for profile-mutating
+  events in this DSL).

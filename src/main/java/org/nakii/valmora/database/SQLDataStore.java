@@ -45,7 +45,7 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 2;
+    static final int LATEST_SCHEMA_VERSION = 3;
 
     @Override
     public void init() {
@@ -110,13 +110,23 @@ public class SQLDataStore implements DataStore {
             migrateToV2(conn);
             setSchemaVersion(conn, 2);
         }
+        if (from < 3) {
+            migrateToV3(conn);
+            setSchemaVersion(conn, 3);
+        }
         // Future migrations go here, each gated on `from` and ending with setSchemaVersion(conn, N):
-        // if (from < 3) { migrateToV3(conn); setSchemaVersion(conn, 3); }
+        // if (from < 4) { migrateToV4(conn); setSchemaVersion(conn, 4); }
     }
 
     /** v2 — adds the quiver column (per-profile arrow storage). */
     private void migrateToV2(Connection conn) throws SQLException {
         addColumnIfMissing(conn, "valmora_profiles", "quiver", "TEXT");
+    }
+
+    /** v3 — adds the accessory bag columns (per-profile item storage + unlocked slot count). */
+    private void migrateToV3(Connection conn) throws SQLException {
+        addColumnIfMissing(conn, "valmora_profiles", "accessory_items", "TEXT");
+        addColumnIfMissing(conn, "valmora_profiles", "accessory_slots", "INTEGER");
     }
 
     /** v1 — baseline schema. Idempotent so it can also upgrade pre-versioning databases in place. */
@@ -248,6 +258,14 @@ public class SQLDataStore implements DataStore {
                         profile.setQuiverItems(deserializeItemArray(quiverJson, profile.getQuiverItems().length));
                     } catch (SQLException ignored) {}
 
+                    try {
+                        String accessoryJson = rsProfiles.getString("accessory_items");
+                        if (accessoryJson != null) profile.setAccessoryItems(deserializeItemArray(accessoryJson));
+
+                        int slots = rsProfiles.getInt("accessory_slots");
+                        profile.setAccessorySlotsUnlocked(rsProfiles.wasNull() ? -1 : slots);
+                    } catch (SQLException ignored) {}
+
                     player.addProfile(profile);
                 }
 
@@ -284,8 +302,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, last_used = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, last_used = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, accessory_items, accessory_slots, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, accessory_items = ?, accessory_slots = ?, last_used = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, accessory_items, accessory_slots, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, accessory_items = ?, accessory_slots = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -301,6 +319,8 @@ public class SQLDataStore implements DataStore {
                         String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
                         String inventoryJson = serializeInventory(profile);
                         String quiverJson = serializeItemArray(profile.getQuiverItems());
+                        String accessoryJson = serializeItemArray(profile.getAccessoryItems());
+                        int accessorySlots = profile.getAccessorySlotsUnlocked();
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -310,20 +330,24 @@ public class SQLDataStore implements DataStore {
                         ps.setString(9, collectionsJson);
                         ps.setString(10, inventoryJson);
                         ps.setString(11, quiverJson);
-                        ps.setLong(12, profile.getCreatedAt());
-                        ps.setLong(13, profile.getLastUsed());
+                        ps.setString(12, accessoryJson);
+                        if (accessorySlots < 0) ps.setNull(13, java.sql.Types.INTEGER); else ps.setInt(13, accessorySlots);
+                        ps.setLong(14, profile.getCreatedAt());
+                        ps.setLong(15, profile.getLastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(14, profile.getName());
-                        ps.setString(15, statsJson);
-                        ps.setString(16, skillsJson);
-                        ps.setString(17, stateJson);
-                        ps.setString(18, tagsJson);
-                        ps.setString(19, variablesJson);
-                        ps.setString(20, collectionsJson);
-                        ps.setString(21, inventoryJson);
-                        ps.setString(22, quiverJson);
-                        ps.setLong(23, profile.getLastUsed());
+                        ps.setString(16, profile.getName());
+                        ps.setString(17, statsJson);
+                        ps.setString(18, skillsJson);
+                        ps.setString(19, stateJson);
+                        ps.setString(20, tagsJson);
+                        ps.setString(21, variablesJson);
+                        ps.setString(22, collectionsJson);
+                        ps.setString(23, inventoryJson);
+                        ps.setString(24, quiverJson);
+                        ps.setString(25, accessoryJson);
+                        if (accessorySlots < 0) ps.setNull(26, java.sql.Types.INTEGER); else ps.setInt(26, accessorySlots);
+                        ps.setLong(27, profile.getLastUsed());
 
                         ps.addBatch();
                     }
@@ -403,6 +427,20 @@ public class SQLDataStore implements DataStore {
             encoded[i] = encodeItem(items[i]);
         }
         return gson.toJson(encoded);
+    }
+
+    // Variable-size variant — the array length is taken from the stored data itself rather
+    // than a fixed constant, used by the accessory bag whose slot count can grow at runtime.
+    private ItemStack[] deserializeItemArray(String json) {
+        if (json == null) return new ItemStack[0];
+        String[] encoded = gson.fromJson(json, String[].class);
+        if (encoded == null) return new ItemStack[0];
+        ItemStack[] result = new ItemStack[encoded.length];
+        for (int i = 0; i < encoded.length; i++) {
+            if (encoded[i] == null) continue;
+            result[i] = decodeItem(encoded[i]);
+        }
+        return result;
     }
 
     private ItemStack[] deserializeItemArray(String json, int size) {

@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.module.accessory.AccessoryModule;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.variable.VariableProvider;
@@ -162,6 +164,48 @@ public class PlayerVariableProvider implements VariableProvider {
         if (key.equalsIgnoreCase("var") && path.length > 1) {
             return profile.getVariables().get(path[1]);
         }
+
+        if (key.equalsIgnoreCase("accessories")) {
+            return resolveAccessories(path, api, profile);
+        }
+
+        return null;
+    }
+
+    /**
+     * $player.accessories.<sub>$ — everything script content is likely to want to know
+     * about a profile's accessory bag, without needing to reach into ItemStack arrays.
+     */
+    private Object resolveAccessories(String[] path, ValmoraAPI api, ValmoraProfile profile) {
+        AccessoryModule accessoryModule = api.getAccessoryModule();
+        if (accessoryModule == null) return null;
+
+        int unlocked = accessoryModule.getUnlockedSlots(profile);
+        int cap = accessoryModule.getMaxSlotsCap();
+
+        ItemStack[] items = profile.getAccessoryItems();
+        int used = 0;
+        for (int i = 0; i < Math.min(unlocked, items.length); i++) {
+            ItemStack item = items[i];
+            if (item != null && !item.getType().isAir()) used++;
+        }
+        int empty = unlocked - used;
+        int remainingToCap = cap - unlocked;
+        int totalPages = accessoryModule.computeLayout(profile, 0).totalPages();
+        int percentFull = unlocked == 0 ? 0 : (int) Math.round((used / (double) unlocked) * 100);
+
+        if (path.length == 1) return unlocked;
+
+        String subKey = path[1];
+        if (subKey.equalsIgnoreCase("unlocked") || subKey.equalsIgnoreCase("slots")) return unlocked;
+        if (subKey.equalsIgnoreCase("cap") || subKey.equalsIgnoreCase("max")) return cap;
+        if (subKey.equalsIgnoreCase("used") || subKey.equalsIgnoreCase("count") || subKey.equalsIgnoreCase("filled")) return used;
+        if (subKey.equalsIgnoreCase("empty") || subKey.equalsIgnoreCase("free")) return empty;
+        if (subKey.equalsIgnoreCase("remaining_to_cap") || subKey.equalsIgnoreCase("lockable")) return remainingToCap;
+        if (subKey.equalsIgnoreCase("pages") || subKey.equalsIgnoreCase("total_pages")) return totalPages;
+        if (subKey.equalsIgnoreCase("percent_full") || subKey.equalsIgnoreCase("percent")) return percentFull;
+        if (subKey.equalsIgnoreCase("is_full")) return used >= unlocked;
+        if (subKey.equalsIgnoreCase("is_maxed")) return unlocked >= cap;
 
         return null;
     }

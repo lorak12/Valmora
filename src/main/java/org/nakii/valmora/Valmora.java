@@ -252,6 +252,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             accessoryModule.openAccessoryBag(player);
             return true;
         });
+        org.nakii.valmora.module.accessory.AccessoryCommand accessoryCommand =
+                new org.nakii.valmora.module.accessory.AccessoryCommand(accessoryModule);
+        getCommand("accessory").setExecutor(accessoryCommand);
+        getCommand("accessory").setTabCompleter(accessoryCommand);
         getCommand("quiver").setExecutor((sender, cmd, label, args) -> {
             if (!(sender instanceof org.bukkit.entity.Player player)) return true;
             quiverModule.openQuiver(player);

@@ -66,6 +66,7 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new TeleportEventFactory());
         registerEvent(new SpawnMobEventFactory());
         registerEvent(new StatModifyEventFactory());
+        registerEvent(new AccessorySlotsEventFactory());
         registerEvent(new ForeachEventFactory(this));
         registerEvent(new RunScriptEventFactory(this));
     }
