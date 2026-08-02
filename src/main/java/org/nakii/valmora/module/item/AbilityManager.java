@@ -14,6 +14,7 @@ public class AbilityManager implements ReloadableModule {
     }
 
     private AbilityListener abilityListener;
+    private AbilityTriggerListener abilityTriggerListener;
 
     @Override
     public void onEnable() {
@@ -21,6 +22,8 @@ public class AbilityManager implements ReloadableModule {
         registerMechanics();
         this.abilityListener = new AbilityListener(plugin);
         plugin.getServer().getPluginManager().registerEvents(abilityListener, plugin);
+        this.abilityTriggerListener = new AbilityTriggerListener();
+        plugin.getServer().getPluginManager().registerEvents(abilityTriggerListener, plugin);
     }
 
     @Override
@@ -29,6 +32,9 @@ public class AbilityManager implements ReloadableModule {
         mechanicRegistry.clear();
         if (abilityListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(abilityListener);
+        }
+        if (abilityTriggerListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(abilityTriggerListener);
         }
     }
 
@@ -46,6 +52,16 @@ public class AbilityManager implements ReloadableModule {
         mechanicRegistry.registerMechanic(new HealMechanic());
         mechanicRegistry.registerMechanic(new ApplyEffectMechanic());
         mechanicRegistry.registerMechanic(new ScriptMechanic());
+        mechanicRegistry.registerMechanic(new ModifyStatMechanic());
+        mechanicRegistry.registerMechanic(new TeleportMechanic());
+        mechanicRegistry.registerMechanic(new PushEntitiesMechanic());
+        mechanicRegistry.registerMechanic(new PullEntitiesMechanic());
+        mechanicRegistry.registerMechanic(new GiveCoinsMechanic());
+        mechanicRegistry.registerMechanic(new TakeCoinsMechanic());
+        mechanicRegistry.registerMechanic(new IgniteMechanic());
+        mechanicRegistry.registerMechanic(new LaunchPlayerMechanic());
+        mechanicRegistry.registerMechanic(new LaunchProjectileMechanic());
+        mechanicRegistry.registerMechanic(new AoeMineMechanic());
     }
     
     public MechanicRegistry getMechanicRegistry() {

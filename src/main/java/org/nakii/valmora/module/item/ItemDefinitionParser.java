@@ -71,6 +71,11 @@ public class ItemDefinitionParser {
             builder.reforgePool(section.getStringList("reforge-pool"));
         }
 
+        // Armor set id (links this piece to a set bonus defined under set_bonuses/)
+        if (section.contains("set")) {
+            builder.set(section.getString("set"));
+        }
+
         // Stats
         if (section.contains("stats")) {
             StatRegistry statRegistry = ValmoraAPI.getInstance().getStatRegistry();
@@ -111,6 +116,10 @@ public class ItemDefinitionParser {
                     
                     if (abSec.contains("description")) {
                         abBuilder.description(abSec.getStringList("description"));
+                    }
+
+                    if (abSec.contains("conditions")) {
+                        abBuilder.conditions(abSec.getStringList("conditions"));
                     }
 
                     // Parse Mechanics List

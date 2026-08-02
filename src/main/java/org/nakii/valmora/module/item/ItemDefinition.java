@@ -18,6 +18,7 @@ public class ItemDefinition {
     private final Map<String, Double> stats;
     private final Map<String, AbilityDefinition> abilities;
     private final List<String> reforgePool;
+    private final String set;
 
     private ItemDefinition(Builder builder) {
         this.id = builder.id;
@@ -31,6 +32,7 @@ public class ItemDefinition {
         this.stats = builder.stats;
         this.abilities = builder.abilities;
         this.reforgePool = builder.reforgePool;
+        this.set = builder.set;
     }
 
     public String getId() { return id; }
@@ -44,6 +46,7 @@ public class ItemDefinition {
     public Map<String, Double> getStats() { return stats; }
     public Map<String, AbilityDefinition> getAbilities() { return abilities; }
     public List<String> getReforgePool() { return reforgePool; }
+    public String getSet() { return set; }
 
     public static class Builder {
         private final String id;
@@ -57,6 +60,7 @@ public class ItemDefinition {
         private Map<String, Double> stats = new HashMap<>();
         private Map<String, AbilityDefinition> abilities = new HashMap<>();
         private List<String> reforgePool = List.of();
+        private String set = null;
 
         public Builder(String id) {
             this.id = id;
@@ -72,6 +76,7 @@ public class ItemDefinition {
         public Builder stat(String statId, double value) { this.stats.put(statId.toLowerCase(), value); return this; }
         public Builder ability(String id, AbilityDefinition ability) { this.abilities.put(id, ability); return this; }
         public Builder reforgePool(List<String> pool) { this.reforgePool = pool; return this; }
+        public Builder set(String set) { this.set = set; return this; }
 
         public ItemDefinition build() {
             return new ItemDefinition(this);

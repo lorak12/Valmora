@@ -5,5 +5,12 @@ public enum AbilityTrigger {
     LEFT_CLICK,
     PASSIVE,
     EQUIP,
-    UNEQUIP
+    UNEQUIP,
+    ON_HIT,
+    ON_KILL,
+    SNEAK,
+    ON_SHOOT,
+    // Present for schema completeness; wired in a later phase (set-bonus consumers).
+    ON_DAMAGE_TAKEN,
+    ON_TELEPORT
 }

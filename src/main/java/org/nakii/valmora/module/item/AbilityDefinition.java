@@ -12,6 +12,7 @@ public class AbilityDefinition {
     private final double manaCost;
     private final List<String> description;
     private final List<ConfiguredMechanic> mechanics;
+    private final List<String> conditions;
 
     private AbilityDefinition(Builder builder) {
         this.id = builder.id;
@@ -22,6 +23,7 @@ public class AbilityDefinition {
         this.manaCost = builder.manaCost;
         this.description = builder.description;
         this.mechanics = builder.mechanics;
+        this.conditions = builder.conditions;
     }
 
     public String getId() { return id; }
@@ -32,6 +34,7 @@ public class AbilityDefinition {
     public double getManaCost() { return manaCost; }
     public List<String> getDescription() { return description; }
     public List<ConfiguredMechanic> getMechanics() { return mechanics; }
+    public List<String> getConditions() { return conditions; }
 
     public static class Builder {
         private final String id;
@@ -42,6 +45,7 @@ public class AbilityDefinition {
         private double manaCost = 0.0;
         private List<String> description = new ArrayList<>();
         private List<ConfiguredMechanic> mechanics = new ArrayList<>();
+        private List<String> conditions = new ArrayList<>();
 
         public Builder(String id) {
             this.id = id;
@@ -54,6 +58,7 @@ public class AbilityDefinition {
         public Builder manaCost(double manaCost) { this.manaCost = manaCost; return this; }
         public Builder description(List<String> description) { this.description = description; return this; }
         public Builder addMechanic(ConfiguredMechanic mechanic) { this.mechanics.add(mechanic); return this; }
+        public Builder conditions(List<String> conditions) { this.conditions = conditions; return this; }
 
         public AbilityDefinition build() {
             return new AbilityDefinition(this);

@@ -3,6 +3,7 @@ package org.nakii.valmora.module.item;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
+import org.nakii.valmora.module.item.set.SetBonusRegistry;
 
 public class ItemManager implements ReloadableModule {
 
@@ -11,6 +12,7 @@ public class ItemManager implements ReloadableModule {
     private ItemFactory itemFactory;
     private ItemLoader itemLoader;
     private ItemTranslator itemTranslator;
+    private SetBonusRegistry setBonusRegistry;
 
     public ItemManager(Valmora plugin){
         this.plugin = plugin;
@@ -18,13 +20,15 @@ public class ItemManager implements ReloadableModule {
         this.itemRegistry = new ItemRegistry(itemFactory);
         this.itemLoader = new ItemLoader(plugin, itemRegistry);
         this.itemTranslator = new ItemTranslator(plugin);
+        this.setBonusRegistry = new SetBonusRegistry(plugin);
     }
 
     @Override
     public void onEnable() {
         plugin.getLogger().info("Starting Item Module...");
         itemLoader.loadItems();
-        
+        setBonusRegistry.load();
+
         LootListener lootListener = new LootListener(plugin);
         plugin.getServer().getPluginManager().registerEvents(lootListener, plugin);
     }
@@ -33,6 +37,11 @@ public class ItemManager implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Stopping Item Module...");
         itemRegistry.clear();
+        setBonusRegistry.clear();
+    }
+
+    public SetBonusRegistry getSetBonusRegistry() {
+        return setBonusRegistry;
     }
 
     @Override
