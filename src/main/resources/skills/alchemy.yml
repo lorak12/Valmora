@@ -6,6 +6,10 @@ material: BREWING_STAND
 max-level: 60
 xp-curve: "default"
 
+sources:
+  BREW_POTION:
+    DEFAULT: 15.0
+
 rewards:
   per-level:
     - "variable add player.var.coins $param.level$*5"

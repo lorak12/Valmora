@@ -30,9 +30,13 @@ public class AlchemyManager {
     private final Map<String, AlchemyEffect> effectRegistry = new HashMap<>();
     private final Map<String, AlchemyModifier> modifierRegistry = new HashMap<>();
 
-    private final int maxActiveEffects;
+    private int maxActiveEffects;
 
     public AlchemyManager(int maxActiveEffects) {
+        this.maxActiveEffects = maxActiveEffects;
+    }
+
+    public void setMaxActiveEffects(int maxActiveEffects) {
         this.maxActiveEffects = maxActiveEffects;
     }
 

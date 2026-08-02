@@ -240,7 +240,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("gui").setExecutor(new GuiCommand(this));
         getCommand("time").setExecutor(new TimeCommand(timeModule.getTimeManager()));
         getCommand("eco").setExecutor(new EcoCommand(economyModule));
-        getCommand("potion").setExecutor(new PotionCommand(this, alchemyModule.getAlchemyManager()));
+        PotionCommand potionCommand = new PotionCommand(this, alchemyModule.getAlchemyManager());
+        getCommand("potion").setExecutor(potionCommand);
+        getCommand("potion").setTabCompleter(potionCommand);
         getCommand("effects").setExecutor(new EffectsCommand(this));
         getCommand("warp").setExecutor(new WarpCommand(this));
         ZoneCommand zoneCommand = new ZoneCommand(this, zoneModule);

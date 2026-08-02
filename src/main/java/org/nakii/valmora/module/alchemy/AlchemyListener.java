@@ -8,7 +8,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.LingeringPotionSplashEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
@@ -20,9 +19,11 @@ import org.nakii.valmora.util.Keys;
 public class AlchemyListener implements Listener {
 
     private final AlchemyManager alchemyManager;
+    private final double splashRadius;
 
-    public AlchemyListener(AlchemyManager alchemyManager) {
+    public AlchemyListener(AlchemyManager alchemyManager, double splashRadius) {
         this.alchemyManager = alchemyManager;
+        this.splashRadius = splashRadius;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -49,10 +50,13 @@ public class AlchemyListener implements Listener {
         Player player = event.getPlayer();
         alchemyManager.applyEffect(player, effectId, level, duration);
 
-        // Consume the item
-        ItemStack hand = player.getInventory().getItemInMainHand();
-        if (hand.isSimilar(item)) {
-            hand.setAmount(hand.getAmount() - 1);
+        // Consume from whichever hand actually holds the drunk item
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+        if (mainHand.isSimilar(item)) {
+            mainHand.setAmount(mainHand.getAmount() - 1);
+        } else if (offHand.isSimilar(item)) {
+            offHand.setAmount(offHand.getAmount() - 1);
         }
     }
 
@@ -113,12 +117,20 @@ public class AlchemyListener implements Listener {
         var effectOpt = alchemyManager.getEffect(effectId);
         AlchemyEffectType type = effectOpt.map(e -> e.getType()).orElse(AlchemyEffectType.BUFF);
 
+        org.bukkit.Location origin = event.getEntity().getLocation();
+
         for (LivingEntity entity : event.getAffectedEntities()) {
-            if (type == AlchemyEffectType.DEBUFF) {
-                alchemyManager.applyEffect(entity, effectId, level, duration);
-            } else if (entity instanceof Player) {
-                alchemyManager.applyEffect(entity, effectId, level, duration);
+            if (type != AlchemyEffectType.DEBUFF && !(entity instanceof Player)) continue;
+
+            int scaledDuration = duration;
+            if (splashRadius > 0) {
+                double distance = entity.getLocation().distance(origin);
+                if (distance > splashRadius) continue;
+                double falloff = 1.0 - (distance / splashRadius);
+                scaledDuration = Math.max(1, (int) Math.round(duration * falloff));
             }
+
+            alchemyManager.applyEffect(entity, effectId, level, scaledDuration);
         }
     }
 }

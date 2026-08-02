@@ -78,7 +78,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         double alchemyMult = 1.0 + alchemyBonus * 0.01;
         int duration = (int) (effect.getDuration(baseLevel) * alchemyMult);
 
-        ItemStack potion = buildPotionItem(effect, baseLevel, duration, false, false, false);
+        ItemStack potion = buildPotionItem(effect, baseLevel, duration, false, false, false, 1.0);
 
         return Optional.of(RecipeDefinition.dynamic("alchemy", potion, inp -> {
             consume(inp, "base", 1);
@@ -108,6 +108,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         boolean isSplash         = pdc.getOrDefault(Keys.ALCHEMY_IS_SPLASH,       PersistentDataType.BYTE, (byte) 0) == 1;
         boolean levelModified    = pdc.getOrDefault(Keys.ALCHEMY_LEVEL_MODIFIED,   PersistentDataType.BYTE, (byte) 0) == 1;
         boolean durationModified = pdc.getOrDefault(Keys.ALCHEMY_DURATION_MODIFIED,PersistentDataType.BYTE, (byte) 0) == 1;
+        double currentSplashMultiplier = pdc.getOrDefault(Keys.ALCHEMY_SPLASH_MULTIPLIER, PersistentDataType.DOUBLE, 0.5);
 
         int maxBase = effect.getMaxBaseLevel();
 
@@ -117,35 +118,30 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
                 if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
                 int newLevel = currentLevel + modifier.getLevelBonus();
                 if (newLevel > effect.getMaxLevel()) yield Optional.empty();
-                ItemStack result = buildPotionItem(effect, newLevel, currentDuration, isSplash, true, durationModified);
+                ItemStack result = buildPotionItem(effect, newLevel, currentDuration, isSplash, true, durationModified, currentSplashMultiplier);
                 yield Optional.of(recipe(result));
             }
             case DURATION -> {
                 if (durationModified) yield Optional.empty();
                 if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
-                // Absolute duration set; if already splash, apply the splash multiplier again
-                // so the combination is consistent regardless of application order.
+                // Absolute duration set; if already splash, re-apply the multiplier that was
+                // actually used to convert this potion to splash (tracked via PDC), so the
+                // combination is consistent regardless of application order.
                 int newDuration = isSplash
-                        ? (int) (modifier.getDurationSeconds() * getSplashMultiplier())
+                        ? (int) (modifier.getDurationSeconds() * currentSplashMultiplier)
                         : modifier.getDurationSeconds();
-                ItemStack result = buildPotionItem(effect, currentLevel, newDuration, isSplash, levelModified, true);
+                ItemStack result = buildPotionItem(effect, currentLevel, newDuration, isSplash, levelModified, true, currentSplashMultiplier);
                 yield Optional.of(recipe(result));
             }
             case SPLASH -> {
                 if (isSplash) yield Optional.empty();
                 if (modifier.isRequiresMaxBase() && currentLevel != maxBase) yield Optional.empty();
-                int splashDuration = (int) (currentDuration * modifier.getDurationMultiplier());
-                ItemStack result = buildPotionItem(effect, currentLevel, splashDuration, true, levelModified, durationModified);
+                double splashMultiplier = modifier.getDurationMultiplier();
+                int splashDuration = (int) (currentDuration * splashMultiplier);
+                ItemStack result = buildPotionItem(effect, currentLevel, splashDuration, true, levelModified, durationModified, splashMultiplier);
                 yield Optional.of(recipe(result));
             }
         };
-    }
-
-    /** Returns the lowest splash multiplier registered (used when a duration modifier is applied to an already-splash potion). */
-    private double getSplashMultiplier() {
-        // Default 0.5 — duration modifiers assume the gunpowder path if already splash.
-        // This could be refined to track which splash modifier was used via an extra PDC key.
-        return 0.5;
     }
 
     private static RecipeDefinition recipe(ItemStack output) {
@@ -177,11 +173,12 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
 
     public ItemStack buildPotion(AlchemyEffect effect, int level, int durationSeconds,
                                  boolean isSplash, boolean levelModified, boolean durationModified) {
-        return buildPotionItem(effect, level, durationSeconds, isSplash, levelModified, durationModified);
+        return buildPotionItem(effect, level, durationSeconds, isSplash, levelModified, durationModified, 0.5);
     }
 
     private ItemStack buildPotionItem(AlchemyEffect effect, int level, int durationSeconds,
-                                      boolean isSplash, boolean levelModified, boolean durationModified) {
+                                      boolean isSplash, boolean levelModified, boolean durationModified,
+                                      double splashMultiplier) {
         Material mat = isSplash ? Material.SPLASH_POTION : Material.POTION;
         ItemStack item = new ItemStack(mat);
         PotionMeta meta = (PotionMeta) item.getItemMeta();
@@ -197,6 +194,9 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         meta.getPersistentDataContainer().set(Keys.ALCHEMY_LEVEL_MODIFIED,    PersistentDataType.BYTE,    levelModified ? (byte) 1 : (byte) 0);
         meta.getPersistentDataContainer().set(Keys.ALCHEMY_DURATION_MODIFIED, PersistentDataType.BYTE,    durationModified ? (byte) 1 : (byte) 0);
         meta.getPersistentDataContainer().set(Keys.ITEM_ID_KEY,               PersistentDataType.STRING,  "alchemy:" + effect.getId());
+        if (isSplash) {
+            meta.getPersistentDataContainer().set(Keys.ALCHEMY_SPLASH_MULTIPLIER, PersistentDataType.DOUBLE, splashMultiplier);
+        }
 
         String rarityColor = getRarityColor(effect.getRarity());
         meta.displayName(Formatter.format(effect.getName() + " " + toRoman(level)));

@@ -1,8 +1,10 @@
 package org.nakii.valmora.module.gui.event;
 
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.gui.GuiComponent;
@@ -13,6 +15,8 @@ import org.nakii.valmora.module.gui.components.InputComponent;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
+import org.nakii.valmora.module.skill.SkillDefinition;
+import org.nakii.valmora.util.Keys;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,17 +73,40 @@ public class AlchemyBrewEventFactory implements EventFactory {
                 }
 
                 // Replace every non-empty bottle slot with one result item
+                int brewedCount = 0;
                 for (int slot : bottleSlots) {
                     ItemStack bottle = inv.getItem(slot);
                     if (bottle != null && bottle.getType() != Material.AIR) {
                         inv.setItem(slot, output.clone());
+                        brewedCount++;
                     }
                 }
+
+                if (brewedCount > 0) grantBrewXp(session.getPlayer(), output, brewedCount);
 
                 new GuiRenderer(plugin).render(session);
             } finally {
                 session.setCraftingLocked(false);
             }
         };
+    }
+
+    private void grantBrewXp(Player player, ItemStack output, int count) {
+        if (player == null || !output.hasItemMeta()) return;
+        String effectId = output.getItemMeta().getPersistentDataContainer()
+                .get(Keys.ALCHEMY_EFFECT_ID, PersistentDataType.STRING);
+        if (effectId == null) return; // awkward potion — no XP
+
+        var session = plugin.getPlayerManager().getSession(player.getUniqueId());
+        if (session == null) return;
+        var profile = session.getActiveProfile();
+        if (profile == null) return;
+
+        for (SkillDefinition skill : plugin.getSkillModule().getSkillRegistry().values()) {
+            Double xp = skill.getSourceXp("BREW_POTION", effectId);
+            if (xp != null && xp > 0) {
+                profile.getSkillManager().addXp(skill.getId(), xp * count, player);
+            }
+        }
     }
 }

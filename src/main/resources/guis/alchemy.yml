@@ -1,4 +1,5 @@
 alchemy_table:
+  command: alchemy
   title: "<light_purple>⚗ Alchemy Table</light_purple>"
   rows: 6
   machine: alchemy

@@ -231,7 +231,7 @@ Checked **first** so that modifier ingredients (glowstone dust etc.) can never a
 
 - Each category is applied **once** (`levelModified`/`durationModified` flags, `isSplash` guard). A potion can therefore carry at most one level modifier, one duration modifier, and one splash conversion.
 - `requires-max-base` gates the modifier on the potion already being at its **max base level** (highest tier reachable from recipes, `AlchemyEffect.getMaxBaseLevel()`). The shipped config makes **only** `minecraft:glowstone_dust` exempt (`modifiers.yml:22-25`), so it can bump any base tier.
-- `getSplashMultiplier()` (`:145-149`) is **hardcoded to `0.5`** with a comment noting it could be tracked per-potion via an extra PDC key. Used when a duration modifier is applied to an already-splash potion so the combination is order-independent.
+- The splash multiplier actually used for a potion is read back from the `ALCHEMY_SPLASH_MULTIPLIER` PDC key (default `0.5` if absent, e.g. for potions brewed before this key existed). Used when a duration modifier is applied to an already-splash potion so the combination is order-independent regardless of which splash modifier converted it.
 
 #### Item building — `buildPotionItem` (`AlchemyMachineHandler.java:183-230`)
 
@@ -298,7 +298,7 @@ Registered in `AlchemyModule.onEnable()` (`AlchemyModule.java:56-57`); unregiste
 - Reads `ALCHEMY_EFFECT_ID`; if absent the event passes through to vanilla behavior (`:34-35`).
 - A splash potion is **rejected here** — `ALCHEMY_IS_SPLASH == 1` → `setCancelled(true)` and return, because splash consumption is handled by `PotionSplashEvent` (`:38-42`).
 - Level defaults to `1`, duration to `60` (`:44-45`).
-- Cancels the vanilla consume, applies the effect, and **manually decrements the stack in the player's main hand** only if `hand.isSimilar(item)` (`:47-56`). Any consumption slot other than the main hand leaves the item un-decremented (see §8).
+- Cancels the vanilla consume, applies the effect, then checks **both** the main hand and off-hand `ItemStack` against the consumed item via `isSimilar` and decrements whichever one matches (`:47-59`).
 
 **`onEntityDamage(EntityDamageEvent)`** — `HIGH` (`AlchemyListener.java:60-74`): drowning only. For each active effect, `water_breathing` grants a `level × 15%` chance to cancel the drowning damage (`:66-70`).
 
@@ -306,11 +306,10 @@ Registered in `AlchemyModule.onEnable()` (`AlchemyModule.java:56-57`); unregiste
 
 **`onSplash(PotionSplashEvent)`** — `HIGH` (`AlchemyListener.java:99-123`): cancels the vanilla splash for Valmora potions and applies the effect directly to affected entities (`event.getAffectedEntities()`):
 
-- `DEBUFF` → applied to **every** affected `LivingEntity` (`:117-118`);
-- `BUFF` → applied to **players only** (`:119-121`).
-- Effect type is read from the definition, defaulting to `BUFF` if the id no longer resolves (`:113-114`).
-
-Note: there is **no distance/radius scaling** — every affected entity gets the full level and full duration, and `alchemy.splash-radius` from `config.yml` is not consumed anywhere (see §8).
+- `DEBUFF` → applied to **every** affected `LivingEntity`;
+- `BUFF` → applied to **players only**.
+- Effect type is read from the definition, defaulting to `BUFF` if the id no longer resolves.
+- Entities beyond `alchemy.splash-radius` blocks of the splash's impact location (`event.getEntity().getLocation()`) are skipped entirely; entities within range get a duration scaled by linear falloff (`1.0 - distance/radius`), floored at 1 second. Level is not scaled by distance. The `AlchemyListener` constructor takes `splashRadius` as a parameter, supplied from `config.yml` by `AlchemyModule.onEnable()`.
 
 There is also an **unused import** of `LingeringPotionSplashEvent` (`AlchemyListener.java:11`) — lingering potions are not handled at all.
 
@@ -345,8 +344,8 @@ Registered **after** all modules enable in `Valmora.onEnable()` (`Valmora.java:2
 - Permission: `valmora.admin` (checked both in `plugin.yml:34` and inline at `PotionCommand.java:30`).
 - Target resolution: optional `[player]` arg via `Bukkit.getPlayer` (`:44-50`), else the sender if they are a player (`:51-52`), else an error (`:53-56`).
 - Level is parsed with `parseIntOrDefault(..., 1)` (`:42`, `:77-79`) and clamped to `[1, effect.getMaxLevel()]` (`:65`).
-- Builds the item through a **fresh** `AlchemyMachineHandler` each call — `handler.buildPotion(effect, clampedLevel, effect.getDuration(clampedLevel), false, false, false)` (`:68-69`) — and adds it to the target's inventory (`:70`). Splash/level-modified/duration-modified all false.
-- No tab completion is registered.
+- Builds the item through a **single reused** `AlchemyMachineHandler` instance (constructed once in `PotionCommand`'s constructor) — `handler.buildPotion(effect, clampedLevel, effect.getDuration(clampedLevel), false, false, false)` — and adds it to the target's inventory. Splash/level-modified/duration-modified all false.
+- `PotionCommand` also implements `TabCompleter`, registered via `getCommand("potion").setTabCompleter(potionCommand)` in `Valmora.java`. Completes the `give` subcommand, effect ids (from `alchemyManager.getAllEffects()`), levels `1`–`5`, and online player names.
 
 **`EffectsCommand`** (`EffectsCommand.java:11-35`) — `/effects`:
 
@@ -483,10 +482,10 @@ Contains only `# Effects moved to effects.yml` — a leftover from when healing 
 ### 4.5 Related config (owned by other modules)
 
 - **`items/alchemy_ingredients.yml`** — the custom tier-2/tier-3 ingredients and the `enchanted_*` modifier items; defines the item ids referenced by `effects.yml`/`modifiers.yml`.
-- **`guis/alchemy.yml`** — the Alchemy Table GUI (`machine: alchemy`, 6 rows, `update-interval: 20`). Layout legend: `B` = purple-glass border display, `I` = ingredient input, `T` = status display (uses `$prop.brew_status$` / `$prop.brew_time$`), `P` = bottle inputs (replaced with the result at completion), `C` = close button (`guis/alchemy.yml:7-20`, `:22-59`). Brew flow: `on-open` resets props and plays the brewing-stand sound (`:61-66`); `on-slot-update` resets status when nothing useful is present (`:68-76`); `on-update` counts `brew_time` down from 10 and fires `gui_alchemy_brew` at zero, or — when idle with ingredient + bottles present — fires `gui_alchemy_start` to validate/consume (`:78-102`). **No `command:` key** — the table cannot be opened by any stock command (see §8).
+- **`guis/alchemy.yml`** — the Alchemy Table GUI (`command: alchemy`, `machine: alchemy`, 6 rows, `update-interval: 20`). Layout legend: `B` = purple-glass border display, `I` = ingredient input, `T` = status display (uses `$prop.brew_status$` / `$prop.brew_time$`), `P` = bottle inputs (replaced with the result at completion), `C` = close button (`guis/alchemy.yml:8-21`, `:23-60`). Brew flow: `on-open` resets props and plays the brewing-stand sound; `on-slot-update` resets status when nothing useful is present; `on-update` counts `brew_time` down from 10 and fires `gui_alchemy_brew` at zero, or — when idle with ingredient + bottles present — fires `gui_alchemy_start` to validate/consume. Registered dynamically via `GuiModule`'s command binding, same as `geomancy_tree`/`skills_list`, so `/alchemy` opens it directly.
 - **`guis/active_effects.yml`** — paginated Active Effects GUI driven by `$alchemy.effects.list$` with `buff`/`debuff`/`default` item states (`active_effects.yml:18-46`) and previous/next page arrows.
 - **`recipes/alchemy.yml`** — 13 static SHAPELESS recipes on `machine: alchemy` (awkward, thick, healing, strength, fire resistance, night vision, swiftness, each with `_bottle` and `_potion` variants) that produce a plain `POTION` output and grant `player.var.alchemy_xp` on craft (`recipes/alchemy.yml:14-244`). These are a legacy XP path distinct from the dynamic pipeline.
-- **`skills/alchemy.yml`** — the Alchemy skill (`max-level: 60`, per-level `coins = level*5`, milestones 10 → BLAZE_POWDER×5 and 30 → NETHER_WART×16) but with **no `sources`**, so brewing grants no XP out of the box (`SkillListener.java:118-130` hard-codes the `BREW_POTION`/`ANY` lookup).
+- **`skills/alchemy.yml`** — the Alchemy skill (`max-level: 60`, per-level `coins = level*5`, milestones 10 → BLAZE_POWDER×5 and 30 → NETHER_WART×16), plus a `sources: BREW_POTION: DEFAULT: 15.0` entry consumed by `AlchemyBrewEventFactory.grantBrewXp` whenever the dynamic brewing pipeline completes a brew (independent of `SkillListener.onBrew`, which still hooks the unrelated vanilla `BrewEvent`).
 
 ---
 
@@ -504,6 +503,7 @@ There is **no database persistence** for alchemy. Active effects are in-memory o
 | `ALCHEMY_IS_SPLASH` | `alchemy_is_splash` | BYTE (0/1) | `AlchemyMachineHandler.java:196` | `AlchemyListener.java:38`, `:108`; `matchModifier` (`:108`) |
 | `ALCHEMY_LEVEL_MODIFIED` | `alchemy_level_modified` | BYTE (0/1) | `AlchemyMachineHandler.java:197` | `matchModifier` (`:109`) |
 | `ALCHEMY_DURATION_MODIFIED` | `alchemy_duration_modified` | BYTE (0/1) | `AlchemyMachineHandler.java:198` | `matchModifier` (`:110`) |
+| `ALCHEMY_SPLASH_MULTIPLIER` | `alchemy_splash_multiplier` | DOUBLE | `buildPotionItem`, only when `isSplash` | `matchModifier`'s `DURATION` case, to re-derive the true splash multiplier instead of a hardcoded value |
 | `ITEM_ID_KEY` | `valmora_item_id` | STRING (`alchemy:<id>` or `awkward_potion`) | `buildPotionItem` (`:199`), `buildAwkwardPotion` (`:166`) | `getItemKey`/`isWaterBottle`/`isAwkwardPotion` (`:236-241`, `:251-253`, `:264-266`) |
 | `RARITY_KEY` | `rarity` | STRING | `buildAwkwardPotion` (`:167`) | Item system display |
 
@@ -571,34 +571,29 @@ AlchemyManager alchemy = ValmoraAPI.getInstance().getAlchemyManager();
 
 ## Unfinished Things / TODOs
 
-- **`alchemy.splash-radius` is dead config.** `config.yml:129` documents a splash radius of `4.0`, but no Java code reads it. `onSplash` applies the full effect to every entity in `event.getAffectedEntities()` with no distance/radius scaling (`AlchemyListener.java:116-121`). `docs/USER_DOCS.md:825` and `docs/TESTING_GUIDE.md:97-104` describe splash-radius behavior that does not exist in code.
-- **Unused `LingeringPotionSplashEvent` import.** `AlchemyListener.java:11` imports it but no handler references it — lingering potions fall through to vanilla behavior entirely.
-- **No stock way to open the Alchemy Table GUI.** `guis/alchemy.yml` has no `command:` key (GUI commands are bound only via that key, `GuiModule.java:202-219`). It is only reachable through an `open_gui` action from another GUI — same gap as the enchanting table (see `docs/modules/design/enchant.md` §8).
-- **Poison tier-5 clamp.** `effects.yml:71-72` gives `enchanted_blistering_melon` tier level 5 while `poison`'s `max-level` is 4; `baseLevel = min(tier.level(), maxLevel)` (`AlchemyMachineHandler.java:75`) silently produces a level-4 poison. `docs/POTION_LIST.md:6` documents the third ingredient at level 5, so the definition is internally inconsistent.
-- **Consumption assumes the main hand.** `onDrink` decrements only `player.getInventory().getItemInMainHand()` when `hand.isSimilar(item)` (`AlchemyListener.java:53-56`). Drinking from the off-hand or via the GUI leaves the potion unconsumed.
-- **Active effects are never cleared.** `AlchemyManager.clear()` (`:72-76`) skips `activeEffects` and `hardcodedEffects`, so a `/valmora reload` keeps all in-memory effects and their pending expiry/`onTick`. Intentional or not, it is undocumented behavior.
-- **`maxActiveEffects` is constructor-bound.** Read in the `AlchemyModule` constructor (`AlchemyModule.java:34`) from `config.yml`, so editing `alchemy.max-active-effects` requires a restart — a reload won't pick it up.
-- **Dead code:** `AlchemyManager.removeEffect` (`:99-104`) and `clearAllEffects` (`:112-114`) have no callers; `AlchemyEffect.getTierForIngredient` (`AlchemyEffect.java:57-59`) is unused (tier indexing happens in `registerEffect`).
-- **Modifiers are one-shot and category-tracked by boolean flags only.** `getSplashMultiplier` is hardcoded to `0.5` (`AlchemyMachineHandler.java:145-149`) because which splash modifier was used isn't stored — the code comment itself flags this.
-- **Poison only ticks for players.** `PoisonAlchemyEffect.onTick(Player, ...)` (`PoisonAlchemyEffect.java:25`) is called only from the player-scoped tick loop (`AlchemyManager.java:118-138`); a poisoned mob receives the `ActiveEffect` record (and DEBUFF splash applies to mobs, `AlchemyListener.java:117-118`) but takes no DOT damage.
-- **Skill XP gap.** Brewing grants no Alchemy XP out of the box: `skills/alchemy.yml` defines no `sources`, and `SkillListener.onBrew` hard-codes identifier `"ANY"` (`SkillListener.java:120`) which can only match an `ANY` or `DEFAULT` entry. The static `recipes/alchemy.yml` does add `player.var.alchemy_xp` on craft, but that variable is unrelated to the skill system.
+- **Unused `LingeringPotionSplashEvent` import removed.** Lingering potions still fall through to vanilla behavior entirely (no handler for them) — only the dead import was cleaned up.
+- **Active effects are never cleared on reload.** `AlchemyManager.clear()` (`:72-76`) still skips `activeEffects` and `hardcodedEffects`, so a `/valmora reload` keeps all in-memory effects and their pending expiry/`onTick`. This remains intentional-but-undocumented behavior — out of scope for this pass since it touches restart/persistence semantics.
+- **Dead code:** `AlchemyManager.removeEffect` (`:99-104`) and `clearAllEffects` (`:112-114`) still have no callers; `AlchemyEffect.getTierForIngredient` (`AlchemyEffect.java:57-59`) is unused (tier indexing happens in `registerEffect`). Left as public API surface for `AlchemyManager` consumers.
+- **Poison only ticks for players.** `PoisonAlchemyEffect.onTick(Player, ...)` (`PoisonAlchemyEffect.java:25`) is still called only from the player-scoped tick loop (`AlchemyManager.java:118-138`); a poisoned mob receives the `ActiveEffect` record (and DEBUFF splash applies to mobs, `AlchemyListener.java:117-121`) but takes no DOT damage. Generalizing this to all `LivingEntity`s would require a global entity-tick path and was left for a follow-up.
 - **`BREW` quest objective is unimplemented.** `QuestObjectiveTypes.java:21` declares `BREW = "brew"` and `docs/Objective_list.md:85-89` documents it, but no objective handler/type class exists.
 - **Static recipe path is degenerate.** The `recipes/alchemy.yml` SHAPELESS recipes output a plain `POTION` item (base type water) — a "swiftness" brew through the static path produces a water potion, not a Valmora potion. The dynamic handler is the only real brewing path.
-- **Docs drift.** `docs/USER_DOCS.md:754-825` documents the old single-`ingredient` schema, uppercase stat keys (`HEALTH_REGEN`), and `alchemy.splash-radius` usage — none of which match the shipped `tiers` format, lowercase stat ids, or the unused radius. `docs/VALMORA_DOCUMENTATION.md:303` describes `getAlchemyManager()` as "Access alchemy recipes and brew state", which is loosely accurate but undersells the runtime effect engine.
+
+### Resolved in this pass
+
+- **`alchemy.splash-radius` is now read.** `AlchemyListener.onSplash` filters affected entities to `alchemy.splash-radius` blocks of the impact point and linearly scales duration down with distance (full duration at the center, ~0 at the edge); level is unaffected. The value is passed into the listener at `AlchemyModule.onEnable()`.
+- **The Alchemy Table GUI now has a command.** `guis/alchemy.yml` sets `command: alchemy`, so `/alchemy` opens it directly (registered dynamically the same way as `geomancy_tree`, `skills_list`, etc.).
+- **Poison's tier/`max-level` mismatch is fixed.** `enchanted_blistering_melon` now brews at tier level 4 (was 5), matching `poison`'s `max-level: 4` and `docs/POTION_LIST.md:6`, which documents Poison's max level as 4.
+- **Consumption is slot-aware.** `onDrink` now checks both the main hand and off-hand `ItemStack` against the consumed item and decrements whichever one matches, instead of assuming main hand.
+- **`maxActiveEffects` is re-read on `onEnable()`.** `AlchemyManager.setMaxActiveEffects(int)` is called from `AlchemyModule.onEnable()` with the current `config.yml` value, so `/valmora reload` now picks up changes to `alchemy.max-active-effects`.
+- **Splash multiplier is tracked per-potion.** A new PDC key `ALCHEMY_SPLASH_MULTIPLIER` (`Keys.java`) stores the multiplier actually used when a potion is converted to splash. `matchModifier`'s `DURATION` case reads it back instead of a hardcoded `0.5`, so combining a duration modifier with a splash conversion (in either order) uses the real multiplier.
+- **Tier/`max-level` mismatches now warn at parse time.** `AlchemyEffectLoader.parse` logs a warning for any tier whose `level` exceeds the effect's `max-level`, instead of silently clamping only at brew time.
+- **`/potion` has tab completion and reuses one handler.** `PotionCommand` implements `TabCompleter` (subcommand, effect id, level, player name) and holds a single `AlchemyMachineHandler` instance instead of constructing one per invocation.
+- **Brewing grants Alchemy XP.** `skills/alchemy.yml` now has a `sources: BREW_POTION: DEFAULT: 15.0` entry, and `AlchemyBrewEventFactory` grants `BREW_POTION` XP (keyed by the brewed effect id, falling back to `DEFAULT`) to the brewing player when a dynamic brew completes — independent of the unrelated vanilla-`BrewEvent`-based `SkillListener.onBrew`.
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Wire `splash-radius` into `onSplash`** — scale level/duration by distance from impact (or pick entities by radius), and/or apply per-entity duration like vanilla splash does, instead of the all-or-nothing application in `AlchemyListener.java:116-121`.
-- **Track which splash modifier was used** via an extra PDC key so `getSplashMultiplier` (`AlchemyMachineHandler.java:145-149`) returns the real multiplier instead of the hardcoded `0.5`.
-- **Consume from the actual slot.** Store/restore `ItemStack` state in `onDrink` or use `event.getItem()` mutation + `event.setCancelled(true)` with a slot-aware decrement, removing the main-hand assumption (`AlchemyListener.java:53-56`).
-- **Fix the poison tier.** Either raise `max-level` to 5 for `poison` or drop the level-5 tier in `effects.yml:71-72` so `POTION_LIST.md` matches runtime behavior.
 - **Persist or explicitly clear active effects.** Either add a database table for active effects (surviving restart) or document + intentionally clear them on reload; right now the behavior is accidental.
-- **Read `max-active-effects` in `onEnable()`** instead of the constructor so a reload honors config changes.
 - **Allow `onTick` for non-player entities** — generalize `HardcodedAlchemyEffect.onTick` to `LivingEntity` (or a separate tick path) so poison/burning-style DOTs work on mobs.
-- **Add tab completion and subcommands to `/potion`** (e.g. `list`, `clear`, `apply`, `splash` flag) and reuse a single `AlchemyMachineHandler` instance instead of constructing one per invocation (`PotionCommand.java:68`).
-- **Give the Alchemy Table a command binding** (`command: alchemy` in `guis/alchemy.yml`) or register a vanilla brewing-stand override so players can actually reach it.
-- **Wire brewing XP properly** — add `BREW_POTION` sources to `skills/alchemy.yml` and pass the brewed potion's effect id to `SkillListener.onBrew` instead of the hard-coded `"ANY"` (also tracked in `docs/modules/design/skill.md` §8).
-- **Validate tier levels at parse time** — warn when `tier.level() > max-level` instead of silently clamping at brew time (`AlchemyEffectLoader.java:37-123`).
 - **Add unit tests.** There are none for the alchemy module; the stat/`AlchemyVariableProvider`/`AlchemyMachineHandler` logic (esp. modifier combination order) is a good Mockito target following the `ExpressionTest` pattern (see AGENTS.md §9).

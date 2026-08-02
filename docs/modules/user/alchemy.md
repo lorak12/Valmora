@@ -78,7 +78,7 @@ A level modifier can never push a potion past its `max-level`. Brewing at a high
 | Speed | Sugar (I) | Enchanted Sugar (III), Enchanted Sugar Cane (V) | Buff |
 | Jump Boost | Rabbit Foot (I) | — | Buff |
 | Healing | Spider Eye (I) | — | Buff |
-| Poison | Glistering Melon Slice (I) | Enchanted Glistering Melon (III), Enchanted Blistering Melon (clamped to IV) | Debuff |
+| Poison | Glistering Melon Slice (I) | Enchanted Glistering Melon (III), Enchanted Blistering Melon (IV) | Debuff |
 | Water Breathing | Pufferfish (I) | Enchanted Pufferfish (III) | Buff |
 | Fire Resistance | Magma Cream (I) | — | Buff |
 | Night Vision | Golden Carrot (I) | — | Buff |
@@ -101,8 +101,8 @@ A level modifier can never push a potion past its `max-level`. Brewing at a high
 | --- | --- | --- |
 | Buff effects | Apply to you | Apply to **players** in range only |
 | Debuff effects | Apply to you | Apply to **every** affected living entity (including mobs) |
-| Duration | Full item duration | Multiplied by the splash multiplier (×0.5 for regular gunpowder) |
-| Distance | — | Every affected entity gets the full level and duration (no falloff by default) |
+| Duration | Full item duration | Multiplied by the splash multiplier (×0.5 for regular gunpowder), then scaled down further by distance |
+| Distance | — | Entities beyond `alchemy.splash-radius` blocks from the impact are unaffected; duration falls off linearly from full at the center to ~0 at the radius edge (level is unaffected) |
 
 ### 2.4 Special effect behaviors
 
@@ -128,8 +128,9 @@ Some effects do things stats can't:
 
 | Command | Permission | Description |
 | --- | --- | --- |
-| `/potion give <effect_id> <level> [player]` | `valmora.admin` | Gives a drinkable potion. Level is clamped to the effect's `max-level`. |
+| `/potion give <effect_id> <level> [player]` | `valmora.admin` | Gives a drinkable potion. Level is clamped to the effect's `max-level`. Tab-completes effect ids, levels, and player names. |
 | `/effects` | (none — any player) | Opens the Active Effects GUI. |
+| `/alchemy` | (GUI-level, see `guis/alchemy.yml`) | Opens the Alchemy Table GUI directly. |
 
 The `/potion` command is intended for admin/test use and builds a plain, unmodified, drinkable potion (no splash).
 
@@ -175,7 +176,7 @@ Rules to remember:
 - At least one tier (or the legacy single `ingredient:` key) is **required** — an effect with no way to brew it is rejected at load.
 - `stats` keys must be **registered stat ids**. Unrecognized ids are silently dropped, so double-check spelling.
 - `duration` and each `stats` list are **per level** (index 1..`max-level`); a missing index falls back to the last value in the list.
-- A tier whose `level` exceeds `max-level` is clamped (the shipped `poison` effect has a tier-5 ingredient but `max-level: 4` — that tier brews at IV).
+- A tier whose `level` exceeds `max-level` is clamped at brew time, and the loader now logs a warning at startup so mismatches like this are easy to catch.
 
 ### 3.4 Adding a modifier item
 
@@ -199,12 +200,11 @@ level:
 
 ### 3.5 Known limitations
 
-- The Alchemy Table GUI (`guis/alchemy.yml`) has **no bound command** — it must be opened by the server via GUI/script hooks.
-- Poison's tier-5 ingredient brews at level IV (tier level clamped to `max-level`).
-- Splash radius is a **fixed** area-of-effect (config `splash-radius` is not read); every affected entity gets the full level/duration, and splash debuffs hit all entities while buffs only hit players.
-- Drinking only consumes the potion when it's in the **main hand**.
+- The Alchemy Table GUI can be opened with `/alchemy` (bound via `command: alchemy` in `guis/alchemy.yml`), and it is still reachable via GUI/script hooks as before.
+- Splash potions scale by distance from the impact point out to `alchemy.splash-radius` (linear falloff on duration); entities beyond the radius are unaffected. Splash debuffs still hit all affected living entities while buffs only hit players.
+- Drinking consumes the potion from whichever hand it was actually drunk from (main or off-hand).
 - Lingering potions are not supported.
-- The `alchemy` **skill grants no XP** from brewing by default (`skills/alchemy.yml` has no `sources`), even though it grants the +1%/level duration bonus.
+- The `alchemy` skill grants XP from brewing (`skills/alchemy.yml` → `sources: BREW_POTION`), in addition to the +1%/level duration bonus.
 - Modifier/potion **static recipes** (`recipes/alchemy.yml`) are a separate legacy path that outputs plain vanilla potions and does not feed the dynamic system.
 
 ---
@@ -261,8 +261,8 @@ Shipped entries:
 ### 4.3 Related item/skill/recipe config (owned by other modules)
 
 - **`items/alchemy_ingredients.yml`** — defines the custom tier-2/tier-3 ingredients and `enchanted_*` modifier items referenced by `effects.yml` / `modifiers.yml` (enchanted sugar, blaze powder, glistering melon, gunpowder, redstone, glowstone, etc.).
-- **`skills/alchemy.yml`** — the Alchemy skill (`max-level: 60`, milestone rewards at levels 10 and 30). Grants the +1% duration-per-level brew bonus; **no XP sources** ship by default.
-- **`guis/alchemy.yml`** — the Alchemy Table GUI (`machine: alchemy`, 6 rows, 10-second brew cycle). No command binding ships.
+- **`skills/alchemy.yml`** — the Alchemy skill (`max-level: 60`, milestone rewards at levels 10 and 30). Grants the +1% duration-per-level brew bonus, and grants `BREW_POTION` XP (default 15 per potion) whenever the dynamic pipeline completes a brew.
+- **`guis/alchemy.yml`** — the Alchemy Table GUI (`machine: alchemy`, 6 rows, 10-second brew cycle). Bound to `/alchemy`.
 - **`guis/active_effects.yml`** — the Active Effects GUI opened by `/effects`.
 - **`recipes/alchemy.yml`** — legacy static shapeless recipes that output plain vanilla potions and grant `alchemy_xp` on craft (separate from the dynamic pipeline).
 
@@ -270,16 +270,16 @@ Shipped entries:
 
 ```yaml
 alchemy:
-  splash-radius: 4.0       # documented as splash AoE radius (not currently read by the code)
+  splash-radius: 4.0       # splash AoE radius in blocks; entities beyond it are unaffected
   tick-interval: 20        # ticks between active-effect expiry checks (20 = 1 s)
   max-active-effects: 10   # max concurrent active effects per player
 ```
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `alchemy.splash-radius` | `4.0` | Reserved: splash potion area-of-effect radius. **Not currently used** — splash effects apply to every entity the event reports in range. |
+| `alchemy.splash-radius` | `4.0` | Splash potion area-of-effect radius in blocks. Entities beyond this distance from the impact point are unaffected; duration falls off linearly with distance (full duration at the center, ~0 at the edge). Level is unaffected by distance. |
 | `alchemy.tick-interval` | `20` | How often active effects are checked for expiry and tick mechanics (poison) run. Lower = more precise, slightly more CPU. |
-| `alchemy.max-active-effects` | `10` | Maximum active effects a player can hold. Once full, **new** effects are rejected (re-applying an effect you already have still works). Note this value is read at startup, so a `/valmora reload` won't pick up changes until a restart. |
+| `alchemy.max-active-effects` | `10` | Maximum active effects a player can hold. Once full, **new** effects are rejected (re-applying an effect you already have still works). Re-read on every `/valmora reload`. |
 
 ---
 

@@ -31,14 +31,14 @@ public class AlchemyModule implements ReloadableModule {
 
     public AlchemyModule(Valmora plugin) {
         this.plugin = plugin;
-        int maxEffects = plugin.getConfig().getInt("alchemy.max-active-effects", 10);
-        this.alchemyManager = new AlchemyManager(maxEffects);
+        this.alchemyManager = new AlchemyManager(plugin.getConfig().getInt("alchemy.max-active-effects", 10));
     }
 
     @Override
     public void onEnable() {
         plugin.getLogger().info("Initializing Alchemy System...");
 
+        alchemyManager.setMaxActiveEffects(plugin.getConfig().getInt("alchemy.max-active-effects", 10));
         alchemyManager.clear();
 
         YamlLoader<AlchemyEffect> loader = new YamlLoader<>(plugin, "alchemy", "Alchemy Effect");
@@ -53,7 +53,8 @@ public class AlchemyModule implements ReloadableModule {
 
         plugin.getScriptModule().registerProvider(new AlchemyVariableProvider());
 
-        this.listener = new AlchemyListener(alchemyManager);
+        double splashRadius = plugin.getConfig().getDouble("alchemy.splash-radius", 4.0);
+        this.listener = new AlchemyListener(alchemyManager, splashRadius);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
         int intervalTicks = plugin.getConfig().getInt("alchemy.tick-interval", 20);

@@ -69,7 +69,7 @@ poison:
     - ingredient: enchanted_glistering_melon
       level: 3
     - ingredient: enchanted_blistering_melon
-      level: 5
+      level: 4
 
 water_breathing:
   name: "<aqua>Potion of Water Breathing"

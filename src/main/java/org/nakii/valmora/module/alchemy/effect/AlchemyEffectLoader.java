@@ -93,6 +93,14 @@ public class AlchemyEffectLoader {
 
             int maxLevel = s.getInt("max-level", 1);
 
+            for (AlchemyEffect.Tier tier : tiers) {
+                if (tier.level() > maxLevel) {
+                    org.bukkit.Bukkit.getLogger().warning("[" + path + "] Effect '" + id + "' has a tier ingredient '"
+                            + tier.ingredientKey() + "' with level " + tier.level() + " exceeding max-level " + maxLevel
+                            + " — it will be clamped to " + maxLevel + " at brew time.");
+                }
+            }
+
             List<Integer> durations = new ArrayList<>();
             List<?> durList = s.getList("duration");
             if (durList != null) {
