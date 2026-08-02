@@ -58,6 +58,7 @@ import org.nakii.valmora.module.pet.PetModule;
 import org.nakii.valmora.module.slayer.SlayerModule;
 import org.nakii.valmora.module.accessory.AccessoryModule;
 import org.nakii.valmora.module.backpack.BackpackModule;
+import org.nakii.valmora.module.quiver.QuiverModule;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.economy.EcoCommand;
 import org.nakii.valmora.module.economy.EconomyModule;
@@ -118,6 +119,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private SlayerModule slayerModule;
     private AccessoryModule accessoryModule;
     private BackpackModule backpackModule;
+    private QuiverModule quiverModule;
+    private org.nakii.valmora.module.progression.ProgressionModule progressionModule;
 
     @Override
     public void onEnable() {
@@ -177,6 +180,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.slayerModule = new SlayerModule(this);
         this.accessoryModule = new AccessoryModule(this);
         this.backpackModule = new BackpackModule(this);
+        this.quiverModule = new QuiverModule(this);
+        this.progressionModule = new org.nakii.valmora.module.progression.ProgressionModule(this);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -213,6 +218,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(slayerModule);       // Depends on scriptModule + mobModule
         moduleManager.registerModule(accessoryModule);    // Depends on statModule for recalc
         moduleManager.registerModule(backpackModule);     // Depends on abilityManager for mechanic
+        moduleManager.registerModule(quiverModule);       // Depends on playerManager for the active profile
+        moduleManager.registerModule(progressionModule);  // Depends on scriptModule + pointsModule (generic tree/skill-point engine)
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -243,6 +250,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("accessories").setExecutor((sender, cmd, label, args) -> {
             if (!(sender instanceof org.bukkit.entity.Player player)) return true;
             accessoryModule.openAccessoryBag(player);
+            return true;
+        });
+        getCommand("quiver").setExecutor((sender, cmd, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player player)) return true;
+            quiverModule.openQuiver(player);
             return true;
         });
     }
@@ -415,6 +427,16 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     public SlayerModule getSlayerModule() { return slayerModule; }
     public AccessoryModule getAccessoryModule() { return accessoryModule; }
     public BackpackModule getBackpackModule() { return backpackModule; }
+    public QuiverModule getQuiverModule() { return quiverModule; }
+
+    @Override
+    public org.nakii.valmora.module.progression.ProgressionManager getProgressionManager() {
+        return progressionModule != null ? progressionModule.getProgressionManager() : null;
+    }
+
+    public org.nakii.valmora.module.progression.ProgressionModule getProgressionModule() {
+        return progressionModule;
+    }
 
     @Override
     public org.nakii.valmora.module.quest.points.PointsManager getPointsManager() {
@@ -452,7 +474,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                             name.startsWith("warps/") || name.startsWith("quests/") ||
                             name.startsWith("collections/") || name.startsWith("hud-items/") ||
                             name.startsWith("calendar/") || name.startsWith("reforges/") ||
-                            name.startsWith("pets/") || name.startsWith("slayers/")) {
+                            name.startsWith("pets/") || name.startsWith("slayers/") ||
+                            name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
+                            name.startsWith("quest_boards/")) {
                         // Only save if the file doesn't already exist — don't overwrite server edits
                         if (!new File(getDataFolder(), name).exists()) {
                             saveResource(name, false);

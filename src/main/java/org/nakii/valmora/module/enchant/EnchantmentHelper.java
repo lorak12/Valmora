@@ -11,6 +11,7 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.item.ItemType;
 import org.nakii.valmora.module.item.Rarity;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
@@ -144,6 +145,24 @@ public class EnchantmentHelper {
         pdc.set(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING, sb.toString());
     }
 
+    private static String serializeLore(List<Component> lore) {
+        StringBuilder sb = new StringBuilder();
+        for (Component line : lore) {
+            if (sb.length() > 0) sb.append('\n');
+            sb.append(MiniMessage.miniMessage().serialize(line));
+        }
+        return sb.toString();
+    }
+
+    private static List<Component> deserializeLore(String serialized) {
+        List<Component> lore = new ArrayList<>();
+        if (serialized == null || serialized.isEmpty()) return lore;
+        for (String line : serialized.split("\n", -1)) {
+            lore.add(MiniMessage.miniMessage().deserialize(line));
+        }
+        return lore;
+    }
+
     public static void updateItemLore(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {
             return;
@@ -174,17 +193,20 @@ public class EnchantmentHelper {
             return;
         }
 
-        // For generic items, we try to preserve existing lore
-        List<Component> currentLore = meta.lore();
-        List<Component> newLore = new ArrayList<>();
-
-        if (currentLore != null) {
-            for (Component line : currentLore) {
-                // TODO: Improved logic to filter out OLD enchants if needed
-                newLore.add(line);
-            }
+        // For generic (non-Valmora) items there is no ItemFactory to rebuild lore from scratch, so we
+        // snapshot the item's lore the first time it's enchanted (before any enchant block is added) and
+        // always rebuild from that snapshot. Without this, re-enchanting would re-append a fresh enchant
+        // block on top of the previous one every time, since meta.lore() already contains it.
+        PersistentDataContainer itemPdc = meta.getPersistentDataContainer();
+        List<Component> baseLore;
+        if (itemPdc.has(Keys.GENERIC_BASE_LORE_KEY, PersistentDataType.STRING)) {
+            baseLore = deserializeLore(itemPdc.get(Keys.GENERIC_BASE_LORE_KEY, PersistentDataType.STRING));
+        } else {
+            baseLore = meta.lore() != null ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+            itemPdc.set(Keys.GENERIC_BASE_LORE_KEY, PersistentDataType.STRING, serializeLore(baseLore));
         }
 
+        List<Component> newLore = new ArrayList<>(baseLore);
         List<Component> formattedEnchants = formatEnchants(enchantMap);
         if (!formattedEnchants.isEmpty()) {
             if (!newLore.isEmpty()) {

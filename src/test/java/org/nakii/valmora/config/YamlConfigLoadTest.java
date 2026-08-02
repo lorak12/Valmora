@@ -26,6 +26,7 @@ class YamlConfigLoadTest {
                 "/config.yml",
                 "/items/example.yml",
                 "/items/alchemy_ingredients.yml",
+                "/items/new_items.yml",
                 "/mobs/test_mobs.yml",
                 "/skills/combat.yml",
                 "/skills/mining.yml",
@@ -78,7 +79,8 @@ class YamlConfigLoadTest {
 
     @Test
     void testItemFiles_haveMaterialField() {
-        for (String path : List.of("/items/example.yml", "/items/alchemy_ingredients.yml")) {
+        for (String path : List.of("/items/example.yml", "/items/alchemy_ingredients.yml",
+                "/items/new_items.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);

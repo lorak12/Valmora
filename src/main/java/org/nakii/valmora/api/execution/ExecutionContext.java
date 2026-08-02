@@ -73,4 +73,42 @@ public interface ExecutionContext {
     default boolean getBoolean(String key, boolean def) {
         return getParams().getBoolean(key, def);
     }
+
+    // Formula-capable parameter access. A param may be a raw number OR a string
+    // containing $variables$ and/or math (e.g. "130 + floor($economy.purse$ / 1000000)").
+    // String params are evaluated through the expression engine against this context.
+
+    /**
+     * Resolves a numeric parameter that may be a literal number or a formula string.
+     */
+    default double resolveDouble(String key, double def) {
+        Object raw = getParams() == null ? null : getParams().get(key);
+        if (raw == null) return def;
+        if (raw instanceof Number n) return n.doubleValue();
+        Object result = org.nakii.valmora.api.ValmoraAPI.getInstance()
+                .getScriptModule().getExpressionEvaluator()
+                .evaluate(raw.toString(), this);
+        if (result instanceof Number n) return n.doubleValue();
+        try {
+            return Double.parseDouble(String.valueOf(result));
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    /**
+     * Resolves an integer parameter that may be a literal number or a formula string.
+     */
+    default int resolveInt(String key, int def) {
+        return (int) Math.round(resolveDouble(key, def));
+    }
+
+    /**
+     * Resolves a string parameter, substituting any $variable$ tokens against this context.
+     */
+    default String resolveString(String key, String def) {
+        Object raw = getParams() == null ? null : getParams().get(key);
+        if (raw == null) return def;
+        return getVariableResolver().resolveTemplate(raw.toString(), this);
+    }
 }

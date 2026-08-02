@@ -48,6 +48,16 @@ public class CombatListener implements Listener {
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
 
+            // Record the hit and fire any ON_HIT item abilities on the attacker's weapon.
+            if (attacker instanceof org.bukkit.entity.Player attackerPlayer) {
+                org.nakii.valmora.module.item.CombatTracker
+                        .recordDamageDealt(attackerPlayer.getUniqueId(), damageResult.getFinalDamage());
+                org.nakii.valmora.module.item.AbilityExecutor.fireHeld(
+                        attackerPlayer,
+                        org.nakii.valmora.module.item.AbilityTrigger.ON_HIT,
+                        victim, true);
+            }
+
             // Boss ability triggers
             var bossController = ValmoraAPI.getInstance().getMobManager().getBossController();
             if (bossController.isTracked(attacker.getUniqueId())) {

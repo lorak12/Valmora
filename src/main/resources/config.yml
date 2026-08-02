@@ -28,6 +28,16 @@ database:
   #   use-ssl: false
 
 # ========================================================== #
+#                      Economy Settings                      #
+# ========================================================== #
+economy:
+  # How often (in seconds) dirty player balances are flushed to the database in one
+  # batched transaction. Balances always live in memory and are safe to use between
+  # flushes; this only controls how much progress could be lost on an unclean crash
+  # (a clean shutdown/reload always flushes everything immediately regardless).
+  autosave-interval-seconds: 60
+
+# ========================================================== #
 #                      Profile Settings                      #
 # ========================================================== #
 profiles:
@@ -96,6 +106,8 @@ combat:
 mining:
   mining-fortune-stat: mining_fortune
   mining-speed-stat: mining_speed
+  breaking-power-stat: breaking_power
+  mining-spread-stat: mining_spread
 
 # ========================================================== #
 #                    NPC Skin File Server                    #

@@ -10,6 +10,8 @@ public class Keys {
     public static NamespacedKey STATS_CONTAINER_KEY;
     public static NamespacedKey MOB_ID_KEY;
     public static NamespacedKey ENCHANTS_CONTAINER_KEY;
+    public static NamespacedKey GENERIC_BASE_LORE_KEY;
+    public static NamespacedKey FURNACE_OWNER_KEY;
 
     public static NamespacedKey ALCHEMY_EFFECT_ID;
     public static NamespacedKey ALCHEMY_EFFECT_LEVEL;
@@ -44,6 +46,8 @@ public class Keys {
         STATS_CONTAINER_KEY = new NamespacedKey(plugin, "item_stats_container");
         MOB_ID_KEY = new NamespacedKey(plugin, "valmora_mob_id");
         ENCHANTS_CONTAINER_KEY = new NamespacedKey(plugin, "valmora_enchants_container");
+        GENERIC_BASE_LORE_KEY = new NamespacedKey(plugin, "valmora_generic_base_lore");
+        FURNACE_OWNER_KEY = new NamespacedKey(plugin, "valmora_furnace_owner");
 
         ALCHEMY_EFFECT_ID = new NamespacedKey(plugin, "alchemy_effect_id");
         ALCHEMY_EFFECT_LEVEL = new NamespacedKey(plugin, "alchemy_effect_level");

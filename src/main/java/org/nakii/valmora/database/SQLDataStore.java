@@ -45,7 +45,7 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 1;
+    static final int LATEST_SCHEMA_VERSION = 2;
 
     @Override
     public void init() {
@@ -106,8 +106,17 @@ public class SQLDataStore implements DataStore {
             migrateToV1(conn);
             setSchemaVersion(conn, 1);
         }
+        if (from < 2) {
+            migrateToV2(conn);
+            setSchemaVersion(conn, 2);
+        }
         // Future migrations go here, each gated on `from` and ending with setSchemaVersion(conn, N):
-        // if (from < 2) { migrateToV2(conn); setSchemaVersion(conn, 2); }
+        // if (from < 3) { migrateToV3(conn); setSchemaVersion(conn, 3); }
+    }
+
+    /** v2 — adds the quiver column (per-profile arrow storage). */
+    private void migrateToV2(Connection conn) throws SQLException {
+        addColumnIfMissing(conn, "valmora_profiles", "quiver", "TEXT");
     }
 
     /** v1 — baseline schema. Idempotent so it can also upgrade pre-versioning databases in place. */
@@ -234,6 +243,11 @@ public class SQLDataStore implements DataStore {
                         if (inventoryJson != null) deserializeInventory(profile, inventoryJson);
                     } catch (SQLException ignored) {}
 
+                    try {
+                        String quiverJson = rsProfiles.getString("quiver");
+                        profile.setQuiverItems(deserializeItemArray(quiverJson, profile.getQuiverItems().length));
+                    } catch (SQLException ignored) {}
+
                     player.addProfile(profile);
                 }
 
@@ -270,8 +284,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, last_used = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -286,6 +300,7 @@ public class SQLDataStore implements DataStore {
                         String variablesJson = gson.toJson(profile.getVariables());
                         String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
                         String inventoryJson = serializeInventory(profile);
+                        String quiverJson = serializeItemArray(profile.getQuiverItems());
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -294,19 +309,21 @@ public class SQLDataStore implements DataStore {
                         ps.setString(8, variablesJson);
                         ps.setString(9, collectionsJson);
                         ps.setString(10, inventoryJson);
-                        ps.setLong(11, profile.getCreatedAt());
-                        ps.setLong(12, profile.getLastUsed());
+                        ps.setString(11, quiverJson);
+                        ps.setLong(12, profile.getCreatedAt());
+                        ps.setLong(13, profile.getLastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(13, profile.getName());
-                        ps.setString(14, statsJson);
-                        ps.setString(15, skillsJson);
-                        ps.setString(16, stateJson);
-                        ps.setString(17, tagsJson);
-                        ps.setString(18, variablesJson);
-                        ps.setString(19, collectionsJson);
-                        ps.setString(20, inventoryJson);
-                        ps.setLong(21, profile.getLastUsed());
+                        ps.setString(14, profile.getName());
+                        ps.setString(15, statsJson);
+                        ps.setString(16, skillsJson);
+                        ps.setString(17, stateJson);
+                        ps.setString(18, tagsJson);
+                        ps.setString(19, variablesJson);
+                        ps.setString(20, collectionsJson);
+                        ps.setString(21, inventoryJson);
+                        ps.setString(22, quiverJson);
+                        ps.setLong(23, profile.getLastUsed());
 
                         ps.addBatch();
                     }
@@ -377,6 +394,29 @@ public class SQLDataStore implements DataStore {
         profile.setSavedOffhand(offhand);
     }
 
+    // Generic fixed-size ItemStack[] <-> base64 JSON array, used for the quiver (and any
+    // future flat item-array profile field that isn't the multi-part player inventory).
+    private String serializeItemArray(ItemStack[] items) {
+        if (items == null) return null;
+        String[] encoded = new String[items.length];
+        for (int i = 0; i < items.length; i++) {
+            encoded[i] = encodeItem(items[i]);
+        }
+        return gson.toJson(encoded);
+    }
+
+    private ItemStack[] deserializeItemArray(String json, int size) {
+        ItemStack[] result = new ItemStack[size];
+        if (json == null) return result;
+        String[] encoded = gson.fromJson(json, String[].class);
+        if (encoded == null) return result;
+        for (int i = 0; i < Math.min(encoded.length, size); i++) {
+            if (encoded[i] == null) continue;
+            result[i] = decodeItem(encoded[i]);
+        }
+        return result;
+    }
+
     private String encodeItem(ItemStack item) {
         if (item == null || item.getType().isAir()) return null;
         try {
@@ -427,6 +467,38 @@ public class SQLDataStore implements DataStore {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to save economy data for " + uuid, e);
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> saveEconomyBatch(Map<UUID, double[]> balances) {
+        if (balances.isEmpty()) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            String sql = isMySQL
+                ? "INSERT INTO valmora_economy (uuid, purse, bank) VALUES (?,?,?) ON DUPLICATE KEY UPDATE purse=?, bank=?"
+                : "INSERT INTO valmora_economy (uuid, purse, bank) VALUES (?,?,?) ON CONFLICT(uuid) DO UPDATE SET purse=?, bank=?";
+
+            try (Connection conn = hikari.getConnection()) {
+                conn.setAutoCommit(false);
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    for (Map.Entry<UUID, double[]> entry : balances.entrySet()) {
+                        double[] row = entry.getValue();
+                        double purse = row[0];
+                        double bank = row[1];
+                        ps.setString(1, entry.getKey().toString());
+                        ps.setDouble(2, purse);
+                        ps.setDouble(3, bank);
+                        ps.setDouble(4, purse);
+                        ps.setDouble(5, bank);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to batch-save economy data for " + balances.size() + " players", e);
             }
         }, dbExecutor);
     }

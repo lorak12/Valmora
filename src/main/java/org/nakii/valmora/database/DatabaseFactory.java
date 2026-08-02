@@ -36,6 +36,9 @@ public class DatabaseFactory {
             File dbFile = new File(plugin.getDataFolder(), "database.db");
             hikariConfig.setJdbcUrl("jdbc:sqlite:" + dbFile.getAbsolutePath());
             hikariConfig.setDriverClassName("org.sqlite.JDBC");
+            // WAL lets readers and the (now infrequent, batched) writer proceed concurrently
+            // instead of blocking each other under SQLite's default rollback-journal mode.
+            hikariConfig.setConnectionInitSql("PRAGMA journal_mode=WAL");
 
             return new SQLDataStore(new HikariDataSource(hikariConfig), false, plugin.getLogger());
         }

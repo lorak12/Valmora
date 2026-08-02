@@ -15,6 +15,8 @@ import org.nakii.valmora.module.enchant.EnchantModule;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentRegistry;
 import org.nakii.valmora.module.enchant.logic.SharpnessLogic;
+import org.nakii.valmora.module.item.ItemManager;
+import org.nakii.valmora.module.item.set.SetBonusRegistry;
 import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.mob.MobManager;
 import org.nakii.valmora.module.profile.PlayerManager;
@@ -40,6 +42,8 @@ class DamageCalculatorTest {
     private EnchantmentRegistry enchantmentRegistry;
     private StatRegistry statRegistry;
     private SystemStats systemStats;
+    private ItemManager itemManager;
+    private SetBonusRegistry setBonusRegistry;
 
     @BeforeEach
     void setUp() {
@@ -75,11 +79,17 @@ class DamageCalculatorTest {
         statRegistry.register(new StatDefinition("mana_regen", "Mana Regen", 2.0, Double.MAX_VALUE, "<aqua>", "PRISMARINE_CRYSTALS", "", false, null));
         statRegistry.register(new StatDefinition("luck", "Luck", 0.0, 100.0, "<yellow>", "RABBIT_FOOT", "", false, null));
 
+        itemManager = mock(ItemManager.class);
+        setBonusRegistry = mock(SetBonusRegistry.class);
+        when(itemManager.getSetBonusRegistry()).thenReturn(setBonusRegistry);
+        when(setBonusRegistry.get(any())).thenReturn(java.util.Optional.empty());
+
         when(api.getPlayerManager()).thenReturn(playerManager);
         when(api.getMobManager()).thenReturn(mobManager);
         when(api.getEnchantModule()).thenReturn(enchantModule);
         when(api.getStatRegistry()).thenReturn(statRegistry);
         when(api.getSystemStats()).thenReturn(systemStats);
+        when(api.getItemManager()).thenReturn(itemManager);
         when(enchantModule.getRegistry()).thenReturn(enchantmentRegistry);
 
         ValmoraAPI.setProvider(api);

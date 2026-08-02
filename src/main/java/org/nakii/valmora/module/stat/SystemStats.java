@@ -17,11 +17,14 @@ public class SystemStats {
     private final String luck;
     private final String miningFortune;
     private final String miningSpeed;
+    private final String breakingPower;
+    private final String miningSpread;
 
     private SystemStats(String health, String mana, String damage, String strength,
                         String defense, String critChance, String critDamage, String speed,
                         String healthRegen, String manaRegen, String luck,
-                        String miningFortune, String miningSpeed) {
+                        String miningFortune, String miningSpeed,
+                        String breakingPower, String miningSpread) {
         this.health = health;
         this.mana = mana;
         this.damage = damage;
@@ -35,6 +38,8 @@ public class SystemStats {
         this.luck = luck;
         this.miningFortune = miningFortune;
         this.miningSpeed = miningSpeed;
+        this.breakingPower = breakingPower;
+        this.miningSpread = miningSpread;
     }
 
     public static SystemStats load(FileConfiguration config) {
@@ -51,7 +56,9 @@ public class SystemStats {
             config.getString("combat.mana-regen-stat", "mana_regen"),
             config.getString("combat.luck-stat", "luck"),
             config.getString("mining.mining-fortune-stat", "mining_fortune"),
-            config.getString("mining.mining-speed-stat", "mining_speed")
+            config.getString("mining.mining-speed-stat", "mining_speed"),
+            config.getString("mining.breaking-power-stat", "breaking_power"),
+            config.getString("mining.mining-spread-stat", "mining_spread")
         );
     }
 
@@ -68,4 +75,6 @@ public class SystemStats {
     public String getLuck() { return luck; }
     public String getMiningFortune() { return miningFortune; }
     public String getMiningSpeed() { return miningSpeed; }
+    public String getBreakingPower() { return breakingPower; }
+    public String getMiningSpread() { return miningSpread; }
 }

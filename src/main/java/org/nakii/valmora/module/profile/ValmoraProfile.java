@@ -32,6 +32,9 @@ public class ValmoraProfile {
     // Accessory bag (45 slots)
     private ItemStack[] accessoryItems = new ItemStack[45];
 
+    // Quiver (27 slots, arrow-type items only)
+    private ItemStack[] quiverItems = new ItemStack[27];
+
     public ValmoraProfile(UUID id, String name, long createdAt, long lastUsed) {
         this.id = id;
         this.name = name;
@@ -90,4 +93,7 @@ public class ValmoraProfile {
 
     public ItemStack[] getAccessoryItems() { return accessoryItems; }
     public void setAccessoryItems(ItemStack[] items) { this.accessoryItems = items; }
+
+    public ItemStack[] getQuiverItems() { return quiverItems; }
+    public void setQuiverItems(ItemStack[] items) { this.quiverItems = items; }
 }

@@ -1,0 +1,68 @@
+# =====================================================================
+# Shardworks — the mining zone. Purely an interaction config: the AABB
+# bounds and mob-spawner coordinates below must match a cavern actually
+# built in the world (out of plugin scope); this file only defines what
+# happens when the configured ore materials are broken inside the box.
+# =====================================================================
+
+shardworks:
+  display-name: "<gray><bold>Shardworks"
+  world: world
+  min: [-200, 0, -200]
+  max: [-100, 60, -100]
+
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: true
+    block-placing: false
+    hunger: true
+    entry: true
+    teleportation: true
+    leaf-decay: true
+
+  resource-blocks:
+    DEEPSLATE_IRON_ORE:
+      regen-delay: 400
+      required-power: 7
+      stages:
+        - drops:
+            - { item: raw_ferrite, min: 2, max: 4, chance: 1.0 }
+          next: DEEPSLATE
+
+    AMETHYST_CLUSTER:
+      regen-delay: 600
+      required-power: 8
+      stages:
+        - drops:
+            - { item: raw_lumicite, min: 1, max: 3, chance: 1.0 }
+          next: BUDDING_AMETHYST
+
+    ANCIENT_DEBRIS:
+      regen-delay: 900
+      required-power: 9
+      stages:
+        - drops:
+            - { item: raw_aetherium, min: 1, max: 2, chance: 1.0 }
+          next: BLACKSTONE
+
+  mob-spawners:
+    cave_guardian_1:
+      mob: shardworks_cave_guardian
+      x: -150
+      y: 20
+      z: -150
+      spawn-interval: 400
+      max-alive: 3
+      radius: 40.0
+      spawn-radius: 5
+
+    crystal_wraith_1:
+      mob: shardworks_crystal_wraith
+      x: -160
+      y: 15
+      z: -140
+      spawn-interval: 600
+      max-alive: 2
+      radius: 30.0
+      spawn-radius: 4

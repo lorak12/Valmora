@@ -20,6 +20,16 @@ import java.util.Objects;
 
 public class ResourceManager {
 
+    /** Result of attempting to break a tracked/potential resource block. */
+    public enum BreakResult {
+        /** Not a configured resource block in this zone — vanilla handling applies. */
+        NOT_TRACKED,
+        /** A resource block, but the player's Breaking Power is below the required threshold. */
+        INSUFFICIENT_POWER,
+        /** Successfully mined; drops were generated and the block progressed/regenerated. */
+        HANDLED
+    }
+
     private final Valmora plugin;
     private final Map<String, ResourceTracker> trackedBlocks = new HashMap<>();
 
@@ -32,11 +42,11 @@ public class ResourceManager {
     }
 
     /**
-     * Returns true if the break event should suppress vanilla drops.
-     * Handles multi-stage progression: each mine advances the block to the next stage material
-     * until the final stage, after which the regen timer restores the original block.
+     * Handles a resource-block break attempt. Applies Breaking Power gating, Mining Fortune-scaled
+     * drops, multi-stage progression, and (on success) triggers Mining Spread AOE mining on
+     * adjacent matching blocks.
      */
-    public boolean handleBlockBreak(Player player, Block block) {
+    public BreakResult handleBlockBreak(Player player, Block block) {
         String key = locationKey(block.getLocation());
         ResourceTracker tracker = trackedBlocks.get(key);
 
@@ -45,17 +55,21 @@ public class ResourceManager {
         Material originalMaterial;
 
         if (tracker != null) {
-            if (tracker.stageIndex >= tracker.config.getStageCount()) return true; // depleted, awaiting regen
+            if (tracker.stageIndex >= tracker.config.getStageCount()) return BreakResult.HANDLED; // depleted, awaiting regen
             config = tracker.config;
             stageIndex = tracker.stageIndex;
             originalMaterial = tracker.originalMaterial;
         } else {
             ZoneDefinition zone = plugin.getZoneManager().getZoneAt(block.getLocation()).orElse(null);
-            if (zone == null) return false;
+            if (zone == null) return BreakResult.NOT_TRACKED;
             config = zone.getResourceBlocks().get(block.getType());
-            if (config == null) return false;
+            if (config == null) return BreakResult.NOT_TRACKED;
             stageIndex = 0;
             originalMaterial = block.getType();
+        }
+
+        if (getPlayerBreakingPower(player) < config.getRequiredPower()) {
+            return BreakResult.INSUFFICIENT_POWER;
         }
 
         ResourceStage stage = config.getStage(stageIndex);
@@ -94,7 +108,24 @@ public class ResourceManager {
             tracker.regenTask = regenTask;
         }
 
-        return true;
+        return BreakResult.HANDLED;
+    }
+
+    private double getPlayerBreakingPower(Player player) {
+        ValmoraPlayer session = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
+        if (session == null) return 0.0;
+        var profile = session.getActiveProfile();
+        if (profile == null) return 0.0;
+        return profile.getStatManager().getStat(ValmoraAPI.getInstance().getSystemStats().getBreakingPower());
+    }
+
+    Valmora getPlugin() { return plugin; }
+
+    /** Exposes the resource-block config for a location, if any, for AOE-mining adjacency checks. */
+    public ZoneResourceConfig getResourceConfigAt(Location loc) {
+        ZoneDefinition zone = plugin.getZoneManager().getZoneAt(loc).orElse(null);
+        if (zone == null) return null;
+        return zone.getResourceBlocks().get(loc.getBlock().getType());
     }
 
     public void cancelAll() {

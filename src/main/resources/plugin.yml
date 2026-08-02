@@ -64,3 +64,6 @@ commands:
   accessories:
     usage: /accessories
     description: Open your accessory bag.
+  quiver:
+    usage: /quiver
+    description: Open your quiver.

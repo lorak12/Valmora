@@ -107,6 +107,7 @@ public class ZoneLoader {
                     ConfigurationSection rbEntry = rbSec.getConfigurationSection(matName);
                     if (rbEntry == null) continue;
                     int regenDelay = rbEntry.getInt("regen-delay", 600);
+                    double requiredPower = rbEntry.getDouble("required-power", 0.0);
 
                     List<ResourceStage> stages = new ArrayList<>();
                     List<?> stagesList = rbEntry.getList("stages");
@@ -146,7 +147,7 @@ public class ZoneLoader {
                         stages.add(new ResourceStage(drops, null));
                     }
 
-                    resourceBlocks.put(mat, new ZoneResourceConfig(regenDelay, stages));
+                    resourceBlocks.put(mat, new ZoneResourceConfig(regenDelay, stages, requiredPower));
                 }
             }
 

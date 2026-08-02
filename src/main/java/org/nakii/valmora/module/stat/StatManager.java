@@ -160,6 +160,15 @@ public class StatManager {
             valmora.getPetModule().applyPetStats(player, this);
         }
 
+        // Armor set bonuses (e.g. full Young Dragon → +Speed).
+        org.nakii.valmora.module.item.set.SetBonusService.applyTo(player, this);
+
+        // Progression-tree stat bonuses (e.g. Geomancy's Mining Speed/Fortune/Spread branches).
+        org.nakii.valmora.module.progression.ProgressionStatService.applyTo(player, this);
+
+        // Temporary stat modifiers granted by item abilities (e.g. "+100 Speed for 30s").
+        org.nakii.valmora.module.item.TemporaryStatService.applyTo(player.getUniqueId(), this);
+
         // Cap effective stats to their defined maxValue (fixes CRIT_CHANCE and LUCK never being capped)
         for (StatDefinition def : registry.values()) {
             if (def.getMaxValue() < Double.MAX_VALUE) {

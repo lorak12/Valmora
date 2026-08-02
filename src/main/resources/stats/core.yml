@@ -193,3 +193,19 @@ foraging_fortune:
   color: "<dark_green>"
   icon: "OAK_LOG"
   description: "Multiplies wood and leaf yield when foraging."
+
+breaking_power:
+  display-name: "Breaking Power"
+  default-value: 0.0
+  max-value: 20.0
+  color: "<gray>"
+  icon: "NETHERITE_PICKAXE"
+  description: "Minimum tool power required to break certain ores."
+
+mining_spread:
+  display-name: "Mining Spread"
+  default-value: 0.0
+  max-value: 10.0
+  color: "<aqua>"
+  icon: "AMETHYST_SHARD"
+  description: "Number of additional adjacent matching blocks mined at once."
