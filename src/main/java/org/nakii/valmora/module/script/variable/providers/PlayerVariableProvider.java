@@ -141,10 +141,23 @@ public class PlayerVariableProvider implements VariableProvider {
         if (key.equalsIgnoreCase("max_hp")) return profile.getStatManager().getStat(sys.getHealth());
         if (key.equalsIgnoreCase("health_percent"))
             return (int) ((profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100);
+        if (key.equalsIgnoreCase("missing_hp_percent"))
+            return 100 - (int) ((profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100);
         if (key.equalsIgnoreCase("mana")) return profile.getPlayerState().getCurrentMana();
         if (key.equalsIgnoreCase("max_mana")) return profile.getStatManager().getStat(sys.getMana());
 
         if (key.equalsIgnoreCase("profile")) return profile.getName();
+
+        // Most recent damage this player dealt (set by the combat pipeline) — used by ON_HIT
+        // abilities that scale off the triggering hit.
+        if (key.equalsIgnoreCase("last_damage"))
+            return org.nakii.valmora.module.item.CombatTracker.getLastDamageDealt(player.getUniqueId());
+
+        // Base weapon damage stat, used by greed-style abilities ("100x the weapon damage").
+        if (key.equalsIgnoreCase("weapon_damage")) {
+            StatDefinition dmg = api.getStatRegistry().get("damage").orElse(null);
+            return dmg == null ? 0.0 : profile.getStatManager().getStat(dmg.getId());
+        }
 
         if (key.equalsIgnoreCase("var") && path.length > 1) {
             return profile.getVariables().get(path[1]);

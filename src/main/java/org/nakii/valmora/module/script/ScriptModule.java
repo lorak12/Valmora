@@ -56,6 +56,7 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new ParamVariableProvider());
         registerProvider(new RangeVariableProvider());
         registerProvider(new TimeVariableProvider());
+        registerProvider(new TargetVariableProvider());
 
         // Register default events
         registerEvent(new ConditionEvent(this));

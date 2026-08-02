@@ -2,6 +2,7 @@ package org.nakii.valmora.module.script.expression;
 
 import org.nakii.valmora.api.scripting.Expression;
 import org.nakii.valmora.module.script.expression.nodes.BinaryOpNode;
+import org.nakii.valmora.module.script.expression.nodes.FunctionNode;
 import org.nakii.valmora.module.script.expression.nodes.LiteralNode;
 import org.nakii.valmora.module.script.expression.nodes.TernaryNode;
 import org.nakii.valmora.module.script.expression.nodes.VariableNode;
@@ -21,10 +22,11 @@ public class ExpressionParser {
             "\\$[A-Za-z0-9._-]+\\$|" + // Variable: $player.health$
             "\\d+(\\.\\d+)?|" +        // Number: 123.45
             "\"[^\"]*\"|" +            // String literal: "hello"
+            "&&|\\|\\||" +             // Logical AND / OR
             "==|!=|>=|<=|>|<|" +       // Comparison Operators
             "[+\\-*/]|" +              // Arithmetic Operators
-            "[():?]|" +                // Grouping, Ternary
-            "[A-Za-z]+"                // Boolean or generic tokens
+            "[():?,]|" +               // Grouping, Ternary, arg separator
+            "[A-Za-z][A-Za-z0-9_]*"    // Boolean, function names, or generic tokens
     );
 
     private final List<String> tokens = new ArrayList<>();
@@ -49,12 +51,30 @@ public class ExpressionParser {
     }
 
     private Expression parseTernary() {
-        Expression left = parseComparison();
+        Expression left = parseLogicalOr();
         if (match("?")) {
             Expression trueVal = parseTernary(); // Right associative ternary? Usually ternary is right assoc.
             consume(":");
             Expression falseVal = parseTernary();
             return new TernaryNode(left, trueVal, falseVal);
+        }
+        return left;
+    }
+
+    private Expression parseLogicalOr() {
+        Expression left = parseLogicalAnd();
+        while (matchAny("or", "||")) {
+            Expression right = parseLogicalAnd();
+            left = new BinaryOpNode(left, "or", right);
+        }
+        return left;
+    }
+
+    private Expression parseLogicalAnd() {
+        Expression left = parseComparison();
+        while (matchAny("and", "&&")) {
+            Expression right = parseComparison();
+            left = new BinaryOpNode(left, "and", right);
         }
         return left;
     }
@@ -114,11 +134,29 @@ public class ExpressionParser {
             return new LiteralNode(Double.parseDouble(token));
         }
 
+        // Function call: identifier immediately followed by '('
+        if (Character.isLetter(token.charAt(0)) && peek("(")) {
+            consume("(");
+            List<Expression> args = new ArrayList<>();
+            if (!peek(")")) {
+                args.add(parseTernary());
+                while (match(",")) {
+                    args.add(parseTernary());
+                }
+            }
+            consume(")");
+            return new FunctionNode(token, args);
+        }
+
         return new LiteralNode(token);
     }
 
     private String next() {
         return cursor < tokens.size() ? tokens.get(cursor++) : null;
+    }
+
+    private boolean peek(String expected) {
+        return cursor < tokens.size() && tokens.get(cursor).equals(expected);
     }
 
     private boolean match(String expected) {

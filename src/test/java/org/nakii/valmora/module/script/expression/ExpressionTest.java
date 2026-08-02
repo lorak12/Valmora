@@ -92,6 +92,30 @@ public class ExpressionTest {
         assertEquals("perfect", evaluate("(10 + 5 > 20) ? \"too big\" : (5 * 2 == 10 ? \"perfect\" : \"too small\")"));
     }
 
+    @Test
+    public void testFunctions() {
+        assertEquals(3.0, evaluate("floor(7 / 2)"));
+        assertEquals(4.0, evaluate("ceil(7 / 2)"));
+        assertEquals(3.0, evaluate("round(2.6)"));
+        assertEquals(5.0, evaluate("abs(0 - 5)"));
+        assertEquals(1.0, evaluate("min(1, 2, 3)"));
+        assertEquals(3.0, evaluate("max(1, 2, 3)"));
+        assertEquals(3.0, evaluate("log10(1000)"));
+        assertEquals(8.0, evaluate("pow(2, 3)"));
+        // Nested + arithmetic around a function
+        assertEquals(130.0, evaluate("130 + min(1000, floor(0 / 1000000))"));
+    }
+
+    @Test
+    public void testLogical() {
+        assertEquals(true, evaluate("10 > 5 and 3 > 1"));
+        assertEquals(false, evaluate("10 > 5 and 1 > 3"));
+        assertEquals(true, evaluate("10 < 5 or 3 > 1"));
+        assertEquals(false, evaluate("10 < 5 or 1 > 3"));
+        assertEquals(true, evaluate("\"ZOMBIE\" == \"ZOMBIE\" or \"ZOMBIE\" == \"SKELETON\""));
+        assertEquals(false, evaluate("\"CREEPER\" == \"ZOMBIE\" or \"CREEPER\" == \"SKELETON\""));
+    }
+
     private Object evaluate(String expr) {
         return parser.parse(expr).evaluate(context);
     }

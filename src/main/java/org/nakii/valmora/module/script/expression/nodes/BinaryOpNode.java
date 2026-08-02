@@ -18,6 +18,10 @@ public record BinaryOpNode(Expression left, String op, Expression right) impleme
     }
 
     private Object evaluateOp(Object l, Object r) {
+        // Logical operators coerce both sides to booleans.
+        if (op.equals("and") || op.equals("&&")) return truthy(l) && truthy(r);
+        if (op.equals("or") || op.equals("||")) return truthy(l) || truthy(r);
+
         if (l instanceof Number ln && r instanceof Number rn) {
             double leftVal = ln.doubleValue();
             double rightVal = rn.doubleValue();
@@ -41,5 +45,11 @@ public record BinaryOpNode(Expression left, String op, Expression right) impleme
         if (op.equals("!=")) return !Objects.equals(l, r);
 
         return null;
+    }
+
+    private static boolean truthy(Object o) {
+        if (o instanceof Boolean b) return b;
+        if (o instanceof Number n) return n.doubleValue() != 0.0;
+        return o != null;
     }
 }
