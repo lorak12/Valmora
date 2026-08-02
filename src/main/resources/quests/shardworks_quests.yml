@@ -1,0 +1,69 @@
+# =====================================================================
+# Shardworks quest-board pool quests. Each is a plain quest — no
+# cooldown/repeatable flags needed since the quest board (see
+# quest_boards/shardworks.yml + module/quest/board/) manually resets
+# and rerolls a slot when the player collects its rewards.
+# =====================================================================
+
+shardworks_mine_ferrite:
+  name: "<gray>Ferrite Quota"
+  objectives:
+    - id: mine_ferrite
+      type: collect
+      target: raw_ferrite
+      amount: 150
+      notify: 25
+  reward-events:
+    - "point ferrite_powder add 40"
+    - "point geomancy_tokens add 1"
+
+shardworks_mine_lumicite:
+  name: "<aqua>Lumicite Harvest"
+  objectives:
+    - id: mine_lumicite
+      type: collect
+      target: raw_lumicite
+      amount: 60
+      notify: 10
+  reward-events:
+    - "point ferrite_powder add 60"
+    - "point geomancy_tokens add 1"
+
+shardworks_mine_aetherium:
+  name: "<light_purple>Aetherium Sample"
+  objectives:
+    - id: mine_aetherium
+      type: collect
+      target: raw_aetherium
+      amount: 10
+      notify: 2
+  reward-events:
+    - "point ferrite_powder add 100"
+    - "point geomancy_tokens add 2"
+
+shardworks_guardian_hunt:
+  name: "<red>Guardian's Bane"
+  objectives:
+    - id: kill_guardian
+      type: kill
+      target: shardworks_cave_guardian
+      amount: 1
+  reward-events:
+    - "point ferrite_powder add 60"
+    - "point geomancy_tokens add 2"
+
+shardworks_wraith_cores:
+  name: "<dark_purple>Wraith Cores"
+  objectives:
+    - id: kill_wraiths
+      type: kill
+      target: shardworks_crystal_wraith
+      amount: 5
+      notify: 1
+    - id: collect_cores
+      type: collect
+      target: crystal_wraith_core
+      amount: 5
+  reward-events:
+    - "point ferrite_powder add 80"
+    - "point geomancy_tokens add 2"

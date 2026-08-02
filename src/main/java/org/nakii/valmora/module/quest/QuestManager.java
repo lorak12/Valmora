@@ -128,6 +128,27 @@ public class QuestManager {
         player.sendMessage(Formatter.format("<red>Quest failed: " + questId));
     }
 
+    /**
+     * Resets a quest back to {@link #STATUS_NOT_STARTED} and clears every objective's progress,
+     * so it can be immediately restarted. Used by systems (e.g. a quest board) that hand out a
+     * fresh instance of the same quest after the player has collected its rewards, rather than
+     * relying on a cooldown timer.
+     */
+    public void resetQuestProgress(ValmoraProfile profile, String questId) {
+        if (profile == null) return;
+        QuestDefinition quest = registry.get(questId).orElse(null);
+        if (quest == null) return;
+        clearObjectiveFlags(profile, questId);
+        Map<String, Object> vars = profile.getVariables();
+        List<QuestObjective> objectives = quest.getObjectives();
+        for (int i = 0; i < objectives.size(); i++) {
+            QuestObjective obj = objectives.get(i);
+            String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+            vars.remove("quest." + questId + ".obj." + key);
+        }
+        vars.put("quest." + questId + ".status", STATUS_NOT_STARTED);
+    }
+
     // -------------------------------------------------------------------------
     // Objective lifecycle
     // -------------------------------------------------------------------------
@@ -264,8 +285,18 @@ public class QuestManager {
         return p instanceof Number n ? n.intValue() : 0;
     }
 
+    /**
+     * True if every objective in this quest is persistent (loops without ever completing).
+     * {@link #checkCompletion} skips persistent objectives, so a quest made entirely of them
+     * must never be handed to {@link #finishQuest} — otherwise it would auto-complete on its
+     * first progress tick and (since {@link #startQuest} refuses to restart a completed quest)
+     * permanently lock itself.
+     */
     private boolean isAnyPersistentPending(QuestDefinition quest) {
-        return false;
+        for (QuestObjective obj : quest.getObjectives()) {
+            if (!obj.isPersistent()) return false;
+        }
+        return true;
     }
 
     private boolean evaluateConditions(List<String> conditionStrings, SimpleExecutionContext ctx) {

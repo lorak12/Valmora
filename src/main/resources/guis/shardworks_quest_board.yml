@@ -1,0 +1,76 @@
+# =====================================================================
+# Shardworks quest board — shows the 2 active quest slots. In-progress
+# slots are read-only; completed slots can be clicked to collect
+# rewards, which rerolls a new random quest into that slot.
+# =====================================================================
+
+shardworks_quest_board:
+  title: "<yellow>Prospector's Quest Board"
+  rows: 3
+  update-interval: 20
+
+  layout:
+    - "BBBBBBBBB"
+    - "BB1BB2BBB"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    "1":
+      type: DISPLAY
+      states:
+        completed:
+          condition: "$questboard.shardworks.slot.1.status$ == completed"
+          display-item:
+            material: LIME_STAINED_GLASS_PANE
+            name: "<green>$questboard.shardworks.slot.1.name$"
+            lore:
+              - "<gray>Status: <green>Complete!"
+              - "<yellow>Click to collect your reward!"
+          actions:
+            left:
+              actions: ["quest_board_collect shardworks 1"]
+        in-progress:
+          condition: "$questboard.shardworks.slot.1.status$ == in_progress"
+          display-item:
+            material: YELLOW_STAINED_GLASS_PANE
+            name: "<yellow>$questboard.shardworks.slot.1.name$"
+            lore:
+              - "<gray>Status: <yellow>In Progress"
+        empty:
+          condition: "default"
+          display-item:
+            material: GRAY_STAINED_GLASS_PANE
+            name: "<gray>No quest assigned"
+
+    "2":
+      type: DISPLAY
+      states:
+        completed:
+          condition: "$questboard.shardworks.slot.2.status$ == completed"
+          display-item:
+            material: LIME_STAINED_GLASS_PANE
+            name: "<green>$questboard.shardworks.slot.2.name$"
+            lore:
+              - "<gray>Status: <green>Complete!"
+              - "<yellow>Click to collect your reward!"
+          actions:
+            left:
+              actions: ["quest_board_collect shardworks 2"]
+        in-progress:
+          condition: "$questboard.shardworks.slot.2.status$ == in_progress"
+          display-item:
+            material: YELLOW_STAINED_GLASS_PANE
+            name: "<yellow>$questboard.shardworks.slot.2.name$"
+            lore:
+              - "<gray>Status: <yellow>In Progress"
+        empty:
+          condition: "default"
+          display-item:
+            material: GRAY_STAINED_GLASS_PANE
+            name: "<gray>No quest assigned"

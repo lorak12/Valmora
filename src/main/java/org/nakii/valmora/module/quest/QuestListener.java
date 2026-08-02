@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
+import org.bukkit.block.TileState;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -24,6 +25,7 @@ import org.bukkit.event.entity.EntityTameEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -138,6 +140,15 @@ public class QuestListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         questManager.trigger(event.getPlayer(), QuestObjectiveTypes.BLOCK_PLACE,
                 event.getBlock().getType().name(), 1);
+
+        // Tag furnace-type blocks with their placer so SMELT objectives can attribute
+        // smelts back to a player (FurnaceSmeltEvent itself carries no player reference).
+        if (event.getBlockPlaced().getState() instanceof TileState tileState
+                && isFurnace(event.getBlock().getType())) {
+            tileState.getPersistentDataContainer().set(Keys.FURNACE_OWNER_KEY,
+                    PersistentDataType.STRING, event.getPlayer().getUniqueId().toString());
+            tileState.update();
+        }
     }
 
     // ── FISH ─────────────────────────────────────────────────────────────────
@@ -280,8 +291,26 @@ public class QuestListener implements Listener {
                 event.getSkill().getId(), (int) Math.ceil(event.getXp()));
     }
 
-    // ── SMELT (player attribution not available via FurnaceSmeltEvent) ────────
-    // Kept as a stub. Full implementation requires tracking who placed the item.
+    // ── SMELT ────────────────────────────────────────────────────────────────
+    // FurnaceSmeltEvent carries no player reference, so we attribute the smelt to whoever
+    // placed the furnace (tagged in onBlockPlace above).
+
+    @EventHandler
+    public void onSmelt(FurnaceSmeltEvent event) {
+        if (!(event.getBlock().getState() instanceof TileState tileState)) return;
+        String ownerId = tileState.getPersistentDataContainer()
+                .get(Keys.FURNACE_OWNER_KEY, PersistentDataType.STRING);
+        if (ownerId == null) return;
+
+        Player owner = org.bukkit.Bukkit.getPlayer(java.util.UUID.fromString(ownerId));
+        if (owner == null) return;
+        if (!questManager.hasActiveObjectiveType(owner, QuestObjectiveTypes.SMELT)) return;
+
+        ItemStack result = event.getResult();
+        String itemId = result.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+        String target = itemId != null ? itemId : result.getType().name();
+        questManager.trigger(owner, QuestObjectiveTypes.SMELT, target, result.getAmount());
+    }
 
     // ── ACTION (block click) ─────────────────────────────────────────────────
 
@@ -519,6 +548,10 @@ public class QuestListener implements Listener {
 
     private boolean isPressurePlate(Material mat) {
         return Tag.PRESSURE_PLATES.isTagged(mat);
+    }
+
+    private boolean isFurnace(Material mat) {
+        return mat == Material.FURNACE || mat == Material.BLAST_FURNACE || mat == Material.SMOKER;
     }
 
     private void checkExperienceObjectives(Player player) {

@@ -10,6 +10,11 @@ import org.nakii.valmora.module.quest.objective.DelayObjectiveHandler;
 import org.nakii.valmora.module.quest.objective.NpcRangeObjectiveHandler;
 import org.nakii.valmora.module.quest.objective.TimerObjectiveHandler;
 import org.nakii.valmora.module.quest.pkg.QuestPackageManager;
+import org.nakii.valmora.module.quest.board.QuestBoardEventFactory;
+import org.nakii.valmora.module.quest.board.QuestBoardLoader;
+import org.nakii.valmora.module.quest.board.QuestBoardManager;
+import org.nakii.valmora.module.quest.board.QuestBoardRegistry;
+import org.nakii.valmora.module.quest.board.QuestBoardVariableProvider;
 
 public class QuestModule implements ReloadableModule {
 
@@ -21,6 +26,8 @@ public class QuestModule implements ReloadableModule {
     private PlayerHiderManager playerHiderManager;
     private NpcRangeObjectiveHandler npcRangeHandler;
     private TimerObjectiveHandler timerHandler;
+    private QuestBoardRegistry questBoardRegistry;
+    private QuestBoardManager questBoardManager;
 
     public QuestModule(Valmora plugin) {
         this.plugin = plugin;
@@ -45,6 +52,12 @@ public class QuestModule implements ReloadableModule {
         npcRangeHandler.start();
         new QuestEventFactory(questManager).all().forEach(plugin.getScriptModule()::registerEvent);
         plugin.getScriptModule().registerProvider(new QuestVariableProvider());
+
+        this.questBoardRegistry = new QuestBoardRegistry();
+        new QuestBoardLoader(plugin, questBoardRegistry).load();
+        this.questBoardManager = new QuestBoardManager(plugin, questBoardRegistry);
+        new QuestBoardEventFactory(questBoardManager).all().forEach(plugin.getScriptModule()::registerEvent);
+        plugin.getScriptModule().registerProvider(new QuestBoardVariableProvider());
         plugin.getScriptModule().registerEvent(new JournalEventFactory(journalManager));
         this.listener = new QuestListener(questManager);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
@@ -65,6 +78,8 @@ public class QuestModule implements ReloadableModule {
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
         if (journalManager != null) { HandlerList.unregisterAll(journalManager); journalManager = null; }
         if (questManager != null) { questManager.getRegistry().clear(); questManager = null; }
+        if (questBoardRegistry != null) { questBoardRegistry.clear(); questBoardRegistry = null; }
+        questBoardManager = null;
         packageManager = null;
     }
 
@@ -75,4 +90,5 @@ public class QuestModule implements ReloadableModule {
     public QuestPackageManager getPackageManager() { return packageManager; }
     public JournalManager getJournalManager() { return journalManager; }
     public PlayerHiderManager getPlayerHiderManager() { return playerHiderManager; }
+    public QuestBoardManager getQuestBoardManager() { return questBoardManager; }
 }

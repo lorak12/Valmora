@@ -51,7 +51,8 @@ public class QuestLoader {
                 objectives.add(new QuestObjective(objId, type, target, amount,
                         conditions, events, persistent, autoOnce, notifyInterval));
             }
-            return LoadResult.success(new QuestDefinition(id, name, objectives));
+            List<String> rewardEvents = sec.getStringList("reward-events");
+            return LoadResult.success(new QuestDefinition(id, name, objectives, rewardEvents));
         } catch (Exception e) {
             return LoadResult.failure("[" + path + "] Error parsing quest '" + id + "': " + e.getMessage());
         }

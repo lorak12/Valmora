@@ -1,0 +1,14 @@
+# =====================================================================
+# Shardworks quest board — 2 always-active slots, drawn randomly from
+# this pool. Collecting a completed slot's rewards rerolls a new quest
+# into that slot.
+# =====================================================================
+
+shardworks:
+  slots: 2
+  pool:
+    - shardworks_mine_ferrite
+    - shardworks_mine_lumicite
+    - shardworks_mine_aetherium
+    - shardworks_guardian_hunt
+    - shardworks_wraith_cores
