@@ -1,0 +1,111 @@
+# =====================================================================
+# Geomancy — the mining progression tree for Shardworks.
+# A concrete instance of the generic Progression module (see
+# module/progression/). Other trees (foraging, farming, ...) can be
+# added as sibling files here with zero Java changes.
+# =====================================================================
+
+geomancy:
+  name: "<gold>Geomancy"
+  description: "Master the art of mining Shardworks' living stone."
+  level-currency: ferrite_powder
+  tier-currency: geomancy_tokens
+
+  tiers:
+    0:
+      name: "Novice"
+      unlock-cost: 0
+      nodes: [mining_speed_root]
+    1:
+      name: "Adept"
+      unlock-cost: 3
+      nodes: [mining_fortune_vein, mining_spread_focus]
+    2:
+      name: "Master"
+      unlock-cost: 5
+      nodes: [deep_prospecting, daily_ferrite_cache, mining_fortune_vein_ii]
+    3:
+      name: "Ascendant"
+      unlock-cost: 8
+      nodes: [aetherial_resonance]
+
+  nodes:
+    mining_speed_root:
+      name: "<white>Steady Hands"
+      description: "Increases Mining Speed."
+      icon: IRON_PICKAXE
+      tier: 0
+      max-level: 10
+      cost-curve: "floor(5 * pow(1.12, $level$))"
+      stat-bonus:
+        stat: mining_speed
+        per-level: 4
+
+    mining_fortune_vein:
+      name: "<gold>Rich Veins"
+      description: "Increases Mining Fortune."
+      icon: GOLD_NUGGET
+      tier: 1
+      max-level: 10
+      cost-curve: "floor(8 * pow(1.15, $level$))"
+      stat-bonus:
+        stat: mining_fortune
+        per-level: 3
+
+    mining_spread_focus:
+      name: "<aqua>Wide Excavation"
+      description: "Increases Mining Spread (breaks adjacent blocks)."
+      icon: AMETHYST_SHARD
+      tier: 1
+      max-level: 5
+      cost-curve: "floor(10 * pow(1.2, $level$))"
+      stat-bonus:
+        stat: mining_spread
+        per-level: 1
+
+    deep_prospecting:
+      name: "<dark_purple>Deep Prospecting"
+      description: "Further increases Mining Fortune."
+      icon: DIAMOND
+      tier: 2
+      max-level: 5
+      prerequisites: [mining_fortune_vein]
+      cost-curve: "floor(20 * pow(1.18, $level$))"
+      stat-bonus:
+        stat: mining_fortune
+        per-level: 5
+
+    daily_ferrite_cache:
+      name: "<yellow>Ferrite Cache"
+      description: "Grants bonus Ferrite Powder once per day."
+      icon: CHEST
+      tier: 2
+      max-level: 5
+      cost-curve: "floor(15 * pow(1.15, $level$))"
+      daily-bonus:
+        category: ferrite_powder
+        per-level: 25
+
+    mining_fortune_vein_ii:
+      name: "<gold>Overflowing Veins"
+      description: "Even further increases Mining Fortune."
+      icon: GOLD_INGOT
+      tier: 2
+      max-level: 10
+      prerequisites: [mining_fortune_vein]
+      cost-curve: "floor(25 * pow(1.15, $level$))"
+      stat-bonus:
+        stat: mining_fortune
+        per-level: 4
+
+    aetherial_resonance:
+      name: "<light_purple>Aetherial Resonance"
+      description: "Increases Mining Spread even further."
+      icon: NETHER_STAR
+      tier: 3
+      max-level: 3
+      prerequisites: [mining_spread_focus]
+      cost-curve: "floor(50 * pow(1.25, $level$))"
+      stat-bonus:
+        stat: mining_spread
+        per-level: 1
