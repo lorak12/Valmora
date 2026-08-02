@@ -1,0 +1,35 @@
+# =====================================================================
+# Shardworks unique mobs
+# =====================================================================
+
+shardworks_cave_guardian:
+  category: GOLEM
+  name: "<gray>Cave Guardian"
+  type: IRON_GOLEM
+  level: 15
+  base-damage: 12
+  health: 120.0
+  damage-type: MELEE
+  base-xp: 10
+  gold-reward: 15
+  speed: 0.25
+  loot-table:
+    drops:
+      - { item: raw_ferrite, min-amount: 1, max-amount: 3, chance: 0.5, luck-affected: true }
+
+shardworks_crystal_wraith:
+  category: OTHER
+  name: "<dark_purple>Crystal Wraith"
+  type: VEX
+  level: 20
+  base-damage: 8
+  health: 60.0
+  damage-type: MAGIC
+  base-xp: 15
+  gold-reward: 25
+  speed: 0.4
+  glowing: true
+  loot-table:
+    drops:
+      - { item: crystal_wraith_core, min-amount: 1, max-amount: 1, chance: 1.0, luck-affected: false }
+      - { item: raw_lumicite, min-amount: 1, max-amount: 2, chance: 0.4, luck-affected: true }

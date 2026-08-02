@@ -1,0 +1,654 @@
+# =====================================================================
+# Slayer Weapons
+# =====================================================================
+# Obtained from various Slayer bosses and crafting.
+#
+# Implementation notes:
+#   * Entity-type damage bonuses use ON_HIT + conditions + DAMAGE mechanic.
+#   * Abilities needing unimplemented mechanics are DESCRIPTION-ONLY:
+#     - Soul collection/summoning (Reaper Scythe)
+#     - Kill-counter stacking buffs (Recluse Fang)
+#     - Ticker/charge state machines (Scorpion Foil: Heartstopper)
+#     - HP-scaled conditional stat bonuses (Shaman Sword, Pooch Sword)
+#     - Next-hit buffs (Edible Mace)
+#     - Attunement toggle + delayed secondary effect (all Blaze daggers)
+#       → Blaze daggers are the best candidates for a custom addon API
+#         example once per-item state tracking is in place.
+#     - Zap-line + warp-back mechanic (Sinseeker Scythe)
+# =====================================================================
+
+
+# ─────────────────────────────────────────
+# Zombie Slayer
+# ─────────────────────────────────────────
+
+revenant_falchion:
+  name: "Revenant Falchion"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 90
+    STRENGTH: 50
+    MANA: 100
+  abilities:
+    zombie_bane:
+      name: "Zombie Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+150% damage <gray>to Zombies."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+reaper_falchion:
+  name: "Reaper Falchion"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 100
+    MANA: 200
+  abilities:
+    zombie_bane:
+      name: "Zombie Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+200% damage <gray>to Zombies."
+        - "<gray>Receive <green>20% less damage <gray>from Zombies when held."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    on_hit_heal:
+      name: "Vampiric"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Heal <green>10 HP <gray>per hit."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 10.0
+            target: "@player"
+
+halberd_of_the_shredded:
+  name: "Halberd Of The Shredded"
+  material: "IRON_AXE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 140
+    STRENGTH: 115
+  abilities:
+    zombie_bane:
+      name: "Zombie Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+250% damage <gray>to Zombies."
+        - "<gray>Receive <green>25% less damage <gray>from Zombies when held."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    on_hit_heal:
+      name: "Vampiric"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Heal <green>50 HP <gray>per hit."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 50.0
+            target: "@player"
+    throw:
+      name: "Throw"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 20.0
+      description:
+        - "<gray>Throw your axe damaging all enemies in its path"
+        - "<gray>dealing <red>10% melee damage<gray>."
+        - "<gray>Consecutive throws stack <white>2x damage <gray>but cost"
+        - "<gray>2x mana up to 16x. Escalating cost not modelled."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "ARROW"
+            velocity: 2.0
+            count: 1
+            damage: "$player.weapon_damage$ * 0.1"
+            damage-type: "PHYSICAL"
+
+reaper_scythe:
+  name: "Reaper Scythe"
+  material: "IRON_HOE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 333
+    SPEED: 10
+  abilities:
+    raise_souls:
+      name: "Raise Souls"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      description:
+        - "<gray>Monsters you kill using this item will drop their soul."
+        - "<gray>Click on their souls on the ground to absorb them"
+        - "<gray>and spawn them to fight by your side."
+        - "<gray>Shift right-click to view and remove souls."
+        - "<white>Max Souls: 3"
+      # DESCRIPTION-ONLY: soul drop, collection and summoning not implemented.
+
+
+# ─────────────────────────────────────────
+# Spider Slayer
+# ─────────────────────────────────────────
+
+recluse_fang:
+  name: "Recluse Fang"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 60
+    STRENGTH: 30
+    CRIT_DAMAGE: 10
+  abilities:
+    squash_em:
+      name: "Squash 'em"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Squash Spiders to accumulate strength against them."
+        - "<gray><green>+1 Strength <gray>per 40 Spiders squashed."
+      # DESCRIPTION-ONLY: kill-counter stacking bonus not implemented.
+
+scorpion_foil:
+  name: "Scorpion Foil"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 60
+    CRIT_DAMAGE: 30
+  abilities:
+    spider_bane:
+      name: "Spider Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>250% damage <gray>against Spiders."
+      conditions:
+        - "$target.type$ == \"SPIDER\" or $target.type$ == \"CAVE_SPIDER\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    heartstopper:
+      name: "Heartstopper"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>You have <white>4 Ⓞ tickers<gray>."
+        - "<gray>Blocking clears 1 Ⓞ and heals <green>60 HP<gray>."
+        - "<gray>Once all tickers are cleared, your next attack"
+        - "<gray>is empowered for <green>+250% damage<gray>."
+        - "<gray>Tickers refill after 5 seconds."
+      # DESCRIPTION-ONLY: ticker state machine not implemented.
+
+
+# ─────────────────────────────────────────
+# Wolf Slayer
+# ─────────────────────────────────────────
+
+shaman_sword:
+  name: "Shaman Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 20
+    SPEED: 5
+  abilities:
+    wolf_pact:
+      name: "Wolf Pact"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Deal <green>+1 Damage <gray>per 50 max ❤."
+        - "<gray>Receive <green>-20% damage <gray>from wolves."
+      # DESCRIPTION-ONLY: HP-scaled damage bonus and conditional damage reduction not implemented.
+
+edible_mace:
+  name: "Edible Mace"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 125
+    STRENGTH: 25
+  abilities:
+    me_smash_head:
+      name: "ME SMASH HEAD"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 100.0
+      description:
+        - "<gray>Your next attack deals <green>double damage <gray>and"
+        - "<gray>weakens animals, making them deal <red>-35% damage"
+        - "<gray>for 30 seconds. Debuff doesn't stack."
+      # DESCRIPTION-ONLY: next-hit buff and animal-debuff not implemented.
+
+pooch_sword:
+  name: "Pooch Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 20
+    SPEED: 5
+  abilities:
+    wolf_mastery:
+      name: "Wolf Mastery"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Deal <green>+1 Damage <gray>per 50 max ❤."
+        - "<gray>Receive <green>-20% damage <gray>from wolves."
+        - "<gray>Gain <green>+150 Strength <gray>against wolves."
+      # DESCRIPTION-ONLY: HP-scaled damage bonus and conditional wolf bonuses not implemented.
+
+
+# ─────────────────────────────────────────
+# Enderman Slayer
+# ─────────────────────────────────────────
+
+voidwalker_katana:
+  name: "Voidwalker Katana"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 105
+    STRENGTH: 40
+    CRIT_DAMAGE: 15
+  abilities:
+    enderman_bane:
+      name: "Enderman Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+150% damage <gray>to Endermen."
+        - "<gray>Receive <green>3% less damage <gray>from Endermen when held."
+      conditions:
+        - "$target.type$ == \"ENDERMAN\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+voidedge_katana:
+  name: "Voidedge Katana"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 155
+    STRENGTH: 60
+    CRIT_DAMAGE: 25
+    MANA: 50
+  abilities:
+    enderman_bane:
+      name: "Enderman Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+200% damage <gray>to Endermen."
+        - "<gray>Receive <green>6% less damage <gray>from Endermen when held."
+      conditions:
+        - "$target.type$ == \"ENDERMAN\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    soulcry:
+      name: "Soulcry"
+      trigger: "RIGHT_CLICK"
+      cooldown: 4.0
+      mana-cost: 200.0
+      description:
+        - "<gray>Gain <white>+200 Ferocity <gray>against Endermen for 4s."
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "FEROCITY"
+            amount: 200.0
+            duration: 4.0
+
+vorpal_katana:
+  name: "Vorpal Katana"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 190
+    STRENGTH: 80
+    CRIT_DAMAGE: 30
+    MANA: 200
+  abilities:
+    enderman_bane:
+      name: "Enderman Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+250% damage <gray>to Endermen."
+        - "<gray>Receive <green>9% less damage <gray>from Endermen when held."
+      conditions:
+        - "$target.type$ == \"ENDERMAN\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    soulcry:
+      name: "Soulcry"
+      trigger: "RIGHT_CLICK"
+      cooldown: 4.0
+      mana-cost: 200.0
+      description:
+        - "<gray>Gain <white>+300 Ferocity <gray>against Endermen for 4s."
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "FEROCITY"
+            amount: 300.0
+            duration: 4.0
+
+atomsplit_katana:
+  name: "Atomsplit Katana"
+  material: "DIAMOND_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 305
+    STRENGTH: 100
+    CRIT_DAMAGE: 50
+    MANA: 300
+  abilities:
+    enderman_bane:
+      name: "Enderman Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+300% damage <gray>to Endermen."
+        - "<gray>Receive <green>12% less damage <gray>from Endermen when held."
+      conditions:
+        - "$target.type$ == \"ENDERMAN\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 3.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    soulcry:
+      name: "Soulcry"
+      trigger: "RIGHT_CLICK"
+      cooldown: 4.0
+      mana-cost: 200.0
+      description:
+        - "<gray>Gain <white>+400 Ferocity <gray>against Endermen for 4s."
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "FEROCITY"
+            amount: 400.0
+            duration: 4.0
+
+sinseeker_scythe:
+  name: "Sinseeker Scythe"
+  material: "IRON_HOE"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 100
+  abilities:
+    sinrecall_transmission:
+      name: "Sinrecall Transmission"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 200.0
+      description:
+        - "<gray>Zap a line 4 blocks forward."
+        - "<gray>Recast within 1s (<white>1.5x mana<gray>) to warp back"
+        - "<gray>to starting point."
+        - "<gray>Mobs crossing the line(s) receive a melee hit."
+      # DESCRIPTION-ONLY: zap-line entity sensor and warp-back not implemented.
+
+aspect_of_the_void:
+  name: "Aspect Of The Void"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 100
+  abilities:
+    instant_transmission:
+      name: "Instant Transmission"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 45.0
+      description:
+        - "<gray>Teleport 8 blocks ahead and gain"
+        - "<green>+50 Speed <gray>for 3 seconds."
+      mechanics:
+        - type: "TELEPORT"
+          params:
+            distance: 8.0
+        - type: "MODIFY_STAT"
+          params:
+            stat: "SPEED"
+            amount: 50.0
+            duration: 3.0
+
+
+# ─────────────────────────────────────────
+# Blaze Slayer — Attunement Daggers
+#
+# All six daggers use a two-mode attunement toggle (RIGHT_CLICK) and a
+# delayed secondary effect that fires only when the target's Hellion
+# Shield has switched attunement since the last hit. Both mechanics
+# require per-player item state that the current system cannot model.
+#
+# These items are strong candidates for the first custom addon API
+# example once per-item persistent state is supported — the attunement
+# toggle is a clean, self-contained state machine with a well-defined
+# API surface.
+# ─────────────────────────────────────────
+
+firedust_dagger:
+  name: "Firedust Dagger"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 90
+    STRENGTH: 45
+    CRIT_DAMAGE: 15
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <red>Ashen <gray>and <gold>Auric <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <red>Ashen"
+        - "<gray>Deal <green>1.2x damage <gray>to Blazes."
+        - "<gray>Deal <green>1.1x damage <gray>to Pigmen."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    burning_vengeance:
+      name: "Burning Vengeance"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, repeat dealt damage after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed repeat not implemented.
+
+twilight_dagger:
+  name: "Twilight Dagger"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 90
+    STRENGTH: 45
+    CRIT_DAMAGE: 15
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <white>Spirit <gray>and <aqua>Crystal <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <white>Spirit"
+        - "<gray>Deal <green>1.5x damage <gray>to Blazes."
+        - "<gray>Deal <green>1.2x damage <gray>to Skeletons."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    wraith_drain:
+      name: "Wraith Drain"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, heal <green>200 + 4% HP <gray>after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed heal not implemented.
+
+kindlebane_dagger:
+  name: "Kindlebane Dagger"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 130
+    STRENGTH: 55
+    CRIT_DAMAGE: 20
+    BONUS_ATTACK_SPEED: 10
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <red>Ashen <gray>and <gold>Auric <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <red>Ashen"
+        - "<gray>Deal <green>1.5x damage <gray>to Blazes."
+        - "<gray>Deal <green>1.2x damage <gray>to Pigmen."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    burning_vengeance:
+      name: "Burning Vengeance"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, repeat dealt damage after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed repeat not implemented.
+
+mawdredge_dagger:
+  name: "Mawdredge Dagger"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 130
+    STRENGTH: 55
+    CRIT_DAMAGE: 20
+    BONUS_ATTACK_SPEED: 10
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <white>Spirit <gray>and <aqua>Crystal <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <white>Spirit"
+        - "<gray>Deal <green>2.5x damage <gray>to Blazes."
+        - "<gray>Deal <green>1.5x damage <gray>to Skeletons."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    wraith_drain:
+      name: "Wraith Drain"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, heal <green>200 + 4% HP <gray>after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed heal not implemented.
+
+pyrochaos_dagger:
+  name: "Pyrochaos Dagger"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 160
+    STRENGTH: 75
+    CRIT_CHANCE: 10
+    CRIT_DAMAGE: 25
+    BONUS_ATTACK_SPEED: 20
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <red>Ashen <gray>and <gold>Auric <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <red>Ashen"
+        - "<gray>Deal <green>2x damage <gray>to Blazes."
+        - "<gray>Deal <green>1.5x damage <gray>to Pigmen."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    burning_vengeance:
+      name: "Burning Vengeance"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, repeat dealt damage after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed repeat not implemented.
+
+deathripper_dagger:
+  name: "Deathripper Dagger"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 160
+    STRENGTH: 75
+    CRIT_CHANCE: 10
+    CRIT_DAMAGE: 25
+    BONUS_ATTACK_SPEED: 20
+  abilities:
+    attunement:
+      name: "Attunement"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Swap between <white>Spirit <gray>and <aqua>Crystal <gray>mode"
+        - "<gray>to attack through Hellion Shields."
+        - "<gray>Attuned: <white>Spirit"
+        - "<gray>Deal <green>3.5x damage <gray>to Blazes."
+        - "<gray>Deal <green>2x damage <gray>to Skeletons."
+      # DESCRIPTION-ONLY: attunement state toggle not implemented.
+    wraith_drain:
+      name: "Wraith Drain"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>On hit, heal <green>200 + 4% HP <gray>after 6s"
+        - "<gray>if the Hellion Shield has switched attunement."
+      # DESCRIPTION-ONLY: shield-state delayed heal not implemented.

@@ -1,0 +1,61 @@
+# =====================================================================
+# Shardworks raw ores + refined materials
+# =====================================================================
+
+raw_ferrite:
+  name: "<white>Raw Ferrite"
+  material: "RAW_IRON"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>A dull, heavy mineral with a faint blue sheen."
+
+ferrite_ingot:
+  name: "<white>Ferrite Ingot"
+  material: "IRON_INGOT"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Smelted from Raw Ferrite."
+
+raw_lumicite:
+  name: "<gold>Raw Lumicite Crystal"
+  material: "AMETHYST_SHARD"
+  rarity: "UNCOMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>A pulsating amber crystal cluster."
+    - "<gray>Emits a warm glow."
+
+lumicite_crystal:
+  name: "<gold>Refined Lumicite Crystal"
+  material: "GLOWSTONE_DUST"
+  rarity: "RARE"
+  item-type: "NONE"
+  lore:
+    - "<gray>Used to fuel advanced machinery and tools."
+
+raw_aetherium:
+  name: "<light_purple>Raw Aetherium"
+  material: "NETHERITE_SCRAP"
+  rarity: "EPIC"
+  item-type: "NONE"
+  lore:
+    - "<gray>A swirling iridescent crystal-metal hybrid."
+    - "<gray>Found only in the deepest chasms."
+
+aetherium_ingot:
+  name: "<light_purple>Aetherium Ingot"
+  material: "NETHERITE_INGOT"
+  rarity: "LEGENDARY"
+  item-type: "NONE"
+  lore:
+    - "<gray>Used to craft the finest gear."
+
+crystal_wraith_core:
+  name: "<dark_purple>Crystal Wraith Core"
+  material: "PRISMARINE_CRYSTALS"
+  rarity: "RARE"
+  item-type: "NONE"
+  lore:
+    - "<gray>A pulsing shard torn from a Crystal Wraith."

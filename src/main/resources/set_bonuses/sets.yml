@@ -1,0 +1,638 @@
+# =====================================================================
+# Armor Set Bonuses — for sets defined in items/armor_sets.yml
+# =====================================================================
+# Links armor pieces (carrying a `set: <id>` field) to shared stat bonuses.
+# `bonuses` is a list of tiers; a tier's stats are granted once the player
+# wears at least `pieces-required` pieces. Tiers are cumulative.
+#
+# ONLY flat-stat bonuses are expressed here. Sets whose full-set bonus is a
+# non-stat mechanic (conditional auras, stacking, lightning, witherborn,
+# refraction, knockback resist, peace treaty, healing, etc.) are intentionally
+# omitted — see the report for the full omission list. Generic vanilla armors
+# (leather/gold/chainmail/iron/diamond) have no set bonus and are omitted.
+# =====================================================================
+
+# --- FARMING ---
+speedster:
+  set-id: "speedster"
+  name: "Bonus Speed"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        SPEED: 20
+
+rabbit:
+  set-id: "rabbit"
+  name: "Bonus Farming Fortune"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 10
+
+# Melon / Cropie / Squash / Fermento "Cropier Crops / Squashbuckle / Feast"
+# tiered bonuses grant Farming Fortune at 2/3/4 pieces (0/x/2x/3x pattern).
+melon:
+  set-id: "melon"
+  name: "Cropier Crops"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        FARMING_FORTUNE: 10
+    - pieces-required: 3
+      stats:
+        FARMING_FORTUNE: 10
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 10
+
+cropie:
+  set-id: "cropie"
+  name: "Squashbuckle"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        FARMING_FORTUNE: 15
+    - pieces-required: 3
+      stats:
+        FARMING_FORTUNE: 15
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 15
+
+squash:
+  set-id: "squash"
+  name: "Mento Fermento"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        FARMING_FORTUNE: 20
+    - pieces-required: 3
+      stats:
+        FARMING_FORTUNE: 20
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 20
+
+fermento:
+  set-id: "fermento"
+  name: "Feast"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        FARMING_FORTUNE: 25
+    - pieces-required: 3
+      stats:
+        FARMING_FORTUNE: 25
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 25
+
+# --- MINING ---
+prospecting:
+  set-id: "prospecting"
+  name: "Beginner's Boost"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        MINING_SPEED: 40
+
+# --- DRAGON ---
+# strong_dragon full-set bonus only buffs Aspect of the End / Instant
+# Transmission (item-specific mechanics), so no flat stat tier is added here.
+superior_dragon:
+  set-id: "superior_dragon"
+  name: "Superior Blood"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        MAGIC_FIND: 5
+
+# --- FARMING ---
+farm_armor:
+  set-id: "farm_armor"
+  name: "Bonus Speed"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        SPEED: 25
+  # DEFERRED: Speed bonus only active near Farming Minions / farming islands (zone-check mechanic)
+
+# --- MINING ---
+lapis:
+  set-id: "lapis"
+  name: "Magnetic"
+  # DEFERRED: +50% Exp from mining (XP multiplier, not a flat stat)
+
+glacite:
+  set-id: "glacite"
+  name: "Expert Miner"
+  # DEFERRED: +2 Mining Speed per Mining level (formula-based, requires skill level variable)
+
+goblin:
+  set-id: "goblin"
+  name: "Smart Miner"
+  # DEFERRED: Converts Intelligence into Mining Speed (+1 Mining Speed per 15 Int removed)
+
+sorrow:
+  set-id: "sorrow"
+  name: "Mist Aura"
+  bonuses:
+    - pieces-required: 2
+      stats: {}
+  # DEFERRED: Damage from Ghosts multiplied by 0.6x (conditional damage modifier)
+
+mineral:
+  set-id: "mineral"
+  name: "Mineralworks"
+  bonuses:
+    - pieces-required: 1
+      stats:
+        MINING_FORTUNE: 100
+    - pieces-required: 2
+      stats:
+        MINING_FORTUNE: 100
+    - pieces-required: 3
+      stats:
+        MINING_FORTUNE: 100
+    - pieces-required: 4
+      stats:
+        MINING_FORTUNE: 100
+  # DEFERRED: Mining Spread mechanic (not a supported stat)
+
+glossy_mineral:
+  set-id: "glossy_mineral"
+  name: "Glossy Mineralworks"
+  bonuses:
+    - pieces-required: 1
+      stats:
+        MINING_FORTUNE: 150
+    - pieces-required: 2
+      stats:
+        MINING_FORTUNE: 150
+    - pieces-required: 3
+      stats:
+        MINING_FORTUNE: 150
+    - pieces-required: 4
+      stats:
+        MINING_FORTUNE: 150
+  # DEFERRED: Mining Spread mechanic (not a supported stat)
+
+# --- COMBAT (generic) ---
+mushroom:
+  set-id: "mushroom"
+  name: "Night Affinity"
+  # DEFERRED: Night Vision + triple stats at night (time/zone conditional)
+
+pumpkin:
+  set-id: "pumpkin"
+  name: "Pumpkin Buff"
+  # DEFERRED: -10% damage taken and +10% damage dealt (damage multiplier mechanic)
+
+cactus:
+  set-id: "cactus"
+  name: "Deflect"
+  # DEFERRED: Rebound 33% of damage taken (reflect mechanic)
+
+leaflet:
+  set-id: "leaflet"
+  name: "Energy of the Forest"
+  # DEFERRED: +5 Health regen per second in Forest zone (zone-conditional HoT)
+
+mercenary:
+  set-id: "mercenary"
+  name: "Death Tax"
+  # DEFERRED: +5 Coins and +20 Health heal on kill (GIVE_COINS + HEAL on ON_KILL)
+
+golem:
+  set-id: "golem"
+  name: "Absorption"
+  # DEFERRED: Absorption 3 for 20s on kill (APPLY_EFFECT on ON_KILL mechanic)
+
+growth:
+  set-id: "growth"
+  name: "Growth"
+  # DEFERRED: Heal 1% Health on kill + increase piece Health bonus by 1 (stacking kill mechanic)
+
+monster_hunter:
+  set-id: "monster_hunter"
+  name: "Monster Hunter"
+  # DEFERRED: No flat set bonus (per-piece abilities already defined on items)
+
+monster_raider:
+  set-id: "monster_raider"
+  name: "Monster Raider"
+  # DEFERRED: No flat set bonus (per-piece abilities already defined on items)
+
+emerald:
+  set-id: "emerald"
+  name: "Tank"
+  # DEFERRED: +1 Health and +1 Defense per 3,000 Emeralds in collection (collection-variable scaling)
+
+ender:
+  set-id: "ender"
+  name: "End Affinity"
+  # DEFERRED: All stats multiplied by 2x on End Island (zone-conditional stat multiplier)
+
+crystal:
+  set-id: "crystal"
+  name: "Refraction"
+  # DEFERRED: Stats scale 0-200% based on light level (environmental variable)
+
+ember:
+  set-id: "ember"
+  name: "Nether Lord"
+  # DEFERRED: Obsidian on lava walk + mob drop bonus + fire/lava immunity (zone effects)
+
+rekindled_ember:
+  set-id: "rekindled_ember"
+  name: "Rekindle"
+  bonuses:
+    - pieces-required: 2
+      stats: {}
+    - pieces-required: 3
+      stats: {}
+    - pieces-required: 4
+      stats: {}
+  # DEFERRED: Burning damage multiplier + stacking fire timer (on-fire conditional stacking)
+
+rampart:
+  set-id: "rampart"
+  name: "Crimson Isle Buff"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        HEALTH: 50
+        STRENGTH: 20
+        CRIT_DAMAGE: 15
+  # NOTE: bonus only active on the Crimson Isle (zone-check) — treated as always-on for now
+
+berserker:
+  set-id: "berserker"
+  name: "Berserk"
+  bonuses:
+    - pieces-required: 2
+      stats: {}
+    - pieces-required: 3
+      stats: {}
+    - pieces-required: 4
+      stats: {}
+  # DEFERRED: Halves Health and Defense; reduces health-cost of abilities by 20% (formula/modifier mechanic)
+
+zombie:
+  set-id: "zombie"
+  name: "Projectile Absorption"
+  # DEFERRED: +10 HP/s for 5s when hit by projectile (ON_HIT event conditional)
+
+blaze:
+  set-id: "blaze"
+  name: "Blazing Aura"
+  # DEFERRED: AoE damage to nearby mobs per second (DAMAGE repeating in radius)
+
+frozen_blaze:
+  set-id: "frozen_blaze"
+  name: "Frozen Blazing Aura"
+  # DEFERRED: AoE damage + APPLY_EFFECT Slowness to nearby mobs per second
+
+werewolf:
+  set-id: "werewolf"
+  name: "Regenerative Howl"
+  # DEFERRED: On ferocity proc: heal nearby players + grant Defense stacks (ON_HIT ferocity trigger)
+
+# --- FISHING ---
+angler:
+  set-id: "angler"
+  name: "Depth Champion"
+  # DEFERRED: -10% damage from Sea Creatures (conditional damage reduction) + Health per fishing level
+
+salmon:
+  set-id: "salmon"
+  name: "Water Burst"
+  # DEFERRED: Burst forward when sneaking in water (LAUNCH_PLAYER in water zone)
+
+divers:
+  set-id: "divers"
+  name: "One with the Fish"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        SEA_CREATURE_CHANCE: 1
+    - pieces-required: 4
+      stats:
+        SEA_CREATURE_CHANCE: 1
+  # DEFERRED: Breathe underwater permanently + Treasure Chance tiered bonus
+
+sponge:
+  set-id: "sponge"
+  name: "Absorb"
+  # DEFERRED: Double Defense in water (zone-conditional stat multiplier)
+
+shark_scale:
+  set-id: "shark_scale"
+  name: "Absorb"
+  # DEFERRED: Double Defense in water + Shark catch bonus during Fishing Festival
+
+thunder:
+  set-id: "thunder"
+  name: "Static Charge"
+  # DEFERRED: Stack-based charge + discharge damage bonus (stacking hit mechanic)
+
+magma_lord:
+  set-id: "magma_lord"
+  name: "Lord's Blessing"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        SEA_CREATURE_CHANCE: 1
+        MAGIC_FIND: 5
+    - pieces-required: 4
+      stats:
+        SEA_CREATURE_CHANCE: 1
+        MAGIC_FIND: 5
+  # NOTE: Magic Find bonus applies to Lava Sea Creatures only (conditional, treated as always-on)
+
+bronze_hunter:
+  set-id: "bronze_hunter"
+  name: "Peace Treaty"
+  # DEFERRED: Immunity to/from Sea Creatures toggle (complex mob interaction)
+
+silver_hunter:
+  set-id: "silver_hunter"
+  name: "Peace Treaty + Odger's Blessing"
+  # DEFERRED: Peace Treaty + Trophy Fish catch chance bonus (complex mob + fishing mechanic)
+
+gold_hunter:
+  set-id: "gold_hunter"
+  name: "Peace Treaty + Odger's Blessing"
+  # DEFERRED: Peace Treaty + Trophy Fish catch chance bonus (10%)
+
+diamond_hunter:
+  set-id: "diamond_hunter"
+  name: "Peace Treaty + Odger's Blessing"
+  # DEFERRED: Peace Treaty + Trophy Fish catch chance bonus (15%)
+
+# --- SLAYER ---
+revenant:
+  set-id: "revenant"
+  name: "Trolling The Reaper"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        DEFENSE: 100
+  # DEFERRED: Healing Wand boost + Zombie Bulwark stacking (item-specific + kill-stacking)
+
+reaper:
+  set-id: "reaper"
+  name: "Enrage + Trolling The Reaper"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        DEFENSE: 100
+  # DEFERRED: Enrage burst (speed/damage/strength on trigger), Healing Wand + Zombie Bulwark
+
+tarantula:
+  set-id: "tarantula"
+  name: "Octodexterity"
+  # DEFERRED: Every 4th strike deals double + Venom (hit-counter mechanic)
+
+pack:
+  set-id: "pack"
+  name: "Armor of the Pack"
+  # DEFERRED: +35 Strength and +80 Defense per nearby pack wearer (proximity player-count check)
+
+final_destination:
+  set-id: "final_destination"
+  name: "Vicarious Darkness"
+  # DEFERRED: Soulflow-consuming combat bonus while sneaking (resource + state mechanic)
+
+# --- DUNGEON ---
+heavy:
+  set-id: "heavy"
+  name: "Vindicate"
+  # DEFERRED: +1 Speed per 50 Defense (formula-based derived stat — requires MODIFY_STAT formula)
+
+super_heavy:
+  set-id: "super_heavy"
+  name: "Vindicate"
+  # DEFERRED: Same as heavy (see above)
+
+bouncy:
+  set-id: "bouncy"
+  name: "Bouncing Arrow"
+  # DEFERRED: 25% arrow bounce to second target (projectile mechanic)
+
+rotten:
+  set-id: "rotten"
+  name: "Seive Body"
+  # DEFERRED: Knockback resistance to arrows (not a supported stat)
+
+zombie_soldier:
+  set-id: "zombie_soldier"
+  name: "Shoal"
+  # DEFERRED: +30 Defense per nearby Zombie Soldier set wearer (proximity player check)
+
+zombie_knight:
+  set-id: "zombie_knight"
+  name: "Zombie Knight"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        DEFENSE: 50
+  # NOTE: bonus only applies when Zombie Knight Sword is held (item-check) — treated as always-on
+
+zombie_commander:
+  set-id: "zombie_commander"
+  name: "Training"
+  # DEFERRED: +5 Health per 50 Zombies killed, up to 500 (kill-counter stacking)
+
+zombie_lord:
+  set-id: "zombie_lord"
+  name: "Dungeon Lord"
+  # DEFERRED: +10 Strength and +10 Defense per minute in Dungeon (time-in-dungeon counter)
+
+skeleton_soldier:
+  set-id: "skeleton_soldier"
+  name: "Skeleton Soldier"
+  # DEFERRED: +25% arrow damage bonus (damage multiplier mechanic)
+
+skeleton_master:
+  set-id: "skeleton_master"
+  name: "Skeleton Master"
+  # DEFERRED: +25% arrow damage bonus (damage multiplier mechanic)
+
+skeleton_lord:
+  set-id: "skeleton_lord"
+  name: "Dungeon Lord"
+  # DEFERRED: +5 Strength and +10 Crit Damage per minute in Dungeon
+
+skeletor:
+  set-id: "skeletor"
+  name: "Skeletor"
+  # DEFERRED: +1 Strength and +1 Crit Damage per 10 Skeletor kills (kill-counter stacking)
+
+adaptive:
+  set-id: "adaptive"
+  name: "Efficient Training"
+  # DEFERRED: Class-specific stat bonuses + scaling per Catacombs level (class/level variable)
+
+necromancer_lord:
+  set-id: "necromancer_lord"
+  name: "Soul Whisper"
+  # DEFERRED: +20% necromancer summoned mob damage (summon damage multiplier)
+
+wither:
+  set-id: "wither"
+  name: "Witherborn"
+  # DEFERRED: Spawns wither minion every 30s up to 1 wither (summon mechanic)
+
+necron:
+  set-id: "necron"
+  name: "Witherborn"
+  # DEFERRED: Same as Wither Armor set bonus
+
+storm:
+  set-id: "storm"
+  name: "Witherborn"
+  # DEFERRED: Same as Wither Armor set bonus
+
+goldor:
+  set-id: "goldor"
+  name: "Witherborn"
+  # DEFERRED: Same as Wither Armor set bonus
+
+maxor:
+  set-id: "maxor"
+  name: "Witherborn"
+  # DEFERRED: Same as Wither Armor set bonus; also arrow damage bonus per piece
+
+# --- KUUDRA ---
+aurora:
+  set-id: "aurora"
+  name: "Arcane Vision"
+  # DEFERRED: Runic-spell stack system for Ability Damage bonus on Aurora Staff
+
+fervor:
+  set-id: "fervor"
+  name: "Fervor"
+  # DEFERRED: Block-stacking mechanic that reduces incoming damage (stack accumulation on block)
+
+terror:
+  set-id: "terror"
+  name: "Hydra Strike"
+  # DEFERRED: Arrow-hit stack system for arrow speed/damage/bonus arrows
+
+hollow:
+  set-id: "hollow"
+  name: "Spirit"
+  # DEFERRED: Kill-based Spirit stack system for Hollow Wand charges
+
+# --- MISC / EVENT ---
+fairy:
+  set-id: "fairy"
+  name: "Fairy's Outfit"
+  # DEFERRED: +1 Health per Fairy Soul collected (collection-variable scaling)
+
+snow_suit:
+  set-id: "snow_suit"
+  name: "Cold Thumb"
+  # DEFERRED: Unlimited snowball shooting with Frosty the Snow Cannon (item-specific mechanic)
+
+spooky:
+  set-id: "spooky"
+  name: "Candy Man"
+  # DEFERRED: +5% rare Candy chance (event-specific drop modifier)
+
+bat_person:
+  set-id: "bat_person"
+  name: "Bat Powers Activate!"
+  # DEFERRED: Grappling Hook upgrade + Candy drop chance (event + item-specific)
+
+cheap_tuxedo:
+  set-id: "cheap_tuxedo"
+  name: "Dashing"
+  # DEFERRED: Max Health set to 75 + +50% damage dealt (MODIFY_STAT formula capping + damage mult)
+
+fancy_tuxedo:
+  set-id: "fancy_tuxedo"
+  name: "Dashing"
+  # DEFERRED: Max Health set to 150 + +100% damage dealt
+
+elegant_tuxedo:
+  set-id: "elegant_tuxedo"
+  name: "Dashing"
+  # DEFERRED: Max Health set to 250 + +150% damage dealt
+
+armor_of_magma:
+  set-id: "armor_of_magma"
+  name: "Absorb"
+  # DEFERRED: +1 Health and +1 Intelligence per 10 Magma Cube kills, max 200 (kill-counter stacking)
+
+# --- SETS WITH SCRIPTED-ONLY BONUSES (no flat stats) ---
+yog:
+  set-id: "yog"
+  name: "Absorb"
+  # DEFERRED: +1 Mining Speed per 5 Yog kills, max 500 stacks (kill-counter stacking)
+
+heat:
+  set-id: "heat"
+  name: "Heat Shield"
+  # DEFERRED: Immunity to Heat damage (environmental damage immunity)
+
+holy_dragon:
+  set-id: "holy_dragon"
+  name: "Holy Blood"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        HEALTH: 200
+  # NOTE: +200 Health Regen (not a flat HEALTH bonus in the traditional sense);
+  # modelled as HEALTH here; effect also applies to players within 10 blocks (DEFERRED proximity)
+
+old_dragon:
+  set-id: "old_dragon"
+  name: "Old Blood"
+  # DEFERRED: Improves enchant effectiveness (Growth, Protection, etc.) — enchant modifier
+
+wise_dragon:
+  set-id: "wise_dragon"
+  name: "Wise Blood"
+  # DEFERRED: Abilities cost 2/3 mana (mana-cost modifier applied at ability execution)
+
+protector_dragon:
+  set-id: "protector_dragon"
+  name: "Protector Blood"
+  # DEFERRED: +1% Defense per 1% missing Health (formula-based inverse-health scaling)
+
+strong_dragon:
+  set-id: "strong_dragon"
+  name: "Strong Blood"
+  # DEFERRED: Item-specific bonuses for Aspect of the End / Instant Transmission
+
+unstable_dragon:
+  set-id: "unstable_dragon"
+  name: "Unstable Blood"
+  # DEFERRED: Random lightning strike on nearby mobs (periodic AoE DAMAGE trigger)
+
+shimmering_light:
+  set-id: "shimmering_light"
+  name: "Shimmer"
+  # DEFERRED: +200/300% XP from monsters and ores (XP multiplier, tiered by pieces)
+
+divan:
+  set-id: "divan"
+  name: "Armor of Divan"
+  # NOTE: No set bonus listed in dump for this set
+
+flamebreaker:
+  set-id: "flamebreaker"
+  name: "Flamebreaker"
+  # NOTE: No set bonus listed in dump for this set
+
+skeleton_grunt:
+  set-id: "skeleton_grunt"
+  name: "Skeleton Grunt"
+  # DEFERRED: +5% arrow damage per piece (per-piece damage modifier, not a flat stat)
+
+# --- GENERIC (no set bonuses — no entry needed) ---
+# leather_armor, golden_armor, chainmail_armor, iron_armor, diamond_armor,
+# rosettas, squire, celeste, starlight, hardened_diamond, perfect, miner
+# have no set bonus in the source data.

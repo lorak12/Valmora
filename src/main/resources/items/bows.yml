@@ -1,0 +1,491 @@
+# =====================================================================
+# BOWS & SHORTBOWS  — ported from docs/ABILITIES_DUMP.md
+# =====================================================================
+# Conventions follow items/new_items.yml:
+#   * Variables use $namespace.path$ syntax.
+#   * Base item stats are plain numbers (dungeon "low-high" ranges use LOW).
+#   * Only implemented mechanics are authored as active blocks. Effects with no
+#     implemented mechanic (homing/piercing/extra arrows, arrow-bounce, marks,
+#     venom DoT-on-arrow, returning physics, missing-HP scaling) are written as
+#     DESCRIPTION-ONLY abilities (name + trigger + description, no mechanics).
+#   * Already-done items SKIPPED: artisanal_shortbow, ender_bow, explosive_bow,
+#     runaans_bow, juju_shortbow, terminator, bonemerang.
+# =====================================================================
+
+
+# --- Plain bows: stats only, no abilities -----------------------------
+
+bow:
+  name: "Bow"
+  material: "BOW"
+  rarity: "COMMON"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 30
+
+decent_bow:
+  name: "Decent Bow"
+  material: "BOW"
+  rarity: "UNCOMMON"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 45
+
+
+# --- Conditional / passive bonus bows ---------------------------------
+
+wither_bow:
+  name: "Wither Bow"
+  material: "BOW"
+  rarity: "UNCOMMON"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 30
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% damage <gray>to Withers"
+        - "<gray>and Wither Skeletons."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+prismarine_bow:
+  name: "Prismarine Bow"
+  material: "BOW"
+  rarity: "UNCOMMON"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 25
+  abilities:
+    arrow_infusion:
+      name: "Arrow Infusion"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: quiver/inventory consumption + per-mob-type multiplier
+      # has no implemented mechanic.
+      description:
+        - "<gray>Consumes Prismarine Shards to harm Sea Creatures"
+        - "<gray>and deal <green>+300% damage <gray>to Squids,"
+        - "<gray>Guardians and Elder Guardians."
+
+savanna_bow:
+  name: "Savanna Bow"
+  material: "BOW"
+  rarity: "UNCOMMON"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 50
+  abilities:
+    double_damage:
+      name: "Double Damage"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>All damage dealt with this bow is <green>doubled<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+end_stone_bow:
+  name: "End Stone Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 140
+  abilities:
+    extreme_focus:
+      name: "Extreme Focus"
+      trigger: "LEFT_CLICK"
+      # DESCRIPTION-ONLY: consume-all-mana then bank-it-into-next-hit has no
+      # implemented mechanic.
+      description:
+        - "<gray>Consumes all your mana, and your next hit"
+        - "<gray>will deal that much more damage!"
+
+slime_bow:
+  name: "Slime Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 100
+    CRIT_DAMAGE: 50
+  abilities:
+    arrow_infusion:
+      name: "Arrow Infusion"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: quiver consumption + per-mob multiplier not implemented.
+      description:
+        - "<gray>Consumes Slimeballs to deal <green>5x damage"
+        - "<gray>to Magma Cubes and Slimes."
+
+hurricane_bow:
+  name: "Hurricane Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 50
+  abilities:
+    tempest:
+      name: "Tempest"
+      trigger: "PASSIVE"
+      # DESCRIPTION-ONLY: kill-count scaling / unlock progression not implemented.
+      description:
+        - "<gray>The more kills you get the more powerful"
+        - "<gray>it becomes! Reach 250 kills to unlock its"
+        - "<gray>full potential."
+
+sulphur_bow:
+  name: "Sulphur Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 200
+    STRENGTH: 100
+  abilities:
+    arrow_infusion:
+      name: "Arrow Infusion"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: quiver consumption to double shot damage not implemented.
+      description:
+        - "<gray>Consumes 1 Sulphur to <green>double <gray>the"
+        - "<gray>damage per shot."
+
+spider_queens_stinger:
+  name: "Spider Queen's Stinger"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 360
+  abilities:
+    venomous_aura:
+      name: "Venomous Aura"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: per-arrow aura + arrow piercing not implemented.
+      description:
+        - "<gray>Arrows have an aura dealing <red>180 Damage"
+        - "<gray>to nearby enemies. Arrows travel through enemies."
+
+venoms_touch:
+  name: "Venom's Touch"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 250
+    STRENGTH: 100
+  abilities:
+    venom_volley:
+      name: "Venom Volley"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: 5-arrow volley + venom DoT-on-arrow not implemented.
+      description:
+        - "<gray>Fires a volley of 5 arrows. Arrows apply venom"
+        - "<gray>dealing damage every second for 3 seconds."
+
+souls_rebound:
+  name: "Souls Rebound"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 450
+  abilities:
+    soul_mark:
+      name: "Soul Mark"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: delayed-burst mark mechanic not implemented.
+      description:
+        - "<gray>Your arrows mark enemies for 5 seconds. Marked"
+        - "<gray>enemies take no damage from you; when the mark"
+        - "<gray>expires they receive a burst equal to all"
+        - "<gray>damage dealt, increased up to <green>10%<gray>."
+
+dragon_shortbow:
+  name: "Dragon Shortbow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 40
+    CRIT_CHANCE: 15
+    CRIT_DAMAGE: 50
+  abilities:
+    dragon_stalker:
+      name: "Dragon Stalker"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+15% bonus damage <gray>to Dragons."
+        - "<gray>Shortbow: Instantly shoots!"
+      conditions:
+        - "$target.type$ == \"ENDER_DRAGON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.15"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+magma_bow:
+  name: "Magma Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 100
+  abilities:
+    arrow_infusion:
+      name: "Arrow Infusion"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: quiver consumption to double shot damage not implemented.
+      description:
+        - "<gray>Consumes 1 Magma Cream to <green>double"
+        - "<gray>the damage per shot."
+
+
+# --- Slayer bows ------------------------------------------------------
+
+spider_shortbow:
+  name: "Spider Shortbow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 110
+    STRENGTH: 10
+  abilities:
+    stinger:
+      name: "Stinger"
+      trigger: "ON_HIT"
+      mana-cost: 150.0
+      description:
+        - "<gray>Fully charged shots while sneaking slow the"
+        - "<gray>victim and deal <red>35x your Strength <gray>as"
+        - "<gray>damage per second for 6s."
+      # NOTE: 6s DoT modelled as single burst (ticks/interval applies one burst).
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.stat.strength$ * 35"
+            damage-type: "PHYSICAL"
+            target: "@target"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 6.0
+            amplifier: 2
+            target: "@target"
+
+mosquito_shortbow:
+  name: "Mosquito Shortbow"
+  material: "BOW"
+  rarity: "LEGENDARY"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 251
+    STRENGTH: 151
+    CRIT_DAMAGE: 39
+    VITALITY: 20
+  abilities:
+    nasty_bite:
+      name: "Nasty Bite"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: %-of-max-mana cost, +%-damage and heal-for-2x-mana-cost
+      # have no implemented mechanic combination.
+      description:
+        - "<gray>Fully charged shots while sneaking cost 11%"
+        - "<gray>of max mana, deal <green>+19% damage<gray>, and"
+        - "<gray>heal for 2x the mana cost."
+
+
+# --- Dungeon bows -----------------------------------------------------
+
+machine_gun_shortbow:
+  name: "Machine Gun Shortbow"
+  material: "BOW"
+  rarity: "RARE"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 75
+    STRENGTH: 20
+    CRIT_DAMAGE: 12
+  abilities:
+    rapid_fire:
+      name: "Rapid Fire"
+      trigger: "RIGHT_CLICK"
+      cooldown: 100.0
+      # DESCRIPTION-ONLY: sustained multi-arrow auto-fire burst not implemented.
+      description:
+        - "<gray>Shoots 5 Arrows per second for 8 seconds!"
+        - "<gray>Arrows deal <red>70% <gray>of normal damage."
+
+soulstealer_bow:
+  name: "Soulstealer Bow"
+  material: "BOW"
+  rarity: "RARE"
+  item-type: "BOW"
+  stats:
+    STRENGTH: 50
+    MANA: 157
+  abilities:
+    skull_shot:
+      name: "Skull Shot"
+      trigger: "ON_SHOOT"
+      # DESCRIPTION-ONLY: replacing fired arrows with exploding wither skulls
+      # is not implemented as a passive arrow replacement.
+      description:
+        - "<gray>Replaces arrows that you shoot with"
+        - "<gray>exploding wither skulls!"
+
+sniper_bow:
+  name: "Sniper Bow"
+  material: "BOW"
+  rarity: "RARE"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 94
+    CRIT_DAMAGE: 1
+  abilities:
+    long_shot:
+      name: "Long Shot"
+      trigger: "PASSIVE"
+      # DESCRIPTION-ONLY: extended projectile range not implemented.
+      description:
+        - "<gray>Allows you to shoot arrows much further!"
+
+undead_bow:
+  name: "Undead Bow"
+  material: "BOW"
+  rarity: "RARE"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 80
+  abilities:
+    undead_bane:
+      name: "Undead Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% more damage <gray>to Undead"
+        - "<gray>monsters."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\" or $target.type$ == \"SKELETON\" or $target.type$ == \"WITHER_SKELETON\" or $target.type$ == \"ZOMBIFIED_PIGLIN\" or $target.type$ == \"ZOMBIE_VILLAGER\" or $target.type$ == \"HUSK\" or $target.type$ == \"STRAY\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+super_undead_bow:
+  name: "Super Undead Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 220
+  abilities:
+    undead_bane:
+      name: "Undead Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% more damage <gray>to Undead"
+        - "<gray>monsters."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\" or $target.type$ == \"SKELETON\" or $target.type$ == \"WITHER_SKELETON\" or $target.type$ == \"ZOMBIFIED_PIGLIN\" or $target.type$ == \"ZOMBIE_VILLAGER\" or $target.type$ == \"HUSK\" or $target.type$ == \"STRAY\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    arrow_bounce:
+      name: "Arrow Bounce"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: arrow bounce-to-another-target not implemented.
+      description:
+        - "<gray>Your arrows have a <green>25% <gray>chance to"
+        - "<gray>bounce to another target after hitting."
+
+death_bow:
+  name: "Death Bow"
+  material: "BOW"
+  rarity: "EPIC"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 300
+  abilities:
+    undead_bane:
+      name: "Undead Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% more damage <gray>to Undead"
+        - "<gray>monsters."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\" or $target.type$ == \"SKELETON\" or $target.type$ == \"WITHER_SKELETON\" or $target.type$ == \"ZOMBIFIED_PIGLIN\" or $target.type$ == \"ZOMBIE_VILLAGER\" or $target.type$ == \"HUSK\" or $target.type$ == \"STRAY\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+    arrow_bounce:
+      name: "Arrow Bounce"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: arrow bounce-to-another-target not implemented.
+      description:
+        - "<gray>Your arrows have a <green>50% <gray>chance to"
+        - "<gray>bounce to another target after hitting."
+
+spirit_shortbow:
+  name: "Spirit Shortbow"
+  material: "BOW"
+  rarity: "LEGENDARY"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 210
+    STRENGTH: 100
+  abilities:
+    spirit_bane:
+      name: "Spirit Bane"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: missing-HP scaling against Undead not implemented.
+      description:
+        - "<gray>Deals <green>+2% <gray>to Undead monsters for"
+        - "<gray>every 1% of your missing health."
+        - "<gray>Shortbow: Instantly shoots!"
+
+last_breath:
+  name: "Last Breath"
+  material: "BOW"
+  rarity: "LEGENDARY"
+  item-type: "BOW"
+  stats:
+    DAMAGE: 200
+    STRENGTH: 180
+    CRIT_DAMAGE: 50
+  abilities:
+    defense_shred:
+      name: "Defense Shred"
+      trigger: "ON_HIT"
+      # DESCRIPTION-ONLY: stacking defense-reduction debuff not implemented.
+      description:
+        - "<gray>Reduces the defense of your target by"
+        - "<gray><green>10% <gray>of their max Defense on hit,"
+        - "<gray>stacking up to 5 times."

@@ -1,0 +1,4988 @@
+# =====================================================================
+# ARMOR SETS — ported from docs/ABILITIES_DUMP.md (armor sections)
+# =====================================================================
+# Each full set = 4 pieces (helmet / chestplate / leggings / boots).
+# The dump lists FULL-SET totals; stats are split across pieces:
+#   chestplate ~30%, leggings ~27%, helmet ~24%, boots ~19% (rounded).
+# Stats not in the supported list (Heat Resistance, Mining Spread,
+# Pest Chance, Respiration, Block/Treasure/Pressure Fortune, Mending,
+# Fear, Soulflow) are omitted.
+#
+# SKIPPED (already authored in new_items.yml / set_bonuses/armor_sets.yml):
+#   farm_suit, young_dragon, mastiff, crimson, shadow_assassin
+# =====================================================================
+
+
+# =====================================================================
+# GENERIC ARMORS
+# =====================================================================
+
+# --- LEATHER ARMOR (35 Defense total) ---
+leather_armor_helmet:
+  name: "Leather Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 10
+  set: "leather_armor"
+
+leather_armor_chestplate:
+  name: "Leather Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 10
+  set: "leather_armor"
+
+leather_armor_leggings:
+  name: "Leather Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 10
+  set: "leather_armor"
+
+leather_armor_boots:
+  name: "Leather Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 5
+  set: "leather_armor"
+
+
+# --- GOLDEN ARMOR (55 Defense total) ---
+golden_armor_helmet:
+  name: "Golden Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 15
+  set: "golden_armor"
+
+golden_armor_chestplate:
+  name: "Golden Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 15
+  set: "golden_armor"
+
+golden_armor_leggings:
+  name: "Golden Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 15
+  set: "golden_armor"
+
+golden_armor_boots:
+  name: "Golden Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 10
+  set: "golden_armor"
+
+
+# --- CHAINMAIL ARMOR (69 Defense total) ---
+chainmail_armor_helmet:
+  name: "Chainmail Helmet"
+  material: "CHAINMAIL_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 15
+  set: "chainmail_armor"
+
+chainmail_armor_chestplate:
+  name: "Chainmail Chestplate"
+  material: "CHAINMAIL_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 20
+  set: "chainmail_armor"
+
+chainmail_armor_leggings:
+  name: "Chainmail Leggings"
+  material: "CHAINMAIL_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 20
+  set: "chainmail_armor"
+
+chainmail_armor_boots:
+  name: "Chainmail Boots"
+  material: "CHAINMAIL_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 15
+  set: "chainmail_armor"
+
+
+# --- IRON ARMOR (77 Defense total) ---
+iron_armor_helmet:
+  name: "Iron Helmet"
+  material: "IRON_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 20
+  set: "iron_armor"
+
+iron_armor_chestplate:
+  name: "Iron Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 20
+  set: "iron_armor"
+
+iron_armor_leggings:
+  name: "Iron Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 20
+  set: "iron_armor"
+
+iron_armor_boots:
+  name: "Iron Boots"
+  material: "IRON_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 15
+  set: "iron_armor"
+
+
+# --- DIAMOND ARMOR (100 Defense total) ---
+diamond_armor_helmet:
+  name: "Diamond Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 25
+  set: "diamond_armor"
+
+diamond_armor_chestplate:
+  name: "Diamond Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 30
+  set: "diamond_armor"
+
+diamond_armor_leggings:
+  name: "Diamond Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 25
+  set: "diamond_armor"
+
+diamond_armor_boots:
+  name: "Diamond Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 20
+  set: "diamond_armor"
+
+
+# =====================================================================
+# FARMING ARMORS
+# =====================================================================
+
+# --- FARM ARMOR (80 HP, 200 Def, 40 FF) ---
+farm_armor_helmet:
+  name: "Farm Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 20
+    DEFENSE: 50
+    FARMING_FORTUNE: 10
+  set: "farm_armor"
+
+farm_armor_chestplate:
+  name: "Farm Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 25
+    DEFENSE: 60
+    FARMING_FORTUNE: 12
+  set: "farm_armor"
+
+farm_armor_leggings:
+  name: "Farm Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 20
+    DEFENSE: 55
+    FARMING_FORTUNE: 10
+  set: "farm_armor"
+
+farm_armor_boots:
+  name: "Farm Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 15
+    DEFENSE: 35
+    FARMING_FORTUNE: 8
+  set: "farm_armor"
+
+
+# --- SPEEDSTER ARMOR (350 Def, 60 Speed) ---
+speedster_helmet:
+  name: "Speedster Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 85
+    SPEED: 15
+  set: "speedster"
+
+speedster_chestplate:
+  name: "Speedster Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 105
+    SPEED: 18
+  set: "speedster"
+
+speedster_leggings:
+  name: "Speedster Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 95
+    SPEED: 15
+  set: "speedster"
+
+speedster_boots:
+  name: "Speedster Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 65
+    SPEED: 12
+  set: "speedster"
+
+
+# --- RABBIT ARMOR (60 FF) ---
+rabbit_helmet:
+  name: "Rabbit Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    FARMING_FORTUNE: 15
+  set: "rabbit"
+
+rabbit_chestplate:
+  name: "Rabbit Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    FARMING_FORTUNE: 18
+  set: "rabbit"
+
+rabbit_leggings:
+  name: "Rabbit Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    FARMING_FORTUNE: 15
+  set: "rabbit"
+
+rabbit_boots:
+  name: "Rabbit Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    FARMING_FORTUNE: 12
+  set: "rabbit"
+
+
+# --- MELON ARMOR (500 HP, 100 Def, 10 Speed, 70 FF) ---
+melon_helmet:
+  name: "Melon Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 120
+    DEFENSE: 25
+    SPEED: 2
+    FARMING_FORTUNE: 17
+  set: "melon"
+
+melon_chestplate:
+  name: "Melon Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 150
+    DEFENSE: 30
+    SPEED: 4
+    FARMING_FORTUNE: 21
+  set: "melon"
+
+melon_leggings:
+  name: "Melon Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 135
+    DEFENSE: 25
+    SPEED: 2
+    FARMING_FORTUNE: 18
+  set: "melon"
+
+melon_boots:
+  name: "Melon Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 20
+    SPEED: 2
+    FARMING_FORTUNE: 14
+  set: "melon"
+
+
+# --- CROPIE ARMOR (550 HP, 120 Def, 15 Speed, 90 FF) ---
+cropie_helmet:
+  name: "Cropie Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 130
+    DEFENSE: 30
+    SPEED: 4
+    FARMING_FORTUNE: 22
+  set: "cropie"
+
+cropie_chestplate:
+  name: "Cropie Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 165
+    DEFENSE: 35
+    SPEED: 4
+    FARMING_FORTUNE: 27
+  set: "cropie"
+
+cropie_leggings:
+  name: "Cropie Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 150
+    DEFENSE: 30
+    SPEED: 4
+    FARMING_FORTUNE: 23
+  set: "cropie"
+
+cropie_boots:
+  name: "Cropie Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 105
+    DEFENSE: 25
+    SPEED: 3
+    FARMING_FORTUNE: 18
+  set: "cropie"
+
+
+# --- SQUASH ARMOR (600 HP, 140 Def, 18 Speed, 110 FF) ---
+squash_helmet:
+  name: "Squash Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 145
+    DEFENSE: 35
+    SPEED: 4
+    FARMING_FORTUNE: 27
+  set: "squash"
+
+squash_chestplate:
+  name: "Squash Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 180
+    DEFENSE: 40
+    SPEED: 6
+    FARMING_FORTUNE: 33
+  set: "squash"
+
+squash_leggings:
+  name: "Squash Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 160
+    DEFENSE: 40
+    SPEED: 4
+    FARMING_FORTUNE: 28
+  set: "squash"
+
+squash_boots:
+  name: "Squash Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 115
+    DEFENSE: 25
+    SPEED: 4
+    FARMING_FORTUNE: 22
+  set: "squash"
+
+
+# --- FERMENTO ARMOR (650 HP, 160 Def, 22 Speed, 130 FF) ---
+fermento_helmet:
+  name: "Fermento Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 155
+    DEFENSE: 40
+    SPEED: 5
+    FARMING_FORTUNE: 32
+  set: "fermento"
+
+fermento_chestplate:
+  name: "Fermento Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 195
+    DEFENSE: 45
+    SPEED: 7
+    FARMING_FORTUNE: 39
+  set: "fermento"
+
+fermento_leggings:
+  name: "Fermento Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 175
+    DEFENSE: 45
+    SPEED: 5
+    FARMING_FORTUNE: 33
+  set: "fermento"
+
+fermento_boots:
+  name: "Fermento Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 125
+    DEFENSE: 30
+    SPEED: 5
+    FARMING_FORTUNE: 26
+  set: "fermento"
+
+
+# =====================================================================
+# COMBAT ARMORS
+# =====================================================================
+
+# --- MUSHROOM ARMOR (55 HP, 15 Def) ---
+mushroom_helmet:
+  name: "Mushroom Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 15
+    DEFENSE: 5
+  set: "mushroom"
+
+mushroom_chestplate:
+  name: "Mushroom Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 15
+    DEFENSE: 5
+  set: "mushroom"
+
+mushroom_leggings:
+  name: "Mushroom Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 15
+    DEFENSE: 5
+  set: "mushroom"
+
+mushroom_boots:
+  name: "Mushroom Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 0
+  set: "mushroom"
+
+
+# --- PUMPKIN ARMOR (40 HP, 40 Def) ---
+pumpkin_helmet:
+  name: "Pumpkin Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+  set: "pumpkin"
+
+pumpkin_chestplate:
+  name: "Pumpkin Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+  set: "pumpkin"
+
+pumpkin_leggings:
+  name: "Pumpkin Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+  set: "pumpkin"
+
+pumpkin_boots:
+  name: "Pumpkin Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+  set: "pumpkin"
+
+
+# --- CACTUS ARMOR (35 HP, 65 Def) ---
+cactus_helmet:
+  name: "Cactus Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+    DEFENSE: 15
+  set: "cactus"
+
+cactus_chestplate:
+  name: "Cactus Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 10
+    DEFENSE: 20
+  set: "cactus"
+
+cactus_leggings:
+  name: "Cactus Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 20
+  set: "cactus"
+
+cactus_boots:
+  name: "Cactus Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 5
+    DEFENSE: 10
+  set: "cactus"
+
+
+# --- LEAFLET ARMOR (100 HP) ---
+leaflet_helmet:
+  name: "Leaflet Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 25
+  set: "leaflet"
+
+leaflet_chestplate:
+  name: "Leaflet Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 30
+  set: "leaflet"
+
+leaflet_leggings:
+  name: "Leaflet Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 25
+  set: "leaflet"
+
+leaflet_boots:
+  name: "Leaflet Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 20
+  set: "leaflet"
+
+
+# --- ROSETTA'S ARMOR (110 Def) ---
+rosettas_helmet:
+  name: "Rosetta's Helmet"
+  material: "CHAINMAIL_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 25
+  set: "rosettas"
+
+rosettas_chestplate:
+  name: "Rosetta's Chestplate"
+  material: "CHAINMAIL_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 35
+  set: "rosettas"
+
+rosettas_leggings:
+  name: "Rosetta's Leggings"
+  material: "CHAINMAIL_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 30
+  set: "rosettas"
+
+rosettas_boots:
+  name: "Rosetta's Boots"
+  material: "CHAINMAIL_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 20
+  set: "rosettas"
+
+
+# --- SQUIRE ARMOR (115 HP, 115 Def) ---
+squire_helmet:
+  name: "Squire Helmet"
+  material: "IRON_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 30
+    DEFENSE: 30
+  set: "squire"
+
+squire_chestplate:
+  name: "Squire Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 35
+    DEFENSE: 35
+  set: "squire"
+
+squire_leggings:
+  name: "Squire Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 30
+    DEFENSE: 30
+  set: "squire"
+
+squire_boots:
+  name: "Squire Boots"
+  material: "IRON_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 20
+    DEFENSE: 20
+  set: "squire"
+
+
+# --- CELESTE ARMOR (40 HP, 50 Def, 150 Int) ---
+celeste_helmet:
+  name: "Celeste Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+    MANA: 35
+  set: "celeste"
+
+celeste_chestplate:
+  name: "Celeste Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 10
+    DEFENSE: 15
+    MANA: 45
+  set: "celeste"
+
+celeste_leggings:
+  name: "Celeste Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 15
+    MANA: 40
+  set: "celeste"
+
+celeste_boots:
+  name: "Celeste Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 10
+    DEFENSE: 10
+    MANA: 30
+  set: "celeste"
+
+
+# --- MERCENARY ARMOR (200 HP, 200 Def) ---
+mercenary_helmet:
+  name: "Mercenary Helmet"
+  material: "IRON_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 50
+  set: "mercenary"
+
+mercenary_chestplate:
+  name: "Mercenary Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 60
+    DEFENSE: 60
+  set: "mercenary"
+
+mercenary_leggings:
+  name: "Mercenary Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 55
+  set: "mercenary"
+
+mercenary_boots:
+  name: "Mercenary Boots"
+  material: "IRON_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 35
+    DEFENSE: 35
+  set: "mercenary"
+
+
+# --- STARLIGHT ARMOR (120 HP, 120 Def, 200 Int) ---
+starlight_helmet:
+  name: "Starlight Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 30
+    DEFENSE: 30
+    MANA: 50
+  set: "starlight"
+
+starlight_chestplate:
+  name: "Starlight Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 35
+    DEFENSE: 35
+    MANA: 60
+  set: "starlight"
+
+starlight_leggings:
+  name: "Starlight Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 30
+    DEFENSE: 30
+    MANA: 55
+  set: "starlight"
+
+starlight_boots:
+  name: "Starlight Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 25
+    DEFENSE: 25
+    MANA: 35
+  set: "starlight"
+
+
+# --- GOLEM ARMOR (205 HP, 250 Def) ---
+golem_helmet:
+  name: "Golem Helmet"
+  material: "IRON_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 60
+  set: "golem"
+
+golem_chestplate:
+  name: "Golem Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 60
+    DEFENSE: 75
+  set: "golem"
+
+golem_leggings:
+  name: "Golem Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 70
+  set: "golem"
+
+golem_boots:
+  name: "Golem Boots"
+  material: "IRON_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 40
+    DEFENSE: 45
+  set: "golem"
+
+
+# --- ARMOR OF GROWTH (280 HP, 145 Def) ---
+growth_helmet:
+  name: "Helmet Of Growth"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 65
+    DEFENSE: 35
+  set: "growth"
+
+growth_chestplate:
+  name: "Chestplate Of Growth"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 85
+    DEFENSE: 45
+  set: "growth"
+
+growth_leggings:
+  name: "Leggings Of Growth"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 75
+    DEFENSE: 40
+  set: "growth"
+
+growth_boots:
+  name: "Boots Of Growth"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 25
+  set: "growth"
+
+
+# --- MONSTER HUNTER ARMOR (220 HP, 235 Def, 5 Speed, 50 Int) ---
+monster_hunter_helmet:
+  name: "Monster Hunter Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 55
+    DEFENSE: 55
+    SPEED: 1
+    MANA: 10
+  set: "monster_hunter"
+  abilities:
+    bone_shield:
+      name: "Bone Shield"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>A Bone Shield surrounds you, nullifying"
+        - "<gray>damage but consuming a bone. Bones"
+        - "<gray>regenerate every 30 seconds."
+
+monster_hunter_chestplate:
+  name: "Monster Hunter Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 65
+    DEFENSE: 70
+    SPEED: 2
+    MANA: 15
+  set: "monster_hunter"
+  abilities:
+    block_damage:
+      name: "Block Damage"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>If you are at full Health, the first"
+        - "<gray>damage you take will be nullified."
+        - "<dark_gray>Cooldown: 60s"
+
+monster_hunter_leggings:
+  name: "Monster Hunter Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 60
+    DEFENSE: 65
+    SPEED: 1
+    MANA: 15
+  set: "monster_hunter"
+  abilities:
+    detonate:
+      name: "Detonate"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Causes an explosion when dropping below"
+        - "<gray>20% HP, damaging and knocking back monsters."
+        - "<dark_gray>Cooldown: 60s"
+
+monster_hunter_boots:
+  name: "Monster Hunter Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 40
+    DEFENSE: 45
+    SPEED: 1
+    MANA: 10
+  set: "monster_hunter"
+  abilities:
+    double_jump:
+      name: "Double Jump"
+      trigger: "SNEAK"
+      description:
+        - "<gray>Allows you to double jump by sneaking"
+        - "<gray>mid air!"
+        - "<dark_gray>Mana Cost: 50"
+
+
+# --- MONSTER RAIDER ARMOR (290 HP, 290 Def, 5 Speed, 50 Int) ---
+monster_raider_helmet:
+  name: "Monster Raider Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 70
+    DEFENSE: 70
+    SPEED: 1
+    MANA: 10
+  set: "monster_raider"
+  abilities:
+    bone_shield:
+      name: "Bone Shield"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>A Bone Shield surrounds you, nullifying"
+        - "<gray>damage but consuming a bone."
+
+monster_raider_chestplate:
+  name: "Monster Raider Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 85
+    DEFENSE: 85
+    SPEED: 2
+    MANA: 15
+  set: "monster_raider"
+  abilities:
+    block_damage:
+      name: "Block Damage"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>If you are at full Health, the first"
+        - "<gray>damage you take will be nullified."
+        - "<dark_gray>Cooldown: 60s"
+
+monster_raider_leggings:
+  name: "Monster Raider Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 80
+    DEFENSE: 80
+    SPEED: 1
+    MANA: 15
+  set: "monster_raider"
+  abilities:
+    detonate:
+      name: "Detonate"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Causes an explosion when dropping below"
+        - "<gray>20% HP, damaging nearby monsters."
+        - "<dark_gray>Cooldown: 60s"
+
+monster_raider_boots:
+  name: "Monster Raider Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 55
+    SPEED: 1
+    MANA: 10
+  set: "monster_raider"
+  abilities:
+    spider_bulwark:
+      name: "Spider Bulwark"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Kill Spiders to accumulate Defense"
+        - "<gray>against them."
+    double_jump:
+      name: "Double Jump"
+      trigger: "SNEAK"
+      description:
+        - "<gray>Allows you to double jump by sneaking"
+        - "<gray>mid air!"
+        - "<dark_gray>Mana Cost: 50"
+
+
+# --- EMERALD ARMOR (270 Def) ---
+emerald_helmet:
+  name: "Emerald Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 65
+  set: "emerald"
+
+emerald_chestplate:
+  name: "Emerald Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 80
+  set: "emerald"
+
+emerald_leggings:
+  name: "Emerald Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 75
+  set: "emerald"
+
+emerald_boots:
+  name: "Emerald Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 50
+  set: "emerald"
+
+
+# --- ENDER ARMOR (90 HP, 170 Def) ---
+ender_helmet:
+  name: "Ender Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 20
+    DEFENSE: 40
+  set: "ender"
+
+ender_chestplate:
+  name: "Ender Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 25
+    DEFENSE: 50
+  set: "ender"
+
+ender_leggings:
+  name: "Ender Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 25
+    DEFENSE: 45
+  set: "ender"
+
+ender_boots:
+  name: "Ender Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 20
+    DEFENSE: 35
+  set: "ender"
+
+
+# --- CRYSTAL ARMOR (100 Def, 345 Int) ---
+crystal_helmet:
+  name: "Crystal Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 25
+    MANA: 80
+  set: "crystal"
+
+crystal_chestplate:
+  name: "Crystal Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 30
+    MANA: 105
+  set: "crystal"
+
+crystal_leggings:
+  name: "Crystal Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 25
+    MANA: 95
+  set: "crystal"
+
+crystal_boots:
+  name: "Crystal Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 20
+    MANA: 65
+  set: "crystal"
+
+
+# --- EMBER ARMOR (200 HP, 180 Def, 25 Int) ---
+ember_helmet:
+  name: "Ember Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 40
+    MANA: 5
+  set: "ember"
+
+ember_chestplate:
+  name: "Ember Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 60
+    DEFENSE: 55
+    MANA: 10
+  set: "ember"
+
+ember_leggings:
+  name: "Ember Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 50
+    MANA: 5
+  set: "ember"
+
+ember_boots:
+  name: "Ember Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 35
+    DEFENSE: 35
+    MANA: 5
+  set: "ember"
+
+
+# --- REKINDLED EMBER ARMOR (120 Str, 75 CD, 785 HP, 230 Def, 30 Int) ---
+rekindled_ember_helmet:
+  name: "Rekindled Ember Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+    HEALTH: 190
+    DEFENSE: 55
+    MANA: 5
+  set: "rekindled_ember"
+
+rekindled_ember_chestplate:
+  name: "Rekindled Ember Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 35
+    CRIT_DAMAGE: 20
+    HEALTH: 235
+    DEFENSE: 70
+    MANA: 10
+  set: "rekindled_ember"
+
+rekindled_ember_leggings:
+  name: "Rekindled Ember Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+    HEALTH: 210
+    DEFENSE: 60
+    MANA: 10
+  set: "rekindled_ember"
+
+rekindled_ember_boots:
+  name: "Rekindled Ember Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 25
+    CRIT_DAMAGE: 15
+    HEALTH: 150
+    DEFENSE: 45
+    MANA: 5
+  set: "rekindled_ember"
+
+
+# --- RAMPART ARMOR (500 HP, 200 Def, 30 Int) ---
+rampart_helmet:
+  name: "Rampart Helmet"
+  material: "IRON_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 120
+    DEFENSE: 50
+    MANA: 5
+  set: "rampart"
+
+rampart_chestplate:
+  name: "Rampart Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 150
+    DEFENSE: 60
+    MANA: 10
+  set: "rampart"
+
+rampart_leggings:
+  name: "Rampart Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 135
+    DEFENSE: 55
+    MANA: 10
+  set: "rampart"
+
+rampart_boots:
+  name: "Rampart Boots"
+  material: "IRON_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 35
+    MANA: 5
+  set: "rampart"
+
+
+# --- BERSERKER ARMOR (170 Str, 170 CD) ---
+berserker_helmet:
+  name: "Berserker Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 40
+    CRIT_DAMAGE: 40
+  set: "berserker"
+
+berserker_chestplate:
+  name: "Berserker Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 50
+    CRIT_DAMAGE: 50
+  set: "berserker"
+
+berserker_leggings:
+  name: "Berserker Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 45
+    CRIT_DAMAGE: 45
+  set: "berserker"
+
+berserker_boots:
+  name: "Berserker Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 35
+    CRIT_DAMAGE: 35
+  set: "berserker"
+
+
+# --- SHIMMERING LIGHT ARMOR (400 HP, 350 Def, 10 Speed, 350 Int) ---
+shimmering_light_helmet:
+  name: "Shimmering Light Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 95
+    DEFENSE: 85
+    SPEED: 2
+    MANA: 85
+  set: "shimmering_light"
+
+shimmering_light_chestplate:
+  name: "Shimmering Light Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 120
+    DEFENSE: 105
+    SPEED: 4
+    MANA: 105
+  set: "shimmering_light"
+
+shimmering_light_leggings:
+  name: "Shimmering Light Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 110
+    DEFENSE: 95
+    SPEED: 2
+    MANA: 95
+  set: "shimmering_light"
+
+shimmering_light_boots:
+  name: "Shimmering Light Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 75
+    DEFENSE: 65
+    SPEED: 2
+    MANA: 65
+  set: "shimmering_light"
+
+
+# --- ZOMBIE ARMOR (480 HP, 95 Def) ---
+zombie_helmet:
+  name: "Zombie Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 115
+    DEFENSE: 20
+  set: "zombie"
+
+zombie_chestplate:
+  name: "Zombie Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 145
+    DEFENSE: 30
+  set: "zombie"
+
+zombie_leggings:
+  name: "Zombie Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 130
+    DEFENSE: 25
+  set: "zombie"
+
+zombie_boots:
+  name: "Zombie Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 90
+    DEFENSE: 20
+  set: "zombie"
+
+
+# --- BLAZE ARMOR (120 Str, 465 Def, 8 Speed) ---
+blaze_helmet:
+  name: "Blaze Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 30
+    DEFENSE: 110
+    SPEED: 2
+  set: "blaze"
+
+blaze_chestplate:
+  name: "Blaze Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 35
+    DEFENSE: 140
+    SPEED: 2
+  set: "blaze"
+
+blaze_leggings:
+  name: "Blaze Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 30
+    DEFENSE: 125
+    SPEED: 2
+  set: "blaze"
+
+blaze_boots:
+  name: "Blaze Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 25
+    DEFENSE: 90
+    SPEED: 2
+  set: "blaze"
+
+
+# --- FROZEN BLAZE ARMOR (160 Str, 520 Def, 8 Speed) ---
+frozen_blaze_helmet:
+  name: "Frozen Blaze Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 40
+    DEFENSE: 125
+    SPEED: 2
+  set: "frozen_blaze"
+
+frozen_blaze_chestplate:
+  name: "Frozen Blaze Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 45
+    DEFENSE: 155
+    SPEED: 2
+  set: "frozen_blaze"
+
+frozen_blaze_leggings:
+  name: "Frozen Blaze Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 45
+    DEFENSE: 140
+    SPEED: 2
+  set: "frozen_blaze"
+
+frozen_blaze_boots:
+  name: "Frozen Blaze Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 30
+    DEFENSE: 100
+    SPEED: 2
+  set: "frozen_blaze"
+
+
+# --- WEREWOLF ARMOR (700 Def, 200 Int, 40 Ferocity) ---
+werewolf_helmet:
+  name: "Werewolf Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 170
+    MANA: 50
+    FEROCITY: 10
+  set: "werewolf"
+
+werewolf_chestplate:
+  name: "Werewolf Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 210
+    MANA: 60
+    FEROCITY: 12
+  set: "werewolf"
+
+werewolf_leggings:
+  name: "Werewolf Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 190
+    MANA: 55
+    FEROCITY: 10
+  set: "werewolf"
+
+werewolf_boots:
+  name: "Werewolf Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 130
+    MANA: 35
+    FEROCITY: 8
+  set: "werewolf"
+
+
+# =====================================================================
+# MINING ARMORS
+# =====================================================================
+
+# --- PROSPECTING ARMOR (100 Def, 60 Mining Speed) ---
+prospecting_helmet:
+  name: "Prospecting Helmet"
+  material: "CHAINMAIL_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 25
+    MINING_SPEED: 15
+  set: "prospecting"
+
+prospecting_chestplate:
+  name: "Prospecting Chestplate"
+  material: "CHAINMAIL_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 30
+    MINING_SPEED: 18
+  set: "prospecting"
+
+prospecting_leggings:
+  name: "Prospecting Leggings"
+  material: "CHAINMAIL_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 25
+    MINING_SPEED: 15
+  set: "prospecting"
+
+prospecting_boots:
+  name: "Prospecting Boots"
+  material: "CHAINMAIL_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 20
+    MINING_SPEED: 12
+  set: "prospecting"
+
+
+# --- LAPIS ARMOR (120 Def, 80 Mining Speed, 8 Mining Fortune) ---
+lapis_helmet:
+  name: "Lapis Armor Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 30
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+  set: "lapis"
+
+lapis_chestplate:
+  name: "Lapis Armor Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 35
+    MINING_SPEED: 24
+    MINING_FORTUNE: 2
+  set: "lapis"
+
+lapis_leggings:
+  name: "Lapis Armor Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 30
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+  set: "lapis"
+
+lapis_boots:
+  name: "Lapis Armor Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 25
+    MINING_SPEED: 16
+    MINING_FORTUNE: 2
+  set: "lapis"
+
+
+# --- HARDENED DIAMOND ARMOR (330 Def) ---
+hardened_diamond_helmet:
+  name: "Hardened Diamond Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 80
+  set: "hardened_diamond"
+
+hardened_diamond_chestplate:
+  name: "Hardened Diamond Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 100
+  set: "hardened_diamond"
+
+hardened_diamond_leggings:
+  name: "Hardened Diamond Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 90
+  set: "hardened_diamond"
+
+hardened_diamond_boots:
+  name: "Hardened Diamond Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 60
+  set: "hardened_diamond"
+
+
+# --- MINERAL ARMOR (390 Def, 50 Speed) ---
+mineral_helmet:
+  name: "Mineral Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 95
+    SPEED: 12
+  set: "mineral"
+
+mineral_chestplate:
+  name: "Mineral Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 115
+    SPEED: 14
+  set: "mineral"
+
+mineral_leggings:
+  name: "Mineral Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 105
+    SPEED: 12
+  set: "mineral"
+
+mineral_boots:
+  name: "Mineral Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 75
+    SPEED: 12
+  set: "mineral"
+
+
+# --- GLOSSY MINERAL ARMOR (480 Def, 90 Speed) ---
+glossy_mineral_helmet:
+  name: "Glossy Mineral Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 115
+    SPEED: 22
+  set: "glossy_mineral"
+
+glossy_mineral_chestplate:
+  name: "Glossy Mineral Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 145
+    SPEED: 24
+  set: "glossy_mineral"
+
+glossy_mineral_leggings:
+  name: "Glossy Mineral Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 130
+    SPEED: 22
+  set: "glossy_mineral"
+
+glossy_mineral_boots:
+  name: "Glossy Mineral Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 90
+    SPEED: 22
+  set: "glossy_mineral"
+
+
+# --- GOBLIN ARMOR (395 HP, -4 Int, 40 Mining Speed, 16 Mining Fortune) ---
+goblin_helmet:
+  name: "Goblin Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 95
+    MANA: 0
+    MINING_SPEED: 10
+    MINING_FORTUNE: 4
+  set: "goblin"
+
+goblin_chestplate:
+  name: "Goblin Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 120
+    MANA: 0
+    MINING_SPEED: 10
+    MINING_FORTUNE: 4
+  set: "goblin"
+
+goblin_leggings:
+  name: "Goblin Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 105
+    MANA: 0
+    MINING_SPEED: 10
+    MINING_FORTUNE: 4
+  set: "goblin"
+
+goblin_boots:
+  name: "Goblin Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 75
+    MANA: 0
+    MINING_SPEED: 10
+    MINING_FORTUNE: 4
+  set: "goblin"
+
+
+# --- GLACITE ARMOR (415 Def, 50 Speed, 30 True Def, 40 Mining Speed) ---
+glacite_helmet:
+  name: "Glacite Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 100
+    SPEED: 12
+    TRUE_DEFENSE: 8
+    MINING_SPEED: 10
+  set: "glacite"
+
+glacite_chestplate:
+  name: "Glacite Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 125
+    SPEED: 14
+    TRUE_DEFENSE: 8
+    MINING_SPEED: 10
+  set: "glacite"
+
+glacite_leggings:
+  name: "Glacite Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 110
+    SPEED: 12
+    TRUE_DEFENSE: 7
+    MINING_SPEED: 10
+  set: "glacite"
+
+glacite_boots:
+  name: "Glacite Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 80
+    SPEED: 12
+    TRUE_DEFENSE: 7
+    MINING_SPEED: 10
+  set: "glacite"
+
+
+# --- HEAT ARMOR (60 Str, 80 HP, 200 Def, 60 Mining Speed, 40 Mining Fortune) ---
+heat_helmet:
+  name: "Heat Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 20
+    DEFENSE: 50
+    MINING_SPEED: 15
+    MINING_FORTUNE: 10
+  set: "heat"
+
+heat_chestplate:
+  name: "Heat Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 20
+    HEALTH: 25
+    DEFENSE: 60
+    MINING_SPEED: 18
+    MINING_FORTUNE: 12
+  set: "heat"
+
+heat_leggings:
+  name: "Heat Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 15
+    HEALTH: 20
+    DEFENSE: 55
+    MINING_SPEED: 15
+    MINING_FORTUNE: 10
+  set: "heat"
+
+heat_boots:
+  name: "Heat Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 10
+    HEALTH: 15
+    DEFENSE: 35
+    MINING_SPEED: 12
+    MINING_FORTUNE: 8
+  set: "heat"
+
+
+# --- YOG ARMOR (200 HP, 60 Def, 100 Mining Speed, 80 Mining Fortune) ---
+yog_helmet:
+  name: "Yog Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 15
+    MINING_SPEED: 25
+    MINING_FORTUNE: 20
+  set: "yog"
+
+yog_chestplate:
+  name: "Yog Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 60
+    DEFENSE: 20
+    MINING_SPEED: 25
+    MINING_FORTUNE: 20
+  set: "yog"
+
+yog_leggings:
+  name: "Yog Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 15
+    MINING_SPEED: 25
+    MINING_FORTUNE: 20
+  set: "yog"
+
+yog_boots:
+  name: "Yog Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 35
+    DEFENSE: 10
+    MINING_SPEED: 25
+    MINING_FORTUNE: 20
+  set: "yog"
+
+
+# --- FLAMEBREAKER ARMOR (205 HP, 205 Def, 100 Mining Speed, 60 Mining Fortune) ---
+flamebreaker_helmet:
+  name: "Flamebreaker Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 50
+    MINING_SPEED: 25
+    MINING_FORTUNE: 15
+  set: "flamebreaker"
+
+flamebreaker_chestplate:
+  name: "Flamebreaker Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 60
+    DEFENSE: 60
+    MINING_SPEED: 25
+    MINING_FORTUNE: 15
+  set: "flamebreaker"
+
+flamebreaker_leggings:
+  name: "Flamebreaker Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 55
+    DEFENSE: 55
+    MINING_SPEED: 25
+    MINING_FORTUNE: 15
+  set: "flamebreaker"
+
+flamebreaker_boots:
+  name: "Flamebreaker Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 40
+    DEFENSE: 40
+    MINING_SPEED: 25
+    MINING_FORTUNE: 15
+  set: "flamebreaker"
+
+
+# --- SORROW ARMOR (20 Magic Find, 240 True Def, 200 Mining Speed, 80 Mining Fortune) ---
+sorrow_helmet:
+  name: "Sorrow Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    MAGIC_FIND: 5
+    TRUE_DEFENSE: 60
+    MINING_SPEED: 50
+    MINING_FORTUNE: 20
+  set: "sorrow"
+
+sorrow_chestplate:
+  name: "Sorrow Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    MAGIC_FIND: 5
+    TRUE_DEFENSE: 60
+    MINING_SPEED: 50
+    MINING_FORTUNE: 20
+  set: "sorrow"
+
+sorrow_leggings:
+  name: "Sorrow Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    MAGIC_FIND: 5
+    TRUE_DEFENSE: 60
+    MINING_SPEED: 50
+    MINING_FORTUNE: 20
+  set: "sorrow"
+
+sorrow_boots:
+  name: "Sorrow Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    MAGIC_FIND: 5
+    TRUE_DEFENSE: 60
+    MINING_SPEED: 50
+    MINING_FORTUNE: 20
+  set: "sorrow"
+
+
+# --- ARMOR OF DIVAN (510 HP, 540 Def, 320 Mining Speed, 120 Mining Fortune) ---
+divan_helmet:
+  name: "Divan's Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 120
+    DEFENSE: 130
+    MINING_SPEED: 80
+    MINING_FORTUNE: 30
+  set: "divan"
+
+divan_chestplate:
+  name: "Divan's Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 155
+    DEFENSE: 160
+    MINING_SPEED: 80
+    MINING_FORTUNE: 30
+  set: "divan"
+
+divan_leggings:
+  name: "Divan's Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 140
+    DEFENSE: 145
+    MINING_SPEED: 80
+    MINING_FORTUNE: 30
+  set: "divan"
+
+divan_boots:
+  name: "Divan's Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 105
+    MINING_SPEED: 80
+    MINING_FORTUNE: 30
+  set: "divan"
+
+
+# =====================================================================
+# FISHING ARMORS
+# =====================================================================
+
+# --- ANGLER ARMOR (4 SCC, 105 Def) ---
+angler_helmet:
+  name: "Angler Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    DEFENSE: 25
+  set: "angler"
+
+angler_chestplate:
+  name: "Angler Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    DEFENSE: 30
+  set: "angler"
+
+angler_leggings:
+  name: "Angler Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    DEFENSE: 30
+  set: "angler"
+
+angler_boots:
+  name: "Angler Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    DEFENSE: 20
+  set: "angler"
+
+
+# --- SALMON ARMOR (6 SCC, 430 HP, 150 Def) ---
+salmon_helmet:
+  name: "Salmon Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 105
+    DEFENSE: 35
+  set: "salmon"
+
+salmon_chestplate:
+  name: "Salmon Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 130
+    DEFENSE: 45
+  set: "salmon"
+
+salmon_leggings:
+  name: "Salmon Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    HEALTH: 115
+    DEFENSE: 40
+  set: "salmon"
+
+salmon_boots:
+  name: "Salmon Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    HEALTH: 80
+    DEFENSE: 30
+  set: "salmon"
+
+
+# --- DIVER'S ARMOR (8 SCC, 650 HP, 280 Def) ---
+divers_helmet:
+  name: "Diver's Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 155
+    DEFENSE: 65
+  set: "divers"
+
+divers_chestplate:
+  name: "Diver's Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 195
+    DEFENSE: 85
+  set: "divers"
+
+divers_leggings:
+  name: "Diver's Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 175
+    DEFENSE: 75
+  set: "divers"
+
+divers_boots:
+  name: "Diver's Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 125
+    DEFENSE: 55
+  set: "divers"
+
+
+# --- SPONGE ARMOR (8 SCC, 450 Def) ---
+sponge_helmet:
+  name: "Sponge Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    DEFENSE: 110
+  set: "sponge"
+
+sponge_chestplate:
+  name: "Sponge Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    DEFENSE: 135
+  set: "sponge"
+
+sponge_leggings:
+  name: "Sponge Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    DEFENSE: 120
+  set: "sponge"
+
+sponge_boots:
+  name: "Sponge Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    DEFENSE: 85
+  set: "sponge"
+
+
+# --- SHARK SCALE ARMOR (10 SCC, 650 HP, 550 Def) ---
+shark_scale_helmet:
+  name: "Shark Scale Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 155
+    DEFENSE: 130
+  set: "shark_scale"
+
+shark_scale_chestplate:
+  name: "Shark Scale Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 195
+    DEFENSE: 165
+  set: "shark_scale"
+
+shark_scale_leggings:
+  name: "Shark Scale Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 175
+    DEFENSE: 150
+  set: "shark_scale"
+
+shark_scale_boots:
+  name: "Shark Scale Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 125
+    DEFENSE: 105
+  set: "shark_scale"
+
+
+# --- THUNDER ARMOR (100 Str, 16 SCC, 850 HP, 750 Def) ---
+thunder_helmet:
+  name: "Thunder Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 25
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 205
+    DEFENSE: 180
+  set: "thunder"
+
+thunder_chestplate:
+  name: "Thunder Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 30
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 255
+    DEFENSE: 225
+  set: "thunder"
+
+thunder_leggings:
+  name: "Thunder Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 25
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 230
+    DEFENSE: 205
+  set: "thunder"
+
+thunder_boots:
+  name: "Thunder Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 20
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 160
+    DEFENSE: 140
+  set: "thunder"
+
+
+# --- MAGMA LORD ARMOR (40 Str, 140 CD, 18 SCC, 950 HP, 750 Def) ---
+magma_lord_helmet:
+  name: "Magma Lord Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    CRIT_DAMAGE: 35
+    SEA_CREATURE_CHANCE: 5
+    HEALTH: 230
+    DEFENSE: 180
+  set: "magma_lord"
+
+magma_lord_chestplate:
+  name: "Magma Lord Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 10
+    CRIT_DAMAGE: 40
+    SEA_CREATURE_CHANCE: 5
+    HEALTH: 285
+    DEFENSE: 225
+  set: "magma_lord"
+
+magma_lord_leggings:
+  name: "Magma Lord Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 10
+    CRIT_DAMAGE: 40
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 255
+    DEFENSE: 205
+  set: "magma_lord"
+
+magma_lord_boots:
+  name: "Magma Lord Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 10
+    CRIT_DAMAGE: 25
+    SEA_CREATURE_CHANCE: 4
+    HEALTH: 180
+    DEFENSE: 140
+  set: "magma_lord"
+
+
+# --- BRONZE HUNTER ARMOR (250 HP) ---
+bronze_hunter_helmet:
+  name: "Bronze Hunter Helmet"
+  material: "CHAINMAIL_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 60
+  set: "bronze_hunter"
+
+bronze_hunter_chestplate:
+  name: "Bronze Hunter Chestplate"
+  material: "CHAINMAIL_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 75
+  set: "bronze_hunter"
+
+bronze_hunter_leggings:
+  name: "Bronze Hunter Leggings"
+  material: "CHAINMAIL_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 70
+  set: "bronze_hunter"
+
+bronze_hunter_boots:
+  name: "Bronze Hunter Boots"
+  material: "CHAINMAIL_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 45
+  set: "bronze_hunter"
+
+
+# --- SILVER HUNTER ARMOR (350 HP) ---
+silver_hunter_helmet:
+  name: "Silver Hunter Helmet"
+  material: "IRON_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 85
+  set: "silver_hunter"
+
+silver_hunter_chestplate:
+  name: "Silver Hunter Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 105
+  set: "silver_hunter"
+
+silver_hunter_leggings:
+  name: "Silver Hunter Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 95
+  set: "silver_hunter"
+
+silver_hunter_boots:
+  name: "Silver Hunter Boots"
+  material: "IRON_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 65
+  set: "silver_hunter"
+
+
+# --- GOLD HUNTER ARMOR (450 HP) ---
+gold_hunter_helmet:
+  name: "Gold Hunter Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 110
+  set: "gold_hunter"
+
+gold_hunter_chestplate:
+  name: "Gold Hunter Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 135
+  set: "gold_hunter"
+
+gold_hunter_leggings:
+  name: "Gold Hunter Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 120
+  set: "gold_hunter"
+
+gold_hunter_boots:
+  name: "Gold Hunter Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 85
+  set: "gold_hunter"
+
+
+# --- DIAMOND HUNTER ARMOR (550 HP) ---
+diamond_hunter_helmet:
+  name: "Diamond Hunter Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 130
+  set: "diamond_hunter"
+
+diamond_hunter_chestplate:
+  name: "Diamond Hunter Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 165
+  set: "diamond_hunter"
+
+diamond_hunter_leggings:
+  name: "Diamond Hunter Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 150
+  set: "diamond_hunter"
+
+diamond_hunter_boots:
+  name: "Diamond Hunter Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 105
+  set: "diamond_hunter"
+
+
+# =====================================================================
+# EVENT ARMORS
+# =====================================================================
+
+# --- SNOW SUIT ARMOR (310 HP, 125 Def) ---
+snow_suit_helmet:
+  name: "Snow Suit Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 75
+    DEFENSE: 30
+  set: "snow_suit"
+
+snow_suit_chestplate:
+  name: "Snow Suit Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 90
+    DEFENSE: 35
+  set: "snow_suit"
+
+snow_suit_leggings:
+  name: "Snow Suit Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 85
+    DEFENSE: 35
+  set: "snow_suit"
+
+snow_suit_boots:
+  name: "Snow Suit Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 60
+    DEFENSE: 25
+  set: "snow_suit"
+
+
+# --- SPOOKY ARMOR (135 Def) ---
+spooky_helmet:
+  name: "Spooky Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 35
+  set: "spooky"
+
+spooky_chestplate:
+  name: "Spooky Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 40
+  set: "spooky"
+
+spooky_leggings:
+  name: "Spooky Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 35
+  set: "spooky"
+
+spooky_boots:
+  name: "Spooky Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 25
+  set: "spooky"
+
+
+# --- BAT PERSON ARMOR (85 Def) ---
+bat_person_helmet:
+  name: "Bat Person Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 20
+  set: "bat_person"
+
+bat_person_chestplate:
+  name: "Bat Person Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 25
+  set: "bat_person"
+
+bat_person_leggings:
+  name: "Bat Person Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 25
+  set: "bat_person"
+
+bat_person_boots:
+  name: "Bat Person Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 15
+  set: "bat_person"
+
+
+# =====================================================================
+# DRAGON ARMORS
+# =====================================================================
+
+# --- OLD DRAGON ARMOR (450 HP, 500 Def) ---
+old_dragon_helmet:
+  name: "Old Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 110
+    DEFENSE: 120
+  set: "old_dragon"
+
+old_dragon_chestplate:
+  name: "Old Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 135
+    DEFENSE: 150
+  set: "old_dragon"
+
+old_dragon_leggings:
+  name: "Old Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 120
+    DEFENSE: 135
+  set: "old_dragon"
+
+old_dragon_boots:
+  name: "Old Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 85
+    DEFENSE: 95
+  set: "old_dragon"
+
+
+# --- WISE DRAGON ARMOR (350 HP, 500 Def, 350 Int) ---
+wise_dragon_helmet:
+  name: "Wise Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 85
+    DEFENSE: 120
+    MANA: 85
+  set: "wise_dragon"
+
+wise_dragon_chestplate:
+  name: "Wise Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 105
+    DEFENSE: 150
+    MANA: 105
+  set: "wise_dragon"
+
+wise_dragon_leggings:
+  name: "Wise Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 135
+    MANA: 95
+  set: "wise_dragon"
+
+wise_dragon_boots:
+  name: "Wise Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 65
+    DEFENSE: 95
+    MANA: 65
+  set: "wise_dragon"
+
+
+# --- PROTECTOR DRAGON ARMOR (350 HP, 600 Def) ---
+protector_dragon_helmet:
+  name: "Protector Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 85
+    DEFENSE: 145
+  set: "protector_dragon"
+
+protector_dragon_chestplate:
+  name: "Protector Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 105
+    DEFENSE: 180
+  set: "protector_dragon"
+
+protector_dragon_leggings:
+  name: "Protector Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 160
+  set: "protector_dragon"
+
+protector_dragon_boots:
+  name: "Protector Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 65
+    DEFENSE: 115
+  set: "protector_dragon"
+
+
+# --- STRONG DRAGON ARMOR (100 Str, 350 HP, 500 Def) ---
+strong_dragon_helmet:
+  name: "Strong Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 25
+    HEALTH: 85
+    DEFENSE: 120
+  set: "strong_dragon"
+
+strong_dragon_chestplate:
+  name: "Strong Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 30
+    HEALTH: 105
+    DEFENSE: 150
+  set: "strong_dragon"
+
+strong_dragon_leggings:
+  name: "Strong Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 25
+    HEALTH: 95
+    DEFENSE: 135
+  set: "strong_dragon"
+
+strong_dragon_boots:
+  name: "Strong Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 20
+    HEALTH: 65
+    DEFENSE: 95
+  set: "strong_dragon"
+
+
+# --- UNSTABLE DRAGON ARMOR (20 CC, 60 CD, 350 HP, 500 Def, 25 Int) ---
+unstable_dragon_helmet:
+  name: "Unstable Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 15
+    HEALTH: 85
+    DEFENSE: 120
+    MANA: 5
+  set: "unstable_dragon"
+
+unstable_dragon_chestplate:
+  name: "Unstable Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 20
+    HEALTH: 105
+    DEFENSE: 150
+    MANA: 10
+  set: "unstable_dragon"
+
+unstable_dragon_leggings:
+  name: "Unstable Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 15
+    HEALTH: 95
+    DEFENSE: 135
+    MANA: 5
+  set: "unstable_dragon"
+
+unstable_dragon_boots:
+  name: "Unstable Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 10
+    HEALTH: 65
+    DEFENSE: 95
+    MANA: 5
+  set: "unstable_dragon"
+
+
+# --- SUPERIOR DRAGON ARMOR (40 Str, 8 CC, 40 CD, 450 HP, 600 Def, 12 Speed, 100 Int) ---
+superior_dragon_helmet:
+  name: "Superior Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    CRIT_CHANCE: 2
+    CRIT_DAMAGE: 10
+    HEALTH: 110
+    DEFENSE: 145
+    SPEED: 3
+    MANA: 25
+  set: "superior_dragon"
+
+superior_dragon_chestplate:
+  name: "Superior Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 10
+    CRIT_CHANCE: 2
+    CRIT_DAMAGE: 10
+    HEALTH: 135
+    DEFENSE: 180
+    SPEED: 3
+    MANA: 30
+  set: "superior_dragon"
+
+superior_dragon_leggings:
+  name: "Superior Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 10
+    CRIT_CHANCE: 2
+    CRIT_DAMAGE: 10
+    HEALTH: 120
+    DEFENSE: 160
+    SPEED: 3
+    MANA: 25
+  set: "superior_dragon"
+
+superior_dragon_boots:
+  name: "Superior Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 10
+    CRIT_CHANCE: 2
+    CRIT_DAMAGE: 10
+    HEALTH: 85
+    DEFENSE: 115
+    SPEED: 3
+    MANA: 20
+  set: "superior_dragon"
+
+
+# --- HOLY DRAGON ARMOR (545 HP, 500 Def) ---
+holy_dragon_helmet:
+  name: "Holy Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 130
+    DEFENSE: 120
+  set: "holy_dragon"
+
+holy_dragon_chestplate:
+  name: "Holy Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 165
+    DEFENSE: 150
+  set: "holy_dragon"
+
+holy_dragon_leggings:
+  name: "Holy Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 145
+    DEFENSE: 135
+  set: "holy_dragon"
+
+holy_dragon_boots:
+  name: "Holy Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 105
+    DEFENSE: 95
+  set: "holy_dragon"
+
+
+# =====================================================================
+# SLAYER ARMORS
+# =====================================================================
+
+# --- REVENANT ARMOR (400 HP, 150 Def) ---
+revenant_helmet:
+  name: "Revenant Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 95
+    DEFENSE: 35
+  set: "revenant"
+
+revenant_chestplate:
+  name: "Revenant Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 120
+    DEFENSE: 45
+  set: "revenant"
+
+revenant_leggings:
+  name: "Revenant Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 110
+    DEFENSE: 40
+  set: "revenant"
+
+revenant_boots:
+  name: "Revenant Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 75
+    DEFENSE: 30
+  set: "revenant"
+
+
+# --- REAPER ARMOR (75 Str, 400 HP, 150 Def, 750 Int) ---
+reaper_helmet:
+  name: "Reaper Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 20
+    HEALTH: 95
+    DEFENSE: 35
+    MANA: 180
+  set: "reaper"
+
+reaper_chestplate:
+  name: "Reaper Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 20
+    HEALTH: 120
+    DEFENSE: 45
+    MANA: 225
+  set: "reaper"
+
+reaper_leggings:
+  name: "Reaper Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 20
+    HEALTH: 110
+    DEFENSE: 40
+    MANA: 205
+  set: "reaper"
+
+reaper_boots:
+  name: "Reaper Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 15
+    HEALTH: 75
+    DEFENSE: 30
+    MANA: 140
+  set: "reaper"
+
+
+# --- TARANTULA ARMOR (350 HP, 300 Def, 5 Speed, 250 Int) ---
+tarantula_helmet:
+  name: "Tarantula Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 85
+    DEFENSE: 70
+    SPEED: 1
+    MANA: 60
+  set: "tarantula"
+  abilities:
+    radioactive:
+      name: "Radioactive"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <white>+1 Crit Damage <gray>per 10"
+        - "<gray>Strength (max 1,000 Strength)."
+
+tarantula_chestplate:
+  name: "Tarantula Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 105
+    DEFENSE: 90
+    SPEED: 2
+    MANA: 75
+  set: "tarantula"
+  abilities:
+    anti_toxin:
+      name: "Anti-Toxin"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Immune to healing reduction."
+
+tarantula_leggings:
+  name: "Tarantula Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 95
+    DEFENSE: 80
+    SPEED: 1
+    MANA: 70
+  set: "tarantula"
+
+tarantula_boots:
+  name: "Tarantula Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 65
+    DEFENSE: 60
+    SPEED: 1
+    MANA: 45
+  set: "tarantula"
+  abilities:
+    double_jump:
+      name: "Double Jump"
+      trigger: "SNEAK"
+      description:
+        - "<gray>Allows you to double jump by sneaking"
+        - "<gray>mid air!"
+        - "<dark_gray>Mana Cost: 40"
+
+
+# --- ARMOR OF THE PACK (300 HP, 280 Def) ---
+pack_helmet:
+  name: "Helmet Of The Pack"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 70
+    DEFENSE: 65
+    TRUE_DEFENSE: 5
+  set: "pack"
+
+pack_chestplate:
+  name: "Chestplate Of The Pack"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 90
+    DEFENSE: 85
+    TRUE_DEFENSE: 5
+  set: "pack"
+
+pack_leggings:
+  name: "Leggings Of The Pack"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 80
+    DEFENSE: 75
+    TRUE_DEFENSE: 5
+  set: "pack"
+
+pack_boots:
+  name: "Boots Of The Pack"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 60
+    DEFENSE: 55
+    TRUE_DEFENSE: 5
+  set: "pack"
+
+
+# --- FINAL DESTINATION ARMOR (600 HP, 400 Def, 400 Int) ---
+final_destination_helmet:
+  name: "Final Destination Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 145
+    DEFENSE: 95
+    MANA: 95
+  set: "final_destination"
+  abilities:
+    enderman_bulwark:
+      name: "Enderman Bulwark"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Kill Endermen to accumulate Defense"
+        - "<gray>against them."
+
+final_destination_chestplate:
+  name: "Final Destination Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 180
+    DEFENSE: 120
+    MANA: 120
+  set: "final_destination"
+
+final_destination_leggings:
+  name: "Final Destination Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 160
+    DEFENSE: 110
+    MANA: 110
+  set: "final_destination"
+
+final_destination_boots:
+  name: "Final Destination Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 115
+    DEFENSE: 75
+    MANA: 75
+  set: "final_destination"
+
+
+# =====================================================================
+# DUNGEON ARMORS
+# =====================================================================
+
+# --- HEAVY ARMOR (-20 Speed, 487 Def) ---
+heavy_helmet:
+  name: "Heavy Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    SPEED: -5
+    DEFENSE: 115
+  set: "heavy"
+
+heavy_chestplate:
+  name: "Heavy Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    SPEED: -5
+    DEFENSE: 145
+  set: "heavy"
+
+heavy_leggings:
+  name: "Heavy Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    SPEED: -5
+    DEFENSE: 130
+  set: "heavy"
+
+heavy_boots:
+  name: "Heavy Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    SPEED: -5
+    DEFENSE: 95
+  set: "heavy"
+
+
+# --- SUPER HEAVY ARMOR (-40 Speed, 880 Def) ---
+super_heavy_helmet:
+  name: "Super Heavy Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    SPEED: -10
+    DEFENSE: 210
+  set: "super_heavy"
+
+super_heavy_chestplate:
+  name: "Super Heavy Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    SPEED: -10
+    DEFENSE: 265
+  set: "super_heavy"
+
+super_heavy_leggings:
+  name: "Super Heavy Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    SPEED: -10
+    DEFENSE: 240
+  set: "super_heavy"
+
+super_heavy_boots:
+  name: "Super Heavy Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    SPEED: -10
+    DEFENSE: 165
+  set: "super_heavy"
+
+
+# --- BOUNCY ARMOR (957 HP, 40 Crit Chance) ---
+bouncy_helmet:
+  name: "Bouncy Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 230
+    CRIT_CHANCE: 10
+  set: "bouncy"
+
+bouncy_chestplate:
+  name: "Bouncy Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 285
+    CRIT_CHANCE: 10
+  set: "bouncy"
+
+bouncy_leggings:
+  name: "Bouncy Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 260
+    CRIT_CHANCE: 10
+  set: "bouncy"
+
+bouncy_boots:
+  name: "Bouncy Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 180
+    CRIT_CHANCE: 10
+  set: "bouncy"
+
+
+# --- ROTTEN ARMOR (515 HP, 77 Str) ---
+rotten_helmet:
+  name: "Rotten Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 125
+    STRENGTH: 20
+  set: "rotten"
+
+rotten_chestplate:
+  name: "Rotten Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 155
+    STRENGTH: 20
+  set: "rotten"
+
+rotten_leggings:
+  name: "Rotten Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 140
+    STRENGTH: 20
+  set: "rotten"
+
+rotten_boots:
+  name: "Rotten Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 95
+    STRENGTH: 15
+  set: "rotten"
+
+
+# --- ZOMBIE SOLDIER ARMOR (540 Def, 270 HP) ---
+zombie_soldier_helmet:
+  name: "Zombie Soldier Helmet"
+  material: "IRON_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 130
+    HEALTH: 65
+  set: "zombie_soldier"
+
+zombie_soldier_chestplate:
+  name: "Zombie Soldier Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 160
+    HEALTH: 80
+  set: "zombie_soldier"
+
+zombie_soldier_leggings:
+  name: "Zombie Soldier Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 145
+    HEALTH: 75
+  set: "zombie_soldier"
+
+zombie_soldier_boots:
+  name: "Zombie Soldier Boots"
+  material: "IRON_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 105
+    HEALTH: 50
+  set: "zombie_soldier"
+
+
+# --- ZOMBIE KNIGHT ARMOR (32 Speed, 610 Def, 120 Str) ---
+zombie_knight_helmet:
+  name: "Zombie Knight Helmet"
+  material: "IRON_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    SPEED: 8
+    DEFENSE: 145
+    STRENGTH: 30
+  set: "zombie_knight"
+
+zombie_knight_chestplate:
+  name: "Zombie Knight Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    SPEED: 8
+    DEFENSE: 185
+    STRENGTH: 35
+  set: "zombie_knight"
+
+zombie_knight_leggings:
+  name: "Zombie Knight Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    SPEED: 8
+    DEFENSE: 165
+    STRENGTH: 30
+  set: "zombie_knight"
+
+zombie_knight_boots:
+  name: "Zombie Knight Boots"
+  material: "IRON_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    SPEED: 8
+    DEFENSE: 115
+    STRENGTH: 25
+  set: "zombie_knight"
+
+
+# --- ZOMBIE COMMANDER ARMOR (270 Def, 470 HP, 88 Str, 44 Int) ---
+zombie_commander_helmet:
+  name: "Zombie Commander Helmet"
+  material: "IRON_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 65
+    HEALTH: 115
+    STRENGTH: 20
+    MANA: 10
+  set: "zombie_commander"
+
+zombie_commander_chestplate:
+  name: "Zombie Commander Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 80
+    HEALTH: 140
+    STRENGTH: 25
+    MANA: 15
+  set: "zombie_commander"
+
+zombie_commander_leggings:
+  name: "Zombie Commander Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 75
+    HEALTH: 125
+    STRENGTH: 25
+    MANA: 10
+  set: "zombie_commander"
+
+zombie_commander_boots:
+  name: "Zombie Commander Boots"
+  material: "IRON_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 50
+    HEALTH: 90
+    STRENGTH: 20
+    MANA: 10
+  set: "zombie_commander"
+
+
+# --- ZOMBIE LORD ARMOR (300 Def, 670 HP, 72 Str, 72 Int) ---
+zombie_lord_helmet:
+  name: "Zombie Lord Helmet"
+  material: "IRON_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 70
+    HEALTH: 160
+    STRENGTH: 15
+    MANA: 15
+  set: "zombie_lord"
+
+zombie_lord_chestplate:
+  name: "Zombie Lord Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 90
+    HEALTH: 200
+    STRENGTH: 20
+    MANA: 20
+  set: "zombie_lord"
+
+zombie_lord_leggings:
+  name: "Zombie Lord Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 80
+    HEALTH: 180
+    STRENGTH: 20
+    MANA: 20
+  set: "zombie_lord"
+
+zombie_lord_boots:
+  name: "Zombie Lord Boots"
+  material: "IRON_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 60
+    HEALTH: 130
+    STRENGTH: 15
+    MANA: 15
+  set: "zombie_lord"
+
+
+# --- SKELETON GRUNT ARMOR (195 Def, 129 HP, 92 Crit Damage) ---
+skeleton_grunt_helmet:
+  name: "Skeleton Grunt Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 45
+    HEALTH: 30
+    CRIT_DAMAGE: 20
+  set: "skeleton_grunt"
+
+skeleton_grunt_chestplate:
+  name: "Skeleton Grunt Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 60
+    HEALTH: 40
+    CRIT_DAMAGE: 25
+  set: "skeleton_grunt"
+
+skeleton_grunt_leggings:
+  name: "Skeleton Grunt Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 55
+    HEALTH: 35
+    CRIT_DAMAGE: 25
+  set: "skeleton_grunt"
+
+skeleton_grunt_boots:
+  name: "Skeleton Grunt Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 35
+    HEALTH: 25
+    CRIT_DAMAGE: 20
+  set: "skeleton_grunt"
+
+
+# --- SKELETON SOLDIER ARMOR (272 Def, 170 HP, 139 Crit Damage, 16 Crit Chance) ---
+skeleton_soldier_helmet:
+  name: "Skeleton Soldier Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 65
+    HEALTH: 40
+    CRIT_DAMAGE: 35
+    CRIT_CHANCE: 4
+  set: "skeleton_soldier"
+
+skeleton_soldier_chestplate:
+  name: "Skeleton Soldier Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 80
+    HEALTH: 50
+    CRIT_DAMAGE: 40
+    CRIT_CHANCE: 4
+  set: "skeleton_soldier"
+
+skeleton_soldier_leggings:
+  name: "Skeleton Soldier Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 75
+    HEALTH: 45
+    CRIT_DAMAGE: 40
+    CRIT_CHANCE: 4
+  set: "skeleton_soldier"
+
+skeleton_soldier_boots:
+  name: "Skeleton Soldier Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 50
+    HEALTH: 35
+    CRIT_DAMAGE: 25
+    CRIT_CHANCE: 4
+  set: "skeleton_soldier"
+
+
+# --- SKELETON MASTER ARMOR (272 Def, 170 HP, 180 Crit Damage, 16 Crit Chance) ---
+skeleton_master_helmet:
+  name: "Skeleton Master Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 65
+    HEALTH: 40
+    CRIT_DAMAGE: 40
+    CRIT_CHANCE: 4
+  set: "skeleton_master"
+
+skeleton_master_chestplate:
+  name: "Skeleton Master Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 80
+    HEALTH: 50
+    CRIT_DAMAGE: 55
+    CRIT_CHANCE: 4
+  set: "skeleton_master"
+  abilities:
+    no_arrow_consume:
+      name: "Endless Quiver"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Your bows don't consume arrows."
+
+skeleton_master_leggings:
+  name: "Skeleton Master Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 75
+    HEALTH: 45
+    CRIT_DAMAGE: 50
+    CRIT_CHANCE: 4
+  set: "skeleton_master"
+
+skeleton_master_boots:
+  name: "Skeleton Master Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 50
+    HEALTH: 35
+    CRIT_DAMAGE: 35
+    CRIT_CHANCE: 4
+  set: "skeleton_master"
+
+
+# --- SKELETON LORD ARMOR (340 Def, 170 HP, 200 Crit Damage, 8 Crit Chance) ---
+skeleton_lord_helmet:
+  name: "Skeleton Lord Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 80
+    HEALTH: 40
+    CRIT_DAMAGE: 50
+    CRIT_CHANCE: 2
+  set: "skeleton_lord"
+
+skeleton_lord_chestplate:
+  name: "Skeleton Lord Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 105
+    HEALTH: 50
+    CRIT_DAMAGE: 60
+    CRIT_CHANCE: 2
+  set: "skeleton_lord"
+
+skeleton_lord_leggings:
+  name: "Skeleton Lord Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 90
+    HEALTH: 45
+    CRIT_DAMAGE: 55
+    CRIT_CHANCE: 2
+  set: "skeleton_lord"
+
+skeleton_lord_boots:
+  name: "Skeleton Lord Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 65
+    HEALTH: 35
+    CRIT_DAMAGE: 35
+    CRIT_CHANCE: 2
+  set: "skeleton_lord"
+
+
+# --- SKELETOR ARMOR (249 Def, 156 HP, 170 Crit Damage, 16 Crit Chance) ---
+skeletor_helmet:
+  name: "Skeletor Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 60
+    HEALTH: 40
+    CRIT_DAMAGE: 40
+    CRIT_CHANCE: 4
+  set: "skeletor"
+
+skeletor_chestplate:
+  name: "Skeletor Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 75
+    HEALTH: 45
+    CRIT_DAMAGE: 50
+    CRIT_CHANCE: 4
+  set: "skeletor"
+
+skeletor_leggings:
+  name: "Skeletor Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 70
+    HEALTH: 40
+    CRIT_DAMAGE: 45
+    CRIT_CHANCE: 4
+  set: "skeletor"
+
+skeletor_boots:
+  name: "Skeletor Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 45
+    HEALTH: 30
+    CRIT_DAMAGE: 35
+    CRIT_CHANCE: 4
+  set: "skeletor"
+
+
+# --- ADAPTIVE ARMOR (60 Str, 515 HP, 245 Def, 60 Int) ---
+adaptive_helmet:
+  name: "Adaptive Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 125
+    DEFENSE: 60
+    MANA: 15
+  set: "adaptive"
+
+adaptive_chestplate:
+  name: "Adaptive Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 20
+    HEALTH: 155
+    DEFENSE: 75
+    MANA: 20
+  set: "adaptive"
+
+adaptive_leggings:
+  name: "Adaptive Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 15
+    HEALTH: 140
+    DEFENSE: 65
+    MANA: 15
+  set: "adaptive"
+
+adaptive_boots:
+  name: "Adaptive Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 10
+    HEALTH: 95
+    DEFENSE: 45
+    MANA: 10
+  set: "adaptive"
+
+
+# --- NECROMANCER LORD ARMOR (930 HP, 780 Def, 45 Int) ---
+necromancer_lord_helmet:
+  name: "Necromancer Lord Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 225
+    DEFENSE: 185
+    MANA: 10
+  set: "necromancer_lord"
+
+necromancer_lord_chestplate:
+  name: "Necromancer Lord Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 280
+    DEFENSE: 235
+    MANA: 15
+  set: "necromancer_lord"
+
+necromancer_lord_leggings:
+  name: "Necromancer Lord Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 250
+    DEFENSE: 210
+    MANA: 10
+  set: "necromancer_lord"
+
+necromancer_lord_boots:
+  name: "Necromancer Lord Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 175
+    DEFENSE: 150
+    MANA: 10
+  set: "necromancer_lord"
+
+
+# --- WITHER ARMOR (930 HP, 720 Def, 60 Int) ---
+wither_helmet:
+  name: "Wither Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 225
+    DEFENSE: 175
+    MANA: 15
+  set: "wither"
+
+wither_chestplate:
+  name: "Wither Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 280
+    DEFENSE: 215
+    MANA: 20
+  set: "wither"
+
+wither_leggings:
+  name: "Wither Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 250
+    DEFENSE: 195
+    MANA: 15
+  set: "wither"
+
+wither_boots:
+  name: "Wither Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 175
+    DEFENSE: 135
+    MANA: 10
+  set: "wither"
+
+
+# --- NECRON'S ARMOR (160 Str, 120 CD, 815 HP, 450 Def, 60 Int) ---
+necron_helmet:
+  name: "Necron's Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 40
+    CRIT_DAMAGE: 30
+    HEALTH: 195
+    DEFENSE: 110
+    MANA: 15
+  set: "necron"
+
+necron_chestplate:
+  name: "Necron's Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 45
+    CRIT_DAMAGE: 35
+    HEALTH: 245
+    DEFENSE: 135
+    MANA: 20
+  set: "necron"
+
+necron_leggings:
+  name: "Necron's Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    STRENGTH: 45
+    CRIT_DAMAGE: 30
+    HEALTH: 220
+    DEFENSE: 120
+    MANA: 15
+  set: "necron"
+
+necron_boots:
+  name: "Necron's Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 30
+    CRIT_DAMAGE: 25
+    HEALTH: 155
+    DEFENSE: 85
+    MANA: 10
+  set: "necron"
+
+
+# --- STORM'S ARMOR (815 HP, 370 Def, 1150 Int) ---
+storm_helmet:
+  name: "Storm's Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 195
+    DEFENSE: 90
+    MANA: 275
+  set: "storm"
+
+storm_chestplate:
+  name: "Storm's Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 245
+    DEFENSE: 110
+    MANA: 345
+  set: "storm"
+
+storm_leggings:
+  name: "Storm's Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 220
+    DEFENSE: 100
+    MANA: 310
+  set: "storm"
+
+storm_boots:
+  name: "Storm's Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 155
+    DEFENSE: 70
+    MANA: 220
+  set: "storm"
+
+
+# --- GOLDOR'S ARMOR (970 HP, 860 Def, 90 Int) ---
+goldor_helmet:
+  name: "Goldor's Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 235
+    DEFENSE: 205
+    MANA: 20
+  set: "goldor"
+
+goldor_chestplate:
+  name: "Goldor's Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 290
+    DEFENSE: 260
+    MANA: 25
+  set: "goldor"
+
+goldor_leggings:
+  name: "Goldor's Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 260
+    DEFENSE: 230
+    MANA: 25
+  set: "goldor"
+
+goldor_boots:
+  name: "Goldor's Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 185
+    DEFENSE: 165
+    MANA: 20
+  set: "goldor"
+
+
+# --- MAXOR'S ARMOR (180 CD, 815 HP, 370 Def, 120 Speed, 45 Int) ---
+maxor_helmet:
+  name: "Maxor's Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 40
+    HEALTH: 195
+    DEFENSE: 90
+    SPEED: 30
+    MANA: 10
+  set: "maxor"
+
+maxor_chestplate:
+  name: "Maxor's Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_DAMAGE: 55
+    HEALTH: 245
+    DEFENSE: 110
+    SPEED: 30
+    MANA: 15
+  set: "maxor"
+
+maxor_leggings:
+  name: "Maxor's Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 50
+    HEALTH: 220
+    DEFENSE: 100
+    SPEED: 30
+    MANA: 10
+  set: "maxor"
+
+maxor_boots:
+  name: "Maxor's Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    CRIT_DAMAGE: 35
+    HEALTH: 155
+    DEFENSE: 70
+    SPEED: 30
+    MANA: 10
+  set: "maxor"
+
+
+# =====================================================================
+# KUUDRA ARMORS (base tier only; prestige tiers omitted)
+# =====================================================================
+
+# --- AURORA ARMOR (16 Ability Damage, 725 HP, 210 Def, 565 Int) ---
+aurora_helmet:
+  name: "Aurora Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    ABILITY_DAMAGE: 4
+    HEALTH: 175
+    DEFENSE: 50
+    MANA: 135
+  set: "aurora"
+
+aurora_chestplate:
+  name: "Aurora Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    ABILITY_DAMAGE: 4
+    HEALTH: 215
+    DEFENSE: 65
+    MANA: 170
+  set: "aurora"
+
+aurora_leggings:
+  name: "Aurora Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    ABILITY_DAMAGE: 4
+    HEALTH: 195
+    DEFENSE: 55
+    MANA: 155
+  set: "aurora"
+
+aurora_boots:
+  name: "Aurora Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    ABILITY_DAMAGE: 4
+    HEALTH: 140
+    DEFENSE: 40
+    MANA: 105
+  set: "aurora"
+
+
+# --- FERVOR ARMOR (815 HP, 440 Def, 30 Int, 20 True Def) ---
+fervor_helmet:
+  name: "Fervor Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 195
+    DEFENSE: 105
+    MANA: 5
+    TRUE_DEFENSE: 5
+  set: "fervor"
+
+fervor_chestplate:
+  name: "Fervor Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 245
+    DEFENSE: 130
+    MANA: 10
+    TRUE_DEFENSE: 5
+  set: "fervor"
+
+fervor_leggings:
+  name: "Fervor Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 220
+    DEFENSE: 120
+    MANA: 10
+    TRUE_DEFENSE: 5
+  set: "fervor"
+
+fervor_boots:
+  name: "Fervor Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 155
+    DEFENSE: 85
+    MANA: 5
+    TRUE_DEFENSE: 5
+  set: "fervor"
+
+
+# --- TERROR ARMOR (200 CD, 725 HP, 210 Def, 48 Speed, 30 Int) ---
+terror_helmet:
+  name: "Terror Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 50
+    HEALTH: 175
+    DEFENSE: 50
+    SPEED: 12
+    MANA: 5
+  set: "terror"
+
+terror_chestplate:
+  name: "Terror Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_DAMAGE: 60
+    HEALTH: 215
+    DEFENSE: 65
+    SPEED: 12
+    MANA: 10
+  set: "terror"
+
+terror_leggings:
+  name: "Terror Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 55
+    HEALTH: 195
+    DEFENSE: 55
+    SPEED: 12
+    MANA: 10
+  set: "terror"
+
+terror_boots:
+  name: "Terror Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    CRIT_DAMAGE: 35
+    HEALTH: 140
+    DEFENSE: 40
+    SPEED: 12
+    MANA: 5
+  set: "terror"
+
+
+# --- HOLLOW ARMOR (800 HP, 230 Def, 20 Speed, 385 Int) ---
+hollow_helmet:
+  name: "Hollow Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 195
+    DEFENSE: 55
+    SPEED: 5
+    MANA: 90
+  set: "hollow"
+
+hollow_chestplate:
+  name: "Hollow Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 240
+    DEFENSE: 70
+    SPEED: 5
+    MANA: 115
+  set: "hollow"
+
+hollow_leggings:
+  name: "Hollow Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 215
+    DEFENSE: 60
+    SPEED: 5
+    MANA: 105
+  set: "hollow"
+
+hollow_boots:
+  name: "Hollow Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 150
+    DEFENSE: 45
+    SPEED: 5
+    MANA: 75
+  set: "hollow"
+
+
+# =====================================================================
+# MISSING / MISCELLANEOUS SETS (appended)
+# =====================================================================
+
+# --- FAIRY ARMOR (4 HP, 4 Def, 40 Speed, -4 Int) ---
+fairy_helmet:
+  name: "Fairy Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 0
+    DEFENSE: 0
+    SPEED: 10
+    MANA: 0
+  set: "fairy"
+
+fairy_chestplate:
+  name: "Fairy Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 5
+    DEFENSE: 5
+    SPEED: 12
+    MANA: 0
+  set: "fairy"
+
+fairy_leggings:
+  name: "Fairy Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 0
+    DEFENSE: 0
+    SPEED: 10
+    MANA: 0
+  set: "fairy"
+
+fairy_boots:
+  name: "Fairy Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 0
+    DEFENSE: 0
+    SPEED: 8
+    MANA: 0
+  set: "fairy"
+
+
+# --- MINER ARMOR (60 Def, 40 Mining Speed) ---
+miner_helmet:
+  name: "Miner Helmet"
+  material: "IRON_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 15
+    MINING_SPEED: 10
+  set: "miner"
+  abilities:
+    depth_coating:
+      name: "Depth Coating"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles this piece's Defense while on"
+        - "<gray>Mining Islands."
+
+miner_chestplate:
+  name: "Miner Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 20
+    MINING_SPEED: 10
+  set: "miner"
+  abilities:
+    depth_coating:
+      name: "Depth Coating"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles this piece's Defense while on"
+        - "<gray>Mining Islands."
+
+miner_leggings:
+  name: "Miner Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 15
+    MINING_SPEED: 10
+  set: "miner"
+  abilities:
+    depth_coating:
+      name: "Depth Coating"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles this piece's Defense while on"
+        - "<gray>Mining Islands."
+
+miner_boots:
+  name: "Miner Boots"
+  material: "IRON_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 10
+    MINING_SPEED: 10
+  set: "miner"
+  abilities:
+    depth_coating:
+      name: "Depth Coating"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles this piece's Defense while on"
+        - "<gray>Mining Islands."
+
+
+# --- ARMOR OF MAGMA (270 HP, 85 Def) ---
+armor_of_magma_helmet:
+  name: "Magma Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 65
+    DEFENSE: 20
+  set: "armor_of_magma"
+
+armor_of_magma_chestplate:
+  name: "Magma Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 80
+    DEFENSE: 25
+  set: "armor_of_magma"
+
+armor_of_magma_leggings:
+  name: "Magma Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 75
+    DEFENSE: 25
+  set: "armor_of_magma"
+
+armor_of_magma_boots:
+  name: "Magma Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 50
+    DEFENSE: 15
+  set: "armor_of_magma"
+
+
+# --- CHEAP TUXEDO (100 CD, 100 Int) ---
+cheap_tuxedo_helmet:
+  name: "Cheap Tuxedo Hat"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 25
+    MANA: 25
+  set: "cheap_tuxedo"
+
+cheap_tuxedo_chestplate:
+  name: "Cheap Tuxedo Jacket"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_DAMAGE: 30
+    MANA: 30
+  set: "cheap_tuxedo"
+
+cheap_tuxedo_leggings:
+  name: "Cheap Tuxedo Pants"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 25
+    MANA: 25
+  set: "cheap_tuxedo"
+
+cheap_tuxedo_boots:
+  name: "Cheap Tuxedo Shoes"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    CRIT_DAMAGE: 20
+    MANA: 20
+  set: "cheap_tuxedo"
+
+
+# --- FANCY TUXEDO (150 CD, 10 Speed, 300 Int) ---
+fancy_tuxedo_helmet:
+  name: "Fancy Tuxedo Hat"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 35
+    SPEED: 3
+    MANA: 70
+  set: "fancy_tuxedo"
+
+fancy_tuxedo_chestplate:
+  name: "Fancy Tuxedo Jacket"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_DAMAGE: 45
+    SPEED: 2
+    MANA: 90
+  set: "fancy_tuxedo"
+
+fancy_tuxedo_leggings:
+  name: "Fancy Tuxedo Pants"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 40
+    SPEED: 3
+    MANA: 80
+  set: "fancy_tuxedo"
+
+fancy_tuxedo_boots:
+  name: "Fancy Tuxedo Shoes"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    CRIT_DAMAGE: 30
+    SPEED: 2
+    MANA: 60
+  set: "fancy_tuxedo"
+
+
+# --- ELEGANT TUXEDO (200 CD, 10 Speed, 500 Int) ---
+elegant_tuxedo_helmet:
+  name: "Elegant Tuxedo Hat"
+  material: "LEATHER_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 50
+    SPEED: 3
+    MANA: 120
+  set: "elegant_tuxedo"
+
+elegant_tuxedo_chestplate:
+  name: "Elegant Tuxedo Jacket"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    CRIT_DAMAGE: 60
+    SPEED: 2
+    MANA: 150
+  set: "elegant_tuxedo"
+
+elegant_tuxedo_leggings:
+  name: "Elegant Tuxedo Pants"
+  material: "LEATHER_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 55
+    SPEED: 3
+    MANA: 135
+  set: "elegant_tuxedo"
+
+elegant_tuxedo_boots:
+  name: "Elegant Tuxedo Shoes"
+  material: "LEATHER_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    CRIT_DAMAGE: 35
+    SPEED: 2
+    MANA: 95
+  set: "elegant_tuxedo"
+
+
+# --- PERFECT ARMOR (500-1460 Def — use upper tier 1460) ---
+perfect_helmet:
+  name: "Perfect Helmet"
+  material: "DIAMOND_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 350
+  set: "perfect"
+
+perfect_chestplate:
+  name: "Perfect Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 440
+  set: "perfect"
+
+perfect_leggings:
+  name: "Perfect Leggings"
+  material: "DIAMOND_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 395
+  set: "perfect"
+
+perfect_boots:
+  name: "Perfect Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 275
+  set: "perfect"

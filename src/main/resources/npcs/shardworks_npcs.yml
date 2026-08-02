@@ -1,0 +1,17 @@
+# =====================================================================
+# Shardworks quest-giver NPC
+# =====================================================================
+
+shardworks_prospector:
+  display-name: "<yellow>Prospector Kade"
+  entity-type: VILLAGER
+  world: world
+  x: -100
+  y: 20
+  z: -100
+  yaw: 0
+  look-at-player: true
+  show-name: true
+  on-right-click:
+    - "quest_board_assign shardworks"
+    - "open_gui shardworks_quest_board"

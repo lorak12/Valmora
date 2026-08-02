@@ -1,0 +1,372 @@
+# =====================================================================
+# WANDS & DAMAGE/SUPPORT STAFFS
+# =====================================================================
+# Ported from docs/ABILITIES_DUMP.md (fire staffs ~226-241, wand lists
+# ~484-503). Variables use $namespace.path$ syntax. Damage-over-time is
+# expressed via ticks + interval on DAMAGE/HEAL mechanics.
+#
+# ALREADY DONE elsewhere (skipped): wand_of_atonement, gyrokinetic_wand,
+# fire_veil_wand, aurora_staff, midas_staff.
+#
+# Description-only abilities (no implementable mechanic — delayed-circle
+# freeze / impact-firestorm projectile / rune-swap): fire_freeze_staff,
+# fire_fury_staff (firestorm cast is approximated with a radius DoT, but
+# the "swap rune" style mechanics are notes only where relevant).
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# SUPPORT WANDS
+# ---------------------------------------------------------------------
+
+wand_of_healing:
+  name: "Wand Of Healing"
+  material: "BLAZE_ROD"
+  rarity: "UNCOMMON"
+  item-type: "NONE"
+  stats:
+    MANA: 50
+  abilities:
+    healing:
+      name: "Healing"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 60.0
+      description:
+        - "<gray>Heal yourself for <green>40 HP/s <gray>for 5s."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 40.0
+            target: "@player"
+            ticks: 5
+            interval: 1.0
+
+wand_of_mending:
+  name: "Wand Of Mending"
+  material: "BLAZE_ROD"
+  rarity: "RARE"
+  item-type: "NONE"
+  stats:
+    MANA: 100
+  abilities:
+    mending:
+      name: "Mending"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 90.0
+      description:
+        - "<gray>Heal yourself and nearby allies for"
+        - "<green>80 HP/s <gray>for 6s."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 80.0
+            target: "@player"
+            ticks: 6
+            interval: 1.0
+        - type: "HEAL"
+          params:
+            heal: 80.0
+            target: "@allies_in_radius{r=7}"
+            ticks: 6
+            interval: 1.0
+
+wand_of_restoration:
+  name: "Wand Of Restoration"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    MANA: 175
+  abilities:
+    restoration:
+      name: "Restoration"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 130.0
+      description:
+        - "<gray>Heal yourself and nearby allies for"
+        - "<green>130 HP/s <gray>for 7s."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 130.0
+            target: "@player"
+            ticks: 7
+            interval: 1.0
+        - type: "HEAL"
+          params:
+            heal: 130.0
+            target: "@allies_in_radius{r=8}"
+            ticks: 7
+            interval: 1.0
+
+wand_of_strength:
+  name: "Wand Of Strength"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    MANA: 150
+  abilities:
+    empower:
+      name: "Empower"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 150.0
+      description:
+        - "<gray>Grant yourself and nearby allies"
+        - "<red>+100 Strength <gray>for 10s."
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "STRENGTH"
+            amount: 100.0
+            duration: 10.0
+            target: "@player"
+        - type: "MODIFY_STAT"
+          params:
+            stat: "STRENGTH"
+            amount: 100.0
+            duration: 10.0
+            target: "@allies_in_radius{r=8}"
+
+
+# ---------------------------------------------------------------------
+# DAMAGE WANDS
+# ---------------------------------------------------------------------
+
+celeste_wand:
+  name: "Celeste Wand"
+  material: "STICK"
+  rarity: "UNCOMMON"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 30
+    MANA: 60
+  abilities:
+    celestial_bolt:
+      name: "Celestial Bolt"
+      trigger: "RIGHT_CLICK"
+      target-range: 15.0
+      cooldown: 1.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Fire a bolt of starlight at your"
+        - "<gray>target for <aqua>800 Magic Damage<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 800.0
+            damage-type: "MAGIC"
+            target: "@target"
+
+the_alchemists_staff:
+  name: "The Alchemist's Staff"
+  material: "STICK"
+  rarity: "RARE"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 50
+    MANA: 120
+  abilities:
+    corrosive_brew:
+      name: "Corrosive Brew"
+      trigger: "RIGHT_CLICK"
+      target-range: 12.0
+      cooldown: 3.0
+      mana-cost: 80.0
+      description:
+        - "<gray>Douse your target in acid, dealing"
+        - "<green>600 Magic Damage/s <gray>for 4s and"
+        - "<gray>applying <green>Poison II<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 600.0
+            damage-type: "MAGIC"
+            target: "@target"
+            ticks: 4
+            interval: 1.0
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "poison"
+            duration: 4.0
+            amplifier: 2
+            target: "@target"
+
+starlight_wand:
+  name: "Starlight Wand"
+  material: "STICK"
+  rarity: "RARE"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 60
+    MANA: 150
+  abilities:
+    starfall:
+      name: "Starfall"
+      trigger: "RIGHT_CLICK"
+      cooldown: 4.0
+      mana-cost: 120.0
+      description:
+        - "<gray>Rain starlight on enemies within 6"
+        - "<gray>blocks, dealing <aqua>3,000 Magic Damage<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 3000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=6}"
+
+staff_of_the_volcano:
+  name: "Staff Of The Volcano"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 90
+    MANA: 250
+  abilities:
+    eruption:
+      name: "Eruption"
+      trigger: "RIGHT_CLICK"
+      cooldown: 6.0
+      mana-cost: 250.0
+      description:
+        - "<gray>Erupt molten rock around you, dealing"
+        - "<red>5,000 Magic Damage/s <gray>for 4s and"
+        - "<gray>igniting enemies within 7 blocks."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 5000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=7}"
+            ticks: 4
+            interval: 1.0
+        - type: "IGNITE"
+          params:
+            duration: 5.0
+            target: "@enemies_in_radius{r=7}"
+
+staff_of_the_rising_sun:
+  name: "Staff Of The Rising Sun"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 80
+    MANA: 300
+  abilities:
+    solar_flare:
+      name: "Solar Flare"
+      trigger: "RIGHT_CLICK"
+      cooldown: 8.0
+      mana-cost: 300.0
+      description:
+        - "<gray>Unleash a wave of searing light in a"
+        - "<gray>cone, dealing <gold>8,000 Magic Damage <gray>and"
+        - "<gray>igniting all enemies hit."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 8000.0
+            damage-type: "MAGIC"
+            target: "@cone{range=10, angle=60}"
+        - type: "IGNITE"
+          params:
+            duration: 6.0
+            target: "@cone{range=10, angle=60}"
+
+hellstorm_wand:
+  name: "Hellstorm Wand"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 100
+    MANA: 350
+  abilities:
+    hellstorm:
+      name: "Hellstorm"
+      trigger: "RIGHT_CLICK"
+      cooldown: 10.0
+      mana-cost: 400.0
+      description:
+        - "<gray>Summon an infernal storm dealing"
+        - "<red>10,000 Magic Damage/s <gray>for 5s to"
+        - "<gray>enemies within 8 blocks and igniting them."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 10000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=8}"
+            ticks: 5
+            interval: 1.0
+        - type: "IGNITE"
+          params:
+            duration: 6.0
+            target: "@enemies_in_radius{r=8}"
+
+
+# ---------------------------------------------------------------------
+# FIRE STAFFS (from the sword section — read like wands)
+# ---------------------------------------------------------------------
+
+fire_freeze_staff:
+  name: "Fire Freeze Staff"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 20
+  abilities:
+    fire_freeze:
+      name: "Fire Freeze"
+      trigger: "RIGHT_CLICK"
+      cooldown: 10.0
+      mana-cost: 500.0
+      description:
+        - "<gray>Creates a circle with a radius of 5 blocks."
+        - "<gray>After 5s, all mobs inside are <aqua>frozen <gray>for 10s."
+      # DESCRIPTION-ONLY: the delayed-circle freeze (spawn a zone, wait 5s,
+      # then freeze everything inside) has no matching mechanic — there is no
+      # delayed/zoned APPLY_EFFECT. Left as flavor text until supported.
+
+fire_fury_staff:
+  name: "Fire Fury Staff"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  stats:
+    DAMAGE: 100
+    MANA: 300
+  abilities:
+    firestorm:
+      name: "Firestorm"
+      trigger: "RIGHT_CLICK"
+      cooldown: 20.0
+      mana-cost: 1000.0
+      description:
+        - "<gray>Conjure a firestorm dealing up to"
+        - "<red>4,200 Magic Damage/s <gray>for 10s to mobs"
+        - "<gray>within 10 blocks, igniting them."
+      # NOTE: the source fires an impact projectile that spawns the firestorm.
+      # LAUNCH_PROJECTILE on-hit firestorm is approximated here as a self-cast
+      # radius damage-over-time (42,000 total over 10s) plus ignite.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 4200.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=10}"
+            ticks: 10
+            interval: 1.0
+        - type: "IGNITE"
+          params:
+            duration: 10.0
+            target: "@enemies_in_radius{r=10}"

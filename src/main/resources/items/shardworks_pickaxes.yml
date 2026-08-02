@@ -1,0 +1,46 @@
+# =====================================================================
+# Shardworks tiered pickaxes. Each tier's BREAKING_POWER exceeds the
+# *next* ore's required-power (see zones/shardworks.yml), so mining
+# progression requires crafting the next tool before the next ore
+# becomes minable. A vanilla diamond/netherite pickaxe has no
+# BREAKING_POWER stat at all and cannot break any Shardworks ore.
+# =====================================================================
+
+ferrite_pickaxe:
+  name: "<white>Ferrite Pickaxe"
+  material: "IRON_PICKAXE"
+  rarity: "UNCOMMON"
+  item-type: "PICKAXE"
+  lore:
+    - "<gray>Forged from Ferrite Ingots."
+  stats:
+    BREAKING_POWER: 7
+    MINING_SPEED: 120
+    MINING_FORTUNE: 5
+    MINING_SPREAD: 0
+
+lumicite_pickaxe:
+  name: "<gold>Lumicite Pickaxe"
+  material: "GOLDEN_PICKAXE"
+  rarity: "RARE"
+  item-type: "PICKAXE"
+  lore:
+    - "<gray>Glows faintly with trapped Lumicite energy."
+  stats:
+    BREAKING_POWER: 8
+    MINING_SPEED: 150
+    MINING_FORTUNE: 15
+    MINING_SPREAD: 1
+
+aetherium_pickaxe:
+  name: "<light_purple>Aetherium Pickaxe"
+  material: "NETHERITE_PICKAXE"
+  rarity: "LEGENDARY"
+  item-type: "PICKAXE"
+  lore:
+    - "<gray>Swirling with raw Aetherium power."
+  stats:
+    BREAKING_POWER: 10
+    MINING_SPEED: 200
+    MINING_FORTUNE: 30
+    MINING_SPREAD: 3

@@ -1,0 +1,759 @@
+# =====================================================================
+# Catacombs Weapons
+# =====================================================================
+# Obtained from Catacombs floors, mob drops, and shop purchases.
+#
+# Implementation notes:
+#   * Cleave uses ON_HIT + DAMAGE @enemies_in_radius (50% splash).
+#   * Ice Spray uses DAMAGE + APPLY_EFFECT on @cone.
+#   * Arc attacks (Bone Reaver, Felthorn Reaper) use @cone{angle=180}.
+#   * Necron's blade family shares the wither_bane ON_HIT pattern;
+#     Hyperion also gets a full Wither Impact RIGHT_CLICK (the most
+#     common end-state when all three scrolls are applied).
+#   * Abilities needing unimplemented mechanics are DESCRIPTION-ONLY:
+#     - Soul summon (Necromancer Sword)
+#     - Kill-counter stacking (Zombie Commander Whip, Fel Sword)
+#     - Set bonus detection (Zombie Knight Sword)
+#     - Dungeon class adaptation (Adaptive Blade, Earth Shard, Conjuring)
+#     - Ricocheting/guided projectiles (Flower Of Truth, Bouquet Of Lies,
+#       Spirit Sceptre)
+#     - Missing-HP / target-HP ability scaling (Bone Reaver, Felthorn,
+#       Spirit Sword, Bouquet Of Lies)
+#     - Deactivatable immunity shield (Wither Cloak Sword)
+#     - Returning dagger + backstab (Livid Dagger)
+#     - Charge systems (Bone Reaver, Felthorn Reaper)
+#     - Ghost-mode ability (Spirit Sword)
+#     - Multi-enemy sequential teleport (Shadow Fury — roots enemies
+#       in radius as a functional approximation)
+# =====================================================================
+
+
+# ─────────────────────────────────────────
+# Cleaver Line (Ophelia Shop / Catacombs)
+# ─────────────────────────────────────────
+
+super_cleaver:
+  name: "Super Cleaver"
+  material: "IRON_AXE"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 105
+    STRENGTH: 20
+    CRIT_DAMAGE: 20
+  abilities:
+    cleave:
+      name: "Cleave"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>When hitting an entity, monsters in a <white>3 block"
+        - "<gray>range will be hit for a portion of that damage too."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "PHYSICAL"
+            target: "@enemies_in_radius{r=3}"
+
+hyper_cleaver:
+  name: "Hyper Cleaver"
+  material: "IRON_AXE"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 175
+    STRENGTH: 100
+    CRIT_DAMAGE: 100
+  abilities:
+    cleave:
+      name: "Cleave"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>When hitting an entity, monsters in a <white>4 block"
+        - "<gray>range will be hit for a portion of that damage too."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "PHYSICAL"
+            target: "@enemies_in_radius{r=4}"
+
+giant_cleaver:
+  name: "Giant Cleaver"
+  material: "DIAMOND_AXE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 235
+    STRENGTH: 120
+    CRIT_DAMAGE: 120
+  abilities:
+    cleave:
+      name: "Cleave"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>When hitting an entity, monsters in a <white>5 block"
+        - "<gray>range will be hit for a portion of that damage too."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "PHYSICAL"
+            target: "@enemies_in_radius{r=5}"
+
+
+# ─────────────────────────────────────────
+# Catacombs Mob Drops
+# ─────────────────────────────────────────
+
+dreadlord_sword:
+  name: "Dreadlord Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 45
+    MANA: 180
+  abilities:
+    dreadlord:
+      name: "Dreadlord"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 40.0
+      description:
+        - "<gray>Shoots a skull that deals <red>500 damage<gray>."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "WITHER_SKULL"
+            velocity: 2.0
+            count: 1
+            damage: 500.0
+            damage-type: "MAGIC"
+
+zombie_knight_sword:
+  name: "Zombie Knight Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 130
+    STRENGTH: 40
+  abilities:
+    zombie_knight:
+      name: "Zombie Knight"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gains <green>+30 Strength <gray>when used with"
+        - "<gray>the Zombie Knight Armor."
+      # DESCRIPTION-ONLY: armor set bonus detection not implemented.
+
+zombie_commander_whip:
+  name: "Zombie Commander Whip"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 65
+    STRENGTH: 5
+  abilities:
+    commander_whip:
+      name: "Commander Whip"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Every 1 Zombie killed during a dungeon run by"
+        - "<gray>this weapon gives the wielder <green>+1 Strength<gray>."
+        - "<gray>Zombies killed: <white>0"
+        - "<gray>Bonus Strength: <white>0"
+      # DESCRIPTION-ONLY: kill counter + stacking buff not implemented.
+
+zombie_soldier_cutlass:
+  name: "Zombie Soldier Cutlass"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 50
+    BONUS_ATTACK_SPEED: 100
+  abilities:
+    love_tap:
+      name: "Love Tap"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Heals you for <green>+10 Health <gray>when you hit an entity!"
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 10.0
+            target: "@player"
+
+conjuring:
+  name: "Conjuring"
+  material: "GOLDEN_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 130
+    STRENGTH: 70
+    MANA: 180
+  abilities:
+    sheep_conjurer:
+      name: "Sheep Conjurer"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Reduces the cooldown of Guided Sheep by <white>5 seconds<gray>."
+        - "<gray>Prevents Guided Sheep from spawning randomly"
+        - "<gray>while holding this item."
+      # DESCRIPTION-ONLY: dungeon ability cooldown reduction not implemented.
+
+earth_shard:
+  name: "Earth Shard"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 137
+    DEFENSE: 96
+  abilities:
+    adaptive:
+      name: "Earth Shard"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Automatically adapts to its user inside Dungeons,"
+        - "<gray>allowing you to perform your class ability."
+        - "<gray>Reduces the cooldown of Seismic Wave by <white>2s<gray>."
+      # DESCRIPTION-ONLY: dungeon class adaptation not implemented.
+
+ice_spray_wand:
+  name: "Ice Spray Wand"
+  material: "BLAZE_ROD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    MANA: 250
+  abilities:
+    ice_spray:
+      name: "Ice Spray"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Produces a cone of ice dealing <red>17,000 damage"
+        - "<gray>to mobs and <aqua>freezing them for 5 seconds<gray>!"
+        - "<gray>Frozen mobs take <green>10% increased damage<gray>!"
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 17000.0
+            damage-type: "MAGIC"
+            target: "@cone{range=8, angle=30}"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 5.0
+            amplifier: 10
+            target: "@cone{range=8, angle=30}"
+
+flower_of_truth:
+  name: "Flower Of Truth"
+  material: "GOLDEN_HOE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 160
+    STRENGTH: 300
+  abilities:
+    heat_seeking_rose:
+      name: "Heat-Seeking Rose"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      description:
+        - "<gray>Shoots a rose that ricochets between enemies,"
+        - "<gray>damaging up to <white>3 foes<gray>!"
+        - "<gray>Damage multiplies as more enemies are hit."
+        - "<red>Health Cost: 10%"
+      # DESCRIPTION-ONLY: ricocheting projectile with damage amplification not implemented.
+
+bouquet_of_lies:
+  name: "Bouquet Of Lies"
+  material: "GOLDEN_HOE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 220
+    STRENGTH: 300
+    CRIT_DAMAGE: 50
+  abilities:
+    petal_barrage:
+      name: "Petal Barrage"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      description:
+        - "<gray>Fires a barrage of <white>3 roses <gray>that ricochet"
+        - "<gray>between enemies, hitting up to <white>5 foes<gray>."
+        - "<gray>For every 10% of your health missing, your roses"
+        - "<gray>deal <green>2% more damage<gray>."
+        - "<red>Health Cost: 10%"
+      # DESCRIPTION-ONLY: ricocheting projectile and missing-HP scaling not implemented.
+
+bone_reaver:
+  name: "Bone Reaver"
+  material: "IRON_HOE"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 235
+    STRENGTH: 90
+  abilities:
+    reviving_strike:
+      name: "Reviving Strike"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Slash in a huge arc, dealing <green>125% melee damage"
+        - "<gray>to all enemies hit!"
+        - "<gray>Charges: <white>5 / 4s"
+        - "<gray>Deals <green>+1% Damage <gray>to Undead for every"
+        - "<gray>1% of your missing Health."
+      # NOTE: charge system and missing-HP bonus DESCRIPTION-ONLY.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.weapon_damage$ * 1.25"
+            damage-type: "PHYSICAL"
+            target: "@cone{range=5, angle=180}"
+
+felthorn_reaper:
+  name: "Felthorn Reaper"
+  material: "IRON_HOE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 275
+    CRIT_DAMAGE: 115
+  abilities:
+    reviving_strike:
+      name: "Reviving Strike"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Slash in a huge arc, dealing <green>135% melee damage"
+        - "<gray>to all enemies hit!"
+        - "<gray>Charges: <white>5 / 4s"
+        - "<gray>Deals <green>+1% Damage <gray>for each 1% of missing"
+        - "<gray>Health on the target."
+      # NOTE: charge system and target-HP scaling DESCRIPTION-ONLY.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.weapon_damage$ * 1.35"
+            damage-type: "PHYSICAL"
+            target: "@cone{range=5, angle=180}"
+
+fel_sword:
+  name: "Fel Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 190
+    STRENGTH: 135
+  abilities:
+    fel_mastery:
+      name: "Fel Mastery"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Every <white>100 kills <gray>with this weapon grants"
+        - "<green>+1 Weapon Damage<gray>, up to <white>100 extra<gray>."
+      # DESCRIPTION-ONLY: kill counter + stacking buff not implemented.
+
+wither_cloak_sword:
+  name: "Wither Cloak Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 190
+    STRENGTH: 135
+    DEFENSE: 250
+  abilities:
+    creeper_veil:
+      name: "Creeper Veil"
+      trigger: "RIGHT_CLICK"
+      cooldown: 10.0
+      description:
+        - "<gray>Spawns a protective veil granting immunity from"
+        - "<gray>damage for <white>10s<gray>."
+        - "<gray>Consumes <white>20% max mana <gray>each blocked hit."
+        - "<gray>You cannot attack while the barrier is up."
+        - "<gray>RIGHT CLICK while active to deactivate."
+        - "<gray>Cooldown is halved on deactivation."
+      # DESCRIPTION-ONLY: deactivatable damage immunity veil not implemented.
+
+
+# ─────────────────────────────────────────
+# Catacombs Floor Rewards
+# ─────────────────────────────────────────
+
+bonzo_staff:
+  name: "Bonzo's Staff"
+  material: "BLAZE_ROD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 160
+    MANA: 250
+  abilities:
+    showtime:
+      name: "Showtime"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 90.0
+      description:
+        - "<gray>Shoots balloons that create a large explosion"
+        - "<gray>on impact, dealing up to <red>1,000 damage<gray>."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "SNOWBALL"
+            velocity: 1.6
+            count: 3
+            spread: 10.0
+            damage: 1000.0
+            damage-type: "MAGIC"
+
+adaptive_blade:
+  name: "Adaptive Blade"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 170
+  abilities:
+    adaptive:
+      name: "Adaptive"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Automatically adapts to its user inside Dungeons."
+        - "<green>Berserk: <gray>+10 Damage, +75 Strength, +10 Speed"
+        - "<aqua>Healer: <gray>+10 Mending, tether and heal nearby players."
+        - "<light_purple>Mage: <gray>+100 Mana, melee restores 25% mana."
+        - "<blue>Tank: <gray>+100 Defense, +5 Vitality, +5 True Defense"
+        - "<yellow>Archer: <gray>Enemies take 10% more damage from your arrows."
+      # DESCRIPTION-ONLY: dungeon class detection and per-class bonuses not implemented.
+
+spirit_sword:
+  name: "Spirit Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 210
+    STRENGTH: 50
+  abilities:
+    spirit:
+      name: "Spirit"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Deals <green>+2% to Undead <gray>for every 1% of"
+        - "<gray>your missing health."
+        - "<gray>Spirit Item: when turned into a ghost, this item"
+        - "<gray>becomes a Ghost Ability."
+      # DESCRIPTION-ONLY: ghost mode and missing-HP damage scaling not implemented.
+
+spirit_sceptre:
+  name: "Spirit Sceptre"
+  material: "BLAZE_ROD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 180
+    MANA: 300
+  abilities:
+    guided_bat:
+      name: "Guided Bat"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 200.0
+      description:
+        - "<gray>Shoots a guided spirit bat, following your aim"
+        - "<gray>and exploding for <red>2,000 damage<gray>."
+      # DESCRIPTION-ONLY: guided/homing projectile not implemented.
+
+shadow_fury:
+  name: "Shadow Fury"
+  material: "DIAMOND_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 300
+    STRENGTH: 130
+    CRIT_DAMAGE: 30
+    SPEED: 30
+  abilities:
+    shadow_fury:
+      name: "Shadow Fury"
+      trigger: "RIGHT_CLICK"
+      cooldown: 15.0
+      description:
+        - "<gray>Rapidly teleports you to up to <white>5 enemies"
+        - "<gray>within 12 blocks, rooting each of them."
+        - "<gray>Sequential multi-enemy teleport not implemented;"
+        - "<gray>nearby enemies are rooted in place."
+      # NOTE: multi-enemy sequential dash not implemented; roots enemies in radius.
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 3.0
+            amplifier: 10
+            target: "@enemies_in_radius{r=12}"
+
+livid_dagger:
+  name: "Livid Dagger"
+  material: "IRON_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 210
+    STRENGTH: 60
+    CRIT_CHANCE: 100
+    CRIT_DAMAGE: 50
+    BONUS_ATTACK_SPEED: 50
+  abilities:
+    throw:
+      name: "Throw"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 150.0
+      description:
+        - "<gray>Throw your dagger at your enemies!"
+        - "<gray>Critical Hits deal <green>100% more damage"
+        - "<gray>if you are <white>behind your target<gray>."
+      # DESCRIPTION-ONLY: returning dagger projectile and backstab detection not implemented.
+
+giants_sword:
+  name: "Giant's Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 500
+  abilities:
+    giants_slam:
+      name: "Giant's Slam"
+      trigger: "RIGHT_CLICK"
+      cooldown: 30.0
+      mana-cost: 100.0
+      description:
+        - "<gray>Slam your sword into the ground dealing"
+        - "<red>100,000 damage <gray>to nearby enemies."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 100000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=8}"
+
+necromancer_sword:
+  name: "Necromancer Sword"
+  material: "IRON_HOE"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 250
+    STRENGTH: 125
+    DEFENSE: 125
+  abilities:
+    raise_souls:
+      name: "Raise Souls"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      description:
+        - "<gray>Monsters you kill using this item will drop their soul."
+        - "<gray>Click on their souls on the ground to absorb them"
+        - "<gray>and spawn them to fight by your side."
+        - "<gray>Shift right-click to view and remove souls."
+        - "<white>Max Souls: 2"
+      # DESCRIPTION-ONLY: soul collection and summoning not implemented.
+
+
+# ─────────────────────────────────────────
+# Necron's Blade Family
+#
+# All five variants share wither_bane (ON_HIT +50% damage to Withers).
+# Scroll abilities (Implosion, Wither Shield, Shadow Warp) are not
+# individually selectable in this config — implement when an
+# item-upgrade / scroll-application system exists. Hyperion carries
+# the full Wither Impact (all three scrolls combined) as its active
+# ability, since that is by far the most common end configuration.
+# ─────────────────────────────────────────
+
+necrons_blade:
+  name: "Necron's Blade"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 260
+    STRENGTH: 110
+    MANA: 50
+    FEROCITY: 30
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+50% more damage <gray>against Withers."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "MAGIC"
+            target: "@target"
+
+valkyrie:
+  name: "Valkyrie"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 270
+    STRENGTH: 145
+    MANA: 60
+    FEROCITY: 60
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+50% more damage <gray>against Withers."
+        - "<gray>Grants <green>+1 Damage <gray>and <green>+1 Strength"
+        - "<gray>per Catacombs level."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "MAGIC"
+            target: "@target"
+
+hyperion:
+  name: "Hyperion"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 260
+    STRENGTH: 150
+    MANA: 350
+    FEROCITY: 30
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+50% more damage <gray>against Withers."
+        - "<gray>Grants <green>+1 Damage <gray>and <green>+1 Mana"
+        - "<gray>per Catacombs level."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "MAGIC"
+            target: "@target"
+    wither_impact:
+      name: "Wither Impact"
+      trigger: "RIGHT_CLICK"
+      cooldown: 0.15
+      mana-cost: 300.0
+      description:
+        - "<gray>Teleport 10 blocks ahead. Then implode dealing"
+        - "<red>10,000 damage <gray>to nearby enemies."
+        - "<gray>Also applies a Wither Shield reducing damage"
+        - "<gray>taken and granting an ❤Absorption shield for 5s."
+      mechanics:
+        - type: "TELEPORT"
+          params:
+            distance: 10.0
+        - type: "DAMAGE"
+          params:
+            damage: 10000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=5}"
+        - type: "MODIFY_STAT"
+          params:
+            stat: "DEFENSE"
+            amount: 1000.0
+            duration: 5.0
+
+scylla:
+  name: "Scylla"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 270
+    STRENGTH: 150
+    CRIT_CHANCE: 12
+    CRIT_DAMAGE: 35
+    MANA: 50
+    FEROCITY: 30
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+50% more damage <gray>against Withers."
+        - "<gray>Grants <green>+1 Damage <gray>and <green>+1 Crit Damage"
+        - "<gray>per Catacombs level."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "MAGIC"
+            target: "@target"
+
+astraea:
+  name: "Astraea"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 270
+    STRENGTH: 150
+    DEFENSE: 250
+    MANA: 50
+    TRUE_DEFENSE: 20
+    FEROCITY: 30
+  abilities:
+    wither_bane:
+      name: "Wither Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+50% more damage <gray>against Withers."
+        - "<gray>Grants <green>+1 Damage <gray>and <green>+2 Defense"
+        - "<gray>per Catacombs level."
+      conditions:
+        - "$target.type$ == \"WITHER\" or $target.type$ == \"WITHER_SKELETON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.5"
+            damage-type: "MAGIC"
+            target: "@target"
+
+dark_claymore:
+  name: "Dark Claymore"
+  material: "NETHERITE_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 500
+    STRENGTH: 100
+    CRIT_DAMAGE: 100

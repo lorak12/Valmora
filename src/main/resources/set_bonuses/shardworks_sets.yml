@@ -1,0 +1,29 @@
+# =====================================================================
+# Shardworks armor set bonuses
+# =====================================================================
+
+ferrite_set:
+  set-id: "ferrite_set"
+  name: "Ferrite Plating"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        MINING_FORTUNE: 5
+
+lumicite_set:
+  set-id: "lumicite_set"
+  name: "Lumicite Resonance"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        MINING_FORTUNE: 10
+        MINING_SPREAD: 1
+
+aetherium_set:
+  set-id: "aetherium_set"
+  name: "Aetherial Attunement"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        MINING_FORTUNE: 20
+        MINING_SPREAD: 2

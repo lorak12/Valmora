@@ -1,0 +1,1344 @@
+# =====================================================================
+# INDIVIDUAL (NON-SET) ARMOR PIECES
+# Ported from docs/ABILITIES_DUMP.md (lines ~1345-1815).
+# Hats / masks / heads -> PLAYER_HEAD, item-type HELMET.
+# Real armor pieces use matching vanilla armor materials.
+# Skipped (already done): warden_helmet, precursor_eye, rancher_boots.
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# HATS
+# ---------------------------------------------------------------------
+
+blaze_hat:
+  name: "Blaze Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 20
+
+fish_hat:
+  name: "Fish Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 5
+  abilities:
+    splash:
+      name: "Splash"
+      trigger: "SNEAK"
+      cooldown: 1.0
+      mana-cost: 10.0
+      description:
+        - "<gray>Crouch to splash some water around."
+
+chicken_hat:
+  name: "Chicken Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 20
+  abilities:
+    lay_eggs:
+      name: "Lay Eggs"
+      trigger: "SNEAK"
+      cooldown: 5.0
+      description:
+        - "<gray>Lay eggs when you sneak!"
+        - "<gray>Also reduces fall damage by <white>5%<gray>."
+
+creeper_hat:
+  name: "Creeper Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 5
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 5
+    HEALTH: 5
+    DEFENSE: 5
+    MANA: 5
+  abilities:
+    explosion_immunity:
+      name: "Explosion Immunity"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants immunity to explosion damage."
+
+cow_hat:
+  name: "Cow Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+    DEFENSE: 5
+  abilities:
+    debuff_immunity:
+      name: "Debuff Immunity"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants immunity to de-buffs when equipped."
+
+ghast_head:
+  name: "Ghast Head"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+  abilities:
+    cloud_nine:
+      name: "Cloud Nine"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Restores <green>1% <gray>of your maximum"
+        - "<gray>Health every second while worn."
+
+magma_cube_head:
+  name: "Magma Cube Head"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 25
+    DEFENSE: 25
+
+pufferfish_hat:
+  name: "Pufferfish Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    HEALTH: 20
+  abilities:
+    spiky:
+      name: "Spiky"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Your attacks have a chance to deal"
+        - "<red>10 damage <gray>plus <red>20% of your Strength"
+        - "<gray>to nearby enemies!"
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "10 + ($player.stat.STRENGTH$ * 0.2)"
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=4}"
+
+skeleton_hat:
+  name: "Skeleton Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    SPEED: 2
+    MANA: 10
+  abilities:
+    explosive_arrows:
+      name: "Explosive Arrows"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Your arrows have a <white>20% <gray>chance to"
+        - "<gray>explode on impact, dealing <red>50 base"
+        - "<red>Magic Damage <gray>to enemies within 8 blocks."
+
+slime_hat:
+  name: "Slime Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+  abilities:
+    knockback_immunity:
+      name: "Knockback Immunity"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants immunity to knockback from mobs."
+
+spider_hat:
+  name: "Spider Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    CRIT_CHANCE: 25
+  abilities:
+    spider_friend:
+      name: "Spider Friend"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>When worn, Cave Spiders and Spiders"
+        - "<gray>deal <green>-30% <gray>damage."
+
+squid_hat:
+  name: "Squid Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    SPEED: 1
+  abilities:
+    squid_catcher:
+      name: "Squid Catcher"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Extra chance to fish up Squids!"
+
+zombie_hat:
+  name: "Zombie Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 10
+  abilities:
+    pack_defense:
+      name: "Pack Defense"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gives <green>+10 Defense <gray>for each"
+        - "<gray>Zombie within 8 blocks."
+
+salmon_hat:
+  name: "Salmon Hat"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    SPEED: 2
+  abilities:
+    aquatic:
+      name: "Aquatic"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Comes included with <white>Aqua Affinity I<gray>,"
+        - "<white>Depth Strider I<gray>, and <white>Respiration V<gray>."
+
+
+# ---------------------------------------------------------------------
+# MASKS
+# ---------------------------------------------------------------------
+
+zombie_mask:
+  name: "Zombie Mask"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 0
+  abilities:
+    examinate_blessing:
+      name: "Examinate Blessing"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Increases the stats of Undead armor"
+        - "<gray>pieces by <green>+5%<gray>."
+
+salmon_mask:
+  name: "Salmon Mask"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 0
+  abilities:
+    slippery_slope:
+      name: "Slippery Slope"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+10 Speed <gray>and"
+        - "<green>+10 Fishing Speed <gray>while in water."
+
+armadillo_mask:
+  name: "Armadillo Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 0
+  abilities:
+    soiling:
+      name: "Soiling! Soiling! Soiling!"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+50 Mining Fortune <gray>on"
+        - "<gray>non-ore blocks."
+
+parrot_mask:
+  name: "Parrot Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 0
+  abilities:
+    party_flock:
+      name: "Party Flock"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Nearby players within 20 blocks gain"
+        - "<green>+1 Strength <gray>for each upgrade of your"
+        - "<gray>Intimidation Accessory."
+
+bee_mask:
+  name: "Bee Mask"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 5
+    SPEED: 7
+    FORAGING_FORTUNE: 7
+  abilities:
+    buzzy_little_bee:
+      name: "Buzzy Little Bee"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Double the base pet stats of your"
+        - "<gray>active Bee pet."
+
+frog_mask:
+  name: "Frog Mask"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 5
+    SPEED: 7
+    FORAGING_FORTUNE: 7
+  abilities:
+    stick_around:
+      name: "Stick Around"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Every day a random region in The Park"
+        - "<gray>is selected. While in that region, gain"
+        - "<green>+20 Foraging Fortune <gray>and"
+        - "<green>+5 Foraging Wisdom<gray>."
+
+snowman_mask:
+  name: "Snowman Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+  abilities:
+    feelin_festive:
+      name: "Feelin' Festive"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+10% <gray>more Coins and"
+        - "<gray>Skill XP from Gifts."
+
+party_top_hat:
+  name: "Party Top Hat"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  abilities:
+    carnival_craze:
+      name: "Carnival Craze"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Tiered Bonus: gain up to"
+        - "<green>+20% <gray>more Carnival Tokens."
+
+blobfish_hat:
+  name: "Blobfish Hat"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 25
+    MANA: -10
+
+tropical_fish_hat:
+  name: "Tropical Fish Hat"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    MANA: 50
+
+enderman_mask:
+  name: "Enderman Mask"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 0
+    HEALTH: 0
+    DEFENSE: 0
+    MANA: -100
+  abilities:
+    enderman_friend:
+      name: "Enderman Friend"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Makes Endermen not attack you when"
+        - "<gray>looking at them."
+
+lantern_helmet:
+  name: "Lantern Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 20
+    DEFENSE: 10
+  abilities:
+    lantern_growth:
+      name: "Lantern Growth"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>For every Farming Level, this Helmet gains:"
+        - "<green>+2 Defense<gray>, <green>+4 Health<gray>, and"
+        - "<green>+1 Farming Fortune <gray>(Holding an Axe)."
+
+magmafish_hat:
+  name: "Magmafish Hat"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    MANA: 50
+  abilities:
+    splash:
+      name: "Splash"
+      trigger: "SNEAK"
+      cooldown: 1.0
+      mana-cost: 20.0
+      description:
+        - "<gray>Crouch to splash some magma around."
+
+rabbit_hat:
+  name: "Rabbit Hat"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    SPEED: 5
+    MANA: 5
+  abilities:
+    bounce:
+      name: "Bounce"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants <white>Jump Boost IV <gray>while equipped."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "jump_boost"
+            duration: -1
+            amplifier: 3
+            target: "@player"
+
+skeletons_helmet:
+  name: "Skeleton's Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 75
+  abilities:
+    bone_shield:
+      name: "Bone Shield"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>A bone shield will surround you, nullifying"
+        - "<gray>damage you take but consuming a bone in the"
+        - "<gray>process. Bones regenerate every 30 seconds."
+
+kalhuiki_mask:
+  name: "Kalhuiki Mask"
+  material: "PLAYER_HEAD"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+    DEFENSE: 50
+  abilities:
+    tribe_friend:
+      name: "Tribe Friend"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While wearing this mask, members of the"
+        - "<gray>Kalhuiki Tribe will not attack you!"
+
+water_hydra_head:
+  name: "Water Hydra Head"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    SEA_CREATURE_CHANCE: 2
+    HEALTH: 100
+    DEFENSE: 100
+
+krampus_helmet:
+  name: "Krampus Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  abilities:
+    gift_giver:
+      name: "Gift Giver"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Grants <green>+1 Health <gray>per 50 Gifts given"
+        - "<gray>by the wearer. Max <green>+500 Health<gray>."
+        - "<gray>Can be used as a minion upgrade to"
+        - "<gray>occasionally generate Red Gifts!"
+
+taurus_helmet:
+  name: "Taurus Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    CRIT_DAMAGE: 20
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 175
+    DEFENSE: 150
+  abilities:
+    lava_ward:
+      name: "Lava Ward"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Damage taken from Lava Sea Creatures is"
+        - "<gray>reduced by <green>5% <gray>and damage dealt is"
+        - "<gray>increased by <green>1.1x<gray>."
+
+vampire_mask:
+  name: "Vampire Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 110
+  abilities:
+    rejuvenate:
+      name: "Rejuvenate"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While wearing, drains <red>5 Health per second"
+        - "<gray>from all monsters within 8 blocks."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 5.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=8}"
+
+witch_mask:
+  name: "Witch Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 65
+    DEFENSE: 110
+  abilities:
+    bat_swarm:
+      name: "Bat Swarm"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Summons two bats that will follow you and"
+        - "<gray>attack nearby enemies, dealing <red>4,000 damage"
+        - "<gray>upon exploding. Your bats will not spawn"
+        - "<gray>on your island."
+
+vampire_witch_mask:
+  name: "Vampire Witch Mask"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 130
+    DEFENSE: 220
+  abilities:
+    rejuvenate:
+      name: "Rejuvenate"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While wearing, drains <red>5 Health per second"
+        - "<gray>from all monsters within 8 blocks."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 5.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=8}"
+    bat_swarm:
+      name: "Bat Swarm"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Summons two bats that will follow you and"
+        - "<gray>attack nearby enemies, dealing <red>4,000 damage"
+        - "<gray>upon exploding."
+
+zombies_heart:
+  name: "Zombie's Heart"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+  abilities:
+    healing_boost:
+      name: "Healing Boost"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles your Mending and Vitality"
+        - "<gray>while wearing."
+
+crystallized_heart:
+  name: "Crystallized Heart"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 10
+    MANA: 50
+  abilities:
+    healing_boost:
+      name: "Healing Boost"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles your Mending and Vitality"
+        - "<gray>while wearing."
+
+revived_heart:
+  name: "Revived Heart"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+    DEFENSE: 35
+    MANA: 100
+  abilities:
+    healing_boost:
+      name: "Healing Boost"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Doubles your Mending and Vitality"
+        - "<gray>while wearing."
+
+reaper_mask:
+  name: "Reaper Mask"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 150
+    DEFENSE: 100
+    MANA: 100
+  abilities:
+    disgusting_healing:
+      name: "Disgusting Healing"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While Wearing:"
+        - "<gray>- Doubles your Mending"
+        - "<gray>- Doubles your Vitality"
+        - "<gray>- Zombie Armor triggers on all hits"
+        - "<gray>- Store 2 extra necromancer souls"
+        - "<gray>- Summon 2 more necromancy mobs"
+
+spirit_mask:
+  name: "Spirit Mask"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+    DEFENSE: 50
+    SPEED: 15
+    MANA: 20
+  abilities:
+    second_wind:
+      name: "Second Wind"
+      trigger: "PASSIVE"
+      cooldown: 30.0
+      description:
+        - "<gray>Instead of dying, gain <green>50 Speed <gray>and"
+        - "<gray>damage immunity for 3 seconds."
+
+bonzos_mask:
+  name: "Bonzo's Mask"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+    DEFENSE: 100
+    MANA: 100
+  abilities:
+    clownin_around:
+      name: "Clownin' Around"
+      trigger: "PASSIVE"
+      cooldown: 360.0
+      description:
+        - "<gray>Instead of dying, gain <green>+20 Strength <gray>for 3s"
+        - "<gray>and fully replenish your health. The cooldown"
+        - "<gray>and Strength bonus improve with your"
+        - "<gray>Dungeoneering level. Only works in The Catacombs!"
+
+sniper_helmet:
+  name: "Sniper Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 100
+    DEFENSE: 10
+  abilities:
+    long_shot:
+      name: "Long Shot"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Increases the damage your arrows deal by"
+        - "<green>1% <gray>for every 2 blocks traveled above"
+        - "<gray>20 blocks."
+
+mender_helmet:
+  name: "Mender Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 80
+
+mender_fedora:
+  name: "Mender Fedora"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 220
+  abilities:
+    dungeon_vitality:
+      name: "Dungeon Vitality"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gives <green>+100 Vitality <gray>while in Dungeons."
+
+mender_crown:
+  name: "Mender Crown"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 270
+  abilities:
+    dungeon_vitality:
+      name: "Dungeon Vitality"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gives <green>+100 Vitality <gray>while in Dungeons."
+
+dark_goggles:
+  name: "Dark Goggles"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    ABILITY_DAMAGE: 25
+    MANA: 150
+
+shadow_goggles:
+  name: "Shadow Goggles"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    ABILITY_DAMAGE: 35
+    MANA: 200
+
+wither_goggles:
+  name: "Wither Goggles"
+  material: "PLAYER_HEAD"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    ABILITY_DAMAGE: 45
+    MANA: 300
+
+
+# ---------------------------------------------------------------------
+# DUNGEON BOSS HEADS (SPECIAL -> LEGENDARY)
+# ---------------------------------------------------------------------
+
+golden_bonzo_head:
+  name: "Golden Bonzo Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 5
+    HEALTH: 20
+    DEFENSE: 10
+
+diamond_bonzo_head:
+  name: "Diamond Bonzo Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    HEALTH: 50
+    DEFENSE: 20
+
+golden_scarf_head:
+  name: "Golden Scarf Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    HEALTH: 30
+    DEFENSE: 15
+
+diamond_scarf_head:
+  name: "Diamond Scarf Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 70
+    DEFENSE: 30
+
+golden_professor_head:
+  name: "Golden Professor Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 10
+    HEALTH: 40
+    DEFENSE: 20
+
+diamond_professor_head:
+  name: "Diamond Professor Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 20
+    HEALTH: 100
+    DEFENSE: 40
+
+golden_thorn_head:
+  name: "Golden Thorn Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 50
+    DEFENSE: 25
+
+diamond_thorn_head:
+  name: "Diamond Thorn Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 25
+    HEALTH: 130
+    DEFENSE: 50
+
+golden_livid_head:
+  name: "Golden Livid Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 60
+    DEFENSE: 30
+
+diamond_livid_head:
+  name: "Diamond Livid Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 30
+    HEALTH: 160
+    DEFENSE: 60
+
+golden_sadan_head:
+  name: "Golden Sadan Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 70
+    DEFENSE: 35
+
+diamond_sadan_head:
+  name: "Diamond Sadan Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 35
+    HEALTH: 190
+    DEFENSE: 70
+
+golden_necron_head:
+  name: "Golden Necron Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 15
+    HEALTH: 80
+    DEFENSE: 40
+
+diamond_necron_head:
+  name: "Diamond Necron Head"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    STRENGTH: 40
+    HEALTH: 220
+    DEFENSE: 80
+
+
+# ---------------------------------------------------------------------
+# CROWNS & MISC HEADS
+# ---------------------------------------------------------------------
+
+crown_of_greed:
+  name: "Crown Of Greed"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 130
+    DEFENSE: 90
+    MAGIC_FIND: 4
+  abilities:
+    greed:
+      name: "Greed"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Hits deal <green>1.25x <gray>more damage, but it"
+        - "<gray>costs <gold>100x <gray>the weapon's damage in Coins"
+        - "<gray>from your purse."
+
+crown_of_avarice:
+  name: "Crown Of Avarice"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 160
+    DEFENSE: 110
+  abilities:
+    indulgence:
+      name: "Indulgence"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Coins you collect from killing mobs are"
+        - "<gray>consumed by the helmet. Gain <green>+0.015x Damage"
+        - "<gray>and <green>+0.6 Magic Find <gray>for each digit of"
+        - "<gray>coins collected. (Capped at 1B)"
+
+fallen_star_helmet:
+  name: "Fallen Star Helmet"
+  material: "PLAYER_HEAD"
+  rarity: "RARE"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 50
+    DEFENSE: 30
+    MANA: 0
+
+head_of_betrayal:
+  name: "Head Of Betrayal"
+  material: "PLAYER_HEAD"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 10
+    DEFENSE: 5
+
+crab_hat_of_celebration:
+  name: "Crab Hat Of Celebration"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    MAGIC_FIND: 1
+  abilities:
+    party_time:
+      name: "Party Time!"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+1 Mana <gray>while on your"
+        - "<gray>head for each SkyBlock Year you've played."
+
+sloth_hat_of_celebration:
+  name: "Sloth Hat Of Celebration"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    MAGIC_FIND: 1
+  abilities:
+    party_time:
+      name: "Party Time!"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+1 Mana <gray>while on your"
+        - "<gray>head for each SkyBlock Year you've played."
+
+fifth_anniversary_balloon_hat:
+  name: "5th Anniversary Balloon Hat"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    MAGIC_FIND: 1
+  abilities:
+    party_time:
+      name: "Party Time!"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+1 Mana <gray>while on your"
+        - "<gray>head for each SkyBlock Year you've played."
+
+pig_mask:
+  name: "Pig Mask"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    SPEED: 1
+
+potato_crown:
+  name: "Potato Crown"
+  material: "PLAYER_HEAD"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    SPEED: 1
+  abilities:
+    potato_king:
+      name: "Potato King"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Bestowed by Hypixel to the winner of"
+        - "<gray>the Great Potato War."
+
+
+# ---------------------------------------------------------------------
+# CHESTPLATES
+# ---------------------------------------------------------------------
+
+guardian_chestplate:
+  name: "Guardian Chestplate"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 20
+    DEFENSE: 50
+  abilities:
+    block_damage:
+      name: "Block Damage"
+      trigger: "PASSIVE"
+      cooldown: 60.0
+      description:
+        - "<gray>If you are at full Health, the first"
+        - "<gray>damage you take will be nullified."
+
+flaming_chestplate:
+  name: "Flaming Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    STRENGTH: 25
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 225
+    DEFENSE: 200
+  abilities:
+    lava_ward:
+      name: "Lava Ward"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Damage taken from Lava Sea Creatures is"
+        - "<gray>reduced by <green>5% <gray>and damage dealt is"
+        - "<gray>increased by <green>1.1x<gray>."
+
+obsidian_chestplate:
+  name: "Obsidian Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 250
+  abilities:
+    obsidian_armor:
+      name: "Obsidian Armor"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While worn, gain <green>+1 Speed <gray>for every"
+        - "<gray>20 pieces of Obsidian in your inventory."
+        - "<gray>Immune to Wither effect."
+
+mithril_coat:
+  name: "Mithril Coat"
+  material: "DIAMOND_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 125
+    SPEED: 15
+  abilities:
+    mithrils_protection:
+      name: "Mithril's Protection"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Any damage taken is max <green>40% <gray>of the"
+        - "<gray>wearer's Health. Gain Regeneration when"
+        - "<gray>this ability activates."
+
+stone_chestplate:
+  name: "Stone Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 130
+  abilities:
+    bulwark:
+      name: "Bulwark"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While in Dungeons, players within 10 blocks"
+        - "<gray>of you take <green>5% <gray>less damage. Extended to"
+        - "<gray>30 blocks while playing as a Tank."
+
+metal_chestplate:
+  name: "Metal Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 230
+  abilities:
+    bulwark:
+      name: "Bulwark"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While in Dungeons, players within 10 blocks"
+        - "<gray>of you take <green>8% <gray>less damage. Extended to"
+        - "<gray>30 blocks while playing as a Tank."
+
+steel_chestplate:
+  name: "Steel Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 330
+  abilities:
+    bulwark:
+      name: "Bulwark"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While in Dungeons, players within 10 blocks"
+        - "<gray>of you take <green>10% <gray>less damage. Extended to"
+        - "<gray>30 blocks while playing as a Tank."
+
+
+# ---------------------------------------------------------------------
+# LEGGINGS / PANTS
+# ---------------------------------------------------------------------
+
+creeper_pants:
+  name: "Creeper Pants"
+  material: "LEATHER_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 200
+    DEFENSE: 65
+  abilities:
+    detonate:
+      name: "Detonate"
+      trigger: "PASSIVE"
+      cooldown: 60.0
+      description:
+        - "<gray>Causes an explosion when dropping below"
+        - "<gray>20% HP, damaging and knocking back all"
+        - "<gray>monsters around you."
+
+moogma_leggings:
+  name: "Moogma Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  stats:
+    CRIT_DAMAGE: 15
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 200
+    DEFENSE: 175
+  abilities:
+    lava_ward:
+      name: "Lava Ward"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Damage taken from Lava Sea Creatures is"
+        - "<gray>reduced by <green>5% <gray>and damage dealt is"
+        - "<gray>increased by <green>1.1x<gray>."
+
+stereo_pants:
+  name: "Stereo Pants"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 35
+  abilities:
+    beat_saver:
+      name: "Beat Saver"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>While worn, grants a small chance to"
+        - "<gray>catch Music Discs while fishing."
+
+
+# ---------------------------------------------------------------------
+# BOOTS
+# ---------------------------------------------------------------------
+
+farmer_boots:
+  name: "Farmer Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 40
+    DEFENSE: 20
+    SPEED: 10
+  abilities:
+    farmers_attire:
+      name: "Farmer's Attire"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>These boots gain <green>+2 Defense <gray>and"
+        - "<green>+4 Speed <gray>for every Farming Skill level."
+        - "<gray>While on The Garden, instead gain"
+        - "<green>+1 Farming Fortune <gray>per Farming level."
+
+ghostly_boots:
+  name: "Ghostly Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+
+squid_boots:
+  name: "Squid Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  stats:
+    SEA_CREATURE_CHANCE: 1
+    HEALTH: 100
+  abilities:
+    ink_spit:
+      name: "Ink Spit"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Your shoes spit out Squid ink!"
+
+slug_boots:
+  name: "Slug Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 20
+    SEA_CREATURE_CHANCE: 3
+    HEALTH: 150
+    DEFENSE: 125
+  abilities:
+    bouncy:
+      name: "Bouncy"
+      trigger: "SNEAK"
+      description:
+        - "<gray>When falling from a great height,"
+        - "<gray>you'll bounce straight up!"
+
+spiders_boots:
+  name: "Spider's Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 45
+    SPEED: 5
+    MANA: 50
+  abilities:
+    double_jump:
+      name: "Double Jump"
+      trigger: "PASSIVE"
+      mana-cost: 50.0
+      description:
+        - "<gray>Allows you to double jump by"
+        - "<gray>sneaking mid air!"
+
+spirit_boots:
+  name: "Spirit Boots"
+  material: "DIAMOND_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    STRENGTH: 25
+    HEALTH: 150
+    DEFENSE: 50
+    SPEED: 25
+    MANA: 50
+  abilities:
+    spirit_glide:
+      name: "Spirit Glide"
+      trigger: "SNEAK"
+      cooldown: 60.0
+      mana-cost: 250.0
+      description:
+        - "<gray>Press and hold Sneak to fly around"
+        - "<gray>as a spirit."
+
+spring_boots:
+  name: "Spring Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  abilities:
+    to_the_moon:
+      name: "To the Moon!"
+      trigger: "SNEAK"
+      description:
+        - "<gray>Charge your jump by sneaking. The longer"
+        - "<gray>you sneak, the higher you will jump!"

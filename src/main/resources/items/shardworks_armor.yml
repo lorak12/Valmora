@@ -1,0 +1,133 @@
+# =====================================================================
+# Shardworks tiered mining armor. Each tier is a 4-piece set that grants
+# a set bonus (see set_bonuses/shardworks_sets.yml).
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Ferrite Set
+# ---------------------------------------------------------------------
+ferrite_helmet:
+  name: "<white>Ferrite Helmet"
+  material: "IRON_HELMET"
+  rarity: "UNCOMMON"
+  item-type: "HELMET"
+  set: "ferrite_set"
+  stats:
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+
+ferrite_chestplate:
+  name: "<white>Ferrite Chestplate"
+  material: "IRON_CHESTPLATE"
+  rarity: "UNCOMMON"
+  item-type: "CHESTPLATE"
+  set: "ferrite_set"
+  stats:
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+
+ferrite_leggings:
+  name: "<white>Ferrite Leggings"
+  material: "IRON_LEGGINGS"
+  rarity: "UNCOMMON"
+  item-type: "LEGGINGS"
+  set: "ferrite_set"
+  stats:
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+
+ferrite_boots:
+  name: "<white>Ferrite Boots"
+  material: "IRON_BOOTS"
+  rarity: "UNCOMMON"
+  item-type: "BOOTS"
+  set: "ferrite_set"
+  stats:
+    MINING_SPEED: 20
+    MINING_FORTUNE: 2
+
+# ---------------------------------------------------------------------
+# Lumicite Set
+# ---------------------------------------------------------------------
+lumicite_helmet:
+  name: "<gold>Lumicite Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "RARE"
+  item-type: "HELMET"
+  set: "lumicite_set"
+  stats:
+    MINING_SPEED: 40
+    MINING_FORTUNE: 8
+
+lumicite_chestplate:
+  name: "<gold>Lumicite Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "RARE"
+  item-type: "CHESTPLATE"
+  set: "lumicite_set"
+  stats:
+    MINING_SPEED: 40
+    MINING_FORTUNE: 8
+
+lumicite_leggings:
+  name: "<gold>Lumicite Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "RARE"
+  item-type: "LEGGINGS"
+  set: "lumicite_set"
+  stats:
+    MINING_SPEED: 40
+    MINING_FORTUNE: 8
+
+lumicite_boots:
+  name: "<gold>Lumicite Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "RARE"
+  item-type: "BOOTS"
+  set: "lumicite_set"
+  stats:
+    MINING_SPEED: 40
+    MINING_FORTUNE: 8
+
+# ---------------------------------------------------------------------
+# Aetherium Set
+# ---------------------------------------------------------------------
+aetherium_helmet:
+  name: "<light_purple>Aetherium Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  set: "aetherium_set"
+  stats:
+    MINING_SPEED: 70
+    MINING_FORTUNE: 20
+
+aetherium_chestplate:
+  name: "<light_purple>Aetherium Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  set: "aetherium_set"
+  stats:
+    MINING_SPEED: 70
+    MINING_FORTUNE: 20
+
+aetherium_leggings:
+  name: "<light_purple>Aetherium Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  set: "aetherium_set"
+  stats:
+    MINING_SPEED: 70
+    MINING_FORTUNE: 20
+
+aetherium_boots:
+  name: "<light_purple>Aetherium Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  set: "aetherium_set"
+  stats:
+    MINING_SPEED: 70
+    MINING_FORTUNE: 20

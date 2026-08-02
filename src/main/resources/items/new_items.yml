@@ -1,0 +1,736 @@
+# =====================================================================
+# Skyblock-style items — FOUNDATION ROUND
+# =====================================================================
+# Syntax notes (differs from the original proposal draft):
+#   * Variables use the engine syntax  $namespace.path$  (NOT %var%).
+#   * Damage type PHYSICAL is mapped to the combat engine's MELEE type.
+#   * Mechanic params may be a number OR a formula string, e.g.
+#       damage: "$player.last_damage$ * 1.5"
+#       heal:   "144 + ($player.max_hp$ * 0.05)"
+#     Supported math functions: floor, ceil, round, abs, sqrt, min, max,
+#     log10, log, pow. Logical operators: and/&&, or/||.
+#   * Target selectors: @player/@self, @target,
+#       @enemies_in_radius{r=X}, @allies_in_radius{r=X}, @cone{range=X, angle=Y}
+#
+# Registered mechanic types this round:
+#   DAMAGE, HEAL, APPLY_EFFECT, MODIFY_STAT, TELEPORT,
+#   PUSH_ENTITIES, PULL_ENTITIES, SCRIPT
+#
+# DEFERRED to a later phase (do NOT use as active YAML — the loader rejects
+# unknown mechanic types): LAUNCH_PROJECTILE / projectile on-land/on-impact
+# callbacks, LAUNCH_PLAYER, BEAM, returning Bonemerang, EXPLODE, ADD_STACK,
+# GIVE_COINS / TAKE_COINS, CANCEL_TRAMPLE, CHARGE_JUMP, and the whole
+# set-bonuses parser. Items relying solely on those are kept below as commented
+# stubs. Damage/heal "ticks"/"interval" (damage-over-time) are accepted but
+# currently apply a single burst.
+# =====================================================================
+
+
+# =====================================================================
+# SWORDS & MELEE WEAPONS
+# =====================================================================
+
+rogue_sword:
+  name: "Rogue Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 20
+  abilities:
+    speed_boost:
+      name: "Speed Boost"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Grants <white>+100 Speed <gray>for 30s."
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "SPEED"
+            amount: 100.0
+            duration: 30.0
+            target: "@player"
+
+fancy_sword:
+  name: "Fancy Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 20
+  abilities:
+    bejeweled_blade:
+      name: "Bejeweled Blade"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>+150% Damage <gray>to mobs"
+        - "<gray>on Mining Islands."
+      # NOTE: $player.world_type$ has no provider yet, so this proc stays inert
+      # until a zone/world-type variable is added (later phase).
+      conditions:
+        - "$player.world_type$ == \"MINING_ISLAND\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.5"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+cleaver:
+  name: "Cleaver"
+  material: "GOLDEN_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 40
+    STRENGTH: 10
+  abilities:
+    cleave:
+      name: "Cleave"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Monsters within 3 blocks will take"
+        - "<gray>a portion of that damage too."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 0.25"
+            damage-type: "PHYSICAL"
+            target: "@enemies_in_radius{r=3}"
+
+undead_sword:
+  name: "Undead Sword"
+  material: "IRON_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 30
+  abilities:
+    undead_slayer:
+      name: "Undead Slayer"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% damage <gray>against Zombie"
+        - "<gray>Pigmen, Skeletons, Withers, and Zombies."
+      conditions:
+        - "$target.type$ == \"ZOMBIE\" or $target.type$ == \"SKELETON\" or $target.type$ == \"WITHER\" or $target.type$ == \"ZOMBIFIED_PIGLIN\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+raider_axe:
+  name: "Raider Axe"
+  material: "IRON_AXE"
+  rarity: "RARE"
+  item-type: "SWORD"
+  # NOTE: original scales DAMAGE/STRENGTH off $player.kills$ and
+  # $player.wood_collection$ — those variables don't exist yet, so flat values
+  # are used. The ON_KILL "20 coins" ability is DEFERRED (needs GIVE_COINS).
+  stats:
+    DAMAGE: 80
+    STRENGTH: 50
+
+golem_sword:
+  name: "Golem Sword"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 80
+    STRENGTH: 125
+    DEFENSE: 25
+  abilities:
+    iron_punch:
+      name: "Iron Punch"
+      trigger: "RIGHT_CLICK"
+      cooldown: 3.0
+      mana-cost: 70.0
+      description:
+        - "<gray>Punch the ground, damaging enemies in"
+        - "<gray>a hexagon around you for <red>250 base Magic Damage<gray>."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 250.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=4}"
+
+aspect_of_the_end:
+  name: "Aspect Of The End"
+  material: "DIAMOND_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 100
+  abilities:
+    instant_transmission:
+      name: "Instant Transmission"
+      trigger: "RIGHT_CLICK"
+      cooldown: 0.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Teleport <green>8 blocks <gray>ahead and"
+        - "<gray>gain <white>+50 Speed <gray>for 3 seconds."
+      mechanics:
+        - type: "TELEPORT"
+          params:
+            distance: 8.0
+        - type: "MODIFY_STAT"
+          params:
+            stat: "SPEED"
+            amount: 50.0
+            duration: 3.0
+            target: "@player"
+
+aspect_of_the_dragons:
+  name: "Aspect Of The Dragons"
+  material: "DIAMOND_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 225
+    STRENGTH: 100
+  abilities:
+    dragon_rage:
+      name: "Dragon Rage"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 100.0
+      description:
+        - "<gray>All Monsters in front of you take"
+        - "<red>12,000 Magic Damage <gray>and large knockback."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 12000.0
+            damage-type: "MAGIC"
+            target: "@cone{range=8, angle=45}"
+        - type: "PUSH_ENTITIES"
+          params:
+            force: 1.8
+            target: "@cone{range=8, angle=45}"
+
+ornate_zombie_sword:
+  name: "Ornate Zombie Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 110
+    STRENGTH: 60
+    MANA: 50
+  abilities:
+    instant_heal:
+      name: "Instant Heal"
+      trigger: "RIGHT_CLICK"
+      cooldown: 3.75
+      mana-cost: 70.0
+      description:
+        - "<gray>Heal for <green>144 + 5% HP <gray>and heal"
+        - "<gray>players within 7 blocks for <green>48 HP<gray>."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: "144 + ($player.max_hp$ * 0.05)"
+            target: "@player"
+        - type: "HEAL"
+          params:
+            heal: 48.0
+            target: "@allies_in_radius{r=7}"
+
+emerald_blade:
+  name: "Emerald Blade"
+  material: "EMERALD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    # NOTE: base item stats are static numbers; the engine rejects formula
+    # strings here. Purse-based DAMAGE scaling needs runtime stat recalculation
+    # (DEFERRED), so a flat base is used for now.
+    DAMAGE: 130
+  abilities:
+    curse_of_greed:
+      name: "Curse of Greed"
+      trigger: "ON_HIT"
+      description:
+        - "<red>Receive Curse of Greed, cancelling"
+        - "<red>any effects modifying Coin loss on death!"
+
+leaping_sword:
+  name: "Leaping Sword"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 150
+    STRENGTH: 100
+    CRIT_DAMAGE: 25
+  abilities:
+    leap:
+      name: "Leap"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Deal <red>350 damage <gray>to nearby enemies"
+        - "<gray>and freeze them. (Leap motion deferred.)"
+      # DEFERRED: LAUNCH_PLAYER (the upward leap). Damage + freeze are active.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 350.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=5}"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 1.0
+            amplifier: 10
+            target: "@enemies_in_radius{r=5}"
+
+pigman_sword:
+  name: "Pigman Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 200
+    STRENGTH: 100
+    CRIT_CHANCE: 5
+    CRIT_DAMAGE: 30
+    MANA: 300
+  abilities:
+    burning_souls:
+      name: "Burning Souls"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 400.0
+      description:
+        - "<gray>Gain <green>+300 Defense <gray>for 5s and cast"
+        - "<gray>a vortex of flames dealing <red>magic damage<gray>."
+      # NOTE: 'ticks'/'interval' damage-over-time is deferred; applies one burst.
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "DEFENSE"
+            amount: 300.0
+            duration: 5.0
+            target: "@player"
+        - type: "DAMAGE"
+          params:
+            damage: 6000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=6}"
+
+aurora_staff:
+  name: "Aurora Staff"
+  material: "BLAZE_ROD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 20
+    MANA: 250
+  abilities:
+    runic_zap:
+      name: "Runic Zap"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 10.0
+      target-range: 20
+      description:
+        - "<gray>Fires a beam of energy, hitting the"
+        - "<gray>first enemy for <red>10,000 Damage<gray>."
+      # NOTE: original reduces damage past 10 blocks via $distance_to_target$,
+      # which has no provider yet — flat damage for now.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 10000.0
+            damage-type: "MAGIC"
+            target: "@target"
+
+# midas_staff: DEFERRED (LAUNCH_PROJECTILE + dark-auction bid variable).
+
+
+# =====================================================================
+# BOWS & SHORTBOWS  —  DEFERRED
+# =====================================================================
+# Every bow in the source relies on LAUNCH_PROJECTILE and/or projectile
+# on-land/on-impact callbacks, homing BEAM, or the returning Bonemerang —
+# all scheduled for the next phase. They are intentionally omitted here so the
+# item loader doesn't reject unknown mechanic types.
+
+
+# =====================================================================
+# SUPPORT & DAMAGE WANDS
+# =====================================================================
+
+wand_of_atonement:
+  name: "Wand Of Atonement"
+  material: "BLAZE_ROD"
+  rarity: "LEGENDARY"
+  item-type: "NONE"
+  abilities:
+    atonement_heal:
+      name: "Atonement"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 150.0
+      description:
+        - "<gray>Heal for <green>170 HP<gray>."
+      # NOTE: 'ticks'/'interval' (170 HP/s for 7s) deferred; single burst heal.
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 170.0
+            target: "@player"
+
+gyrokinetic_wand:
+  name: "Gyrokinetic Wand"
+  material: "STICK"
+  rarity: "EPIC"
+  item-type: "NONE"
+  abilities:
+    gravity_well:
+      name: "Gravity Well"
+      trigger: "RIGHT_CLICK"
+      cooldown: 10.0
+      mana-cost: 150.0
+      description:
+        - "<gray>Creates a gravity well pulling"
+        - "<gray>mobs together within 10 blocks."
+      mechanics:
+        - type: "PULL_ENTITIES"
+          params:
+            strength: 2.5
+            target: "@enemies_in_radius{r=10}"
+
+fire_veil_wand:
+  name: "Fire Veil Wand"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "NONE"
+  abilities:
+    fire_veil:
+      name: "Fire Veil"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      mana-cost: 250.0
+      description:
+        - "<gray>Creates a veil of fire around you"
+        - "<gray>dealing <red>magic damage <gray>nearby."
+      # NOTE: 'ticks'/'interval' DoT deferred; applies one burst.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 15000.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=5}"
+
+
+# =====================================================================
+# ARMOR PIECES & FULL SETS  (stat-only; set bonuses DEFERRED)
+# =====================================================================
+# The 'set:' field is parsed once the set-bonus engine lands; it's harmless to
+# leave in place now (unknown fields are ignored by the item parser).
+
+# --- FARM SUIT SET ---
+farm_suit_helmet:
+  name: "Farm Suit Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "COMMON"
+  item-type: "HELMET"
+  stats:
+    DEFENSE: 5
+  set: "farm_suit"
+
+farm_suit_chestplate:
+  name: "Farm Suit Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "COMMON"
+  item-type: "CHESTPLATE"
+  stats:
+    DEFENSE: 15
+  set: "farm_suit"
+
+farm_suit_leggings:
+  name: "Farm Suit Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "COMMON"
+  item-type: "LEGGINGS"
+  stats:
+    DEFENSE: 10
+  set: "farm_suit"
+
+farm_suit_boots:
+  name: "Farm Suit Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "COMMON"
+  item-type: "BOOTS"
+  stats:
+    DEFENSE: 5
+  set: "farm_suit"
+
+
+# --- YOUNG DRAGON SET ---
+young_dragon_helmet:
+  name: "Young Dragon Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 80
+    DEFENSE: 110
+    SPEED: 20
+  set: "young_dragon"
+
+young_dragon_chestplate:
+  name: "Young Dragon Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 120
+    DEFENSE: 160
+    SPEED: 20
+  set: "young_dragon"
+
+young_dragon_leggings:
+  name: "Young Dragon Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 100
+    DEFENSE: 140
+    SPEED: 20
+  set: "young_dragon"
+
+young_dragon_boots:
+  name: "Young Dragon Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 50
+    DEFENSE: 90
+    SPEED: 20
+  set: "young_dragon"
+
+
+# --- MASTIFF SET ---
+mastiff_helmet:
+  name: "Mastiff Helmet"
+  material: "GOLDEN_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 500
+    MANA: 35
+  set: "mastiff"
+
+mastiff_chestplate:
+  name: "Mastiff Chestplate"
+  material: "GOLDEN_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 500
+    MANA: 35
+  set: "mastiff"
+
+mastiff_leggings:
+  name: "Mastiff Leggings"
+  material: "GOLDEN_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 500
+    MANA: 35
+  set: "mastiff"
+
+mastiff_boots:
+  name: "Mastiff Boots"
+  material: "GOLDEN_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 500
+    MANA: 35
+  set: "mastiff"
+
+
+# --- CRIMSON SET ---
+crimson_helmet:
+  name: "Crimson Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 140
+    DEFENSE: 45
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+  set: "crimson"
+
+crimson_chestplate:
+  name: "Crimson Chestplate"
+  material: "NETHERITE_CHESTPLATE"
+  rarity: "LEGENDARY"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 230
+    DEFENSE: 65
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+  set: "crimson"
+
+crimson_leggings:
+  name: "Crimson Leggings"
+  material: "NETHERITE_LEGGINGS"
+  rarity: "LEGENDARY"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 190
+    DEFENSE: 55
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+  set: "crimson"
+
+crimson_boots:
+  name: "Crimson Boots"
+  material: "NETHERITE_BOOTS"
+  rarity: "LEGENDARY"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 115
+    DEFENSE: 35
+    STRENGTH: 30
+    CRIT_DAMAGE: 20
+  set: "crimson"
+
+
+# --- SHADOW ASSASSIN ARMOR SET ---
+shadow_assassin_helmet:
+  name: "Shadow Assassin Helmet"
+  material: "LEATHER_HELMET"
+  rarity: "EPIC"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 140
+    DEFENSE: 65
+    STRENGTH: 25
+    CRIT_DAMAGE: 25
+    SPEED: 7
+  set: "shadow_assassin"
+
+shadow_assassin_chestplate:
+  name: "Shadow Assassin Chestplate"
+  material: "LEATHER_CHESTPLATE"
+  rarity: "EPIC"
+  item-type: "CHESTPLATE"
+  stats:
+    HEALTH: 230
+    DEFENSE: 100
+    STRENGTH: 25
+    CRIT_DAMAGE: 25
+    SPEED: 7
+  set: "shadow_assassin"
+
+shadow_assassin_leggings:
+  name: "Shadow Assassin Leggings"
+  material: "LEATHER_LEGGINGS"
+  rarity: "EPIC"
+  item-type: "LEGGINGS"
+  stats:
+    HEALTH: 190
+    DEFENSE: 85
+    STRENGTH: 25
+    CRIT_DAMAGE: 25
+    SPEED: 7
+  set: "shadow_assassin"
+
+shadow_assassin_boots:
+  name: "Shadow Assassin Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 115
+    DEFENSE: 55
+    STRENGTH: 25
+    CRIT_DAMAGE: 25
+    SPEED: 7
+  set: "shadow_assassin"
+
+
+# =====================================================================
+# INDIVIDUAL SPECIAL HELMETS, MASKS & BOOTS
+# =====================================================================
+
+warden_helmet:
+  name: "Warden Helmet"
+  material: "NETHERITE_HELMET"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 300
+    DEFENSE: 100
+  abilities:
+    brute_force:
+      name: "Brute Force"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Halves your Speed but grants"
+        - "<green>+20% base weapon damage <gray>per 25 Speed."
+      # The DAMAGE_MULTIPLIER modifier is recorded but does not yet feed the
+      # damage formula (deferred); the Speed halving is fully active.
+      mechanics:
+        - type: "MODIFY_STAT"
+          params:
+            stat: "SPEED"
+            amount: "$player.stat.speed$ * -0.5"
+            duration: -1
+            target: "@player"
+
+precursor_eye:
+  name: "Precursor Eye"
+  material: "REDSTONE_LAMP"
+  rarity: "LEGENDARY"
+  item-type: "HELMET"
+  stats:
+    HEALTH: 220
+    DEFENSE: 220
+    MANA: 220
+  # DEFERRED ability: Eye Beam (SNEAK + $ticks_sneaking$ + BEAM projectile).
+
+# crown_of_greed: DEFERRED (TAKE_COINS mechanic).
+
+rancher_boots:
+  name: "Rancher's Boots"
+  material: "LEATHER_BOOTS"
+  rarity: "EPIC"
+  item-type: "BOOTS"
+  stats:
+    HEALTH: 100
+    DEFENSE: 70
+    SPEED: 50
+  # DEFERRED abilities: Farmer Speed (custom max-speed cycling) and
+  # Farmer's Grace (CANCEL_TRAMPLE).
+
+# spring_boots: DEFERRED (CHARGE_JUMP mechanic).
+
+
+# =====================================================================
+# GLOBAL SET BONUSES  —  DEFERRED
+# =====================================================================
+# The set-bonus parser (linking armor 'set:' ids to shared stats/abilities at
+# 2/3/4 pieces) is scheduled for a later phase. The original 'set-bonuses:'
+# block is intentionally NOT included here: it is not a valid item entry and
+# would be rejected by the item loader.

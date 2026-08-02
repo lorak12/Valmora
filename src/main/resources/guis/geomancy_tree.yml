@@ -1,0 +1,336 @@
+# =====================================================================
+# Geomancy tree browser. Fixed-grid layout (one DISPLAY component per
+# node, laid out by tier row) since the tree has a specific branching
+# shape rather than an arbitrary list.
+# =====================================================================
+
+geomancy_tree:
+  command: geomancy
+  title: "<dark_purple>Geomancy"
+  rows: 6
+  update-interval: 20
+
+  layout:
+    - "BBBBBBBBB"
+    - "BBBB1BBBB"
+    - "BB2BBB3BB"
+    - "B4BB5BB6B"
+    - "BBBB7BBBB"
+    - "BBBRBBTBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    "1":
+      type: DISPLAY
+      states:
+        maxed:
+          condition: "$progression.geomancy.mining_speed_root.level$ >= $progression.geomancy.mining_speed_root.max_level$"
+          display-item:
+            material: IRON_PICKAXE
+            name: "<green>Steady Hands (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.mining_speed_root.level$/$progression.geomancy.mining_speed_root.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.mining_speed_root.next_cost$"
+          display-item:
+            material: IRON_PICKAXE
+            name: "<white>Steady Hands"
+            lore:
+              - "<gray>Increases Mining Speed."
+              - "<gray>Level: <yellow>$progression.geomancy.mining_speed_root.level$/$progression.geomancy.mining_speed_root.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.mining_speed_root.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy mining_speed_root"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Steady Hands"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.mining_speed_root.level$/$progression.geomancy.mining_speed_root.max_level$"
+              - "<red>Not enough Ferrite Powder"
+
+    "2":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 1"
+          display-item:
+            material: BARRIER
+            name: "<red>Rich Veins — Locked"
+            lore: ["<gray>Unlock Tier 1 to access this branch."]
+        maxed:
+          condition: "$progression.geomancy.mining_fortune_vein.level$ >= $progression.geomancy.mining_fortune_vein.max_level$"
+          display-item:
+            material: GOLD_NUGGET
+            name: "<green>Rich Veins (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.mining_fortune_vein.level$/$progression.geomancy.mining_fortune_vein.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.mining_fortune_vein.next_cost$"
+          display-item:
+            material: GOLD_NUGGET
+            name: "<gold>Rich Veins"
+            lore:
+              - "<gray>Increases Mining Fortune."
+              - "<gray>Level: <yellow>$progression.geomancy.mining_fortune_vein.level$/$progression.geomancy.mining_fortune_vein.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.mining_fortune_vein.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy mining_fortune_vein"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Rich Veins"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    "3":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 1"
+          display-item:
+            material: BARRIER
+            name: "<red>Wide Excavation — Locked"
+            lore: ["<gray>Unlock Tier 1 to access this branch."]
+        maxed:
+          condition: "$progression.geomancy.mining_spread_focus.level$ >= $progression.geomancy.mining_spread_focus.max_level$"
+          display-item:
+            material: AMETHYST_SHARD
+            name: "<green>Wide Excavation (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.mining_spread_focus.level$/$progression.geomancy.mining_spread_focus.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.mining_spread_focus.next_cost$"
+          display-item:
+            material: AMETHYST_SHARD
+            name: "<aqua>Wide Excavation"
+            lore:
+              - "<gray>Increases Mining Spread."
+              - "<gray>Level: <yellow>$progression.geomancy.mining_spread_focus.level$/$progression.geomancy.mining_spread_focus.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.mining_spread_focus.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy mining_spread_focus"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Wide Excavation"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    "4":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 2"
+          display-item:
+            material: BARRIER
+            name: "<red>Deep Prospecting — Locked"
+            lore: ["<gray>Unlock Tier 2 to access this branch."]
+        prereq-locked:
+          condition: "$progression.geomancy.mining_fortune_vein.level$ <= 0"
+          display-item:
+            material: BARRIER
+            name: "<red>Deep Prospecting — Locked"
+            lore: ["<gray>Requires Rich Veins level 1+."]
+        maxed:
+          condition: "$progression.geomancy.deep_prospecting.level$ >= $progression.geomancy.deep_prospecting.max_level$"
+          display-item:
+            material: DIAMOND
+            name: "<green>Deep Prospecting (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.deep_prospecting.level$/$progression.geomancy.deep_prospecting.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.deep_prospecting.next_cost$"
+          display-item:
+            material: DIAMOND
+            name: "<dark_purple>Deep Prospecting"
+            lore:
+              - "<gray>Further increases Mining Fortune."
+              - "<gray>Level: <yellow>$progression.geomancy.deep_prospecting.level$/$progression.geomancy.deep_prospecting.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.deep_prospecting.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy deep_prospecting"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Deep Prospecting"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    "5":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 2"
+          display-item:
+            material: BARRIER
+            name: "<red>Ferrite Cache — Locked"
+            lore: ["<gray>Unlock Tier 2 to access this branch."]
+        maxed:
+          condition: "$progression.geomancy.daily_ferrite_cache.level$ >= $progression.geomancy.daily_ferrite_cache.max_level$"
+          display-item:
+            material: CHEST
+            name: "<green>Ferrite Cache (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.daily_ferrite_cache.level$/$progression.geomancy.daily_ferrite_cache.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.daily_ferrite_cache.next_cost$"
+          display-item:
+            material: CHEST
+            name: "<yellow>Ferrite Cache"
+            lore:
+              - "<gray>Grants bonus Ferrite Powder once per day."
+              - "<gray>Level: <yellow>$progression.geomancy.daily_ferrite_cache.level$/$progression.geomancy.daily_ferrite_cache.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.daily_ferrite_cache.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy daily_ferrite_cache"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Ferrite Cache"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    "6":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 2"
+          display-item:
+            material: BARRIER
+            name: "<red>Overflowing Veins — Locked"
+            lore: ["<gray>Unlock Tier 2 to access this branch."]
+        prereq-locked:
+          condition: "$progression.geomancy.mining_fortune_vein.level$ <= 0"
+          display-item:
+            material: BARRIER
+            name: "<red>Overflowing Veins — Locked"
+            lore: ["<gray>Requires Rich Veins level 1+."]
+        maxed:
+          condition: "$progression.geomancy.mining_fortune_vein_ii.level$ >= $progression.geomancy.mining_fortune_vein_ii.max_level$"
+          display-item:
+            material: GOLD_INGOT
+            name: "<green>Overflowing Veins (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.mining_fortune_vein_ii.level$/$progression.geomancy.mining_fortune_vein_ii.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.mining_fortune_vein_ii.next_cost$"
+          display-item:
+            material: GOLD_INGOT
+            name: "<gold>Overflowing Veins"
+            lore:
+              - "<gray>Even further increases Mining Fortune."
+              - "<gray>Level: <yellow>$progression.geomancy.mining_fortune_vein_ii.level$/$progression.geomancy.mining_fortune_vein_ii.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.mining_fortune_vein_ii.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy mining_fortune_vein_ii"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Overflowing Veins"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    "7":
+      type: DISPLAY
+      states:
+        tier-locked:
+          condition: "$progression.geomancy.tier$ < 3"
+          display-item:
+            material: BARRIER
+            name: "<red>Aetherial Resonance — Locked"
+            lore: ["<gray>Unlock Tier 3 to access this branch."]
+        prereq-locked:
+          condition: "$progression.geomancy.mining_spread_focus.level$ <= 0"
+          display-item:
+            material: BARRIER
+            name: "<red>Aetherial Resonance — Locked"
+            lore: ["<gray>Requires Wide Excavation level 1+."]
+        maxed:
+          condition: "$progression.geomancy.aetherial_resonance.level$ >= $progression.geomancy.aetherial_resonance.max_level$"
+          display-item:
+            material: NETHER_STAR
+            name: "<green>Aetherial Resonance (MAX)"
+            lore:
+              - "<gray>Level: <yellow>$progression.geomancy.aetherial_resonance.level$/$progression.geomancy.aetherial_resonance.max_level$"
+        available:
+          condition: "$point.ferrite_powder$ >= $progression.geomancy.aetherial_resonance.next_cost$"
+          display-item:
+            material: NETHER_STAR
+            name: "<light_purple>Aetherial Resonance"
+            lore:
+              - "<gray>Increases Mining Spread even further."
+              - "<gray>Level: <yellow>$progression.geomancy.aetherial_resonance.level$/$progression.geomancy.aetherial_resonance.max_level$"
+              - "<gray>Cost: <aqua>$progression.geomancy.aetherial_resonance.next_cost$ Ferrite Powder"
+              - "<green>Click to upgrade!"
+          actions:
+            left:
+              actions: ["progression_levelup geomancy aetherial_resonance"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Aetherial Resonance"
+            lore: ["<red>Not enough Ferrite Powder"]
+
+    T:
+      type: DISPLAY
+      states:
+        maxed:
+          condition: "$progression.geomancy.tier$ >= 3"
+          display-item:
+            material: NETHER_STAR
+            name: "<green>All Tiers Unlocked"
+        available:
+          condition: "$point.geomancy_tokens$ >= $progression.geomancy.tier.next.unlock_cost$"
+          display-item:
+            material: END_CRYSTAL
+            name: "<light_purple>Unlock Next Tier"
+            lore:
+              - "<gray>Current Tier: <yellow>$progression.geomancy.tier$"
+              - "<gray>Cost: <aqua>$progression.geomancy.tier.next.unlock_cost$ Geomancy Tokens"
+              - "<green>Click to unlock!"
+          actions:
+            left:
+              actions: ["progression_unlock_tier geomancy"]
+        locked:
+          condition: "default"
+          display-item:
+            material: GRAY_DYE
+            name: "<gray>Unlock Next Tier"
+            lore:
+              - "<gray>Cost: <aqua>$progression.geomancy.tier.next.unlock_cost$ Geomancy Tokens"
+              - "<red>Not enough Geomancy Tokens"
+
+    R:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Reset Geomancy Tree"
+        lore:
+          - "<gray>Refunds all spent Ferrite Powder"
+          - "<gray>and Geomancy Tokens."
+          - "<yellow>Click again to confirm."
+      actions:
+        left:
+          conditions: ["variable prop.confirm_reset == true"]
+          actions: ["progression_reset geomancy", "variable set prop.confirm_reset false"]
+          fail-actions: ["variable set prop.confirm_reset true"]

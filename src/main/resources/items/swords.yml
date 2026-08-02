@@ -1,0 +1,802 @@
+# =====================================================================
+# Swords & Melee Weapons — ported from docs/ABILITIES_DUMP.md
+# =====================================================================
+# Items already defined in items/new_items.yml are intentionally skipped:
+#   rogue_sword, fancy_sword, cleaver, undead_sword, raider_axe,
+#   golem_sword, aspect_of_the_end, aspect_of_the_dragons,
+#   ornate_zombie_sword, emerald_blade, leaping_sword, pigman_sword,
+#   aurora_staff, midas_staff, glacial_scythe.
+#
+# Rules followed:
+#   * Base `stats:` are plain numbers only; formulas live in mechanic params.
+#   * SPECIAL -> LEGENDARY; RARE-EPIC ranges -> EPIC.
+#   * Abilities needing unimplemented mechanics (summon, consume-item,
+#     channel, returning projectile, beam, stacking buffs, "instead of
+#     dying", pet-copy, etc.) are authored DESCRIPTION-ONLY (no mechanics).
+# =====================================================================
+
+
+# ---------------------------------------------------------------------
+# Vanilla-tier swords (stat only)
+# ---------------------------------------------------------------------
+wooden_sword:
+  name: "Wooden Sword"
+  material: "WOODEN_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 20
+
+stone_sword:
+  name: "Stone Sword"
+  material: "STONE_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 25
+
+golden_sword:
+  name: "Golden Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 20
+
+iron_sword:
+  name: "Iron Sword"
+  material: "IRON_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 30
+
+diamond_sword:
+  name: "Diamond Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 35
+
+
+# ---------------------------------------------------------------------
+# Early sword shop weapons
+# ---------------------------------------------------------------------
+squire_sword:
+  name: "Squire Sword"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 10
+
+aspect_of_the_jerry:
+  name: "Aspect Of The Jerry"
+  material: "WOODEN_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 1
+  abilities:
+    parley:
+      name: "Parley"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      description:
+        - "<gray>Channel your inner Jerry."
+
+spider_sword:
+  name: "Spider Sword"
+  material: "IRON_SWORD"
+  rarity: "COMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 30
+  abilities:
+    spider_slayer:
+      name: "Spider Slayer"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% more damage <gray>to Silverfish,"
+        - "<gray>Spiders and Cave Spiders."
+      conditions:
+        - "$target.type$ == \"SPIDER\" or $target.type$ == \"CAVE_SPIDER\" or $target.type$ == \"SILVERFISH\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+end_sword:
+  name: "End Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 35
+  abilities:
+    end_slayer:
+      name: "End Slayer"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+100% damage <gray>to Endermites,"
+        - "<gray>Ender Dragons, and Endermen."
+      conditions:
+        - "$target.type$ == \"ENDERMAN\" or $target.type$ == \"ENDERMITE\" or $target.type$ == \"ENDER_DRAGON\""
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 1.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+hunter_knife:
+  name: "Hunter Knife"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    SPEED: 40
+
+flaming_sword:
+  name: "Flaming Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 20
+  abilities:
+    flaming_strike:
+      name: "Flaming Strike"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Ignites enemies for <red>3s<gray>."
+      mechanics:
+        - type: "IGNITE"
+          params:
+            duration: 3.0
+            target: "@target"
+
+prismarine_blade:
+  name: "Prismarine Blade"
+  material: "DIAMOND_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 25
+  abilities:
+    aqua_affinity:
+      name: "Aqua Affinity"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deals <green>+200% damage <gray>while in water."
+      # NOTE: $player.in_water$ has no provider yet; proc stays inert until added.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.last_damage$ * 2.0"
+            damage-type: "PHYSICAL"
+            target: "@target"
+
+mercenary_axe:
+  name: "Mercenary Axe"
+  material: "IRON_AXE"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 70
+    STRENGTH: 20
+
+tacticians_sword:
+  name: "Tactician's Sword"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    CRIT_CHANCE: 20
+  abilities:
+    collector:
+      name: "Collector"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gains <green>+15 Damage <gray>for each Combat"
+        - "<gray>Collection at Tier VII or higher."
+
+
+# ---------------------------------------------------------------------
+# Intermediate / projectile-style weapons
+# ---------------------------------------------------------------------
+jerrychine_gun:
+  name: "Jerry-chine Gun"
+  material: "GOLDEN_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 80
+    MANA: 200
+  abilities:
+    rapid_fire:
+      name: "Rapid Fire"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Shoots a jerry bullet, dealing <red>500 damage"
+        - "<gray>on impact and knocking you back."
+        - "<gray>Each shot costs <white>+30 mana <gray>more than the"
+        - "<gray>previous, resetting after 4s of not firing."
+      # DESCRIPTION-ONLY: escalating mana cost / self-knockback not modelled.
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "SNOWBALL"
+            velocity: 2.0
+            count: 1
+            damage: 500.0
+            damage-type: "MAGIC"
+
+void_sword:
+  name: "Void Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 125
+  abilities:
+    void_infusion:
+      name: "Void Infusion"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+20 Strength <gray>per piece of"
+        - "<gray>Ender Armor worn."
+
+ghoul_buster:
+  name: "Ghoul Buster"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 140
+    STRENGTH: 90
+    CRIT_DAMAGE: 25
+  abilities:
+    spooktacular:
+      name: "Spooktacular"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Deal <green>100% more damage <gray>to Spooky"
+        - "<gray>enemies during the Spooky Festival."
+
+zombie_sword:
+  name: "Zombie Sword"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    STRENGTH: 50
+    MANA: 50
+  abilities:
+    instant_heal:
+      name: "Instant Heal"
+      trigger: "RIGHT_CLICK"
+      cooldown: 3.75
+      mana-cost: 70.0
+      description:
+        - "<gray>Heal for <green>120 + 5% HP <gray>and heal"
+        - "<gray>players within 7 blocks for <green>40 HP<gray>."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: "120 + ($player.max_hp$ * 0.05)"
+            target: "@player"
+        - type: "HEAL"
+          params:
+            heal: 40.0
+            target: "@allies_in_radius{r=7}"
+
+florid_zombie_sword:
+  name: "Florid Zombie Sword"
+  material: "IRON_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 150
+    STRENGTH: 80
+    MANA: 100
+  abilities:
+    instant_heal:
+      name: "Instant Heal"
+      trigger: "RIGHT_CLICK"
+      cooldown: 3.0
+      mana-cost: 70.0
+      description:
+        - "<gray>Heal for <green>168 + 5% HP <gray>and heal"
+        - "<gray>players within 8 blocks for <green>56 HP<gray>."
+        - "<gray>Gain <white>+2 max charges <gray>as a Healer in Dungeons."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: "168 + ($player.max_hp$ * 0.05)"
+            target: "@player"
+        - type: "HEAL"
+          params:
+            heal: 56.0
+            target: "@allies_in_radius{r=8}"
+
+
+# ---------------------------------------------------------------------
+# Spears, fangs, focus blades
+# ---------------------------------------------------------------------
+tribal_spear:
+  name: "Tribal Spear"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    STRENGTH: 100
+  abilities:
+    thwack:
+      name: "Thwack"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Throw the spear like an arrow"
+        - "<gray>which will return to you."
+      # DESCRIPTION-ONLY: returning projectile not implemented.
+
+silver_fang:
+  name: "Silver Fang"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  abilities:
+    vampire_bane:
+      name: "Vampire Bane"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Gain <green>+3 Rift Damage <gray>against"
+        - "<gray>Vampires. <white>(Rift Dimension Only)"
+
+end_stone_sword:
+  name: "End Stone Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 120
+    STRENGTH: 80
+  abilities:
+    extreme_focus:
+      name: "Extreme Focus"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 20.0
+      description:
+        - "<gray>Consumes all remaining mana to grant Damage"
+        - "<gray>Resistance for 5s and extra damage on your"
+        - "<gray>next hit, scaling with mana consumed!"
+      # DESCRIPTION-ONLY: mana-drain scaling & next-hit buff not modelled.
+
+ink_wand:
+  name: "Ink Wand"
+  material: "STICK"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 130
+    STRENGTH: 90
+  abilities:
+    ink_bomb:
+      name: "Ink Bomb"
+      trigger: "RIGHT_CLICK"
+      cooldown: 30.0
+      mana-cost: 60.0
+      description:
+        - "<gray>Shoot an ink bomb in front of you dealing"
+        - "<red>10,000 damage <gray>and giving blindness!"
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 10000.0
+            damage-type: "MAGIC"
+            target: "@cone{range=10, angle=30}"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "blindness"
+            duration: 5.0
+            amplifier: 1
+            target: "@cone{range=10, angle=30}"
+
+soul_whip:
+  name: "Soul Whip"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 145
+    STRENGTH: 175
+  abilities:
+    flay:
+      name: "Flay"
+      trigger: "RIGHT_CLICK"
+      description:
+        - "<gray>Flay your whip in an arc, dealing your"
+        - "<gray>melee damage to all enemies in its path."
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: "$player.weapon_damage$"
+            damage-type: "PHYSICAL"
+            target: "@cone{range=5, angle=90}"
+
+sword_of_revelations:
+  name: "Sword Of Revelations"
+  material: "GOLDEN_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 180
+    STRENGTH: 50
+  abilities:
+    revelation:
+      name: "Revelation"
+      trigger: "ON_HIT"
+      description:
+        - "<gray>Heal <green>15 Health <gray>per hit."
+        - "<gray>Deals <green>+200% damage <gray>against mythological"
+        - "<gray>creatures and Minos followers, but receive"
+        - "<red>+75% damage <gray>from them."
+      mechanics:
+        - type: "HEAL"
+          params:
+            heal: 15.0
+            target: "@player"
+
+sword_of_bad_health:
+  name: "Sword Of Bad Health"
+  material: "IRON_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 200
+    STRENGTH: 50
+    CRIT_DAMAGE: 50
+  abilities:
+    bad_health:
+      name: "Bad Health"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      description:
+        - "<gray>Use <red>5% of your max health <gray>to gain"
+        - "<green>+5 Strength <gray>for every 5% of your total"
+        - "<gray>HP you have. <white>Capped at +100 Strength."
+      # DESCRIPTION-ONLY: HP-cost + percent-HP-scaled buff not modelled.
+
+
+# ---------------------------------------------------------------------
+# Leap / scythe dragon-tier line
+# ---------------------------------------------------------------------
+silk_edge_sword:
+  name: "Silk-Edge Sword"
+  material: "IRON_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 175
+    STRENGTH: 125
+    CRIT_DAMAGE: 25
+  abilities:
+    leap:
+      name: "Leap"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 50.0
+      description:
+        - "<gray>Leap into the air and deal <red>400 damage"
+        - "<gray>to nearby enemies upon landing. Damaged"
+        - "<gray>enemies are <aqua>frozen for 1 second<gray>."
+      # NOTE: upward leap motion deferred; damage + freeze active.
+      mechanics:
+        - type: "DAMAGE"
+          params:
+            damage: 400.0
+            damage-type: "MAGIC"
+            target: "@enemies_in_radius{r=5}"
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 1.0
+            amplifier: 10
+            target: "@enemies_in_radius{r=5}"
+
+frozen_scythe:
+  name: "Frozen Scythe"
+  material: "IRON_HOE"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 80
+  abilities:
+    ice_bolt:
+      name: "Ice Bolt"
+      trigger: "RIGHT_CLICK"
+      mana-cost: 50.0
+      description:
+        - "<gray>Shoots 1 Ice Bolt that deals <red>1,000 damage"
+        - "<gray>and slows enemies hit for 5 seconds."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "SNOWBALL"
+            velocity: 1.8
+            count: 1
+            damage: 1000.0
+            damage-type: "MAGIC"
+            on-hit:
+              - type: "APPLY_EFFECT"
+                params:
+                  effect: "slowness"
+                  duration: 5.0
+                  amplifier: 2
+                  target: "@target"
+
+
+# ---------------------------------------------------------------------
+# Late-game vortex / terrain weapons
+# ---------------------------------------------------------------------
+yeti_sword:
+  name: "Yeti Sword"
+  material: "DIAMOND_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 150
+    STRENGTH: 170
+    MANA: 50
+  abilities:
+    terrain_toss:
+      name: "Terrain Toss"
+      trigger: "RIGHT_CLICK"
+      cooldown: 1.0
+      mana-cost: 250.0
+      description:
+        - "<gray>Throws a chunk of terrain in the direction"
+        - "<gray>you are facing! Deals up to <red>15,000 damage<gray>."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "SNOWBALL"
+            velocity: 2.2
+            count: 1
+            damage: 15000.0
+            damage-type: "MAGIC"
+
+ragnarock:
+  name: "Ragnarock"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 200
+    STRENGTH: 70
+  abilities:
+    ragnarock:
+      name: "Ragnarock"
+      trigger: "RIGHT_CLICK"
+      cooldown: 20.0
+      mana-cost: 500.0
+      description:
+        - "<gray>Begin a channel. After not taking damage"
+        - "<gray>for 3s, gain <green>1.5x this weapon's Strength"
+        - "<gray>for 10s."
+      # DESCRIPTION-ONLY: damage-gated channel + percent-strength buff not modelled.
+
+blade_of_the_volcano:
+  name: "Blade Of The Volcano"
+  material: "GOLDEN_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 220
+    STRENGTH: 70
+    CRIT_DAMAGE: 20
+  abilities:
+    molten_might:
+      name: "Molten Might"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gain <green>+100 Strength <gray>against enemies"
+        - "<gray>who are in lava."
+
+
+# ---------------------------------------------------------------------
+# Staves (melee weapons)
+# ---------------------------------------------------------------------
+fire_freeze_staff:
+  name: "Fire Freeze Staff"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 50
+    STRENGTH: 20
+  abilities:
+    fire_freeze:
+      name: "Fire Freeze"
+      trigger: "RIGHT_CLICK"
+      cooldown: 10.0
+      mana-cost: 500.0
+      description:
+        - "<gray>Creates a circle with a 5 block radius."
+        - "<gray>After 5s, all mobs inside are <aqua>frozen"
+        - "<gray>for 10s."
+      mechanics:
+        - type: "APPLY_EFFECT"
+          params:
+            effect: "slowness"
+            duration: 10.0
+            amplifier: 10
+            target: "@enemies_in_radius{r=5}"
+
+fire_fury_staff:
+  name: "Fire Fury Staff"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 100
+    MANA: 300
+  abilities:
+    firestorm:
+      name: "Firestorm"
+      trigger: "RIGHT_CLICK"
+      cooldown: 20.0
+      mana-cost: 1000.0
+      description:
+        - "<gray>Shoots a projectile that creates a firestorm"
+        - "<gray>on impact, dealing up to <red>42,000 damage"
+        - "<gray>over 10s to mobs in a 10 block radius."
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "FIREBALL"
+            velocity: 1.8
+            count: 1
+            damage: 4200.0
+            damage-type: "MAGIC"
+            on-hit:
+              - type: "DAMAGE"
+                params:
+                  damage: 42000.0
+                  damage-type: "MAGIC"
+                  target: "@enemies_in_radius{r=10}"
+
+midas_sword:
+  name: "Midas' Sword"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 170
+  abilities:
+    greed:
+      name: "Greed"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>The strength and damage bonus of this item"
+        - "<gray>depends on the price paid in the Dark Auction!"
+        - "<gold>Max bonus of 120 <gray>at 50,000,000 Coins or higher."
+
+daedalus_blade:
+  name: "Daedalus Blade"
+  material: "GOLDEN_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  abilities:
+    taming_mastery:
+      name: "Taming Mastery"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gains <green>+4 Damage <gray>per Taming level."
+        - "<gray>Copies the Stats from your active Pet."
+        - "<gray>Earn <gold>+35 Coins <gray>from monster kills."
+        - "<gray>Deals <green>+200% damage <gray>against Mythological Creatures."
+      # DESCRIPTION-ONLY: pet-stat copy, taming scaling & coin reward not modelled.
+
+enrager:
+  name: "Enrager"
+  material: "IRON_SWORD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 270
+    STRENGTH: 150
+  abilities:
+    enrage:
+      name: "Enrage"
+      trigger: "RIGHT_CLICK"
+      cooldown: 20.0
+      mana-cost: 500.0
+      description:
+        - "<gray>Taunt enemies in a 10 block radius and"
+        - "<gray>reduce their <red>Damage against you by 10%"
+        - "<gray>for 10s. <red>Costs 10% of max HP."
+      # DESCRIPTION-ONLY: taunt + enemy-damage-reduction + HP cost not modelled.
+
+great_spook_sword:
+  name: "Great Spook Sword"
+  material: "IRON_SWORD"
+  rarity: "LEGENDARY"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 0
+  abilities:
+    fearmonger:
+      name: "Fearmonger"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gains <green>+1 Damage <gray>and <green>+1 Strength"
+        - "<gray>for every Fear that you have."
+
+bingolibur:
+  name: "Bingolibur"
+  material: "IRON_SWORD"
+  rarity: "RARE"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 80
+    STRENGTH: 80
+  abilities:
+    bingo_luck:
+      name: "Bingo Luck"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>Gives <green>+1 Magic Find <gray>for every"
+        - "<gray>SkyBlock Level. <white>(Max 50)"
+
+aspect_of_the_jerry_signature:
+  name: "Aspect Of The Jerry, Signature Edition"
+  material: "WOODEN_SWORD"
+  rarity: "UNCOMMON"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 2
+  abilities:
+    parley:
+      name: "Parley"
+      trigger: "RIGHT_CLICK"
+      cooldown: 5.0
+      description:
+        - "<gray>Channel your inner Jerry."
+
+ember_rod:
+  name: "Ember Rod"
+  material: "BLAZE_ROD"
+  rarity: "EPIC"
+  item-type: "SWORD"
+  stats:
+    DAMAGE: 80
+    STRENGTH: 35
+    MANA: 50
+  abilities:
+    fire_blast:
+      name: "Fire Blast"
+      trigger: "RIGHT_CLICK"
+      cooldown: 30.0
+      mana-cost: 150.0
+      description:
+        - "<gray>Shoot <red>3 Fireballs <gray>which deal 30 damage"
+        - "<gray>in rapid succession in front of you!"
+      mechanics:
+        - type: "LAUNCH_PROJECTILE"
+          params:
+            projectile: "FIREBALL"
+            velocity: 1.6
+            count: 3
+            spread: 5.0
+            damage: 30.0
+            damage-type: "MAGIC"

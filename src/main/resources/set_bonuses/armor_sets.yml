@@ -1,0 +1,29 @@
+# =====================================================================
+# Armor Set Bonuses
+# =====================================================================
+# Links armor pieces (which carry a `set: <id>` field) to shared stat bonuses.
+# Each top-level key is one set. `bonuses` is a list of tiers; a tier's stats are
+# granted once the player wears at least `pieces-required` pieces of that set.
+# Tiers are cumulative, so this expresses both full-set bonuses and tiered
+# (#/4) bonuses.
+#
+# NOTE: only STAT bonuses are supported this round. Trigger/formula-based set
+# abilities (Mastiff "Absolute Unit", Crimson "Dominus" stacks, Shadow Assassin
+# on-kill/on-teleport, etc.) are a later phase and are intentionally omitted.
+# =====================================================================
+
+young_dragon:
+  set-id: "young_dragon"
+  name: "Young Blood"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        SPEED: 70
+
+farm_suit:
+  set-id: "farm_suit"
+  name: "Farmer Aura"
+  bonuses:
+    - pieces-required: 4
+      stats:
+        FARMING_FORTUNE: 20

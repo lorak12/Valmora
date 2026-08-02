@@ -1,0 +1,220 @@
+# =====================================================================
+# Shardworks Recipes — Machine: crafting_table
+# Ore -> ingot conversion, then ingots into tiered pickaxes/armor.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Ore refining
+# ---------------------------------------------------------------------
+ferrite_ingot_craft:
+  machine: crafting_table
+  type: SHAPELESS
+  inputs:
+    - { item: raw_ferrite, amount: 2 }
+  outputs:
+    result: { item: ferrite_ingot, amount: 1 }
+
+lumicite_crystal_craft:
+  machine: crafting_table
+  type: SHAPELESS
+  inputs:
+    - { item: raw_lumicite, amount: 2 }
+  outputs:
+    result: { item: lumicite_crystal, amount: 1 }
+
+aetherium_ingot_craft:
+  machine: crafting_table
+  type: SHAPELESS
+  inputs:
+    - { item: raw_aetherium, amount: 2 }
+  outputs:
+    result: { item: aetherium_ingot, amount: 1 }
+
+# ---------------------------------------------------------------------
+# Pickaxes
+# ---------------------------------------------------------------------
+ferrite_pickaxe_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: ferrite_ingot, amount: 1 }
+    "1": { item: ferrite_ingot, amount: 1 }
+    "2": { item: ferrite_ingot, amount: 1 }
+    "4": { item: STICK, amount: 1 }
+    "7": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: ferrite_pickaxe, amount: 1 }
+
+lumicite_pickaxe_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: lumicite_crystal, amount: 1 }
+    "1": { item: lumicite_crystal, amount: 1 }
+    "2": { item: lumicite_crystal, amount: 1 }
+    "4": { item: STICK, amount: 1 }
+    "7": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: lumicite_pickaxe, amount: 1 }
+
+aetherium_pickaxe_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: aetherium_ingot, amount: 1 }
+    "1": { item: aetherium_ingot, amount: 1 }
+    "2": { item: aetherium_ingot, amount: 1 }
+    "4": { item: STICK, amount: 1 }
+    "7": { item: STICK, amount: 1 }
+  outputs:
+    result: { item: aetherium_pickaxe, amount: 1 }
+
+# ---------------------------------------------------------------------
+# Armor — Ferrite
+# ---------------------------------------------------------------------
+ferrite_helmet_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: ferrite_ingot, amount: 1 }
+    "1": { item: ferrite_ingot, amount: 1 }
+    "2": { item: ferrite_ingot, amount: 1 }
+  outputs:
+    result: { item: ferrite_helmet, amount: 1 }
+
+ferrite_chestplate_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: ferrite_ingot, amount: 1 }
+    "2": { item: ferrite_ingot, amount: 1 }
+    "3": { item: ferrite_ingot, amount: 1 }
+    "4": { item: ferrite_ingot, amount: 1 }
+    "5": { item: ferrite_ingot, amount: 1 }
+  outputs:
+    result: { item: ferrite_chestplate, amount: 1 }
+
+ferrite_leggings_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: ferrite_ingot, amount: 1 }
+    "1": { item: ferrite_ingot, amount: 1 }
+    "2": { item: ferrite_ingot, amount: 1 }
+    "3": { item: ferrite_ingot, amount: 1 }
+    "5": { item: ferrite_ingot, amount: 1 }
+    "6": { item: ferrite_ingot, amount: 1 }
+    "8": { item: ferrite_ingot, amount: 1 }
+  outputs:
+    result: { item: ferrite_leggings, amount: 1 }
+
+ferrite_boots_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: ferrite_ingot, amount: 1 }
+    "2": { item: ferrite_ingot, amount: 1 }
+    "3": { item: ferrite_ingot, amount: 1 }
+    "5": { item: ferrite_ingot, amount: 1 }
+  outputs:
+    result: { item: ferrite_boots, amount: 1 }
+
+# ---------------------------------------------------------------------
+# Armor — Lumicite
+# ---------------------------------------------------------------------
+lumicite_helmet_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: lumicite_crystal, amount: 1 }
+    "1": { item: lumicite_crystal, amount: 1 }
+    "2": { item: lumicite_crystal, amount: 1 }
+  outputs:
+    result: { item: lumicite_helmet, amount: 1 }
+
+lumicite_chestplate_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: lumicite_crystal, amount: 1 }
+    "2": { item: lumicite_crystal, amount: 1 }
+    "3": { item: lumicite_crystal, amount: 1 }
+    "4": { item: lumicite_crystal, amount: 1 }
+    "5": { item: lumicite_crystal, amount: 1 }
+  outputs:
+    result: { item: lumicite_chestplate, amount: 1 }
+
+lumicite_leggings_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: lumicite_crystal, amount: 1 }
+    "1": { item: lumicite_crystal, amount: 1 }
+    "2": { item: lumicite_crystal, amount: 1 }
+    "3": { item: lumicite_crystal, amount: 1 }
+    "5": { item: lumicite_crystal, amount: 1 }
+    "6": { item: lumicite_crystal, amount: 1 }
+    "8": { item: lumicite_crystal, amount: 1 }
+  outputs:
+    result: { item: lumicite_leggings, amount: 1 }
+
+lumicite_boots_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: lumicite_crystal, amount: 1 }
+    "2": { item: lumicite_crystal, amount: 1 }
+    "3": { item: lumicite_crystal, amount: 1 }
+    "5": { item: lumicite_crystal, amount: 1 }
+  outputs:
+    result: { item: lumicite_boots, amount: 1 }
+
+# ---------------------------------------------------------------------
+# Armor — Aetherium
+# ---------------------------------------------------------------------
+aetherium_helmet_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: aetherium_ingot, amount: 1 }
+    "1": { item: aetherium_ingot, amount: 1 }
+    "2": { item: aetherium_ingot, amount: 1 }
+  outputs:
+    result: { item: aetherium_helmet, amount: 1 }
+
+aetherium_chestplate_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: aetherium_ingot, amount: 1 }
+    "2": { item: aetherium_ingot, amount: 1 }
+    "3": { item: aetherium_ingot, amount: 1 }
+    "4": { item: aetherium_ingot, amount: 1 }
+    "5": { item: aetherium_ingot, amount: 1 }
+  outputs:
+    result: { item: aetherium_chestplate, amount: 1 }
+
+aetherium_leggings_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: aetherium_ingot, amount: 1 }
+    "1": { item: aetherium_ingot, amount: 1 }
+    "2": { item: aetherium_ingot, amount: 1 }
+    "3": { item: aetherium_ingot, amount: 1 }
+    "5": { item: aetherium_ingot, amount: 1 }
+    "6": { item: aetherium_ingot, amount: 1 }
+    "8": { item: aetherium_ingot, amount: 1 }
+  outputs:
+    result: { item: aetherium_leggings, amount: 1 }
+
+aetherium_boots_craft:
+  machine: crafting_table
+  type: SHAPED
+  inputs:
+    "0": { item: aetherium_ingot, amount: 1 }
+    "2": { item: aetherium_ingot, amount: 1 }
+    "3": { item: aetherium_ingot, amount: 1 }
+    "5": { item: aetherium_ingot, amount: 1 }
+  outputs:
+    result: { item: aetherium_boots, amount: 1 }
