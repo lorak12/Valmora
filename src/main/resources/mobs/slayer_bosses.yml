@@ -62,6 +62,53 @@ zombie_slayer_boss_3:
     color: PURPLE
     style: SEGMENTED_10
     range: 40
+  abilities:
+    plague-nova:
+      name: "Plague Nova"
+      trigger: ON_TIMER
+      interval: 140
+      chance: 0.5
+      cooldown: 7.0
+      target-range: 10
+      announce: "<dark_purple>The Revenant Horror unleashes a wave of decay!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            amount: 120
+            type: POISON
+            target: "@target"
+        - type: APPLY_EFFECT
+          params:
+            effect: poison
+            duration: 4
+            amplifier: 1
+            target: "@target"
+    raise-dead:
+      name: "Raise the Dead"
+      trigger: ON_HEALTH
+      health-percent: 40
+      announce: "<dark_purple>The Revenant Horror calls forth the dead!"
+      mechanics:
+        - type: SCRIPT
+          params:
+            events:
+              - "spawn_mob revenant_thrall 2 radius:5"
+
+# Minion summoned by the Revenant Horror III's "Raise the Dead" ability. Not a quest-tracked
+# boss mob (see zombie_slayer_boss_* above) — just a reskinned trash zombie.
+revenant_thrall:
+  category: UNDEAD
+  type: ZOMBIE
+  name: "<dark_purple>Revenant Thrall</dark_purple>"
+  level: 40
+  damage-type: MELEE
+  base-xp: 15
+  gold-reward: 5
+  stats:
+    health: 400
+    damage: 60
+    defense: 40
+    speed: 0.32
 
 # ---------------------------------------------------------------- Spider Slayer bosses
 spider_slayer_boss_1:
@@ -103,6 +150,39 @@ spider_slayer_boss_2:
     color: GREEN
     style: SEGMENTED_6
     range: 30
+  abilities:
+    venom-spit:
+      name: "Venom Spit"
+      trigger: ON_TIMER
+      interval: 100
+      chance: 0.6
+      cooldown: 5.0
+      target-range: 14
+      announce: "<dark_gray>The Broodmother spits venom!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            amount: 90
+            type: POISON
+            target: "@target"
+        - type: APPLY_EFFECT
+          params:
+            effect: poison
+            duration: 3
+            amplifier: 2
+            target: "@target"
+    web-trap:
+      name: "Web Trap"
+      trigger: ON_HEALTH
+      health-percent: 50
+      announce: "<dark_gray>The Broodmother snares you in webbing!"
+      mechanics:
+        - type: APPLY_EFFECT
+          params:
+            effect: slowness
+            duration: 5
+            amplifier: 3
+            target: "@target"
 
 # ---------------------------------------------------------------- Wolf Slayer bosses
 wolf_slayer_boss_1:
@@ -144,3 +224,49 @@ wolf_slayer_boss_2:
     color: WHITE
     style: SEGMENTED_10
     range: 35
+  abilities:
+    pack-howl:
+      name: "Pack Howl"
+      trigger: ON_HEALTH
+      health-percent: 60
+      announce: "<white>Alpha Fang calls the pack!"
+      mechanics:
+        - type: SCRIPT
+          params:
+            events:
+              - "spawn_mob alpha_pack_wolf 3 radius:6"
+    savage-leap:
+      name: "Savage Leap"
+      trigger: ON_TIMER
+      interval: 90
+      chance: 0.5
+      cooldown: 4.5
+      target-range: 10
+      announce: "<white>Alpha Fang lunges at its prey!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            amount: 110
+            type: MELEE
+            target: "@target"
+        - type: APPLY_EFFECT
+          params:
+            effect: weakness
+            duration: 3
+            amplifier: 1
+            target: "@target"
+
+# Minion summoned by Alpha Fang II's "Pack Howl" ability.
+alpha_pack_wolf:
+  category: BEAST
+  type: WOLF
+  name: "<white>Pack Wolf</white>"
+  level: 30
+  damage-type: MELEE
+  base-xp: 10
+  gold-reward: 5
+  stats:
+    health: 300
+    damage: 40
+    defense: 25
+    speed: 0.45

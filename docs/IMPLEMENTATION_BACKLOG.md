@@ -110,13 +110,13 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Mob module
 
-- [ ] **Default `health` when `stats.health` is unset** (currently 0 max HP, likely instant-death mobs).
-- [ ] **Guard against missing `name`** at spawn time (currently NPEs in `MobFactory.applyVisuals`).
-- [ ] **Unregister the death listener in `onDisable()`** — currently at risk of double-registration on reload.
-- [ ] **Switch `spawnMob` to Paper's consumer-form `world.spawn(...)`** instead of raw `spawnEntity` (avoids the one-tick half-initialized state).
-- [ ] **Add basic custom AI/behaviors**: pathfinding, aggro range, leash range, wander logic — currently mobs have none beyond vanilla defaults.
-- [ ] **Add natural spawning support** — currently mobs only exist via explicit `/mob spawn`/zone spawners/scripts.
-- [ ] **Boss mob content**: `todo.md` "add bosses with mechanics" — most bosses are stat-scaled reskins today; give at least a few real telegraphed abilities.
+- [x] **Default `health` when `stats.health` is unset** (currently 0 max HP, likely instant-death mobs). *(2026-08-07: `MobDefinitionParser` now seeds the builder with `health(20.0)` before reading `stats.health`/flat `health`, so an unset value falls back to a vanilla-baseline HP instead of 0.)*
+- [x] **Guard against missing `name`** at spawn time (currently NPEs in `MobFactory.applyVisuals`). *(2026-08-07: `MobDefinitionParser` now defaults `name` to the mob's own id via `section.getString("name", sectionId)`.)*
+- [x] **Unregister the death listener in `onDisable()`** — currently at risk of double-registration on reload. *(2026-08-07: added `HandlerList.unregisterAll(deathListener)` to `MobManager.onDisable()`.)*
+- [x] **Switch `spawnMob` to Paper's consumer-form `world.spawn(...)`** instead of raw `spawnEntity` (avoids the one-tick half-initialized state). *(2026-08-07: `MobFactory.spawnMob` now uses `world.spawn(location, entityClass, consumer)`, applying data/equipment/visuals inside the consumer before the entity's first tick.)*
+- [x] **Add basic custom AI/behaviors**: pathfinding, aggro range, leash range, wander logic — currently mobs have none beyond vanilla defaults. *(2026-08-07: added `ai: { aggro-range, leash-range }` to `MobDefinition`/the YAML parser. Aggro range sets the vanilla `FOLLOW_RANGE` attribute at spawn (works with vanilla AI rather than against it); leash range is enforced by a new periodic `MobAiTask` that paths mobs back toward their recorded spawn point via Paper's `Mob.getPathfinder()` (CLAUDE.md §14.2) when they exceed it. Wander logic is already vanilla's default AI behavior (unaffected unless `no-ai: true`) — documented rather than reimplemented.)*
+- [x] **Add natural spawning support** — currently mobs only exist via explicit `/mob spawn`/zone spawners/scripts. *(2026-08-07: added `natural-spawn: { enabled, chance, max-nearby }` to `MobDefinition`/the parser and a new periodic `NaturalSpawnTask` (per-player radius roll, respects `max-nearby`, picks a nearby valid surface block). Deliberately minimal — not the full biome/time-of-day/capacity-aware spawner described in `ZONE_MODULE_PLAN.md`'s graveyard design (that's the separate, still-open Zone module item below).)*
+- [x] **Boss mob content**: `todo.md` "add bosses with mechanics" — most bosses are stat-scaled reskins today; give at least a few real telegraphed abilities. *(2026-08-07: the ability engine itself was already complete (see `mobs/test_boss.yml`'s `forge_titan` example — ON_TIMER/ON_HEALTH/ON_DEATH triggers, DAMAGE/APPLY_EFFECT/SCRIPT mechanics, `announce:` telegraphs) — the gap was content, not engine. Added real telegraphed abilities + summon minions to the top-tier boss of all 3 slayer chains in `mobs/slayer_bosses.yml`: Revenant Horror III (Plague Nova DoT nova + Raise the Dead summon), Broodmother II (Venom Spit + Web Trap slow), Alpha Fang II (Pack Howl summon + Savage Leap). Minions are separate non-quest-tracked mob ids so they don't interfere with the slayer quest's boss-kill objective matching the exact boss id.)*
 
 ---
 

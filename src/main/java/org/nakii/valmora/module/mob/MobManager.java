@@ -18,6 +18,8 @@ public class MobManager implements ReloadableModule {
     private final BossController bossController;
     private final EntityCategoryRegistry entityCategoryRegistry;
     private MobPipelineLoader pipelineLoader;
+    private org.bukkit.scheduler.BukkitTask aiTask;
+    private org.bukkit.scheduler.BukkitTask naturalSpawnTask;
 
     public MobManager(Valmora plugin) {
         this.plugin = plugin;
@@ -44,12 +46,21 @@ public class MobManager implements ReloadableModule {
             this.pipelineLoader = new MobPipelineLoader(plugin, plugin.getScriptModule());
             pipelineLoader.load();
         }
+
+        // Basic AI (leash range) and ambient natural spawning — see MobAiTask/NaturalSpawnTask.
+        if (aiTask != null) aiTask.cancel();
+        aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), 40L, 40L);
+        if (naturalSpawnTask != null) naturalSpawnTask.cancel();
+        naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), 200L, 200L);
     }
 
     @Override
     public void onDisable() {
         plugin.getLogger().info("Stopping Mob Module...");
+        org.bukkit.event.HandlerList.unregisterAll(deathListener);
         bossController.stop();
+        if (aiTask != null) { aiTask.cancel(); aiTask = null; }
+        if (naturalSpawnTask != null) { naturalSpawnTask.cancel(); naturalSpawnTask = null; }
         mobRegistry.clear();
         entityCategoryRegistry.clear();
         if (plugin.getScriptModule() != null) {

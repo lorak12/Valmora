@@ -24,6 +24,9 @@ public class Keys {
     public static NamespacedKey NPC_ID_KEY;
     public static NamespacedKey WARP_ID_KEY;
     public static NamespacedKey MOB_HOME_KEY;
+    public static NamespacedKey MOB_HOME_X_KEY;
+    public static NamespacedKey MOB_HOME_Y_KEY;
+    public static NamespacedKey MOB_HOME_Z_KEY;
     public static NamespacedKey ZONE_WAND_KEY;
 
     public static NamespacedKey HUD_ITEM_KEY;
@@ -61,6 +64,9 @@ public class Keys {
         NPC_ID_KEY = new NamespacedKey(plugin, "valmora_npc_id");
         WARP_ID_KEY = new NamespacedKey(plugin, "valmora_warp_id");
         MOB_HOME_KEY = new NamespacedKey(plugin, "mob_home");
+        MOB_HOME_X_KEY = new NamespacedKey(plugin, "valmora_mob_leash_home_x");
+        MOB_HOME_Y_KEY = new NamespacedKey(plugin, "valmora_mob_leash_home_y");
+        MOB_HOME_Z_KEY = new NamespacedKey(plugin, "valmora_mob_leash_home_z");
         ZONE_WAND_KEY = new NamespacedKey(plugin, "zone_wand");
 
         HUD_ITEM_KEY = new NamespacedKey(plugin, "hud_item_id");

@@ -45,6 +45,24 @@ public class MobFactory {
             speedAttribute.setBaseValue(definition.getSpeed());
         }
 
+        // Aggro range: how far the mob's own vanilla AI will target/chase players (Paper §14.2 —
+        // uses the vanilla attribute rather than fighting vanilla AI with custom targeting logic).
+        if (definition.getAggroRange() >= 0) {
+            AttributeInstance followRange = entity.getAttribute(Attribute.FOLLOW_RANGE);
+            if (followRange != null) {
+                followRange.setBaseValue(definition.getAggroRange());
+            }
+        }
+
+        // Leash range: remember the spawn point so MobAiTask can path the mob back if it wanders
+        // too far from home (see that class for the periodic check).
+        if (definition.getLeashRange() >= 0 && entity.getLocation().getWorld() != null) {
+            org.bukkit.Location spawnLoc = entity.getLocation();
+            entity.getPersistentDataContainer().set(Keys.MOB_HOME_X_KEY, PersistentDataType.DOUBLE, spawnLoc.getX());
+            entity.getPersistentDataContainer().set(Keys.MOB_HOME_Y_KEY, PersistentDataType.DOUBLE, spawnLoc.getY());
+            entity.getPersistentDataContainer().set(Keys.MOB_HOME_Z_KEY, PersistentDataType.DOUBLE, spawnLoc.getZ());
+        }
+
         applyFlags(entity, definition);
     }
 
@@ -89,11 +107,17 @@ public class MobFactory {
         entity.setCustomNameVisible(true);  
     }
 
+    @SuppressWarnings("unchecked")
     public LivingEntity spawnMob(MobDefinition definition, Location location) {
-        LivingEntity entity = (LivingEntity) location.getWorld().spawnEntity(location, definition.getEntityType());
-        applyData(entity, definition);
-        applyEquipment(entity, definition);
-        applyVisuals(entity, definition);
+        // Consumer-form spawn: entity is fully configured before its first tick, avoiding the
+        // one-tick window where a raw spawnEntity() mob exists half-initialized (see CLAUDE.md §14.7).
+        Class<? extends LivingEntity> entityClass =
+                (Class<? extends LivingEntity>) definition.getEntityType().getEntityClass();
+        LivingEntity entity = location.getWorld().spawn(location, entityClass, spawned -> {
+            applyData(spawned, definition);
+            applyEquipment(spawned, definition);
+            applyVisuals(spawned, definition);
+        });
         // Track bosses (abilities / boss bar) and fire ON_SPAWN abilities
         if (definition.isBoss() && bossController != null) {
             bossController.register(entity, definition);

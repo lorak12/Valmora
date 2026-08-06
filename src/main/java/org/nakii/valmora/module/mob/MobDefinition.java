@@ -44,6 +44,14 @@ public class MobDefinition {
     private final boolean persistent;
     private final boolean baby;
     private final boolean preventSunBurn;
+    // Basic AI tuning (item/mob.md §"Known Gaps" — pathfinding/aggro/leash beyond vanilla defaults).
+    // -1 on either means "leave vanilla behavior alone" (no FOLLOW_RANGE override / no leash reset).
+    private final double aggroRange;
+    private final double leashRange;
+    // Natural spawning (zone-driven periodic spawn attempts — see NaturalSpawnTask).
+    private final boolean naturalSpawn;
+    private final double naturalSpawnChance;
+    private final int naturalSpawnMaxNearby;
 
     private MobDefinition(Builder builder) {
         this.id = builder.id;
@@ -75,6 +83,11 @@ public class MobDefinition {
         this.persistent = builder.persistent;
         this.baby = builder.baby;
         this.preventSunBurn = builder.preventSunBurn;
+        this.aggroRange = builder.aggroRange;
+        this.leashRange = builder.leashRange;
+        this.naturalSpawn = builder.naturalSpawn;
+        this.naturalSpawnChance = builder.naturalSpawnChance;
+        this.naturalSpawnMaxNearby = builder.naturalSpawnMaxNearby;
     }
 
     public String getId() { return id; }
@@ -106,6 +119,11 @@ public class MobDefinition {
     public boolean isPersistent() { return persistent; }
     public boolean isBaby() { return baby; }
     public boolean isPreventSunBurn() { return preventSunBurn; }
+    public double getAggroRange() { return aggroRange; }
+    public double getLeashRange() { return leashRange; }
+    public boolean isNaturalSpawn() { return naturalSpawn; }
+    public double getNaturalSpawnChance() { return naturalSpawnChance; }
+    public int getNaturalSpawnMaxNearby() { return naturalSpawnMaxNearby; }
 
     /** Resistance fraction (0..1) for a damage type; 0 if none configured. */
     public double getResistance(DamageType type) {
@@ -155,6 +173,11 @@ public class MobDefinition {
         private boolean persistent = false;
         private boolean baby = false;
         private boolean preventSunBurn = false;
+        private double aggroRange = -1.0;
+        private double leashRange = -1.0;
+        private boolean naturalSpawn = false;
+        private double naturalSpawnChance = 0.1;
+        private int naturalSpawnMaxNearby = 3;
 
         public Builder(String id) {
             this.id = id;
@@ -194,6 +217,11 @@ public class MobDefinition {
         public Builder persistent(boolean persistent) { this.persistent = persistent; return this; }
         public Builder baby(boolean baby) { this.baby = baby; return this; }
         public Builder preventSunBurn(boolean preventSunBurn) { this.preventSunBurn = preventSunBurn; return this; }
+        public Builder aggroRange(double aggroRange) { this.aggroRange = aggroRange; return this; }
+        public Builder leashRange(double leashRange) { this.leashRange = leashRange; return this; }
+        public Builder naturalSpawn(boolean naturalSpawn) { this.naturalSpawn = naturalSpawn; return this; }
+        public Builder naturalSpawnChance(double naturalSpawnChance) { this.naturalSpawnChance = naturalSpawnChance; return this; }
+        public Builder naturalSpawnMaxNearby(int naturalSpawnMaxNearby) { this.naturalSpawnMaxNearby = naturalSpawnMaxNearby; return this; }
 
         public MobDefinition build() {
             return new MobDefinition(this);

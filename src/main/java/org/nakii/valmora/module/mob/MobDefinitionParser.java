@@ -23,10 +23,9 @@ public class MobDefinitionParser {
     public static LoadResult<MobDefinition, String> parse(String sectionId, ConfigurationSection section, String fileName, ItemManager itemManager) {
         MobDefinition.Builder builder = new MobDefinition.Builder(sectionId);
 
-        // Name
-        if (section.contains("name")) {
-            builder.name(section.getString("name"));
-        }
+        // Name — fall back to the mob's own id so a missing 'name' can't NPE MobFactory.applyVisuals
+        // (which formats it unconditionally) instead of just displaying a blank/odd name.
+        builder.name(section.getString("name", sectionId));
 
         // Category (required)
         if (!section.contains("category")) {
@@ -56,6 +55,9 @@ public class MobDefinitionParser {
 
         // Stats. The canonical form is a nested 'stats:' block; legacy flat keys
         // (health, base-damage, speed) at the top level are read as a fallback.
+        // Default health to a sane vanilla baseline (20 = one player heart bar) so an unset
+        // stats.health/health doesn't silently produce a 0-max-HP (instant-death) mob.
+        builder.health(20.0);
         ConfigurationSection statsSection = section.getConfigurationSection("stats");
         if (statsSection != null) {
             if (statsSection.contains("health")) builder.health(statsSection.getDouble("health"));
@@ -107,6 +109,19 @@ public class MobDefinitionParser {
         if (section.contains("persistent")) builder.persistent(section.getBoolean("persistent"));
         if (section.contains("baby")) builder.baby(section.getBoolean("baby"));
         if (section.contains("prevent-sun-burn")) builder.preventSunBurn(section.getBoolean("prevent-sun-burn"));
+
+        // Basic AI tuning (aggro/leash — see MobAiTask) and natural spawning (see NaturalSpawnTask)
+        ConfigurationSection aiSection = section.getConfigurationSection("ai");
+        if (aiSection != null) {
+            if (aiSection.contains("aggro-range")) builder.aggroRange(aiSection.getDouble("aggro-range"));
+            if (aiSection.contains("leash-range")) builder.leashRange(aiSection.getDouble("leash-range"));
+        }
+        ConfigurationSection spawnSection = section.getConfigurationSection("natural-spawn");
+        if (spawnSection != null) {
+            builder.naturalSpawn(spawnSection.getBoolean("enabled", true));
+            if (spawnSection.contains("chance")) builder.naturalSpawnChance(spawnSection.getDouble("chance"));
+            if (spawnSection.contains("max-nearby")) builder.naturalSpawnMaxNearby(spawnSection.getInt("max-nearby"));
+        }
 
         // Level
         if (section.contains("level")) {
