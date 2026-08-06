@@ -37,6 +37,7 @@ public class Keys {
     public static NamespacedKey PET_ID_KEY;
     public static NamespacedKey PET_XP_KEY;
     public static NamespacedKey PET_LEVEL_KEY;
+    public static NamespacedKey PET_INSTANCE_KEY;
 
     public static NamespacedKey STORAGE_CONTENTS_KEY;
     public static NamespacedKey CONTAINER_GUI_KEY;
@@ -77,6 +78,7 @@ public class Keys {
         PET_ID_KEY = new NamespacedKey(plugin, "pet_id");
         PET_XP_KEY = new NamespacedKey(plugin, "pet_xp");
         PET_LEVEL_KEY = new NamespacedKey(plugin, "pet_level");
+        PET_INSTANCE_KEY = new NamespacedKey(plugin, "pet_instance");
 
         STORAGE_CONTENTS_KEY = new NamespacedKey(plugin, "storage_contents");
         CONTAINER_GUI_KEY = new NamespacedKey(plugin, "container_gui");

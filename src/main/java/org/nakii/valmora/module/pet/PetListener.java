@@ -106,7 +106,10 @@ public class PetListener implements Listener {
         if (module.hasPetActive(player)) {
             var entity = module.getActivePetEntities().remove(player.getUniqueId());
             if (entity != null && entity.isValid()) entity.remove();
-            // Don't call unsummon() — that sends a message to the offline player
+            // Don't call unsummon() — that sends a message to the offline player. Must still clear
+            // the slot mapping though, or the next relog's first toggle sees a stale non-null slot
+            // and treats it as "unsummon" instead of "summon" (see PetModule#toggleSummon).
+            module.clearActivePetSlot(player.getUniqueId());
         }
     }
 }

@@ -22,6 +22,9 @@ commands:
   skill:
     usage: /skill help
     description: Master command for skills interactions.
+  pet:
+    usage: /pet help
+    description: Master command for pet interactions.
   gui:
     usage: /gui help
     permission: valmora.admin.gui

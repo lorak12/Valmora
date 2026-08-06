@@ -142,13 +142,13 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Pet module
 
-- [ ] **Add a way to distribute pet items** — nothing currently creates an item carrying `valmora:pet_id`; admins must hand-tag items. Ties to a pets menu/shortcut (todo.md).
-- [ ] **Add owner-follow AI** — pets are currently fully static (`setAI(false)`).
-- [ ] **Fix stale `activePetSlot` after relog** — causes toggle-off instead of re-summon, and blocks summoning a different pet.
-- [ ] **Support multiple/anywhere-summonable pets** instead of single slot-bound pet.
-- [ ] **Decide whether milestone stat grants should revert on unsummon** (currently permanent — undocumented design gap).
-- [ ] **Wire `pet_luck` stat** into loot/drop code (currently unused).
-- [ ] **Expose `PetModule` via `ValmoraAPI`.**
+- [x] **Add a way to distribute pet items** — nothing currently creates an item carrying `valmora:pet_id`; admins must hand-tag items. Ties to a pets menu/shortcut (todo.md). *(2026-08-07: added `/pet give <player> <petId> [level]` + `/pet list` (new `PetCommand`, registered in `plugin.yml`/`Valmora.java`). A full pets-menu GUI shortcut is still not built — this covers the underlying distribution gap.)*
+- [x] **Add owner-follow AI** — pets are currently fully static (`setAI(false)`). *(2026-08-07: added `PetFollowTask`, a periodic step-toward-owner task (teleport-based, since `setAI(false)` disables the vanilla pathfinder too).)*
+- [x] **Fix stale `activePetSlot` after relog** — causes toggle-off instead of re-summon, and blocks summoning a different pet. *(2026-08-07: `PetListener.onQuit` now also clears the slot/instance mapping via new `PetModule.clearActivePetSlot`.)*
+- [x] **Support multiple/anywhere-summonable pets** instead of single slot-bound pet. *(2026-08-07: partial — switched from slot-index tracking to a per-item `PET_INSTANCE_KEY` UUID tag found anywhere in the inventory, so the pet item is no longer slot-bound. True simultaneous multi-pet support is a larger design (stat stacking, multiple follow tasks) explicitly left out of scope — documented in `docs/modules/design/pet.md`.)*
+- [x] **Decide whether milestone stat grants should revert on unsummon** (currently permanent — undocumented design gap). *(2026-08-07: decided and documented in `docs/modules/design/pet.md` §"Unfinished Things" item 6 — kept permanent, treated as an account-wide unlock.)*
+- [x] **Wire `pet_luck` stat** into loot/drop code (currently unused). *(2026-08-07: `MobDeathListener` now adds `pet_luck` on top of the general `luck` stat when computing loot-roll chance.)*
+- [x] **Expose `PetModule` via `ValmoraAPI`.** *(2026-08-07: confirmed already done — docs drift, see the cross-cutting item at the top of this file.)*
 
 ---
 

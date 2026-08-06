@@ -3,7 +3,7 @@
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 > **Package:** `org.nakii.valmora.module.pet`
 > **Module ID:** `pets` | **Load order:** after `reforge`, before `slayer`
-> **Status:** implemented — summon/unsummon, stat bonuses, XP/levels, milestone scripts, ability triggers, `pet` script variables ✅; **pet-item distribution, pet menu shortcut, and follow AI are NOT implemented** (see [Unfinished Things / TODOs](#unfinished-things--todos))
+> **Status:** implemented — summon/unsummon, stat bonuses, XP/levels, milestone scripts, ability triggers, `pet` script variables, pet-item distribution (`/pet give`), basic follow AI, `pet_luck` loot wiring ✅; **a dedicated pet menu GUI and true simultaneous multi-pet support are NOT implemented** (see [Unfinished Things / TODOs](#unfinished-things--todos))
 
 > **Generic-engine refactor (Phase 3.3):** `PetDefinition.xpForLevel` is no longer a hardcoded
 > `100 * level²` static method — it's an instance method backed by a per-pet precomputed table,
@@ -629,30 +629,13 @@ dormant flavor. Similarly, `zombie.yml` collection reward text says "Zombie Pet 
 
 ## Unfinished Things / TODOs
 
-1. **No pet-item distribution.** Nothing in the codebase creates an item carrying
-   `valmora:pet_id` — the module only *reads* the key. `ItemFactory`
-   (`module/item/ItemFactory.java:31-49`) writes `ITEM_ID_KEY`, `RARITY_KEY`, etc., but never
-   `PET_ID_KEY`, and no item definition in `src/main/resources/items/*.yml` sets it. Admins
-   must currently tag an item by hand. `docs/todo.md:73` lists "pets module and shortcut in
-   the menu" as an outstanding menu feature.
+1. ~~**No pet-item distribution.**~~ **Fixed (2026-08-07).** Added `/pet give <player> <petId> [level]` (`PetCommand.java`), which stamps `PET_ID_KEY`/`PET_LEVEL_KEY`/`PET_XP_KEY`/`PET_INSTANCE_KEY` onto a `NAME_TAG` item and gives it to the target. `/pet list` shows available pet ids.
 
-2. **No follow AI.** `setAI(false)` (`PetModule.java:134`) means pets are static statues;
-   there is no follow task, owner binding, or movement sync. Spawned via the raw
-   `spawnEntity` overload (`PetModule.java:131`) rather than the consumer pattern from
-   `AGENTS.md` §11.7.
+2. ~~**No follow AI.**~~ **Fixed (2026-08-07).** Added `PetFollowTask` — a periodic (5-tick) task that steps each active pet toward its owner (teleporting to catch up if it falls far behind or changes world), since `setAI(false)` disables the vanilla pathfinder along with wandering/targeting. Deliberately simple, not full pathfinding.
 
-3. **Stale `activePetSlot` after quit.** `onQuit` removes the entity but **not** the slot
-   entry (`PetListener.java:107-108`). After a re-login, `hasPetActive` returns false (entity
-   map is empty), but the stale slot means the player's *next* right-click on that pet item
-   triggers `unsummon` (toggle-off) instead of summoning (`PetModule.java:116-119`), and
-   right-clicking a *different* pet is refused as "You already have a pet active"
-   (`PetModule.java:111-114`). A restart or `/valmora reload` clears it. The stale entry should
-   be removed on quit.
+3. ~~**Stale `activePetSlot` after quit.**~~ **Fixed (2026-08-07).** `PetListener.onQuit` now also calls `PetModule.clearActivePetSlot(uuid)`.
 
-4. **Only one pet active, slot-bound.** `toggleSummon` allows a single active pet keyed to a
-   specific inventory slot (`PetModule.java:111-119`). Moving the pet item to another slot
-   breaks the binding (the maps still reference the old index), and there is no "summon from
-   anywhere / pet menu" UX.
+4. ~~**Only one pet active, slot-bound.**~~ **Partially fixed (2026-08-07).** Tracking switched from a fixed inventory-slot index to a per-item `PET_INSTANCE_KEY` UUID tag, found anywhere in the inventory (`PetModule.findActivePetItem`) — moving the summoned pet item to a different slot no longer breaks the binding. Still only one pet active at a time (true simultaneous multi-pet support is a larger design — stat stacking, multiple follow tasks, render — left out of scope for this pass); a dedicated "pet menu" UX is still not built.
 
 5. **Leveling can skip milestones.** Milestones fire only on the *exact* level
    (`def.getMilestones().get(level)`, `PetModule.java:206`). A large XP grant that crosses
@@ -661,13 +644,9 @@ dormant flavor. Similarly, `zombie.yml` collection reward text says "Zombie Pet 
    `gainPetXp` is the only path) — effectively this is handled; the remaining gap is that a
    milestone skipped by a *different* XP source (none today) would be lost.
 
-6. **Milestone grants are permanent base-stat changes.** `stat_modify add` writes to base
-   stats (`StatModifyEventFactory.java:45`), which persist after the pet is unsummoned or
-   re-summoned, unlike the passive `applyPetStats` modifiers. Whether milestone stat grants
-   should be reverted on unsummon is an unrecorded design decision.
+6. **Milestone grants are permanent base-stat changes — decision (2026-08-07): keep permanent.** `stat_modify add` writes to base stats (`StatModifyEventFactory.java:45`), which persist after the pet is unsummoned or re-summoned, unlike the passive `applyPetStats` modifiers. Decided to treat milestone grants as a permanent account-wide unlock (consistent with the "reaching a level milestone is a lasting achievement" framing already implied by the shipped pet content) rather than reverting them — reverting would require tracking exactly which stat_modify calls came from which pet's milestones, a nontrivial bookkeeping addition with no clear player-facing benefit over the current behavior.
 
-7. **`pet_luck` is unused.** The stat and Taming integration exist
-   (`stats/core.yml:116-121`, `skills/taming.yml:24`) but no pet-drop/loot code consumes it.
+7. ~~**`pet_luck` is unused.**~~ **Fixed (2026-08-07).** Wired into `LootTable` roll weighting — see `resource`/`mob` loot code.
 
 ---
 

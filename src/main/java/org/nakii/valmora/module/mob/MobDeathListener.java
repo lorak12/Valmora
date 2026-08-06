@@ -60,7 +60,10 @@ public class MobDeathListener implements Listener {
                 ValmoraProfile profile = vp.getActiveProfile();
                 if (profile != null) {
                     StatManager statManager = profile.getStatManager();
-                    luck = statManager.getStat(plugin.getStatModule().getSystemStats().getLuck());
+                    // pet_luck (stats/core.yml) stacks additively on top of the general luck stat
+                    // for loot roll purposes — previously defined but never consumed anywhere.
+                    luck = statManager.getStat(plugin.getStatModule().getSystemStats().getLuck())
+                            + statManager.getStat("pet_luck");
 
                     int xpReward = definition.getXpReward();
                     profile.getSkillManager().addXp("combat", (double) xpReward, killer);

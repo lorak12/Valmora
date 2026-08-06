@@ -27,10 +27,13 @@ public class PetModule implements ReloadableModule {
     private final Valmora plugin;
     private final Map<String, PetDefinition> definitions = new HashMap<>();
 
-    private final Map<UUID, Integer> activePetSlot = new HashMap<>();
+    // Keyed by a per-item PET_INSTANCE_KEY tag (stamped on first summon) rather than an inventory
+    // slot index — the pet item can be moved anywhere in the player's inventory and still resolve.
+    private final Map<UUID, UUID> activePetInstance = new HashMap<>();
     private final Map<UUID, Entity> activePetEntity = new HashMap<>();
 
     private PetListener listener;
+    private org.bukkit.scheduler.BukkitTask followTask;
 
     // Phase 3.3 (docs/REFACTOR/PROGRESS.md): server-wide pet XP defaults, loaded from
     // pets/defaults.yml before pet definitions so each pet can fall back to them.
@@ -44,7 +47,7 @@ public class PetModule implements ReloadableModule {
     @Override
     public void onEnable() {
         definitions.clear();
-        activePetSlot.clear();
+        activePetInstance.clear();
         activePetEntity.clear();
         loadPetDefaultsConfig();
         loadDefinitions();
@@ -52,10 +55,16 @@ public class PetModule implements ReloadableModule {
         this.listener = new PetListener(this);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getScriptModule().registerProvider(new PetVariableProvider(this));
+
+        if (followTask != null) followTask.cancel();
+        if (plugin.getServer() != null && plugin.getServer().getScheduler() != null) {
+            followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), 5L, 5L);
+        }
     }
 
     @Override
     public void onDisable() {
+        if (followTask != null) { followTask.cancel(); followTask = null; }
         for (Entity entity : activePetEntity.values()) {
             if (entity.isValid()) entity.remove();
         }
@@ -64,7 +73,7 @@ public class PetModule implements ReloadableModule {
             listener = null;
         }
         definitions.clear();
-        activePetSlot.clear();
+        activePetInstance.clear();
         activePetEntity.clear();
     }
 
@@ -82,55 +91,87 @@ public class PetModule implements ReloadableModule {
         return activePetEntity.containsKey(player.getUniqueId());
     }
 
+    /** Clears the active-pet slot mapping for a UUID without touching the entity (see PetListener#onQuit). */
+    public void clearActivePetSlot(UUID uuid) {
+        activePetInstance.remove(uuid);
+    }
+
+    /**
+     * Finds the currently-summoned pet item anywhere in the player's inventory, by matching the
+     * per-instance tag stamped on it at summon time — not by a fixed slot index, so the item can
+     * be freely moved around the inventory (or even end up in a different hotbar slot from a
+     * relog) and still resolve correctly.
+     */
+    private ItemStack findActivePetItem(Player player) {
+        UUID instanceId = activePetInstance.get(player.getUniqueId());
+        if (instanceId == null) return null;
+        for (ItemStack stack : player.getInventory().getContents()) {
+            if (stack == null || !stack.hasItemMeta()) continue;
+            String tag = stack.getItemMeta().getPersistentDataContainer()
+                    .get(Keys.PET_INSTANCE_KEY, PersistentDataType.STRING);
+            if (instanceId.toString().equals(tag)) return stack;
+        }
+        return null;
+    }
+
     public PetDefinition getActivePetDefinition(Player player) {
-        Integer slot = activePetSlot.get(player.getUniqueId());
-        if (slot == null) return null;
-        ItemStack item = player.getInventory().getItem(slot);
-        if (item == null || !item.hasItemMeta()) return null;
+        ItemStack item = findActivePetItem(player);
+        if (item == null) return null;
         String petId = item.getItemMeta().getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
         return petId != null ? definitions.get(petId) : null;
     }
 
     public int getActivePetLevel(Player player) {
-        Integer slot = activePetSlot.get(player.getUniqueId());
-        if (slot == null) return 1;
-        ItemStack item = player.getInventory().getItem(slot);
-        if (item == null || !item.hasItemMeta()) return 1;
+        ItemStack item = findActivePetItem(player);
+        if (item == null) return 1;
         return item.getItemMeta().getPersistentDataContainer()
                 .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
     }
 
     public double getActivePetXp(Player player) {
-        Integer slot = activePetSlot.get(player.getUniqueId());
-        if (slot == null) return 0;
-        ItemStack item = player.getInventory().getItem(slot);
-        if (item == null || !item.hasItemMeta()) return 0;
+        ItemStack item = findActivePetItem(player);
+        if (item == null) return 0;
         return item.getItemMeta().getPersistentDataContainer()
                 .getOrDefault(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, 0.0);
     }
 
     public void toggleSummon(Player player, int slot) {
         UUID uid = player.getUniqueId();
-        Integer currentSlot = activePetSlot.get(uid);
 
-        if (currentSlot != null && currentSlot != slot) {
-            player.sendMessage(Formatter.format("<red>You already have a pet active. Unsummon it first."));
-            return;
-        }
-
-        if (currentSlot != null) {
+        if (activePetInstance.containsKey(uid)) {
+            ItemStack activeItem = findActivePetItem(player);
+            ItemStack clickedItem = player.getInventory().getItem(slot);
+            boolean sameItem = activeItem != null && clickedItem != null
+                    && instanceIdOf(activeItem) != null && instanceIdOf(activeItem).equals(instanceIdOf(clickedItem));
+            if (!sameItem) {
+                player.sendMessage(Formatter.format("<red>You already have a pet active. Unsummon it first."));
+                return;
+            }
             unsummon(player);
             return;
         }
 
         ItemStack petItem = player.getInventory().getItem(slot);
         if (petItem == null || !petItem.hasItemMeta()) return;
-        String petId = petItem.getItemMeta().getPersistentDataContainer()
+        ItemMeta petMeta = petItem.getItemMeta();
+        String petId = petMeta.getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
         if (petId == null) return;
         PetDefinition def = definitions.get(petId);
         if (def == null) return;
+
+        // Stamp an instance id if this item predates the instance-tracking system (e.g. an
+        // admin-crafted item from before this change) so it can still be tracked going forward.
+        String instanceTag = petMeta.getPersistentDataContainer().get(Keys.PET_INSTANCE_KEY, PersistentDataType.STRING);
+        UUID instanceId;
+        if (instanceTag == null) {
+            instanceId = UUID.randomUUID();
+            petMeta.getPersistentDataContainer().set(Keys.PET_INSTANCE_KEY, PersistentDataType.STRING, instanceId.toString());
+            petItem.setItemMeta(petMeta);
+        } else {
+            instanceId = UUID.fromString(instanceTag);
+        }
 
         Location loc = player.getLocation().add(1, 0, 0);
         try {
@@ -139,7 +180,7 @@ public class PetModule implements ReloadableModule {
             entity.setCustomNameVisible(true);
             entity.setAI(false);
 
-            activePetSlot.put(uid, slot);
+            activePetInstance.put(uid, instanceId);
             activePetEntity.put(uid, entity);
 
             int level = getActivePetLevel(player);
@@ -151,10 +192,16 @@ public class PetModule implements ReloadableModule {
         }
     }
 
+    private UUID instanceIdOf(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        String tag = item.getItemMeta().getPersistentDataContainer().get(Keys.PET_INSTANCE_KEY, PersistentDataType.STRING);
+        return tag != null ? UUID.fromString(tag) : null;
+    }
+
     public void unsummon(Player player) {
         UUID uid = player.getUniqueId();
         Entity entity = activePetEntity.remove(uid);
-        activePetSlot.remove(uid);
+        activePetInstance.remove(uid);
         if (entity != null && entity.isValid()) entity.remove();
         player.sendMessage(Formatter.format("<yellow>Pet unsummoned."));
         triggerStatRecalc(player);
@@ -170,10 +217,8 @@ public class PetModule implements ReloadableModule {
     }
 
     public void gainPetXp(Player player, double amount) {
-        Integer slot = activePetSlot.get(player.getUniqueId());
-        if (slot == null) return;
-        ItemStack petItem = player.getInventory().getItem(slot);
-        if (petItem == null || !petItem.hasItemMeta()) return;
+        ItemStack petItem = findActivePetItem(player);
+        if (petItem == null) return;
 
         String petId = petItem.getItemMeta().getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
@@ -193,7 +238,7 @@ public class PetModule implements ReloadableModule {
             if (xp >= needed) {
                 xp -= needed;
                 level++;
-                fireMilestones(player, level, slot);
+                fireMilestones(player, def, level);
                 player.sendMessage(Formatter.format("<gold>✦ Pet leveled up to <yellow>Level " + level + "<gold>!"));
             } else {
                 break;
@@ -207,12 +252,7 @@ public class PetModule implements ReloadableModule {
         if (level > initialLevel) triggerStatRecalc(player);
     }
 
-    private void fireMilestones(Player player, int level, int slot) {
-        ItemStack petItem = player.getInventory().getItem(slot);
-        if (petItem == null || !petItem.hasItemMeta()) return;
-        String petId = petItem.getItemMeta().getPersistentDataContainer()
-                .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
-        PetDefinition def = petId != null ? definitions.get(petId) : null;
+    private void fireMilestones(Player player, PetDefinition def, int level) {
         if (def == null) return;
         List<String> events = def.getMilestones().get(level);
         if (events == null || events.isEmpty()) return;
