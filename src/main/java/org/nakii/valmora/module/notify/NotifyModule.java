@@ -26,8 +26,8 @@ public class NotifyModule implements ReloadableModule {
         notifyManager.registerIO(new TitleIO());
         notifyManager.registerIO(new SubTitleIO());
         notifyManager.registerIO(bossBarIO);
-        notifyManager.registerIO(new SoundIO());
-        notifyManager.registerIO(new AdvancementIO());
+        notifyManager.registerIO(new SoundIO(plugin));
+        notifyManager.registerIO(new AdvancementIO(plugin));
 
         this.quitListener = new NotifyQuitListener(bossBarIO);
         plugin.getServer().getPluginManager().registerEvents(quitListener, plugin);

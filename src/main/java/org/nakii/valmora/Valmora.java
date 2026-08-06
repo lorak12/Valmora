@@ -203,9 +203,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(fishingModule);
         moduleManager.registerModule(npcModule);
         moduleManager.registerModule(warpModule);
-        moduleManager.registerModule(questModule);
         moduleManager.registerModule(pointsModule);
+        // notifyModule must register before questModule: quest-package notification categories
+        // are registered during QuestModule.onEnable() and need a non-null NotifyManager.
         moduleManager.registerModule(notifyModule);
+        moduleManager.registerModule(questModule);
         moduleManager.registerModule(collectionModule);
         moduleManager.registerModule(hudItemModule);       // Depends on scriptModule for click DSL
         moduleManager.registerModule(calendarEventModule); // Depends on scriptModule + timeModule
