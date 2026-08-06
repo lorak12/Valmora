@@ -135,7 +135,7 @@ Immutable, constructor-injected value object (`GuiDefinition.java:12-53`). Field
 |---|---|---|
 | `id` | top-level YAML key | not normalized to lowercase (`GuiDefinitionParser.java:20`) |
 | `title` | `title:` | default `"Inventory"`; MiniMessage formatted at open time (`GuiModule.java:94-98`) |
-| `rows` | `layout:` list size | `rows:` YAML key is **ignored** — parser always uses `layout.size()` (`GuiDefinitionParser.java:29`) |
+| `rows` | `max(rows:, layout:` list size`)` | `rows:` can pad the inventory taller than the `layout:` lines provide; it can never shrink below `layout.size()` (`GuiDefinitionParser.java`) |
 | `machineId` | `machine:` | default = `id`; handed to the recipe module for matching |
 | `updateIntervalTicks` | `update-interval:` | default 0 = no repeating task |
 | `components` | `components:` | map char-key → `GuiComponent` |
@@ -305,7 +305,7 @@ Runtime config: `plugins/Valmora/guis/*.yml` (17 shipped files). Files are auto-
 |---|---|---|---|
 | `<id>:` | map key | required | GUI id, **case-sensitive** (`GuiModule.java:106-110`; not normalized per §7.2) |
 | `title:` | string | `"Inventory"` | MiniMessage, formatted at open time |
-| `rows:` | int | **ignored** | parser always uses `layout.size()` (`GuiDefinitionParser.java:29`) |
+| `rows:` | int | `layout.size()` | honored as a minimum inventory height — pads blank rows below the layout if larger; never shrinks below `layout.size()` |
 | `layout:` | list[string] | required | row strings; each padded to 9 chars, row count = `rows` |
 | `update-interval:` | int | `0` | ticks between repeating `on-update` runs; 0 disables |
 | `machine:` | string | `= <id>` | recipe-module machine key |
@@ -405,7 +405,6 @@ Event DSL: the 12 registered factories are public implementations of the script 
 - **Task leak on GUI-to-GUI open.** `openGui` overwrites `openSessions.put(uuid, …)` (`GuiModule.java:113`) **without cancelling the previous session's update task**. Every `open_gui` from within a GUI with `update-interval > 0` leaks a repeating Bukkit task until that old session is closed. `closeGuiSession` on the new session does not stop the old one.
 - **`fast_travel` GUI is referenced but not shipped** (`WarpCommand.java:28`). `/warp` silently fails or misbehaves until an admin writes `fast_travel.yml`.
 - **`collections_categories` `command:` collides** with the `/collections` plugin.yml command (`Valmora.java:249`); the YAML-driven command never runs. The `command:` key is otherwise fine.
-- **`rows:` YAML key is dead** — the parser ignores it (always `layout.size()`). Harmless but misleading.
 - **No GUI module tests.** Every other subsystem has at least one unit test under `src/test/java/.../module/`; the GUI module has none (its logic is heavily Bukkit-bound, but `GuiDefinitionParser`, `ClickHandlerParser`, and the pagination slicing are testable in isolation).
 - **GUI ids are case-sensitive** (plain `HashMap`, `GuiModule.java:43`), diverging from AGENTS.md §7.2's `Registry<T>` convention.
 - **Enhancement plan Phase 5 open** (`docs/GUI_MODULE_ENHANCEMENT_PLAN.md`): docs + optimization (paginated-list/NBT parsing caching, etc.) not yet done.
@@ -424,4 +423,4 @@ Event DSL: the 12 registered factories are public implementations of the script 
 7. **PDC-first button identity** (AGENTS.md §11.12): item identity is already keyed via PDC at render time, but click routing still depends on the layout char → component map; a hardened lookup could resolve purely from the clicked slot's PDC key.
 8. **Ship a `fast_travel` default YAML** or guard `WarpCommand` when the GUI is absent.
 9. **Phase 5 optimization**: cache resolved paginated lists per session+props signature, cache parsed NBT/display item stacks across re-renders (they're currently rebuilt on every `render()`).
-10. **Remove dead keys/fields** (`rows:`, `destructure`) or implement them, and delete the unregistered sign classes if sign input is definitively dropped.
+10. **Remove dead keys/fields** (`destructure`) or implement them, and delete the unregistered sign classes if sign input is definitively dropped.

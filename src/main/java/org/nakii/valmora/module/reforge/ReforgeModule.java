@@ -44,7 +44,6 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
         loadDefinitions();
 
         // Reforge anvil: item + specific stone → apply exact reforge, cost by item rarity
-        plugin.getRecipeModule().getRecipeEngine().registerHandler("reforge", this);
         plugin.getRecipeModule().getRecipeEngine().registerHandler("reforge_anvil", new DynamicMachineHandler() {
             @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return Optional.empty(); }
             @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs, Player player) {
@@ -295,7 +294,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
 
     private void loadDefinitions() {
         YamlLoader<ReforgeDefinition> loader = new YamlLoader<>(plugin, "reforges", "Reforge");
-        loader.load(this::parseDefinition, def -> definitions.put(def.getId(), def));
+        loader.load(this::parseDefinition, def -> definitions.put(def.getId().toLowerCase(java.util.Locale.ROOT), def));
     }
 
     private LoadResult<ReforgeDefinition, String> parseDefinition(String id, ConfigurationSection section, String filePath) {

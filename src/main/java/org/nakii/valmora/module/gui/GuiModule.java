@@ -146,7 +146,7 @@ public class GuiModule implements ReloadableModule {
 
     private void openGuiInternal(Player player, String id, Map<String, Object> props,
                                   @Nullable GuiSession parentSession, @Nullable ItemBindingHandle boundHandle) {
-        GuiDefinition def = guiRegistry.get(id);
+        GuiDefinition def = id == null ? null : guiRegistry.get(id.toLowerCase(java.util.Locale.ROOT));
         if (def == null) return;
 
         GuiRenderer renderer = new GuiRenderer(plugin);
@@ -414,7 +414,7 @@ public class GuiModule implements ReloadableModule {
         GuiDefinitionParser parser = new GuiDefinitionParser(plugin);
         YamlLoader<GuiDefinition> loader = new YamlLoader<>(plugin, "guis", "GUIs");
         loader.load(parser::parse, def -> {
-            guiRegistry.put(def.getId(), def);
+            guiRegistry.put(def.getId().toLowerCase(java.util.Locale.ROOT), def);
             if (def.getCommand() != null) {
                 registerGuiCommand(def);
             }

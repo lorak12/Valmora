@@ -69,7 +69,7 @@ public class CalendarEventModule implements ReloadableModule {
     }
 
     public CalendarEventDefinition getDefinition(String id) {
-        return definitions.get(id);
+        return id == null ? null : definitions.get(id.toLowerCase(java.util.Locale.ROOT));
     }
 
     public Set<String> getActiveEventIds() {
@@ -78,7 +78,7 @@ public class CalendarEventModule implements ReloadableModule {
 
     private void loadDefinitions() {
         YamlLoader<CalendarEventDefinition> loader = new YamlLoader<>(plugin, "calendar", "Calendar Event");
-        loader.load(this::parseDefinition, def -> definitions.put(def.getId(), def));
+        loader.load(this::parseDefinition, def -> definitions.put(def.getId().toLowerCase(java.util.Locale.ROOT), def));
     }
 
     private LoadResult<CalendarEventDefinition, String> parseDefinition(String id, ConfigurationSection section, String filePath) {

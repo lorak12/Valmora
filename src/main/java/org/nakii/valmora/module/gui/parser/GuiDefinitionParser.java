@@ -26,7 +26,9 @@ public class GuiDefinitionParser {
             String titleStr = section.getString("title", "Inventory");
             int updateInterval = section.getInt("update-interval", 0);
             List<String> layoutRows = section.getStringList("layout");
-            int rows = layoutRows.size();
+            // `rows:` can explicitly request a taller inventory than the layout lines provide
+            // (e.g. to leave blank rows for padding). It can never shrink below the layout size.
+            int rows = Math.max(section.getInt("rows", layoutRows.size()), layoutRows.size());
             String machine = section.getString("machine", id);
 
             List<List<Character>> layout = new ArrayList<>();
@@ -37,6 +39,11 @@ public class GuiDefinitionParser {
                 }
                 while (rowChars.size() < 9) rowChars.add(' '); // Pad to 9 columns
                 layout.add(rowChars);
+            }
+            while (layout.size() < rows) {
+                List<Character> blankRow = new ArrayList<>();
+                for (int i = 0; i < 9; i++) blankRow.add(' ');
+                layout.add(blankRow);
             }
 
             Map<Character, GuiComponent> components = new HashMap<>();

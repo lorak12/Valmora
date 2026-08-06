@@ -10,21 +10,21 @@ baby_wolf:
   abilities:
     - trigger: ON_KILL
       events:
-        - "notify chat <green>+5 HP from Baby Wolf!"
+        - "notify <green>+5 HP from Baby Wolf! io:chat"
     - trigger: ON_DEFEND
       events:
-        - "notify chat <gray>Baby Wolf growls!"
+        - "notify <gray>Baby Wolf growls! io:chat"
   milestones:
     "25":
       - "stat_modify add crit_chance 5"
-      - "notify chat <gold>Your Baby Wolf reached milestone Level 25! +5 Crit Chance"
+      - "notify <gold>Your Baby Wolf reached milestone Level 25! +5 Crit Chance io:chat"
     "50":
       - "stat_modify add strength 15"
-      - "notify chat <gold>Your Baby Wolf reached milestone Level 50! +15 Strength"
+      - "notify <gold>Your Baby Wolf reached milestone Level 50! +15 Strength io:chat"
     "100":
       - "stat_modify add strength 25"
       - "stat_modify add crit_damage 20"
-      - "notify chat <gold>Your Baby Wolf reached Level 100! Maximum power achieved!"
+      - "notify <gold>Your Baby Wolf reached Level 100! Maximum power achieved! io:chat"
 
 baby_sheep:
   name: "Baby Sheep"
@@ -38,14 +38,14 @@ baby_sheep:
   abilities:
     - trigger: ON_DEFEND
       events:
-        - "notify chat <green>Baby Sheep shields you!"
+        - "notify <green>Baby Sheep shields you! io:chat"
   milestones:
     "25":
       - "stat_modify add defense 10"
-      - "notify chat <green>Your Baby Sheep reached Level 25! +10 Defense"
+      - "notify <green>Your Baby Sheep reached Level 25! +10 Defense io:chat"
     "50":
       - "stat_modify add health 30"
-      - "notify chat <green>Your Baby Sheep reached Level 50! +30 Health"
+      - "notify <green>Your Baby Sheep reached Level 50! +30 Health io:chat"
 
 ender_dragon_pet:
   name: "Ender Dragon"
@@ -66,7 +66,7 @@ ender_dragon_pet:
   milestones:
     "50":
       - "stat_modify add strength 50"
-      - "notify chat <dark_purple>Your Ender Dragon reached Level 50! Legendary power!"
+      - "notify <dark_purple>Your Ender Dragon reached Level 50! Legendary power! io:chat"
     "100":
       - "stat_modify add ability_damage 100"
-      - "notify chat <dark_purple>Your Ender Dragon is at Level 100! You are unstoppable."
+      - "notify <dark_purple>Your Ender Dragon is at Level 100! You are unstoppable. io:chat"

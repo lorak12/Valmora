@@ -41,7 +41,7 @@ public class GuiCommand implements TabExecutor {
         }
 
         String guiId = args[2];
-        if (!plugin.getGuiModule().getGuiRegistry().containsKey(guiId)) {
+        if (!plugin.getGuiModule().getGuiRegistry().containsKey(guiId.toLowerCase(java.util.Locale.ROOT))) {
             sender.sendMessage("GUI '" + guiId + "' not found.");
             return true;
         }

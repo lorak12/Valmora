@@ -118,7 +118,7 @@ bank:
 
 Key ideas:
 
-- **`layout:`** is a list of strings. Each string is one inventory row; every character is one slot. The GUI height equals the **number of layout rows** (the `rows:` key is currently ignored). Long component keys can span many characters — every character maps to the same component.
+- **`layout:`** is a list of strings. Each string is one inventory row; every character is one slot. The GUI height equals the number of layout rows, or `rows:` if it's larger (extra rows are padded blank). Long component keys can span many characters — every character maps to the same component.
 - **`components:`** maps each character (or multi-char key) to a component describing what that slot does.
 - **`on-open` / `on-close` / `on-slot-update` / `on-update`** attach script blocks to GUI lifecycle events.
 
@@ -271,7 +271,7 @@ Tokens accepted inside `actions`/`fail-actions` (plus every other event token re
 |---|---|---|---|
 | `<gui-id>:` | map key | **required** | The GUI's id (case-sensitive). Used by `/gui open`, `open_gui`, and NPC dialogue. |
 | `title:` | string | `Inventory` | Inventory title; MiniMessage formatting supported. |
-| `rows:` | int | `layout` length | **Currently ignored** — the number of `layout` rows is always used. |
+| `rows:` | int | `layout` length | Optional minimum inventory height — pads blank rows below the layout if larger than `layout` length; never shrinks below it. |
 | `layout:` | list of strings | **required** | One string per inventory row; each is padded to 9 columns; the component-key characters live here. |
 | `update-interval:` | int | `0` | Ticks between `on-update` runs (`0` disables the repeating task). |
 | `machine:` | string | the gui id | Recipe-engine machine id for output matching. |
@@ -358,5 +358,5 @@ All components share:
 
 - GUI ids are **case-sensitive**; always use the exact id shown in the file.
 - A dynamic `command:` name that collides with a `plugin.yml` command is silently won by the `plugin.yml` one.
-- The `rows:` key and `destructure:` are accepted but have no effect.
+- The `destructure:` key is accepted but has no effect.
 - `fast_travel` (used by `/warp`) has **no shipped definition** — create `guis/fast_travel.yml` or `/warp` has nothing to open.

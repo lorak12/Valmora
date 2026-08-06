@@ -167,7 +167,7 @@ public class ScoreboardUI {
     // Fallback when config hasn't loaded yet (e.g. very early tick before UIManager finishes onEnable)
     private List<Component> legacyLines(Player player) {
         List<Component> lines = new ArrayList<>();
-        lines.add(Formatter.format("<yellow>pay.valmora.net"));
+        lines.add(Formatter.format("<gold><bold>VALMORA RPG"));
         lines.add(Component.empty());
 
         try {
