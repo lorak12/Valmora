@@ -1,0 +1,18 @@
+# ============================================================
+# Notification categories — the Slayers package
+# ============================================================
+# Use them in actions: notify <message> category:<name>
+
+notifications:
+
+  # Objective `notify:` progress pings (e.g. "Kill (3/5)") always go through the built-in
+  # "info" category — override it here so they show in the action bar instead of chat.
+  info:
+    io: actionbar
+
+  # Boss-defeated reward message — shown as a title.
+  slayer_complete:
+    io: title
+    fadeIn: "10"
+    stay: "60"
+    fadeOut: "20"

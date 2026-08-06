@@ -3,6 +3,13 @@
 > **Module ID:** `stats` | **Package:** `org.nakii.valmora.module.stat`
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 
+> **Generic-engine refactor (Phase 3.1):** `SystemStats`'s 15 role→stat-id mappings now come from
+> `StatRoleRegistry` (`stats/core.yml` → `stat_roles:`, plus the legacy `config.yml` keys, plus
+> built-in defaults — all three still work). New roles can be added without a code change. A
+> profile's stat data for a since-deleted/renamed role is preserved in
+> `ValmoraProfile.getQuarantinedStats()` rather than lost (Phase 5 Task 21). See
+> `docs/REFACTOR/CONFIG_REFERENCE.md` / `docs/REFACTOR/PROGRESS.md` for details.
+
 ---
 
 ## Table of Contents
@@ -130,7 +137,7 @@ Note that `addStat`/`reduceStat`/`setStat` each trigger an immediate `recalculat
    - If the item carries an `ITEM_ID_KEY` (a Valmora custom item), run every `PASSIVE`-triggered ability mechanic with `mechanic.execute(player, player)` (`:113-127`). Passive mechanics must apply themselves through `addModifier` (see `ModifyStatMechanic` duration `-1` path, §7).
    - Read Valmora enchantments via `EnchantmentHelper.getEnchantments(item)`; for each, call `enchantDef.getLogic().applyStats(player, level, this)` (`:129-135`).
 5. **Alchemy effects** — `alchemyManager.applyEffectsToStats(player, this)` (`StatManager.java:138-141`).
-6. **Accessory bag** — every accessory in the profile's `getAccessoryItems()` contributes its PDC stats (`:143-155`).
+6. **Accessory bag** — every accessory item sitting in the GUI-owned accessory-bag `STORAGE` slots (see `docs/modules/design/backpack.md`) contributes its PDC stats. There is no `getAccessoryItems()` on the profile anymore — the bag's contents are read directly from the `STORAGE` component's backing store, not a dedicated profile field.
 7. **Pet bonuses** — `petModule.applyPetStats(player, this)` for the summoned pet (`:157-161`).
 8. **Armor set bonuses** — `SetBonusService.applyTo(player, this)` (cumulative per set-tier, `:163-164`).
 9. **Progression-tree bonuses** — `ProgressionStatService.applyTo(player, this)` (`:166-167`).

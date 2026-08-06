@@ -19,6 +19,7 @@ public class ItemDefinition {
     private final Map<String, AbilityDefinition> abilities;
     private final List<String> reforgePool;
     private final String set;
+    private final String containerGui;
 
     private ItemDefinition(Builder builder) {
         this.id = builder.id;
@@ -33,6 +34,7 @@ public class ItemDefinition {
         this.abilities = builder.abilities;
         this.reforgePool = builder.reforgePool;
         this.set = builder.set;
+        this.containerGui = builder.containerGui;
     }
 
     public String getId() { return id; }
@@ -47,6 +49,8 @@ public class ItemDefinition {
     public Map<String, AbilityDefinition> getAbilities() { return abilities; }
     public List<String> getReforgePool() { return reforgePool; }
     public String getSet() { return set; }
+    /** GUI id opened when this item is used as a storage-slot container (e.g. a backpack). */
+    public String getContainerGui() { return containerGui; }
 
     public static class Builder {
         private final String id;
@@ -61,6 +65,7 @@ public class ItemDefinition {
         private Map<String, AbilityDefinition> abilities = new HashMap<>();
         private List<String> reforgePool = List.of();
         private String set = null;
+        private String containerGui = null;
 
         public Builder(String id) {
             this.id = id;
@@ -77,6 +82,7 @@ public class ItemDefinition {
         public Builder ability(String id, AbilityDefinition ability) { this.abilities.put(id, ability); return this; }
         public Builder reforgePool(List<String> pool) { this.reforgePool = pool; return this; }
         public Builder set(String set) { this.set = set; return this; }
+        public Builder containerGui(String containerGui) { this.containerGui = containerGui; return this; }
 
         public ItemDefinition build() {
             return new ItemDefinition(this);

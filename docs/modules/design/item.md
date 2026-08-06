@@ -4,6 +4,15 @@
 > **Package:** `org.nakii.valmora.module.item` | **Module IDs:** `items` ("Item Engine") + `abilities` ("Ability System") | **Name:** "Item Engine" / "Ability System"
 > **Dependencies:** `scriptModule` (mechanic expression conditions via `getExpressionEvaluator()`, `getVariableResolver()`), `statModule` (`StatRegistry`, `StatManager.saveStats`), `combatModule` (ON_HIT dispatch, `DamageCalculator`/`DamageType`), `profileModule` (`ValmoraProfile`, `CooldownManager`, `PlayerState` mana/heal), `economy` (GiveCoins/TakeCoins mechanics via `EconomyService`)
 
+> **Generic-engine refactor (Phase 4.1 / Phase 5 Task 20):** `ItemType` is no longer a Java `enum`
+> — registry-backed (same pattern as `DamageType`), extensible via `item_types.yml`. Separately,
+> `AbilityDefinition.getConditions()` is no longer `List<String>` re-evaluated per trigger — it's a
+> pre-compiled `ConditionGroup` (`ScriptModule.getConditionParser().parseList(...)`, compiled once
+> at item-load time), fixing a hot-path re-parse on every `ON_HIT` trigger and gaining the full
+> condition DSL (`tag`/`health`/`hunger`/`location`/`zone`/`variable`/`objective`/`quest`/`point`,
+> not just raw expressions) for free. See `docs/REFACTOR/CONFIG_REFERENCE.md` and
+> `docs/REFACTOR/PROGRESS.md` (Phase 4, Phase 5 Task 20).
+
 ---
 
 ## Table of Contents
@@ -27,7 +36,7 @@ The **Item Module** is the engine that defines, creates, and applies **custom RP
 The module is split into **two registered modules** living in the same package:
 
 1. **`items`** (`ItemManager`, "Item Engine") — definitions, registry, factory, translation of vanilla items, set bonuses, and loot handling.
-2. **`abilities`** (`AbilityManager`, "Ability System") — the ability/mechanic execution system that the item definitions reference (`abilities:` YAML section). It is registered before `items` (`Valmora.java:196-197`) and exposes a shared `mechanicRegistry` that other modules extend (e.g. `BackpackModule.java:35` registers `BackpackMechanic`).
+2. **`abilities`** (`AbilityManager`, "Ability System") — the ability/mechanic execution system that the item definitions reference (`abilities:` YAML section). It is registered before `items` (`Valmora.java:196-197`) and exposes a shared `mechanicRegistry` that other modules extend (e.g. `GuiModule` registers `OpenContainerMechanic` as `OPEN_CONTAINER_GUI`, the generic item-storage-open mechanic used by backpacks/accessories — see `docs/modules/design/backpack.md`).
 
 Every item definition carries zero or more **abilities**, each gated by a **trigger** (`AbilityTrigger`), optional **conditions** (script expressions), a **cooldown**, a **mana cost**, and a list of **mechanics** (small parameterized effects like damage, heal, teleport, launch projectile, AoE mine). Mechanics are executed by the shared dispatcher `AbilityExecutor.fire(...)` (`AbilityExecutor.java:32-82`), which is called from every trigger source: click listeners, on-kill/on-sneak/on-shoot listeners, the combat module's ON_HIT hook, and the passive scan inside `StatManager.recalculateStats`.
 
@@ -159,7 +168,7 @@ The `/item` command is registered in `Valmora.onEnable()` after all modules — 
 - **`AbilityDefinition`** (`AbilityDefinition.java`): id, name, trigger, targetRange, cooldown, manaCost, description, conditions (list of script expressions), mechanics (list of `ConfiguredMechanic`).
 - **`AbilityMechanic`** interface (`AbilityMechanic.java:9,16`): `String getId()` and `void execute(ExecutionContext)`.
 - **`ConfiguredMechanic`** (`ConfiguredMechanic.java:18-27`): binds a `MechanicRegistry` mechanic to its parsed params; `execute(ctx)` centers on `ctx.getLocation()` while `executeAt(loc, ctx)` supports impact-point origin for projectiles.
-- **`MechanicRegistry`** (`MechanicRegistry.java:10-21`): stores mechanics keyed by **uppercase** id; `getMechanic` uppercases on lookup. Shared publicly via `AbilityManager.mechanicRegistry` (`AbilityManager.java:9`) — other modules (e.g. backpack) register their own mechanics here (`BackpackModule.java:35`).
+- **`MechanicRegistry`** (`MechanicRegistry.java:10-21`): stores mechanics keyed by **uppercase** id; `getMechanic` uppercases on lookup. Shared publicly via `AbilityManager.mechanicRegistry` (`AbilityManager.java:9`) — other modules register their own mechanics here (e.g. `GuiModule` registers `OpenContainerMechanic`).
 - **`MechanicParser`** (`MechanicParser.java:33-56`): parses a list of maps into `ConfiguredMechanic`s, reading the `type` key and throwing `UnknownMechanicException` (`MechanicParser.java:19-23`) for unknown types. Shared with the mob/boss ability loader.
 
 ### 3.9 AbilityExecutor — the dispatcher
@@ -317,7 +326,7 @@ Shared static keys are initialized once in `Keys.init(plugin)` (`Keys.java:42`).
 
 - `ItemManager.createItemStack(id)` (`ItemManager.java:69-84`): custom item first, then `Material.matchMaterial` + `ItemTranslator.translate` fallback.
 - `AbilityExecutor.fire(...)` / `fireHeld(...)` (static): programmatic ability activation.
-- `MechanicRegistry.registerMechanic(AbilityMechanic)`: extension point for other modules (used by backpack, `BackpackModule.java:35`).
+- `MechanicRegistry.registerMechanic(AbilityMechanic)`: extension point for other modules (used by `GuiModule` to register `OpenContainerMechanic`).
 - `SetBonusService.applyTo(player, StatManager)`, `TemporaryStatService.add/applyTo/removeForStat`.
 
 ### 6.3 Command — `/item`

@@ -26,17 +26,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
 
-    /** Coin cost to randomly reforge an item, keyed by the item's rarity. */
-    private static final Map<Rarity, Integer> RARITY_COST = new EnumMap<>(Rarity.class);
-    static {
-        RARITY_COST.put(Rarity.COMMON,    250);
-        RARITY_COST.put(Rarity.UNCOMMON,  500);
-        RARITY_COST.put(Rarity.RARE,     1000);
-        RARITY_COST.put(Rarity.EPIC,     2500);
-        RARITY_COST.put(Rarity.LEGENDARY,5000);
-        RARITY_COST.put(Rarity.MYTHIC,  10000);
-        RARITY_COST.put(Rarity.DIVINE,  15000);
-    }
+    // Phase 4.4 (docs/REFACTOR/PROGRESS.md): coin cost to randomly reforge an item, keyed by the
+    // item's rarity, now loaded from enchant/forge_costs.yml instead of a hardcoded EnumMap.
+    private final ForgeCostRegistry forgeCostRegistry = new ForgeCostRegistry();
 
     private final Valmora plugin;
     private final Map<String, ReforgeDefinition> definitions = new HashMap<>();
@@ -48,6 +40,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
     @Override
     public void onEnable() {
         definitions.clear();
+        forgeCostRegistry.load(plugin);
         loadDefinitions();
 
         // Reforge anvil: item + specific stone → apply exact reforge, cost by item rarity
@@ -71,6 +64,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
     @Override
     public void onDisable() {
         definitions.clear();
+        forgeCostRegistry.clear();
     }
 
     @Override
@@ -119,7 +113,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
         if (!def.appliesTo(itemType)) return Optional.empty();
 
         Rarity rarity = readRarity(baseItem);
-        int cost = RARITY_COST.getOrDefault(rarity, 250);
+        int cost = forgeCostRegistry.getCost(rarity);
 
         if (!checkAndNotifyCoins(player, cost)) return Optional.empty();
 
@@ -155,7 +149,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
         if (eligible.isEmpty()) return Optional.empty();
 
         ReforgeDefinition chosen = eligible.get(ThreadLocalRandom.current().nextInt(eligible.size()));
-        int cost = RARITY_COST.getOrDefault(rarity, 250);
+        int cost = forgeCostRegistry.getCost(rarity);
 
         if (!checkAndNotifyCoins(player, cost)) return Optional.empty();
 
@@ -225,7 +219,7 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
         for (Rarity rarity : Rarity.values()) {
             Map<String, Double> bonuses = byRarity.get(rarity);
             if (bonuses == null || bonuses.isEmpty()) continue;
-            int cost = RARITY_COST.getOrDefault(rarity, 250);
+            int cost = forgeCostRegistry.getCost(rarity);
             StringBuilder line = new StringBuilder();
             line.append(rarity.getColor()).append(rarity.getName())
                 .append(" <dark_gray>(").append(formatCoins(cost)).append(" Coins)<gray>:");

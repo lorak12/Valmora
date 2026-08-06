@@ -1,0 +1,27 @@
+# Fishing pipeline — optional hook points around resolving a catch. See
+# docs/COMBAT_PIPELINE_ANALYSIS.md for the full design rationale.
+#
+# Leave `stages` empty (or delete this file) and fishing behaves exactly as if this feature didn't
+# exist — FishingManager skips the pipeline entirely when no stage is registered.
+#
+# Insertion points ("when"):
+#   pre_catch   - before the sea-creature roll / loot table roll. `interrupt` here cancels the
+#                 catch entirely (nothing granted) — the stage should message the player itself.
+#   post_catch  - after the reward (item or sea creature) is resolved.
+#
+# Variables: $fishing.table$ (loot table id for the player's current zone), and after the roll:
+# $fishing.item$ / $fishing.amount$, or $fishing.sea_creature$ (mob id) — plus the usual
+# $player.*$, $prop.*$, etc.
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: announce_sea_creature
+#     when: post_catch
+#     conditions:
+#       - "$fishing.sea_creature$ != null"
+#     on-pass:
+#       - "notify <aqua>Something is emerging from the depths...</aqua>"
+#     on-fail: []
+
+stages: []

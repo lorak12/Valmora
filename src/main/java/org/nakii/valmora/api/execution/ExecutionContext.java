@@ -7,13 +7,31 @@ import org.bukkit.entity.Player;
 import org.nakii.valmora.api.scripting.TagService;
 import org.nakii.valmora.api.scripting.VariableResolver;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents the context in which an execution (ability, mechanic, trigger) occurs.
  * Carries all necessary information about the caster, target, location, and parameters.
+ *
+ * <p><b>Not thread-safe across invocations:</b> an ExecutionContext is strictly transient — scoped
+ * to a single mechanic/ability/trigger invocation. Never store one as a field or pass it to another
+ * thread after the invocation returns (see CLAUDE.md §7.3 and §7.5).
  */
 public interface ExecutionContext {
+
+    /**
+     * Backing store for the generic per-invocation key-value attachments (Phase 1.2 —
+     * docs/REFACTOR/PROGRESS.md). Keyed by context identity in a weakly-referenced map so any
+     * implementer — including test doubles that don't declare a field for it — gets a working,
+     * thread-safe {@code get}/{@code set} for free via the default methods below.
+     */
+    Map<ExecutionContext, ConcurrentHashMap<String, Object>> ATTACHMENTS =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     /**
      * Returns the entity that casted/triggered this execution.
@@ -110,5 +128,79 @@ public interface ExecutionContext {
         Object raw = getParams() == null ? null : getParams().get(key);
         if (raw == null) return def;
         return getVariableResolver().resolveTemplate(raw.toString(), this);
+    }
+
+    // --- Generic key-value store with parent-child inheritance (Phase 1.2) ---
+    // Namespaced keys by convention, e.g. "pet:level", "slayer:target". `set` always writes to the
+    // local context; `get` checks the local map first and falls through to the parent chain.
+
+    /**
+     * Reads a namespaced attachment, checking this context first and then walking up the parent
+     * chain. Returns {@code null} if not found anywhere in the chain.
+     */
+    @SuppressWarnings("unchecked")
+    default <T> T get(String key) {
+        ConcurrentHashMap<String, Object> local = ATTACHMENTS.get(this);
+        Object value = local != null ? local.get(key) : null;
+        if (value != null) {
+            return (T) value;
+        }
+        ExecutionContext parent = getParent();
+        return parent != null ? parent.get(key) : null;
+    }
+
+    /**
+     * Same as {@link #get(String)}, but returns {@code defaultValue} instead of {@code null}.
+     */
+    default <T> T get(String key, T defaultValue) {
+        T value = get(key);
+        return value != null ? value : defaultValue;
+    }
+
+    /**
+     * Writes a namespaced attachment. Always writes to the local context — never to a parent,
+     * even if the key currently resolves through inheritance.
+     */
+    default void set(String key, Object value) {
+        ATTACHMENTS.computeIfAbsent(this, c -> new ConcurrentHashMap<>()).put(key, value);
+    }
+
+    /**
+     * Removes a namespaced attachment from this context only. Does not affect the parent chain.
+     */
+    default Object remove(String key) {
+        ConcurrentHashMap<String, Object> local = ATTACHMENTS.get(this);
+        return local != null ? local.remove(key) : null;
+    }
+
+    /**
+     * @return true if {@link #get(String)} would resolve a non-null value, local or inherited.
+     */
+    default boolean has(String key) {
+        return get(key) != null;
+    }
+
+    /**
+     * @return the keys attached directly to this context (does not include parent keys).
+     */
+    default Set<String> keySet() {
+        ConcurrentHashMap<String, Object> local = ATTACHMENTS.get(this);
+        return local != null ? Collections.unmodifiableSet(local.keySet()) : Collections.emptySet();
+    }
+
+    /**
+     * @return the parent context to fall through to on a local miss, or null if this is a root context.
+     */
+    default ExecutionContext getParent() {
+        return null;
+    }
+
+    /**
+     * Sets the parent context for inheritance. Implementations that want real parent-child nesting
+     * (e.g. {@link SimpleExecutionContext}) should override this and {@link #getParent()} to back
+     * onto a real field; the default no-ops so existing implementers keep compiling unchanged.
+     */
+    default void setParent(ExecutionContext parent) {
+        // no-op by default
     }
 }

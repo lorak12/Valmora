@@ -3,7 +3,7 @@ package org.nakii.valmora.module.combat;
 
 import org.bukkit.entity.LivingEntity;
 
-import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.Valmora;
 
 public class DamageResult {
     private final double finalDamage;
@@ -30,7 +30,10 @@ public class DamageResult {
     }
 
     public void apply() {
-        DamageApplier applier = new DamageApplier(this, (org.bukkit.plugin.Plugin) ValmoraAPI.getInstance());
+        // NOTE: intentionally Valmora.getInstance(), not ValmoraAPI.getInstance() — DamageApplier
+        // needs a real org.bukkit.plugin.Plugin (for its logger), which ValmoraAPIImpl is not
+        // (see docs/REFACTOR/PROGRESS.md — ValmoraAPIImpl deliberately does not extend JavaPlugin).
+        DamageApplier applier = new DamageApplier(this, Valmora.getInstance());
         applier.applyDamage();
     }
 

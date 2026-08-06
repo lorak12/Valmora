@@ -1,0 +1,29 @@
+# Resource (mining) pipeline — optional hook points around breaking a tracked/zone-configured
+# resource block. See docs/COMBAT_PIPELINE_ANALYSIS.md for the full design rationale.
+#
+# This only fires for resource blocks configured in a zone's `resource-blocks` section (see
+# docs/modules/design/resource.md) — ordinary vanilla block breaking never touches this pipeline.
+# Leave `stages` empty (or delete this file) and mining behaves exactly as if this feature didn't
+# exist — ResourceManager skips the pipeline entirely when no stage is registered.
+#
+# Insertion points ("when"):
+#   pre_break   - after the Breaking Power gate passes, before drops are rolled.
+#                 `interrupt` here cancels the break the same way insufficient power would
+#                 (no drops, block untouched) — the stage should message the player itself.
+#   post_break  - after drops are granted and the block has progressed/regenerated.
+#
+# Variables: $resource.material$ (original block material), $resource.stage$ (0-based stage
+# index), plus the usual $player.*$, $prop.*$, etc.
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: fortune_zone_bonus
+#     when: pre_break
+#     conditions:
+#       - "zone crystal_hollows"
+#     on-pass:
+#       - "notify <light_purple>Crystal resonance!</light_purple>"
+#     on-fail: []
+
+stages: []

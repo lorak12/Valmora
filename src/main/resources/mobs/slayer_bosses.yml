@@ -1,0 +1,146 @@
+# Boss mobs for the quests/slayers package (resources/quests/slayers/quests.yml).
+# Each tier's "kill" objective spawns its own boss id on completion; the "boss" objective
+# then requires killing that exact mob. Stats scale up per tier within a chain.
+
+# ---------------------------------------------------------------- Zombie Slayer bosses
+zombie_slayer_boss_1:
+  category: BOSS
+  type: ZOMBIE
+  name: "<dark_purple>Revenant Horror</dark_purple>"
+  level: 10
+  damage-type: MELEE
+  base-xp: 50
+  gold-reward: 50
+  stats:
+    health: 800
+    damage: 40
+    defense: 20
+    speed: 0.28
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: PURPLE
+    style: SOLID
+    range: 30
+
+zombie_slayer_boss_2:
+  category: BOSS
+  type: ZOMBIE
+  name: "<dark_purple>Revenant Horror <gray>II</dark_purple>"
+  level: 25
+  damage-type: MELEE
+  base-xp: 150
+  gold-reward: 150
+  stats:
+    health: 3000
+    damage: 90
+    defense: 60
+    speed: 0.3
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: PURPLE
+    style: SEGMENTED_6
+    range: 30
+
+zombie_slayer_boss_3:
+  category: BOSS
+  type: ZOMBIE_VILLAGER
+  name: "<dark_purple>Revenant Horror <gray>III</dark_purple>"
+  level: 45
+  damage-type: MELEE
+  base-xp: 400
+  gold-reward: 400
+  stats:
+    health: 9000
+    damage: 160
+    defense: 120
+    speed: 0.32
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: PURPLE
+    style: SEGMENTED_10
+    range: 40
+
+# ---------------------------------------------------------------- Spider Slayer bosses
+spider_slayer_boss_1:
+  category: BOSS
+  type: SPIDER
+  name: "<dark_gray>Broodmother</dark_gray>"
+  level: 10
+  damage-type: MELEE
+  base-xp: 50
+  gold-reward: 50
+  stats:
+    health: 700
+    damage: 35
+    defense: 15
+    speed: 0.35
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: GREEN
+    style: SOLID
+    range: 30
+
+spider_slayer_boss_2:
+  category: BOSS
+  type: CAVE_SPIDER
+  name: "<dark_gray>Broodmother <gray>II</dark_gray>"
+  level: 30
+  damage-type: MELEE
+  base-xp: 200
+  gold-reward: 200
+  stats:
+    health: 4000
+    damage: 100
+    defense: 70
+    speed: 0.38
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: GREEN
+    style: SEGMENTED_6
+    range: 30
+
+# ---------------------------------------------------------------- Wolf Slayer bosses
+wolf_slayer_boss_1:
+  category: BOSS
+  type: WOLF
+  name: "<white>Alpha Fang</white>"
+  level: 10
+  damage-type: MELEE
+  base-xp: 50
+  gold-reward: 50
+  stats:
+    health: 750
+    damage: 38
+    defense: 18
+    speed: 0.4
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: WHITE
+    style: SOLID
+    range: 30
+
+wolf_slayer_boss_2:
+  category: BOSS
+  type: WOLF
+  name: "<white>Alpha Fang <gray>II</white>"
+  level: 35
+  damage-type: MELEE
+  base-xp: 300
+  gold-reward: 300
+  stats:
+    health: 5500
+    damage: 120
+    defense: 90
+    speed: 0.42
+  glowing: true
+  boss-bar:
+    enabled: true
+    color: WHITE
+    style: SEGMENTED_10
+    range: 35

@@ -145,13 +145,14 @@ The full list (module ID ← field), with the dependency comments from source:
 | 26 | `calendar` | `calendarEventModule` | "Depends on scriptModule + timeModule" |
 | 27 | `reforges` | `reforgeModule` | "Depends on recipeModule (registers handler)" |
 | 28 | `pets` | `petModule` | "Depends on scriptModule + statModule" |
-| 29 | `slayers` | `slayerModule` | "Depends on scriptModule + mobModule" |
-| 30 | `accessories` | `accessoryModule` | "Depends on statModule for recalc" |
-| 31 | `backpacks` | `backpackModule` | "Depends on abilityManager for mechanic" |
-| 32 | `quivers` | `quiverModule` | "Depends on playerManager for the active profile" |
-| 33 | `progression` | `progressionModule` | "Depends on scriptModule + pointsModule (generic tree/skill-point engine)" |
+| 29 | `progression` | `progressionModule` | "Depends on scriptModule + pointsModule (generic tree/skill-point engine)" |
 
-Module IDs are confirmed by the `getId()` implementations (e.g. `CombatModule` → `"combat"`, `EnchantModule` → `"enchants"`, `ItemManager` → `"items"`, `AbilityManager` → `"abilities"`, `MobManager` → `"mobs"`, `PlayerManager` → `"profiles"`, `ScriptModule` → `"script"`, `UIManager` → `"ui"`, `RecipeModule` → `"recipe"`, `StatModule` → `"stats"`, `TimeModule` → `"time"`, `SkillModule` → `"skills"`, `GuiModule` → `"gui"`). Note the plural/singular mismatches: `stats`/`skills`/`enchants`/`zones`/`npcs`/`warps`/`quests`/`pets`/`slayers` are plural while `script`, `time`, `economy`, `ui`, `gui`, `recipe`, `alchemy`, `combat` are singular — callers must use the exact ID (e.g. `reloadModule("items")` works, but the item manager's ID is `"items"`).
+> **Removed:** `slayerModule`, `accessoryModule`, `backpackModule`, and `quiverModule` no longer
+> exist — slayer content is now quest packages + GUI, accessories/backpacks are a GUI `STORAGE`
+> component over ordinary items, and quiver has no replacement. See
+> `docs/modules/design/backpack.md` and `docs/modules/design/slayer.md`.
+
+Module IDs are confirmed by the `getId()` implementations (e.g. `CombatModule` → `"combat"`, `EnchantModule` → `"enchants"`, `ItemManager` → `"items"`, `AbilityManager` → `"abilities"`, `MobManager` → `"mobs"`, `PlayerManager` → `"profiles"`, `ScriptModule` → `"script"`, `UIManager` → `"ui"`, `RecipeModule` → `"recipe"`, `StatModule` → `"stats"`, `TimeModule` → `"time"`, `SkillModule` → `"skills"`, `GuiModule` → `"gui"`). Note the plural/singular mismatches: `stats`/`skills`/`enchants`/`zones`/`npcs`/`warps`/`quests`/`pets` are plural while `script`, `time`, `economy`, `ui`, `gui`, `recipe`, `alchemy`, `combat` are singular — callers must use the exact ID (e.g. `reloadModule("items")` works, but the item manager's ID is `"items"`).
 
 ---
 
@@ -430,8 +431,8 @@ All command executors are registered **in `Valmora.onEnable()` after `enableModu
 | `/warp` | `WarpCommand` | `Valmora.java:245` | — |
 | `/zone` | `ZoneCommand` | `Valmora.java:246-248` | `setTabCompleter` |
 | `/collections` | `CollectionCommand` | `Valmora.java:249` | — |
-| `/accessories` | lambda | `Valmora.java:250-254` | `accessoryModule.openAccessoryBag(player)` |
-| `/quiver` | lambda | `Valmora.java:255-259` | `quiverModule.openQuiver(player)` |
+
+`/accessories` is no longer a hardcoded command — it's a GUI `command:` binding (`guis/accessory_bag.yml`'s `command: accessories` field), registered generically by the GUI module for any GUI that declares one. There is no `/quiver` command; the feature has no current implementation.
 
 ### 9.1 `ValmoraCommand` — the engine master command — `ValmoraCommand.java`
 

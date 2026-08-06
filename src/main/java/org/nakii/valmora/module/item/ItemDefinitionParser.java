@@ -76,6 +76,11 @@ public class ItemDefinitionParser {
             builder.set(section.getString("set"));
         }
 
+        // GUI id to open when this item is used as a storage-slot container (e.g. a backpack)
+        if (section.contains("container-gui")) {
+            builder.containerGui(section.getString("container-gui"));
+        }
+
         // Stats
         if (section.contains("stats")) {
             StatRegistry statRegistry = ValmoraAPI.getInstance().getStatRegistry();
@@ -119,7 +124,11 @@ public class ItemDefinitionParser {
                     }
 
                     if (abSec.contains("conditions")) {
-                        abBuilder.conditions(abSec.getStringList("conditions"));
+                        // Pre-compiled once here (Phase 5 Task 20) — see AbilityDefinition's
+                        // field comment for why this used to be a hot-path re-parse.
+                        var compiled = ValmoraAPI.getInstance().getScriptModule()
+                                .getConditionParser().parseList(abSec.getStringList("conditions"));
+                        abBuilder.conditions(compiled);
                     }
 
                     // Parse Mechanics List

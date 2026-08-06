@@ -9,6 +9,7 @@ public class FishingModule implements ReloadableModule {
     private final Valmora plugin;
     private FishingManager fishingManager;
     private FishingListener listener;
+    private FishingPipelineLoader pipelineLoader;
 
     public FishingModule(Valmora plugin) {
         this.plugin = plugin;
@@ -21,6 +22,11 @@ public class FishingModule implements ReloadableModule {
         new FishingLoader(plugin, fishingManager.getRegistry()).load();
         this.listener = new FishingListener(fishingManager);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+
+        // Fishing pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — depends on scriptModule, which
+        // registers/enables before this module (see module order in Valmora.onEnable()).
+        this.pipelineLoader = new FishingPipelineLoader(plugin, plugin.getScriptModule());
+        pipelineLoader.load();
     }
 
     @Override
@@ -28,6 +34,10 @@ public class FishingModule implements ReloadableModule {
         plugin.getLogger().info("Disabling Fishing Module...");
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
         if (fishingManager != null) { fishingManager.getRegistry().clear(); fishingManager = null; }
+        if (plugin.getScriptModule() != null) {
+            plugin.getScriptModule().getHookBus().clearYamlStages(FishingPipelineLoader.POINT_PREFIX);
+        }
+        pipelineLoader = null;
     }
 
     @Override public String getId() { return "fishing"; }

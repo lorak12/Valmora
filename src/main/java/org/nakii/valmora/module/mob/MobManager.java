@@ -16,6 +16,8 @@ public class MobManager implements ReloadableModule {
     private final MobLoader mobLoader;
     private final MobDeathListener deathListener;
     private final BossController bossController;
+    private final EntityCategoryRegistry entityCategoryRegistry;
+    private MobPipelineLoader pipelineLoader;
 
     public MobManager(Valmora plugin) {
         this.plugin = plugin;
@@ -24,14 +26,24 @@ public class MobManager implements ReloadableModule {
         this.mobRegistry = new MobRegistry();
         this.mobLoader = new MobLoader(plugin, mobRegistry);
         this.deathListener = new MobDeathListener(plugin);
+        this.entityCategoryRegistry = new EntityCategoryRegistry();
     }
 
     @Override
     public void onEnable() {
         plugin.getLogger().info("Starting Mob Module...");
         Bukkit.getPluginManager().registerEvents(deathListener, plugin);
+        MobCategoryLoader.load(plugin);
+        entityCategoryRegistry.load(plugin);
         mobLoader.loadMobs();
         bossController.start();
+
+        // Mob ability pipeline (docs/VALMORA_DOCUMENTATION.md §39) — depends on scriptModule,
+        // which registers/enables before this module (see module order in Valmora.onEnable()).
+        if (plugin.getScriptModule() != null) {
+            this.pipelineLoader = new MobPipelineLoader(plugin, plugin.getScriptModule());
+            pipelineLoader.load();
+        }
     }
 
     @Override
@@ -39,6 +51,11 @@ public class MobManager implements ReloadableModule {
         plugin.getLogger().info("Stopping Mob Module...");
         bossController.stop();
         mobRegistry.clear();
+        entityCategoryRegistry.clear();
+        if (plugin.getScriptModule() != null) {
+            plugin.getScriptModule().getHookBus().clearYamlStages(MobPipelineLoader.POINT_PREFIX);
+        }
+        pipelineLoader = null;
     }
 
     @Override
@@ -78,5 +95,9 @@ public class MobManager implements ReloadableModule {
 
     public BossController getBossController() {
         return bossController;
+    }
+
+    public EntityCategoryRegistry getEntityCategoryRegistry() {
+        return entityCategoryRegistry;
     }
 }

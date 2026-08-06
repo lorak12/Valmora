@@ -14,7 +14,7 @@ import org.nakii.valmora.module.mob.ability.MobAbilityParser;
 import org.nakii.valmora.api.config.LoadResult;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -83,7 +83,7 @@ public class MobDefinitionParser {
         // Damage resistances / immunities (DamageType -> fraction 0..1, 1.0 = immune)
         ConfigurationSection resistSection = section.getConfigurationSection("resistances");
         if (resistSection != null) {
-            Map<DamageType, Double> resistances = new EnumMap<>(DamageType.class);
+            Map<DamageType, Double> resistances = new HashMap<>();
             for (String typeKey : resistSection.getKeys(false)) {
                 DamageType type;
                 try {

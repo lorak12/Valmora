@@ -28,6 +28,11 @@ public class ResourceListener implements Listener {
                 event.setCancelled(true);
                 player.sendMessage(Formatter.format("<red>This ore requires a more powerful tool."));
             }
+            case INTERRUPTED -> {
+                // A resource:pre_break pipeline stage cancelled the break — the stage is
+                // responsible for messaging the player itself (e.g. via the `notify` event).
+                event.setCancelled(true);
+            }
             case HANDLED -> {
                 event.setDropItems(false);
                 double spread = getPlayerMiningSpread(player);

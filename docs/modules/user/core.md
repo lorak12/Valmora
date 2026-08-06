@@ -95,8 +95,7 @@ All commands are registered by the engine after all modules load. Admin commands
 | `/quest` | `journal` (default) | none | Opens the quest journal GUI. See `docs/modules/user/quest.md` (if present). |
 | `/npc` | `create <id> <entity_type>` · `delete <id>` · `list` · `info <id>` · `tp <id>` · `move <id>` · `rename <id> <name>` · `settype <id> <type>` · `setyaw <id> [yaw]` · `conversation <id> <dialogue_id>` · `clearconv <id>` · `skin <id> <player\|url\|file\|reset> [value]` · `near [radius]` · `look <id>` · `showname <id>` · `reload` | Admin | Skins apply only to `MANNEQUIN` NPCs. `skin file` needs `npc-skin-server.enabled: true`. Note: `/npc reload` reloads **all** modules, not just NPCs. See `docs/modules/user/npc.md` (if present). |
 | `/collections` | (no args) | none | Opens the collections menu. See `docs/modules/user/collection.md`. |
-| `/accessories` | (no args) | none | Opens your accessory bag. See `docs/modules/user/accessory.md`. |
-| `/quiver` | (no args) | none | Opens your 27-slot quiver (arrows only). See `docs/modules/user/quiver.md`. |
+| `/accessories` | (no args) | none | Opens your accessory bag (a GUI `command:` binding, not a dedicated module). See `docs/modules/user/backpack.md`. |
 
 ---
 

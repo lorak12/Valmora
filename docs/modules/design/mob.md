@@ -3,6 +3,11 @@
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 > **Module ID:** `mobs` | **Source:** `src/main/java/org/nakii/valmora/module/mob/`
 
+> **Generic-engine refactor (Phase 3.4):** `MobCategory` is no longer a Java `enum` — it's a
+> registry-backed class (same pattern as `DamageType`), extensible via `mob_categories.yml`. The
+> original 10 categories and every existing `category:` reference are unaffected. See
+> `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Table of Contents
@@ -363,7 +368,7 @@ Map of ability-ID → ability config (`MobAbilityParser.java:27-69`). Any abilit
 - **Entity PDC tags written by this module:**
   - `Keys.MOB_ID_KEY` → `valmora:valmora_mob_id` (`Keys.java:47`) — definition ID (`MobFactory.java:27`).
   - Zone spawners additionally write `Keys.MOB_HOME_KEY` (`valmora:mob_home`, `Keys.java:61`) — `x,y,z,wanderRadius,worldName` — used by the zone behavior task (`ZoneManager.java:145-148`).
-  - The slayer module writes `Keys.SLAYER_BOSS_KEY` onto a spawned boss to bind it to a slayer task (`SlayerListener.java:116`).
+  - There is no `Keys.SLAYER_BOSS_KEY` — the old slayer module used to tag a spawned boss with it to bind it to a task, but slayer bosses are now matched by plain mob-id equality (a quest's `boss` objective targets the boss's exact mob id directly), so no PDC binding is needed. See `docs/modules/design/slayer.md`.
 - **Registry lifecycle:** populated in `MobLoader.loadMobs()` (`onEnable`), cleared in `MobManager.onDisable()` (`MobManager.java:41`). Hot-reload via `/mob reload` or `/valmora reload` re-runs both.
 - **Spawned mobs are not persisted.** They despawn on chunk unload unless `persistent: true`, and are not restored on restart.
 

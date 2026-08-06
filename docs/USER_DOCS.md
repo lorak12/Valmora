@@ -355,7 +355,18 @@ Floating **damage indicators** spawn above the victim:
 
 ### 7.5 Economy
 
-Valmora includes a lightweight economy system. Coins are stored in `player.var.coins` (a custom profile variable). You can modify balances via the `variable` script event or custom mechanics. A bank GUI is included in the default files.
+Valmora includes a full economy module (`EconomyModule`/`EconomyService`) with a purse and bank
+balance per player, `$economy.purse$`/`$economy.bank$`/`$economy.total$` variables, and
+`economy_add`/`economy_remove`/`economy_deposit`/`economy_withdraw`/`economy_deposit_all` script
+events. See `docs/modules/user/economy.md` for the full reference, including `/eco` admin
+commands and the bundled `guis/bank.yml`.
+
+> **Historical note (no longer accurate):** this section used to say coins were stored in
+> `player.var.coins`, a free-form profile variable, with balances changed via the generic
+> `variable` script event. That was true before the economy module existed. One legacy call site
+> (`AnvilMachineHandler`'s repair-cost charge) still uses the old `player.var.coins` variable
+> instead of the economy service — see `docs/modules/design/economy.md` §7.2 for the one known
+> place these two "coins" concepts still coexist. Everywhere else, use the economy events above.
 
 ---
 
@@ -842,7 +853,7 @@ Zones are named world regions. They define boundaries and can contain resource n
   # Optional: resource blocks that regenerate after being mined
   resource-blocks:
     <MATERIAL>:
-      regen-delay: <seconds>           # Time before the block regenerates
+      regen-delay: <ticks>             # Time before the block regenerates — TICKS, not seconds (20 ticks = 1s); despite the values below reading like seconds, `ZoneLoader` treats this field as ticks
       stages:                          # Ordered list of break stages
         - drops:                       # Items dropped at this stage
             - item: <MATERIAL or item-id>
@@ -968,98 +979,21 @@ hub_fishing:
 
 ## 14. NPCs — `npcs/*.yml`
 
-NPCs are custom named entities that stand still in the world and react to player interaction (right-click). Place files in `plugins/Valmora/npcs/`.
-
-### Schema
-
-```yaml
-<npc-id>:
-  display-name: "<MiniMessage name>"   # Shown above the NPC
-  type: <NPC_TYPE>                     # Role type: SHOP, BANK, QUEST, SLAYER, etc.
-  entity-type: <ENTITY_TYPE>           # Bukkit entity type (e.g., VILLAGER, PILLAGER)
-  world: <world-name>
-  x: <double>
-  y: <double>
-  z: <double>
-  yaw: <float>                         # Horizontal rotation (0–360)
-  gui: <gui-id>                        # Optional — opens this GUI on interaction
-  dialogue: <dialogue-id>              # Optional — starts this dialogue on interaction
-```
-
-An NPC can have either a `gui` or a `dialogue` (or neither). If both are set, the `gui` takes priority.
-
-### Examples
-
-```yaml
-banker:
-  display-name: "<gold>Banker"
-  type: BANK
-  entity-type: VILLAGER
-  world: world
-  x: 5.5
-  y: 65.0
-  z: -5.5
-  yaw: 180
-  gui: bank
-
-quest_giver:
-  display-name: "<yellow>Village Elder"
-  type: QUEST
-  entity-type: VILLAGER
-  world: world
-  x: -8.5
-  y: 65.0
-  z: 8.5
-  yaw: 90
-  dialogue: quest_giver_dialogue
-```
+**This section previously documented a schema that does not exist in the code** — `type:`, `gui:`,
+and `dialogue:` fields with "gui takes priority" semantics. The real schema has no `type`/`gui`
+keys; it uses `conversation:` (which takes priority over `on-right-click`). See
+`docs/modules/user/npc.md` §"Configuration Reference" for the accurate, current field-by-field
+schema and examples.
 
 ---
 
 ## 15. Dialogues — `dialogues/*.yml`
 
-Dialogues are branching conversation trees that NPCs can start. Place files in `plugins/Valmora/dialogues/`.
-
-### Schema
-
-```yaml
-<dialogue-id>:
-  start: <node-id>       # ID of the first node to show
-  nodes:
-    <node-id>:
-      text: "<MiniMessage text>"   # What the NPC says
-      actions:                     # Script events to run when this node is shown
-        - "<event string>"
-      choices:                     # Player response buttons
-        - text: "<button label>"
-          next-node: <node-id>     # Which node to go to (null = close dialogue)
-          actions:                 # Script events when this choice is selected
-            - "<event string>"
-```
-
-### Example
-
-```yaml
-quest_giver_dialogue:
-  start: greeting
-  nodes:
-    greeting:
-      text: "<yellow>Ah, a newcomer! Our village needs your help. Will you take on a task?"
-      actions: []
-      choices:
-        - text: "I'll help!"
-          next-node: accept
-          actions:
-            - "quest_start hub_intro"
-        - text: "Not right now."
-          next-node: null
-    accept:
-      text: "<yellow>Wonderful! Gather coal from the mine and bring back proof of your work."
-      actions: []
-      choices:
-        - text: "I'm on it!"
-          next-node: null
-```
+**This section previously documented a `dialogues/*.yml` file format (`start:`/`nodes:`/
+`actions:`/`choices:`) that has never been loaded by any code** — `NpcLoader` only loads `npcs/`.
+Conversations are defined exclusively inside **quest packages'** `conversations:` sections, not a
+separate `dialogues/` folder. See `docs/modules/user/npc.md` §"Conversations" for the real,
+working format and examples.
 
 ---
 
@@ -1084,7 +1018,9 @@ Warps are named teleport destinations. Players walk onto a **warp pad** (a set o
     - {x: <int>, y: <int>, z: <int>}
 ```
 
-Multiple `pad-locations` define the warp pad area. Any player standing on one of these blocks and pressing the interact key will be teleported.
+Multiple `pad-locations` define the warp pad area. A player is teleported the moment they **walk
+onto** one of these blocks (`WarpListener` triggers on movement, not on interact) — no interact key
+press is needed.
 
 ### Example
 

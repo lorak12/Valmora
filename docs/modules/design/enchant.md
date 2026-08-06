@@ -3,6 +3,13 @@
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 > **Module ID:** `enchants` | **Source:** `src/main/java/org/nakii/valmora/module/enchant/`
 
+> **Generic-engine refactor (Phase 4.5):** `valmora:sharpness`, `valmora:growth`,
+> `valmora:fortune`, and `valmora:efficiency` used to be separate fixed Java classes
+> (`SharpnessLogic`, `GrowthLogic`, `FortuneLogic`, `EfficiencyLogic` — all deleted). They're now
+> `logicFactories` entries over the already-generic `DamageMultiplierLogic`/`StatBonusLogic`, with
+> defaults matching their old hardcoded per-level values — existing `enchants/*.yml` files need no
+> changes, and new ones can override via `logic-params:`. See `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Table of Contents

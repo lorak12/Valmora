@@ -60,8 +60,60 @@ public class ValmoraCommand implements TabExecutor {
             }
         }
 
+        if (args[0].equalsIgnoreCase("pipeline")) {
+            handlePipeline(sender, args);
+            return true;
+        }
+
         sendHelp(sender);
         return true;
+    }
+
+    /**
+     * {@code /valmora pipeline list} and {@code /valmora pipeline list <point>} — runtime
+     * introspection into {@link org.nakii.valmora.api.pipeline.HookBus}, the debuggability gap
+     * flagged in docs/COMBAT_PIPELINE_ANALYSIS.md §5 ("a misbehaving YAML stage can silently break
+     * combat with no clear traceback").
+     */
+    private void handlePipeline(CommandSender sender, String[] args) {
+        var bus = plugin.getHookBus();
+        if (bus == null) {
+            sender.sendMessage(Formatter.format("<red>Script module isn't enabled — no pipeline bus available."));
+            return;
+        }
+
+        if (args.length < 2 || !args[1].equalsIgnoreCase("list")) {
+            sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list <gray>[point] <gray>- Inspect registered pipeline stages"));
+            return;
+        }
+
+        if (args.length == 2) {
+            var points = bus.getRegisteredPoints();
+            if (points.isEmpty()) {
+                sender.sendMessage(Formatter.format("<gray>No pipeline points have any stage/hook registered."));
+                return;
+            }
+            sender.sendMessage(Formatter.format("<gold>--- Registered pipeline points (" + points.size() + ") ---"));
+            for (String point : points) {
+                int javaCount = bus.getJavaHookIds(point).size();
+                int yamlCount = bus.getYamlStageIds(point).size();
+                sender.sendMessage(Formatter.format("<yellow>" + point + " <gray>- <aqua>" + javaCount + " java hook(s)<gray>, <aqua>"
+                        + yamlCount + " yaml stage(s)"));
+            }
+            sender.sendMessage(Formatter.format("<gray>Use <yellow>/valmora pipeline list <point> <gray>for stage ids."));
+            return;
+        }
+
+        String point = args[2];
+        var javaIds = bus.getJavaHookIds(point);
+        var yamlIds = bus.getYamlStageIds(point);
+        if (javaIds.isEmpty() && yamlIds.isEmpty()) {
+            sender.sendMessage(Formatter.format("<gray>No stage/hook registered at <yellow>" + point + "<gray>."));
+            return;
+        }
+        sender.sendMessage(Formatter.format("<gold>--- " + point + " (runs in this order) ---"));
+        for (String id : javaIds) sender.sendMessage(Formatter.format("  <aqua>[java] <white>" + id));
+        for (String id : yamlIds) sender.sendMessage(Formatter.format("  <light_purple>[yaml] <white>" + id));
     }
 
     private void handleVariableGet(CommandSender sender, String path) {
@@ -87,7 +139,7 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "variable")
+            return Stream.of("reload", "variable", "pipeline")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -104,6 +156,20 @@ public class ValmoraCommand implements TabExecutor {
                     .collect(Collectors.toList());
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("pipeline")) {
+            return List.of("list").stream()
+                    .filter(s -> s.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("pipeline") && args[1].equalsIgnoreCase("list")) {
+            var bus = plugin.getHookBus();
+            if (bus == null) return new ArrayList<>();
+            return bus.getRegisteredPoints().stream()
+                    .filter(s -> s.startsWith(args[2].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
         return new ArrayList<>();
     }
 
@@ -111,5 +177,6 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<gold>--- Valmora Engine ---"));
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
     }
 }

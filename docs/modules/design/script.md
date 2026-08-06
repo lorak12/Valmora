@@ -424,7 +424,6 @@ accessed via `ValmoraAPI.getInstance().getScriptModule()` or
 | `QuestModule` (journal) | `onEnable` | `journal` | `QuestModule.java:61` |
 | `QuestModule` (board) | `onEnable` | `quest_board_assign`, `quest_board_collect` | `QuestModule.java:59` |
 | `PointsModule` | `onEnable` | `point` | `PointsModule.java:19` |
-| `SlayerModule` | `onEnable` | `slayer_start` | `SlayerModule.java:32` |
 | `WarpModule` | `onEnable` | `warp_to` | `WarpModule.java:22` |
 | `ProgressionModule` | `onEnable` | `progression_levelup`, `progression_unlock_tier`, `progression_reset` | `ProgressionModule.java:37` |
 

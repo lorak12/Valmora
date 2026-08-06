@@ -55,10 +55,6 @@ import org.nakii.valmora.module.hud.HudItemModule;
 import org.nakii.valmora.module.calendar.CalendarEventModule;
 import org.nakii.valmora.module.reforge.ReforgeModule;
 import org.nakii.valmora.module.pet.PetModule;
-import org.nakii.valmora.module.slayer.SlayerModule;
-import org.nakii.valmora.module.accessory.AccessoryModule;
-import org.nakii.valmora.module.backpack.BackpackModule;
-import org.nakii.valmora.module.quiver.QuiverModule;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.economy.EcoCommand;
 import org.nakii.valmora.module.economy.EconomyModule;
@@ -101,6 +97,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.enchant.EnchantModule enchantModule;
 
     private ModuleManager moduleManager;
+    private org.nakii.valmora.api.ValmoraAPIImpl apiImpl;
     private EconomyModule economyModule;
     private EconomyService economyService;
     private ZoneModule zoneModule;
@@ -116,10 +113,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private CalendarEventModule calendarEventModule;
     private ReforgeModule reforgeModule;
     private PetModule petModule;
-    private SlayerModule slayerModule;
-    private AccessoryModule accessoryModule;
-    private BackpackModule backpackModule;
-    private QuiverModule quiverModule;
     private org.nakii.valmora.module.progression.ProgressionModule progressionModule;
 
     @Override
@@ -127,8 +120,15 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         instance = this;
         ValmoraAPI.setProvider(this);
         PacketEvents.getAPI().init();
-        
+
         this.moduleManager = new ModuleManager(this);
+        // Decoupled API implementation (Phase 1 — see docs/REFACTOR/PROGRESS.md). Resolves modules
+        // by id through moduleManager rather than holding direct field references, so it never goes
+        // stale across /valmora reload. Installed as the provider immediately: any code that runs
+        // during module construction/enable and calls ValmoraAPI.getInstance() gets the decoupled
+        // impl, not a `this` cast.
+        this.apiImpl = new org.nakii.valmora.api.ValmoraAPIImpl(moduleManager);
+        ValmoraAPI.setProvider(apiImpl);
 
         saveDefaultConfig();
         saveAllResources();
@@ -160,7 +160,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.scriptModule = new ScriptModule(this);
         this.timeModule = new TimeModule(this);
         this.uiManager = new UIManager(this);
-        this.guiModule = new GuiModule(this);
+        this.guiModule = new GuiModule(this, dataStore);
         this.recipeModule = new RecipeModule(this);
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
@@ -177,10 +177,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.calendarEventModule = new CalendarEventModule(this);
         this.reforgeModule = new ReforgeModule(this);
         this.petModule = new PetModule(this);
-        this.slayerModule = new SlayerModule(this);
-        this.accessoryModule = new AccessoryModule(this);
-        this.backpackModule = new BackpackModule(this);
-        this.quiverModule = new QuiverModule(this);
         this.progressionModule = new org.nakii.valmora.module.progression.ProgressionModule(this);
 
         // 3. Register Modules in Order
@@ -215,10 +211,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(calendarEventModule); // Depends on scriptModule + timeModule
         moduleManager.registerModule(reforgeModule);      // Depends on recipeModule (registers handler)
         moduleManager.registerModule(petModule);          // Depends on scriptModule + statModule
-        moduleManager.registerModule(slayerModule);       // Depends on scriptModule + mobModule
-        moduleManager.registerModule(accessoryModule);    // Depends on statModule for recalc
-        moduleManager.registerModule(backpackModule);     // Depends on abilityManager for mechanic
-        moduleManager.registerModule(quiverModule);       // Depends on playerManager for the active profile
         moduleManager.registerModule(progressionModule);  // Depends on scriptModule + pointsModule (generic tree/skill-point engine)
 
         // 4. Enable Modules
@@ -249,20 +241,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("zone").setExecutor(zoneCommand);
         getCommand("zone").setTabCompleter(zoneCommand);
         getCommand("collections").setExecutor(new CollectionCommand(this));
-        getCommand("accessories").setExecutor((sender, cmd, label, args) -> {
-            if (!(sender instanceof org.bukkit.entity.Player player)) return true;
-            accessoryModule.openAccessoryBag(player);
-            return true;
-        });
-        org.nakii.valmora.module.accessory.AccessoryCommand accessoryCommand =
-                new org.nakii.valmora.module.accessory.AccessoryCommand(accessoryModule);
-        getCommand("accessory").setExecutor(accessoryCommand);
-        getCommand("accessory").setTabCompleter(accessoryCommand);
-        getCommand("quiver").setExecutor((sender, cmd, label, args) -> {
-            if (!(sender instanceof org.bukkit.entity.Player player)) return true;
-            quiverModule.openQuiver(player);
-            return true;
-        });
     }
 
      @Override
@@ -306,6 +284,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     @Override
+    public CombatModule getCombatModule() {
+        return combatModule;
+    }
+
+    @Override
     public MobManager getMobManager() {
         return mobManager;
     }
@@ -344,14 +327,17 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return timeModule.getTimeManager();
     }
 
+    @Override
     public org.nakii.valmora.module.gui.GuiModule getGuiModule() {
         return guiModule;
     }
 
+    @Override
     public org.nakii.valmora.module.recipe.RecipeModule getRecipeModule() {
         return recipeModule;
     }
 
+    @Override
     public org.nakii.valmora.module.enchant.EnchantModule getEnchantModule() {
         return enchantModule;
     }
@@ -359,6 +345,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public org.nakii.valmora.module.stat.StatRegistry getStatRegistry() {
         return statModule.getStatRegistry();
+    }
+
+    @Override
+    public org.nakii.valmora.module.stat.StatRoleRegistry getStatRoleRegistry() {
+        return statModule.getStatRoleRegistry();
     }
 
     @Override
@@ -383,6 +374,14 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     public void setEconomyService(EconomyService service) {
         this.economyService = service;
+        if (apiImpl != null) {
+            apiImpl.setEconomyService(service);
+        }
+    }
+
+    /** The decoupled {@link ValmoraAPI} implementation installed as the API provider (Phase 1). */
+    public org.nakii.valmora.api.ValmoraAPIImpl getApi() {
+        return apiImpl;
     }
 
     @Override
@@ -390,14 +389,17 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return zoneModule != null ? zoneModule.getZoneManager() : null;
     }
 
+    @Override
     public ZoneModule getZoneModule() {
         return zoneModule;
     }
 
+    @Override
     public ResourceModule getResourceModule() {
         return resourceModule;
     }
 
+    @Override
     public FishingModule getFishingModule() {
         return fishingModule;
     }
@@ -422,24 +424,35 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         return questModule != null ? questModule.getQuestManager() : null;
     }
 
+    @Override
     public NpcModule getNpcModule() { return npcModule; }
+    @Override
     public WarpModule getWarpModule() { return warpModule; }
+    @Override
     public QuestModule getQuestModule() { return questModule; }
+    @Override
     public CollectionModule getCollectionModule() { return collectionModule; }
+    @Override
     public HudItemModule getHudItemModule() { return hudItemModule; }
+    @Override
     public CalendarEventModule getCalendarEventModule() { return calendarEventModule; }
+    @Override
     public ReforgeModule getReforgeModule() { return reforgeModule; }
+    @Override
     public PetModule getPetModule() { return petModule; }
-    public SlayerModule getSlayerModule() { return slayerModule; }
-    public AccessoryModule getAccessoryModule() { return accessoryModule; }
-    public BackpackModule getBackpackModule() { return backpackModule; }
-    public QuiverModule getQuiverModule() { return quiverModule; }
+    @Override
+    public org.nakii.valmora.module.alchemy.AlchemyModule getAlchemyModule() { return alchemyModule; }
+    @Override
+    public NotifyModule getNotifyModule() { return notifyModule; }
+    @Override
+    public PointsModule getPointsModule() { return pointsModule; }
 
     @Override
     public org.nakii.valmora.module.progression.ProgressionManager getProgressionManager() {
         return progressionModule != null ? progressionModule.getProgressionManager() : null;
     }
 
+    @Override
     public org.nakii.valmora.module.progression.ProgressionModule getProgressionModule() {
         return progressionModule;
     }
@@ -447,6 +460,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public org.nakii.valmora.module.quest.points.PointsManager getPointsManager() {
         return pointsModule != null ? pointsModule.getPointsManager() : null;
+    }
+
+    @Override
+    public org.nakii.valmora.api.pipeline.HookBus getHookBus() {
+        return scriptModule != null ? scriptModule.getHookBus() : null;
     }
 
     @Override
@@ -472,15 +490,26 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                         continue;
                     }
 
+                    if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
+                            || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
+                            || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
+                            || name.equals("mob_pipeline.yml")) {
+                        if (!new File(getDataFolder(), name).exists()) {
+                            saveResource(name, false);
+                        }
+                        continue;
+                    }
+
                     if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                             name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
-                            name.startsWith("alchemy/") || name.startsWith("stats/") ||
+                            name.startsWith("enchant/") ||
+                            name.startsWith("alchemy/") || name.startsWith("stats/") || name.startsWith("damage_types/") ||
                             name.startsWith("zones/") || name.startsWith("fishing/") ||
                             name.startsWith("npcs/") || name.startsWith("dialogues/") ||
                             name.startsWith("warps/") || name.startsWith("quests/") ||
                             name.startsWith("collections/") || name.startsWith("hud-items/") ||
                             name.startsWith("calendar/") || name.startsWith("reforges/") ||
-                            name.startsWith("pets/") || name.startsWith("slayers/") ||
+                            name.startsWith("pets/") ||
                             name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
                             name.startsWith("quest_boards/")) {
                         // Only save if the file doesn't already exist — don't overwrite server edits

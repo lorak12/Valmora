@@ -2,7 +2,7 @@ package org.nakii.valmora.module.skill;
 
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.Player;
-import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 
@@ -40,7 +40,13 @@ public class SkillManager {
 
     public SkillRegistry getSkillRegistry() {
         if (injectedRegistry != null) return injectedRegistry;
-        return Valmora.getInstance().getSkillModule().getSkillRegistry();
+        // Phase 5 (docs/REFACTOR/PROGRESS.md Task 17): routed through ModuleManager.getModule(id,
+        // Class) — added in Phase 1 — rather than Valmora.getInstance(), since ValmoraAPI doesn't
+        // expose the SkillModule itself (only the SkillManager, i.e. this class).
+        return ValmoraAPI.getInstance().getModuleManager()
+                .getModule("skills", SkillModule.class)
+                .map(SkillModule::getSkillRegistry)
+                .orElseThrow(() -> new IllegalStateException("Skill module is not available"));
     }
 
     public double getXp(String skillId) {

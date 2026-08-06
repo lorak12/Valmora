@@ -345,19 +345,19 @@ Beyond the `EconomyService` four, the concrete class exposes (all UUID-keyed, al
 | `GiveCoinsMechanic` (`GIVE_COINS`) | `addCoins(player, amount)` to the caster (e.g. Raider Axe kill reward). Registered in `AbilityManager.java:59` | `GiveCoinsMechanic.java:23` |
 | `TakeCoinsMechanic` (`TAKE_COINS`) | `removeCoins(player, amount)` from the caster (e.g. Crown of Greed cost). Registered in `AbilityManager.java:60` | `TakeCoinsMechanic.java:23` |
 | `ReforgeModule` | Charges a coin cost to reforge an item (`checkAndNotifyCoins` + `deductCoins`); null-safe on `getEconomy()` | `ReforgeModule.java:271-287` |
-| `SlayerStartEventFactory` (`slayer_start`) | Requires `hasCoins` and charges `removeCoins` for the tier activation cost; skipped if `getEconomy()` is null | `SlayerStartEventFactory.java:60-69` |
+| `guis/slayers.yml` | Each slayer tier button gates its `left`-click activation on `$economy.purse$ >= <cost>$` then fires `economy_remove <cost>` directly from the GUI's own `actions:` — there is no `SlayerStartEventFactory`/`slayer_start` event anymore (slayer is quest+GUI content, not a module; see `docs/modules/design/slayer.md`) | `guis/slayers.yml` |
 | `ScoreboardUI` | Renders `Purse: 🪙 …` line via `getEconomyModule().getPurse(uuid)` + `formatCoinsDisplay` | `ScoreboardUI.java:208-213` |
 | `ProfileGui` | Profile-menu coin display via `getEconomyModule().getTotal(uuid)` | `ProfileGui.java:231-237` |
 | `guis/bank.yml` | The bundled Bank of Valmora GUI — deposit/withdraw flows driven by `economy_deposit`/`economy_withdraw`/`economy_deposit_all` events and `$economy.*$` variables | `guis/bank.yml` (whole file) |
 | `ui.yml` | Scoreboard default includes `$economy.purse.formatted$` | `ui.yml:23` |
 
-**Not a consumer (discrepancy to be aware of):** the anvil machine handler (`AnvilMachineHandler.java:90-97`) charges a coin cost through the **profile variable** `player.var.coins` (`variable add player.var.coins -<cost>`), *not* the economy service. Likewise `docs/USER_DOCS.md` §7.5 still describes the old variable-based model (`player.var.coins`). The two "coins" concepts currently coexist: `player.var.coins` is a free-form profile variable; the economy module is the canonical `EconomyService` balance. `docs/YAML_DOCS.md:347` ("gold-reward ... TODO: Integrate with Economy system") is also **stale** — integration is live at `MobDeathListener.java:67`.
+**Not a consumer (discrepancy to be aware of):** the anvil machine handler (`AnvilMachineHandler.java:90-97`) charges a coin cost through the **profile variable** `player.var.coins` (`variable add player.var.coins -<cost>`), *not* the economy service. The two "coins" concepts currently coexist: `player.var.coins` is a free-form profile variable; the economy module is the canonical `EconomyService` balance. (`docs/USER_DOCS.md` §7.5 and `docs/YAML_DOCS.md`'s gold-reward note used to describe the old variable-based/TODO model — both have since been corrected to match the above.)
 
 ### 7.3 Load-order constraints
 
 - `economyModule` registers providers/events through `plugin.getScriptModule()` at enable-time (`EconomyModule.java:56-61`) — `script` loads first (`Valmora.java:188`), so this is safe.
 - It is registered after `playerManager` (join/quit lifecycle comment, `Valmora.java:192`); the module does **not** actually call into `PlayerManager` at enable-time — the dependency is ordering convention.
-- Consumers like `mob`, `reforge`, and `slayer` load later and read the economy through `ValmoraAPI`/`Valmora` accessors at runtime, never holding a constructor-time reference to the module.
+- Consumers like `mob` and `reforge` load later and read the economy through `ValmoraAPI`/`Valmora` accessors at runtime, never holding a constructor-time reference to the module. Slayer content (a GUI + quest package) reads `$economy.purse$` and calls `economy_remove` purely through the script DSL, with no Java-level dependency at all.
 
 ---
 
@@ -368,7 +368,6 @@ Beyond the `EconomyService` four, the concrete class exposes (all UUID-keyed, al
 - **`/eco` tab completion is dead code.** `EcoCommand` implements a full `onTabComplete` (`EcoCommand.java:112-132`), but `Valmora.java:242` calls only `setExecutor(...)` and never `setTabCompleter(...)`.
 - **No offline-player targeting.** `/eco` requires the target to be online (`EcoCommand.java:43-47`); there is no DB-backed balance editor for offline players.
 - **Join race on first login.** `handleJoin` loads async and inserts with `cache.putIfAbsent` (`EconomyModule.java:109-112`). If a transaction for that player fires between join and the load completing, `getOrCreate` seeds a zero-balance entry and `putIfAbsent` then refuses to overwrite it — the DB-loaded balance would be eclipsed for the session (see [Possible Improvements](#9-possible-improvements--changes)).
-- **`docs/USER_DOCS.md` §7.5 and `docs/YAML_DOCS.md:347` are stale** regarding the old `player.var.coins` / TODO-integration model (see §7.2).
 - **No transaction ledger.** The bundled bank GUI has a "Recent Transactions" display (`guis/bank.yml:69-75`) that is decorative — there is no transaction history persisted.
 
 ---

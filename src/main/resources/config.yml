@@ -133,15 +133,3 @@ alchemy:
 
   # Max concurrent active effects per player
   max-active-effects: 10
-
-# ========================================================== #
-#                   Accessory Bag Settings                   #
-# ========================================================== #
-accessories:
-  # Slots a fresh profile starts with (no accessory-slot save data yet).
-  starting-slots: 25
-
-  # Hard ceiling admins can raise a player's unlocked slots to, via
-  # /accessory setslots|addslots. Also the absolute ceiling for
-  # /accessory setcap.
-  max-slots-cap: 90

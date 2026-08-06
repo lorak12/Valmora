@@ -45,7 +45,7 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 3;
+    static final int LATEST_SCHEMA_VERSION = 5;
 
     @Override
     public void init() {
@@ -114,8 +114,46 @@ public class SQLDataStore implements DataStore {
             migrateToV3(conn);
             setSchemaVersion(conn, 3);
         }
-        // Future migrations go here, each gated on `from` and ending with setSchemaVersion(conn, N):
-        // if (from < 4) { migrateToV4(conn); setSchemaVersion(conn, 4); }
+        if (from < 4) {
+            migrateToV4(conn);
+            setSchemaVersion(conn, 4);
+        }
+        if (from < 5) {
+            migrateToV5(conn);
+            setSchemaVersion(conn, 5);
+        }
+    }
+
+    /**
+     * v4 — adds the generic per-profile GUI storage-slot table (replaces the old quiver/accessory
+     * columns). Keyed by profile id, not player uuid, so each profile keeps independent storage.
+     */
+    private void migrateToV4(Connection conn) throws SQLException {
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_storage (
+                profile_id VARCHAR(36) NOT NULL,
+                storage_id VARCHAR(64) NOT NULL,
+                contents   TEXT,
+                PRIMARY KEY (profile_id, storage_id)
+            )
+        """).execute();
+    }
+
+    /** v5 — drops the legacy quiver/accessory columns, superseded by valmora_storage (v4). */
+    private void migrateToV5(Connection conn) throws SQLException {
+        dropColumnIfPresent(conn, "valmora_profiles", "quiver");
+        dropColumnIfPresent(conn, "valmora_profiles", "accessory_items");
+        dropColumnIfPresent(conn, "valmora_profiles", "accessory_slots");
+    }
+
+    /** Drops a column, tolerating drivers/engines that don't support it (left orphaned, harmless). */
+    private void dropColumnIfPresent(Connection conn, String table, String column) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "ALTER TABLE " + table + " DROP COLUMN " + column)) {
+            ps.execute();
+        } catch (SQLException ignored) {
+            // Column already absent, or the engine/driver doesn't support DROP COLUMN — harmless.
+        }
     }
 
     /** v2 — adds the quiver column (per-profile arrow storage). */
@@ -217,7 +255,12 @@ public class SQLDataStore implements DataStore {
                     );
 
                     Map<String, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
-                    if (stats != null) profile.getStatManager().loadData(stats);
+                    if (stats != null) {
+                        // Phase 5 (docs/REFACTOR/PROGRESS.md Task 21): stat ids no longer in the
+                        // live StatRegistry are quarantined rather than dropped or silently applied.
+                        profile.getQuarantinedStats().putAll(
+                                profile.getStatManager().loadDataAndQuarantineUnrecognized(stats));
+                    }
 
                     Map<String, Double> skills = gson.fromJson(rsProfiles.getString("skills"), skillsType);
                     if (skills != null) profile.getSkillManager().loadData(skills);
@@ -253,17 +296,18 @@ public class SQLDataStore implements DataStore {
                         if (inventoryJson != null) deserializeInventory(profile, inventoryJson);
                     } catch (SQLException ignored) {}
 
-                    try {
-                        String quiverJson = rsProfiles.getString("quiver");
-                        profile.setQuiverItems(deserializeItemArray(quiverJson, profile.getQuiverItems().length));
-                    } catch (SQLException ignored) {}
-
-                    try {
-                        String accessoryJson = rsProfiles.getString("accessory_items");
-                        if (accessoryJson != null) profile.setAccessoryItems(deserializeItemArray(accessoryJson));
-
-                        int slots = rsProfiles.getInt("accessory_slots");
-                        profile.setAccessorySlotsUnlocked(rsProfiles.wasNull() ? -1 : slots);
+                    // Eagerly mirror this profile's generic GUI storage (e.g. "accessories") into
+                    // its in-memory cache so stat calculation has synchronous access without
+                    // waiting for the corresponding GUI to be opened first.
+                    try (PreparedStatement psStorage = conn.prepareStatement(
+                            "SELECT storage_id, contents FROM valmora_storage WHERE profile_id = ?")) {
+                        psStorage.setString(1, profile.getId().toString());
+                        try (ResultSet rsStorage = psStorage.executeQuery()) {
+                            while (rsStorage.next()) {
+                                profile.putStorage(rsStorage.getString("storage_id"),
+                                        deserializeItemArray(rsStorage.getString("contents")));
+                            }
+                        }
                     } catch (SQLException ignored) {}
 
                     player.addProfile(profile);
@@ -302,8 +346,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, accessory_items, accessory_slots, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, accessory_items = ?, accessory_slots = ?, last_used = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, quiver, accessory_items, accessory_slots, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, quiver = ?, accessory_items = ?, accessory_slots = ?, last_used = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -311,16 +355,17 @@ public class SQLDataStore implements DataStore {
                         ps.setString(2, player.getUuid().toString());
                         ps.setString(3, profile.getName());
 
-                        String statsJson = gson.toJson(profile.getStatManager().getSaveData());
+                        // Phase 5 Task 21: write quarantined (unrecognized) stat ids back unchanged
+                        // alongside the live ones, so they aren't lost across a save cycle.
+                        Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getSaveData());
+                        statsToSave.putAll(profile.getQuarantinedStats());
+                        String statsJson = gson.toJson(statsToSave);
                         String skillsJson = gson.toJson(profile.getSkillManager().getSaveData());
                         String stateJson = gson.toJson(profile.getPlayerState().getSaveData());
                         String tagsJson = gson.toJson(profile.getTags());
                         String variablesJson = gson.toJson(profile.getVariables());
                         String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
                         String inventoryJson = serializeInventory(profile);
-                        String quiverJson = serializeItemArray(profile.getQuiverItems());
-                        String accessoryJson = serializeItemArray(profile.getAccessoryItems());
-                        int accessorySlots = profile.getAccessorySlotsUnlocked();
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -329,25 +374,19 @@ public class SQLDataStore implements DataStore {
                         ps.setString(8, variablesJson);
                         ps.setString(9, collectionsJson);
                         ps.setString(10, inventoryJson);
-                        ps.setString(11, quiverJson);
-                        ps.setString(12, accessoryJson);
-                        if (accessorySlots < 0) ps.setNull(13, java.sql.Types.INTEGER); else ps.setInt(13, accessorySlots);
-                        ps.setLong(14, profile.getCreatedAt());
-                        ps.setLong(15, profile.getLastUsed());
+                        ps.setLong(11, profile.getCreatedAt());
+                        ps.setLong(12, profile.getLastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(16, profile.getName());
-                        ps.setString(17, statsJson);
-                        ps.setString(18, skillsJson);
-                        ps.setString(19, stateJson);
-                        ps.setString(20, tagsJson);
-                        ps.setString(21, variablesJson);
-                        ps.setString(22, collectionsJson);
-                        ps.setString(23, inventoryJson);
-                        ps.setString(24, quiverJson);
-                        ps.setString(25, accessoryJson);
-                        if (accessorySlots < 0) ps.setNull(26, java.sql.Types.INTEGER); else ps.setInt(26, accessorySlots);
-                        ps.setLong(27, profile.getLastUsed());
+                        ps.setString(13, profile.getName());
+                        ps.setString(14, statsJson);
+                        ps.setString(15, skillsJson);
+                        ps.setString(16, stateJson);
+                        ps.setString(17, tagsJson);
+                        ps.setString(18, variablesJson);
+                        ps.setString(19, collectionsJson);
+                        ps.setString(20, inventoryJson);
+                        ps.setLong(21, profile.getLastUsed());
 
                         ps.addBatch();
                     }
@@ -370,6 +409,45 @@ public class SQLDataStore implements DataStore {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to delete profile " + profileId, e);
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<ItemStack[]> loadStorage(UUID profileId, String storageId, int expectedSize) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT contents FROM valmora_storage WHERE profile_id = ? AND storage_id = ?")) {
+                ps.setString(1, profileId.toString());
+                ps.setString(2, storageId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) return new ItemStack[expectedSize];
+                    return deserializeItemArray(rs.getString("contents"), expectedSize);
+                }
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to load storage '" + storageId + "' for profile " + profileId, e);
+                return new ItemStack[expectedSize];
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> saveStorage(UUID profileId, String storageId, ItemStack[] contents) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = isMySQL
+                    ? "INSERT INTO valmora_storage (profile_id, storage_id, contents) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE contents = ?"
+                    : "INSERT INTO valmora_storage (profile_id, storage_id, contents) VALUES (?, ?, ?) ON CONFLICT(profile_id, storage_id) DO UPDATE SET contents = ?";
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                String json = serializeItemArray(contents);
+                ps.setString(1, profileId.toString());
+                ps.setString(2, storageId);
+                ps.setString(3, json);
+                ps.setString(4, json);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to save storage '" + storageId + "' for profile " + profileId, e);
             }
         }, dbExecutor);
     }

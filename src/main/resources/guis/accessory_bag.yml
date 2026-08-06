@@ -1,0 +1,34 @@
+# =====================================================================
+# Accessory Bag — player-owned, DB-backed storage (survives restarts
+# and crashes via write-through saves). Accepts ACCESSORY items and,
+# to demonstrate nested-open containers, BACKPACK items too: place a
+# backpack here and click it to open its own storage; shift-click
+# takes it back out.
+# =====================================================================
+
+accessory_bag:
+  title: "<dark_gray>✦ Accessory Bag"
+  rows: 3
+  command: accessories
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: bag
+      owner: PLAYER
+      storage-id: accessories
+      condition: "$candidate.item.type$ == ACCESSORY || $candidate.item.type$ == BACKPACK"
+      open-container: true
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"
+      - "recalculate_stats"

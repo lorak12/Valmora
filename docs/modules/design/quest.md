@@ -863,8 +863,8 @@ Registered via `QuestManager.registerObjectiveHandler(handler)`. When a quest st
 | `NpcModule` / `NpcLoader` (`NpcLoader.java:35-36`) | Comment notes `npc_conversations` now lives in quest packages | Quest packages re-register NPCs with conversation IDs |
 | `NpcModule` / `NpcDefinition` (`NpcDefinition.java:138`) | `withConversation(String)` method | Called by `QuestPackageManager.applyToManagers()` to bind conversation IDs |
 | `NpcModule` / `DialogueManager` (`DialogueManager.java:125-127,177-179`) | Executes quest events from conversation nodes | `EventParser.parseList().execute()` called for node events and choice events |
-| `SlayerModule` | No direct quest references | Operates independently via its own YAML and event factories |
 | `CollectionModule` | No direct quest references | Operates independently |
+| Slayer content (`quests/slayers/*.yml`) | Depends *on* the quest module directly | Slayer is no longer a separate module — each slayer tier is an ordinary quest with `KILL` objectives, driven by `guis/slayers.yml`. See `docs/modules/design/slayer.md`. |
 | `ProgressionModule` / `ProgressionManager` (`ProgressionManager.java:14,81-83,93,113,135,151-155`) | Uses `PointsManager` for cost payments and daily bonuses | Calls `addPoints`, `takePoints`, `getPoints` for node-level-up costs, tier unlock costs, and daily bonus grants |
 
 ### 7.3 Script system integration points

@@ -1,0 +1,5 @@
+# Anvil merge cost template (Phase 4.3 of the generic-engine refactor).
+# cost-per-level is charged in in-game coins per total enchant level merged in one operation.
+templates:
+  merge:
+    cost-per-level: 10

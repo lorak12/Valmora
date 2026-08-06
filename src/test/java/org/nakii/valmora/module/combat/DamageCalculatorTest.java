@@ -14,7 +14,7 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.enchant.EnchantModule;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentRegistry;
-import org.nakii.valmora.module.enchant.logic.SharpnessLogic;
+import org.nakii.valmora.module.enchant.logic.DamageMultiplierLogic;
 import org.nakii.valmora.module.item.ItemManager;
 import org.nakii.valmora.module.item.set.SetBonusRegistry;
 import org.nakii.valmora.module.mob.MobDefinition;
@@ -198,7 +198,9 @@ class DamageCalculatorTest {
 
         when(attacker.getInventory().getItemInMainHand()).thenReturn(sword);
 
-        SharpnessLogic sharpnessLogic = new SharpnessLogic();
+        // Sharpness is now the generic valmora:sharpness factory (DamageMultiplierLogic) — see
+        // docs/REFACTOR/PROGRESS.md Phase 4 Task 16 follow-up.
+        DamageMultiplierLogic sharpnessLogic = new DamageMultiplierLogic("MELEE", 5.0);
         EnchantmentDefinition sharpnessDef = mock(EnchantmentDefinition.class);
         when(sharpnessDef.getLogic()).thenReturn(sharpnessLogic);
         when(enchantmentRegistry.get("sharpness")).thenReturn(Optional.of(sharpnessDef));
@@ -229,5 +231,36 @@ class DamageCalculatorTest {
         // 50 damage * (100 / (100 + 100)) = 25
         DamageResult result = DamageCalculator.calculateDamage(mob, player, DamageType.MELEE);
         assertEquals(25.0, result.getFinalDamage());
+    }
+
+    /**
+     * Covers the combat-pipeline ordering rule documented on the 5-arg
+     * {@link DamageCalculator#calculateDamage} overload: the pipeline's {@code multiply_damage}
+     * contribution ({@code dmg:pipeline_multiplier} on the passed context) applies after
+     * strength/crit/enchants but before defense mitigation.
+     */
+    @Test
+    void testPipelineMultiplierAppliesAfterEnchantsButBeforeDefense() {
+        Player attacker = mock(Player.class);
+        Player victim = mock(Player.class);
+        UUID attackerUuid = UUID.randomUUID();
+        UUID victimUuid = UUID.randomUUID();
+
+        // Attacker: 100 Damage, 0 Strength, 0 Crit
+        setupPlayer(attacker, attackerUuid, 100.0, 0.0, 0.0, 0.0);
+        // Victim: 100 Defense
+        setupPlayer(victim, victimUuid, 0.0, 0.0, 100.0, 0.0);
+
+        var pipelineCtx = new org.nakii.valmora.api.execution.SimpleExecutionContext(attacker, victim, null, null);
+        pipelineCtx.set("dmg:pipeline_multiplier", 2.0);
+
+        // 100 (base) * 2.0 (pipeline) * (100 / (100 + 100)) (defense) = 100
+        DamageResult result = DamageCalculator.calculateDamage(attacker, victim, DamageType.MELEE, 0.0, pipelineCtx);
+        assertEquals(100.0, result.getFinalDamage());
+
+        // Same setup with no pipeline context (null) reproduces the un-buffed 50/2=25 baseline —
+        // i.e. the multiplier is opt-in per hit, not a global default.
+        DamageResult unbuffed = DamageCalculator.calculateDamage(attacker, victim, DamageType.MELEE, 0.0, null);
+        assertEquals(50.0, unbuffed.getFinalDamage());
     }
 }

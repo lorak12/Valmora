@@ -16,6 +16,7 @@ public class SimpleExecutionContext implements ExecutionContext {
     private final LivingEntity target;
     private final Location location;
     private final ConfigurationSection params;
+    private ExecutionContext parent;
 
     public SimpleExecutionContext(LivingEntity caster, LivingEntity target, Location location, ConfigurationSection params) {
         this.caster = caster;
@@ -26,6 +27,27 @@ public class SimpleExecutionContext implements ExecutionContext {
 
     public SimpleExecutionContext(LivingEntity caster, Location location, ConfigurationSection params) {
         this(caster, null, location, params);
+    }
+
+    /**
+     * Builds a child context that inherits key-value attachments (see
+     * {@link ExecutionContext#get(String)}) from {@code parent} on a local miss. Useful for nested
+     * mechanic invocations that need to pass runtime data down without polluting the parent scope.
+     */
+    public SimpleExecutionContext(LivingEntity caster, LivingEntity target, Location location,
+                                   ConfigurationSection params, ExecutionContext parent) {
+        this(caster, target, location, params);
+        this.parent = parent;
+    }
+
+    @Override
+    public ExecutionContext getParent() {
+        return parent;
+    }
+
+    @Override
+    public void setParent(ExecutionContext parent) {
+        this.parent = parent;
     }
 
     @Override

@@ -32,7 +32,10 @@ public class PetVariableProvider implements VariableProvider {
             }
             case "level" -> module.getActivePetLevel(player);
             case "xp" -> module.getActivePetXp(player);
-            case "max_xp" -> PetDefinition.xpForLevel(module.getActivePetLevel(player));
+            case "max_xp" -> {
+                var def = module.getActivePetDefinition(player);
+                yield def != null ? def.xpForLevel(module.getActivePetLevel(player)) : 0L;
+            }
             case "active" -> module.hasPetActive(player);
             default -> null;
         };

@@ -13,6 +13,7 @@ public class RecipeModule implements ReloadableModule {
 
     private final Valmora plugin;
     private final Map<String, List<RecipeDefinition>> machineRecipes = new HashMap<>();
+    private final AnvilTemplateRegistry anvilTemplateRegistry = new AnvilTemplateRegistry();
     private RecipeEngine recipeEngine;
 
     public RecipeModule(Valmora plugin) {
@@ -22,10 +23,11 @@ public class RecipeModule implements ReloadableModule {
     @Override
     public void onEnable() {
         this.recipeEngine = new RecipeEngine(plugin);
-        
+
         // Register Dynamic Handlers
-        registerHandler("anvil", new AnvilMachineHandler(plugin));
-        
+        anvilTemplateRegistry.load(plugin); // Phase 4.3 — see docs/REFACTOR/PROGRESS.md
+        registerHandler("anvil", new AnvilMachineHandler(plugin, anvilTemplateRegistry));
+
         loadRecipes();
     }
 
@@ -42,6 +44,7 @@ public class RecipeModule implements ReloadableModule {
     @Override
     public void onDisable() {
         machineRecipes.clear();
+        anvilTemplateRegistry.clear();
     }
 
     private void loadRecipes() {
@@ -49,6 +52,10 @@ public class RecipeModule implements ReloadableModule {
         YamlLoader<RecipeDefinition> loader = new YamlLoader<>(plugin, "recipes", "Recipe");
         RecipeDefinitionParser parser = new RecipeDefinitionParser(plugin);
         loader.load(parser::parse, recipe -> {
+            // recipes/anvil_templates.yml lives in this same folder (server-wide config, not a
+            // recipe) and parses harmlessly through the same generic loader with machine == null
+            // — skip rather than register it under a null machine key.
+            if (recipe.getMachine() == null) return;
             machineRecipes.computeIfAbsent(recipe.getMachine(), k -> new ArrayList<>()).add(recipe);
         });
     }

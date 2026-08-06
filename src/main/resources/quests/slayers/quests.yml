@@ -1,0 +1,147 @@
+# ============================================================
+# Slayer chains — Zombie / Spider / Wolf, 2-3 tiers each.
+# ============================================================
+# Two-phase objective shape per tier, entirely built from existing quest primitives:
+#   1. "kill"  — kill N mobs of a category/type; on completion, spawns the tier's boss.
+#   2. "boss"  — kill that specific boss mob; on completion, fires the reward events.
+#
+# Tiers are independent, separately-trackable quests (like every other quest in the game) —
+# a player can run several tiers/chains at once. To repeat a tier, re-run it via
+# `quest_cancel <id>` followed by `quest_start <id>` (see guis/slayers.yml); cancel resets
+# status without touching progress numbers, and start re-zeroes every objective.
+
+events:
+
+  zombie_t1_reward:
+    - "economy_add 250"
+    - "notify <gold>[Slayer] Zombie Slayer I complete! <yellow>+250 coins category:slayer_complete"
+  zombie_t2_reward:
+    - "economy_add 1000"
+    - "notify <gold>[Slayer] Zombie Slayer II complete! <yellow>+1000 coins category:slayer_complete"
+  zombie_t3_reward:
+    - "economy_add 5000"
+    - "notify <gold>[Slayer] Zombie Slayer III complete! <yellow>+5000 coins category:slayer_complete"
+
+  spider_t1_reward:
+    - "economy_add 250"
+    - "notify <gold>[Slayer] Spider Slayer I complete! <yellow>+250 coins category:slayer_complete"
+  spider_t2_reward:
+    - "economy_add 1500"
+    - "notify <gold>[Slayer] Spider Slayer II complete! <yellow>+1500 coins category:slayer_complete"
+
+  wolf_t1_reward:
+    - "economy_add 250"
+    - "notify <gold>[Slayer] Wolf Slayer I complete! <yellow>+250 coins category:slayer_complete"
+  wolf_t2_reward:
+    - "economy_add 3000"
+    - "notify <gold>[Slayer] Wolf Slayer II complete! <yellow>+3000 coins category:slayer_complete"
+
+quests:
+
+  # ---------------------------------------------------------- Zombie Slayer
+  zombie_slayer_t1:
+    name: "<dark_purple>Zombie Slayer I"
+    objectives:
+      kill:
+        type: KILL
+        target: UNDEAD
+        amount: 5
+        notify: 1
+        events: "spawn_mob zombie_slayer_boss_1"
+      boss:
+        type: KILL
+        target: zombie_slayer_boss_1
+        amount: 1
+        events: "zombie_t1_reward"
+
+  zombie_slayer_t2:
+    name: "<dark_purple>Zombie Slayer II"
+    objectives:
+      kill:
+        type: KILL
+        target: UNDEAD
+        amount: 15
+        notify: 1
+        events: "spawn_mob zombie_slayer_boss_2"
+      boss:
+        type: KILL
+        target: zombie_slayer_boss_2
+        amount: 1
+        events: "zombie_t2_reward"
+
+  zombie_slayer_t3:
+    name: "<dark_purple>Zombie Slayer III"
+    objectives:
+      kill:
+        type: KILL
+        target: UNDEAD
+        amount: 30
+        notify: 1
+        events: "spawn_mob zombie_slayer_boss_3"
+      boss:
+        type: KILL
+        target: zombie_slayer_boss_3
+        amount: 1
+        events: "zombie_t3_reward"
+
+  # ---------------------------------------------------------- Spider Slayer
+  spider_slayer_t1:
+    name: "<dark_gray>Spider Slayer I"
+    objectives:
+      kill:
+        type: KILL
+        target: SPIDER
+        amount: 5
+        notify: 1
+        events: "spawn_mob spider_slayer_boss_1"
+      boss:
+        type: KILL
+        target: spider_slayer_boss_1
+        amount: 1
+        events: "spider_t1_reward"
+
+  spider_slayer_t2:
+    name: "<dark_gray>Spider Slayer II"
+    objectives:
+      kill:
+        type: KILL
+        target: SPIDER
+        amount: 20
+        notify: 1
+        events: "spawn_mob spider_slayer_boss_2"
+      boss:
+        type: KILL
+        target: spider_slayer_boss_2
+        amount: 1
+        events: "spider_t2_reward"
+
+  # ---------------------------------------------------------- Wolf Slayer
+  wolf_slayer_t1:
+    name: "<white>Wolf Slayer I"
+    objectives:
+      kill:
+        type: KILL
+        target: WOLF
+        amount: 5
+        notify: 1
+        events: "spawn_mob wolf_slayer_boss_1"
+      boss:
+        type: KILL
+        target: wolf_slayer_boss_1
+        amount: 1
+        events: "wolf_t1_reward"
+
+  wolf_slayer_t2:
+    name: "<white>Wolf Slayer II"
+    objectives:
+      kill:
+        type: KILL
+        target: WOLF
+        amount: 25
+        notify: 1
+        events: "spawn_mob wolf_slayer_boss_2"
+      boss:
+        type: KILL
+        target: wolf_slayer_boss_2
+        amount: 1
+        events: "wolf_t2_reward"

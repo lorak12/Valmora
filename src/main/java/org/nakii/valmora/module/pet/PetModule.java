@@ -32,6 +32,11 @@ public class PetModule implements ReloadableModule {
 
     private PetListener listener;
 
+    // Phase 3.3 (docs/REFACTOR/PROGRESS.md): server-wide pet XP defaults, loaded from
+    // pets/defaults.yml before pet definitions so each pet can fall back to them.
+    private String defaultXpFormula = "100 * $curve.level$ * $curve.level$";
+    private int defaultMaxLevel = 200;
+
     public PetModule(Valmora plugin) {
         this.plugin = plugin;
     }
@@ -41,6 +46,7 @@ public class PetModule implements ReloadableModule {
         definitions.clear();
         activePetSlot.clear();
         activePetEntity.clear();
+        loadPetDefaultsConfig();
         loadDefinitions();
 
         this.listener = new PetListener(this);
@@ -169,6 +175,11 @@ public class PetModule implements ReloadableModule {
         ItemStack petItem = player.getInventory().getItem(slot);
         if (petItem == null || !petItem.hasItemMeta()) return;
 
+        String petId = petItem.getItemMeta().getPersistentDataContainer()
+                .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
+        PetDefinition def = petId != null ? getDefinition(petId) : null;
+        if (def == null) return;
+
         ItemMeta meta = petItem.getItemMeta();
         int level = meta.getPersistentDataContainer()
                 .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
@@ -177,8 +188,8 @@ public class PetModule implements ReloadableModule {
                 .getOrDefault(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, 0.0);
         xp += amount;
 
-        while (level < 200) {
-            long needed = PetDefinition.xpForLevel(level);
+        while (level < def.getMaxLevel()) {
+            long needed = def.xpForLevel(level);
             if (xp >= needed) {
                 xp -= needed;
                 level++;
@@ -217,9 +228,42 @@ public class PetModule implements ReloadableModule {
         }
     }
 
+    /**
+     * Reads pets/defaults.yml → pet_defaults (Phase 3.3). Missing file/section keeps the
+     * pre-refactor hardcoded values (100 * level^2, max level 200) as fallback defaults.
+     */
+    private void loadPetDefaultsConfig() {
+        java.io.File file = new java.io.File(plugin.getDataFolder(), "pets/defaults.yml");
+        if (!file.exists()) return;
+        var config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection section = config.getConfigurationSection("pet_defaults");
+        if (section == null) return;
+        defaultXpFormula = section.getString("xp-formula", defaultXpFormula);
+        defaultMaxLevel = Math.max(1, section.getInt("max-level", defaultMaxLevel));
+    }
+
+    /** Pre-computes a level->XP-needed table by evaluating {@code formula} once per level (Phase 3.3). Never re-evaluated afterward. */
+    private long[] computeXpThresholds(String formula, int maxLevel) {
+        var expression = plugin.getScriptModule().getExpressionParser().parse(formula);
+        long[] thresholds = new long[maxLevel];
+        for (int level = 1; level <= maxLevel; level++) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null);
+            ctx.set("curve:level", (double) level);
+            Object result = expression.evaluate(ctx);
+            thresholds[level - 1] = result instanceof Number n ? Math.round(n.doubleValue()) : 0L;
+        }
+        return thresholds;
+    }
+
     private void loadDefinitions() {
         YamlLoader<PetDefinition> loader = new YamlLoader<>(plugin, "pets", "Pet");
-        loader.load(this::parseDefinition, def -> definitions.put(def.getId(), def));
+        loader.load(this::parseDefinition, def -> {
+            // pets/defaults.yml's top-level "pet_defaults" key parses as a (discarded) dummy
+            // PetDefinition through the same generic loader — it's server-wide config, not a pet.
+            if (!"pet_defaults".equalsIgnoreCase(def.getId())) {
+                definitions.put(def.getId(), def);
+            }
+        });
     }
 
     private LoadResult<PetDefinition, String> parseDefinition(String id, ConfigurationSection section, String filePath) {
@@ -255,7 +299,11 @@ public class PetModule implements ReloadableModule {
                 }
             }
 
-            return LoadResult.success(new PetDefinition(id, name, entityType, baseStats, statsPerLevel, abilities, milestones));
+            String xpFormula = section.getString("xp-formula", defaultXpFormula);
+            int maxLevel = Math.max(1, section.getInt("max-level", defaultMaxLevel));
+            long[] xpThresholds = computeXpThresholds(xpFormula, maxLevel);
+
+            return LoadResult.success(new PetDefinition(id, name, entityType, baseStats, statsPerLevel, abilities, milestones, xpThresholds));
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Failed to parse pet '" + id + "': " + e.getMessage());
         }

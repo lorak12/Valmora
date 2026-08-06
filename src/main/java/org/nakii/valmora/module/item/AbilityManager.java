@@ -15,6 +15,7 @@ public class AbilityManager implements ReloadableModule {
 
     private AbilityListener abilityListener;
     private AbilityTriggerListener abilityTriggerListener;
+    private ItemPipelineLoader pipelineLoader;
 
     @Override
     public void onEnable() {
@@ -24,6 +25,13 @@ public class AbilityManager implements ReloadableModule {
         plugin.getServer().getPluginManager().registerEvents(abilityListener, plugin);
         this.abilityTriggerListener = new AbilityTriggerListener();
         plugin.getServer().getPluginManager().registerEvents(abilityTriggerListener, plugin);
+
+        // Item ability pipeline (docs/VALMORA_DOCUMENTATION.md §39) — depends on scriptModule,
+        // which registers/enables before this module (see module order in Valmora.onEnable()).
+        if (plugin.getScriptModule() != null) {
+            this.pipelineLoader = new ItemPipelineLoader(plugin, plugin.getScriptModule());
+            pipelineLoader.load();
+        }
     }
 
     @Override
@@ -36,6 +44,10 @@ public class AbilityManager implements ReloadableModule {
         if (abilityTriggerListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(abilityTriggerListener);
         }
+        if (plugin.getScriptModule() != null) {
+            plugin.getScriptModule().getHookBus().clearYamlStages(ItemPipelineLoader.POINT_PREFIX);
+        }
+        pipelineLoader = null;
     }
 
     @Override

@@ -1,6 +1,9 @@
 package org.nakii.valmora.module.item;
 
+import org.nakii.valmora.module.script.condition.ConditionGroup;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class AbilityDefinition {
@@ -12,7 +15,11 @@ public class AbilityDefinition {
     private final double manaCost;
     private final List<String> description;
     private final List<ConfiguredMechanic> mechanics;
-    private final List<String> conditions;
+    // Phase 5 (docs/REFACTOR/PROGRESS.md Task 20): pre-compiled once at load time by
+    // ItemDefinitionParser via ConditionParser.parseList(...) — AbilityExecutor.conditionsPass()
+    // (an ON_HIT-triggered combat hot path) used to re-parse these as raw expression strings on
+    // every single hit instead of evaluating an already-compiled AST.
+    private final ConditionGroup conditions;
 
     private AbilityDefinition(Builder builder) {
         this.id = builder.id;
@@ -34,7 +41,7 @@ public class AbilityDefinition {
     public double getManaCost() { return manaCost; }
     public List<String> getDescription() { return description; }
     public List<ConfiguredMechanic> getMechanics() { return mechanics; }
-    public List<String> getConditions() { return conditions; }
+    public ConditionGroup getConditions() { return conditions; }
 
     public static class Builder {
         private final String id;
@@ -45,7 +52,7 @@ public class AbilityDefinition {
         private double manaCost = 0.0;
         private List<String> description = new ArrayList<>();
         private List<ConfiguredMechanic> mechanics = new ArrayList<>();
-        private List<String> conditions = new ArrayList<>();
+        private ConditionGroup conditions = new ConditionGroup(Collections.emptyList());
 
         public Builder(String id) {
             this.id = id;
@@ -58,7 +65,7 @@ public class AbilityDefinition {
         public Builder manaCost(double manaCost) { this.manaCost = manaCost; return this; }
         public Builder description(List<String> description) { this.description = description; return this; }
         public Builder addMechanic(ConfiguredMechanic mechanic) { this.mechanics.add(mechanic); return this; }
-        public Builder conditions(List<String> conditions) { this.conditions = conditions; return this; }
+        public Builder conditions(ConditionGroup conditions) { this.conditions = conditions; return this; }
 
         public AbilityDefinition build() {
             return new AbilityDefinition(this);

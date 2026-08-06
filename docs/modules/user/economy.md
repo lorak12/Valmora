@@ -40,13 +40,13 @@ Purse  ←—  earn (kill rewards, quests, items)  ——  spend (quests, forge,
 ### Where coins come from (earning)
 
 - **Kill rewards.** Killing custom Valmora mobs pays their `gold-reward` directly into your purse (`mobs/*.yml`). Example defaults: `test_mobs.yml:10,42` (5 / 3 coins), `test_boss.yml:10` (1000 coins), `shardworks_mobs.yml:14,29` (15 / 25 coins).
-- **Quests and slayers.** Quest completion events and slayer tier rewards can pay coins via the `economy_add` script event. The bundled slayers grant, e.g., 250–5000 coins per tier (`slayers/zombie.yml:10-66`).
+- **Quests and slayers.** Quest completion events and slayer tier rewards can pay coins via the `economy_add` script event. The bundled slayers grant, e.g., 250–5000 coins per tier (`quests/slayers/quests.yml`).
 - **Items.** Some items have a `GIVE_COINS` ability that grants coins on use/kill (e.g. the Raider Axe's "earn 20 coins from kills").
 - **Server grants.** Admins can add coins with `/eco add` (see [Admin Guide](#admin-guide)).
 
 ### Where coins go (spending)
 
-- **Slayer activation.** Starting a slayer tier charges its `cost` from your purse (`SlayerStartEventFactory.java:60-69`).
+- **Slayer activation.** Starting a slayer tier charges its cost from your purse directly via the slayer GUI's own click actions (`guis/slayers.yml` — there's no dedicated slayer module or event anymore, see `docs/modules/user/slayer.md`).
 - **Reforging.** Using the forge to reforge an item charges a coin cost from your purse.
 - **Item abilities.** Some items have a `TAKE_COINS` cost (e.g. "costs 100× weapon damage" — the Crown of Greed).
 

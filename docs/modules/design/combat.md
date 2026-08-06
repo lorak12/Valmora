@@ -3,6 +3,13 @@
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 > **Module ID:** `combat` | **Source:** `src/main/java/org/nakii/valmora/module/combat/`
 
+> **Generic-engine refactor (Phase 2):** `DamageType` is no longer a Java `enum` — it's a
+> registry-backed class configurable via `damage_types/*.yml`, and combat math (strength/crit/
+> defense multipliers) is now expression-driven from `damage_formula.yml`. Every existing call site
+> and default value is unchanged; see `docs/REFACTOR/CONFIG_REFERENCE.md` and
+> `docs/REFACTOR/MIGRATION_GUIDE.md` for the new schemas, and `docs/REFACTOR/PROGRESS.md` (Phase 2)
+> for the full rationale.
+
 ---
 
 ## Table of Contents

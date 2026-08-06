@@ -195,7 +195,7 @@ public final class ProfileGui {
         // Total skill levels
         try {
             int totalLevel = 0;
-            for (SkillDefinition skill : Valmora.getInstance().getSkillModule().getSkillRegistry().values()) {
+            for (SkillDefinition skill : ValmoraAPI.getInstance().getSkillManager().getSkillRegistry().values()) {
                 totalLevel += profile.getSkillManager().getLevel(skill.getId());
             }
             lore.add("<gray>⚔ Skill Level  <yellow>" + totalLevel);

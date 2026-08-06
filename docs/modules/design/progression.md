@@ -71,7 +71,7 @@ The module follows the AGENTS.md `XModule` / `XRegistry` / `XLoader` convention,
 | --- | --- |
 | `Valmora.java:123` | Field `private ProgressionModule progressionModule;` |
 | `Valmora.java:184` | Instantiated in `onEnable()`: `this.progressionModule = new ProgressionModule(this);` |
-| `Valmora.java:222` | Registered with `moduleManager.registerModule(progressionModule);` — **last** module, after `quiver` (`:221`) |
+| `Valmora.java:222` | Registered with `moduleManager.registerModule(progressionModule);` — **last** module registered |
 | `Valmora.java:432-435` | `getProgressionManager()` API override (null-safe) |
 | `Valmora.java:437-439` | `getProgressionModule()` (concrete getter, not on the interface) |
 

@@ -627,7 +627,6 @@ PAGINATED GUI components).
 | `journal` | `journal open` | Quest | Opens the quest journal GUI. |
 | `quest_board_assign` | `quest_board_assign <boardId>` | Quest Board | Assigns a random quest to a board slot. |
 | `quest_board_collect` | `quest_board_collect <boardId>` | Quest Board | Collects the reward for a completed board quest. |
-| `slayer_start` | `slayer_start <slayerId> <tier>` | Slayer | Starts a slayer tier (deducts cost, tracks kills). |
 | `warp_to` | `warp_to <warpId>` | Warp | Teleports the player to a registered warp. |
 | `gui` | `gui <guiId>` | NPC | Opens a GUI from an NPC interaction. |
 | `dialogue` | `dialogue <dialogueId>` | NPC | Starts an NPC dialogue. |

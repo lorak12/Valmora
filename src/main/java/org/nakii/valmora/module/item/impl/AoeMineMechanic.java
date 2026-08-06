@@ -27,8 +27,8 @@ public class AoeMineMechanic implements AbilityMechanic {
         context.getPlayerCaster().ifPresent(player -> {
             Location loc = context.getLocation();
             if (loc == null) return;
-            org.nakii.valmora.Valmora plugin = org.nakii.valmora.Valmora.getInstance();
-            ResourceManager rm = plugin.getResourceModule() != null ? plugin.getResourceModule().getResourceManager() : null;
+            var resourceModule = org.nakii.valmora.api.ValmoraAPI.getInstance().getResourceModule();
+            ResourceManager rm = resourceModule != null ? resourceModule.getResourceManager() : null;
             if (rm == null) return;
             int radius = Math.max(1, context.getInt("radius", 1));
             mineRadius(rm, player, loc.getBlock(), radius);

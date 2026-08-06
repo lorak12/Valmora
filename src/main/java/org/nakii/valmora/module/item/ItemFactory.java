@@ -49,6 +49,11 @@ public class ItemFactory {
                 meta.getPersistentDataContainer().set(Keys.REFORGE_POOL_KEY, PersistentDataType.STRING, String.join(",", reforgePool));
             }
 
+            // Container GUI (e.g. a backpack opens its own storage GUI instead of stacking)
+            if (definition.getContainerGui() != null) {
+                meta.getPersistentDataContainer().set(Keys.CONTAINER_GUI_KEY, PersistentDataType.STRING, definition.getContainerGui());
+            }
+
             // Add all stats to the stats map
             plugin.getStatModule().saveStats(meta, definition.getStats());
 

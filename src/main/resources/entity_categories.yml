@@ -1,0 +1,24 @@
+# Entity category definitions. Used anywhere a system needs to match "any entity of category X"
+# instead of one exact mob id/EntityType — e.g. the quest module's KILL objective (relocated from
+# the removed slayer module's slayer_categories.yml, Phase 3.4 of the refactor).
+# A category target that isn't listed here falls back to matching a specific
+# Valmora mob id or vanilla EntityType name verbatim (e.g. "zombie_king" or "BLAZE").
+categories:
+  monster:
+    match:
+      instanceof: "Monster"
+  illager:
+    match:
+      instanceof: "Illager"
+  animal:
+    match:
+      instanceof: "Animals"
+  all:
+    match:
+      always: true
+  any:
+    match:
+      always: true
+  undead:
+    match:
+      type_contains: ["ZOMBIE", "SKELETON", "PHANTOM", "DROWNED", "WITHER", "STRAY", "HUSK"]

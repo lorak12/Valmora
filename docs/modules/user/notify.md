@@ -113,7 +113,7 @@ Priority: explicit `io:` > category's `io` > `chat` (the built-in default). Extr
 
 **Gotchas that affect real configs:**
 
-- `notify chat <gold>[Slayer] …` puts the literal word **`chat`** at the start of the message (the code has no `chat` token — use `io:chat`): `notify <gold>[Slayer] … io:chat`. Several shipped files still use the old form (`slayers/zombie.yml`, `pets/baby_wolf.yml`).
+- `notify chat <gold>...` puts the literal word **`chat`** at the start of the message (the code has no `chat` token — use `io:chat`): `notify <gold>... io:chat`. `pets/baby_wolf.yml` still uses the old form; the slayer configs that had the same bug were rewritten (`quests/slayers/quests.yml` now correctly uses `category:`).
 - The bare word `notify` and the tokens `delay:…`, `conditions:…`, `condition:…` are consumed by the script parser as *options* before your message is read. Don't use them as literal words inside a `notify` action.
 - `give ITEM:AMOUNT notify` does **not** use this module — it shows a plain system message like `§6§lVALMORA §7» §fYou received …` (a legacy color-coded line). That's a different, separate feature.
 

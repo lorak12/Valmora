@@ -26,6 +26,7 @@ public class ItemManager implements ReloadableModule {
     @Override
     public void onEnable() {
         plugin.getLogger().info("Starting Item Module...");
+        ItemTypeLoader.load(plugin);
         itemLoader.loadItems();
         setBonusRegistry.load();
 

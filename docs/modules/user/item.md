@@ -644,7 +644,7 @@ phase. Items relying solely on these are kept as **DESCRIPTION-ONLY** (no
 | `ADD_STACK` | Growth Armor (stacking kill bonuses), Thunder (stack-based charge) |
 | `CHARGE_JUMP` | Spring Boots (charged jump height) |
 | `CANCEL_TRAMPLE` | Rancher's Boots (no crop trampling) |
-| `CONSUME_ITEM` | Primal FEAR, quiver-based arrow consumption |
+| `CONSUME_ITEM` | Primal FEAR |
 | `CHANNEL` | Ragnarock (damage-gated channel) |
 | `RETURNING_PROJECTILE` | Tribal Spear, Livid Dagger |
 | `NEXT_HIT_BUFF` | Edible Mace, Sword of Bad Health |

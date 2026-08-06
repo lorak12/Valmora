@@ -1,0 +1,26 @@
+# =====================================================================
+# Backpack Tier IV — 36 storage slots, item-bound.
+# =====================================================================
+
+backpack_tier4:
+  title: "<gold>Explorer's Backpack"
+  rows: 4
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"

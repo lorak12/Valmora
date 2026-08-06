@@ -3,7 +3,6 @@ package org.nakii.valmora.module.stat;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
-import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.item.AbilityTrigger;
@@ -38,6 +37,37 @@ public class StatManager {
         // Normalize keys to lowercase to handle any legacy uppercase keys
         savedData.forEach((k, v) -> this.baseStats.put(k.toLowerCase(), v));
         this.effectiveStats.putAll(baseStats);
+    }
+
+    /**
+     * Like {@link #loadData(Map)}, but splits {@code savedData} against the live
+     * {@link StatRegistry} first (Phase 5 Task 21 — see docs/REFACTOR/PROGRESS.md): recognized
+     * keys load normally, unrecognized ones (e.g. a deleted/renamed custom stat role) are
+     * excluded from {@code baseStats}/{@code effectiveStats} entirely — so they can never
+     * silently affect gameplay math — and returned instead, for the caller to stash on
+     * {@link org.nakii.valmora.module.profile.ValmoraProfile#getQuarantinedStats()} so they're
+     * preserved and written back to the SQL row unchanged rather than being lost.
+     *
+     * @return the subset of {@code savedData} (lowercase keys) not present in the current registry
+     */
+    public Map<String, Double> loadDataAndQuarantineUnrecognized(Map<String, Double> savedData) {
+        if (savedData == null) return Map.of();
+
+        StatRegistry registry = ValmoraAPI.getInstance().getStatRegistry();
+        Map<String, Double> recognized = new HashMap<>();
+        Map<String, Double> quarantined = new HashMap<>();
+
+        savedData.forEach((rawKey, value) -> {
+            String key = rawKey.toLowerCase();
+            if (registry.contains(key)) {
+                recognized.put(key, value);
+            } else {
+                quarantined.put(key, value);
+            }
+        });
+
+        loadData(recognized);
+        return quarantined;
     }
 
     public void addStat(Player player, String statId, double value) {
@@ -77,7 +107,7 @@ public class StatManager {
 
     // Kept for hot-reload / profile-switch attribute sync
     public void recalculateAttributes(Player player) {
-        Valmora.getInstance().getStatModule().recalculateAttributes(player, this);
+        ValmoraAPI.getInstance().getStatModule().recalculateAttributes(player, this);
     }
 
     public void recalculateStats(Player player) {
@@ -140,10 +170,10 @@ public class StatManager {
             alchemyManager.applyEffectsToStats(player, this);
         }
 
-        // Accessory bag stats
+        // Accessory bag stats (generic GUI storage-id "accessories" — see module/gui/storage)
         var playerSession = api.getPlayerManager().getSession(player.getUniqueId());
         if (playerSession != null && playerSession.getActiveProfile() != null) {
-            for (ItemStack acc : playerSession.getActiveProfile().getAccessoryItems()) {
+            for (ItemStack acc : playerSession.getActiveProfile().getStorage("accessories")) {
                 if (acc == null || !acc.hasItemMeta()) continue;
                 if (statModule != null) {
                     Map<String, Double> accStats = statModule.loadStats(acc.getItemMeta());
@@ -155,9 +185,9 @@ public class StatManager {
         }
 
         // Pet stat bonuses (applied by PetModule if a pet is summoned)
-        var valmora = org.nakii.valmora.Valmora.getInstance();
-        if (valmora != null && valmora.getPetModule() != null) {
-            valmora.getPetModule().applyPetStats(player, this);
+        var petModule = api.getPetModule();
+        if (petModule != null) {
+            petModule.applyPetStats(player, this);
         }
 
         // Armor set bonuses (e.g. full Young Dragon → +Speed).

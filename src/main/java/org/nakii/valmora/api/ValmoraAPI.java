@@ -28,6 +28,8 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.stat.StatRegistry getStatRegistry();
 
+    org.nakii.valmora.module.stat.StatRoleRegistry getStatRoleRegistry();
+
     org.nakii.valmora.module.stat.SystemStats getSystemStats();
 
     org.nakii.valmora.module.ui.UIManager getUIManager();
@@ -37,6 +39,8 @@ public interface ValmoraAPI {
     AbilityManager getAbilityManager();
 
     org.nakii.valmora.module.combat.DamageIndicatorManager getDamageIndicatorManager();
+
+    org.nakii.valmora.module.combat.CombatModule getCombatModule();
 
     ScriptModule getScriptModule();
 
@@ -68,7 +72,49 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.progression.ProgressionManager getProgressionManager();
 
-    org.nakii.valmora.module.accessory.AccessoryModule getAccessoryModule();
+    // --- Module-level accessors (Phase 1 API expansion — see docs/REFACTOR/PROGRESS.md) ---
+
+    org.nakii.valmora.module.zone.ZoneModule getZoneModule();
+
+    org.nakii.valmora.module.npc.NpcModule getNpcModule();
+
+    org.nakii.valmora.module.warp.WarpModule getWarpModule();
+
+    org.nakii.valmora.module.quest.QuestModule getQuestModule();
+
+    org.nakii.valmora.module.quest.points.PointsModule getPointsModule();
+
+    org.nakii.valmora.module.progression.ProgressionModule getProgressionModule();
+
+    org.nakii.valmora.module.resource.ResourceModule getResourceModule();
+
+    org.nakii.valmora.module.fishing.FishingModule getFishingModule();
+
+    org.nakii.valmora.module.collection.CollectionModule getCollectionModule();
+
+    org.nakii.valmora.module.hud.HudItemModule getHudItemModule();
+
+    org.nakii.valmora.module.calendar.CalendarEventModule getCalendarEventModule();
+
+    org.nakii.valmora.module.reforge.ReforgeModule getReforgeModule();
+
+    org.nakii.valmora.module.pet.PetModule getPetModule();
+
+    org.nakii.valmora.module.alchemy.AlchemyModule getAlchemyModule();
+
+    org.nakii.valmora.module.notify.NotifyModule getNotifyModule();
+
+    org.nakii.valmora.module.gui.GuiModule getGuiModule();
+
+    org.nakii.valmora.module.recipe.RecipeModule getRecipeModule();
+
+    /**
+     * Shared pipeline dispatch bus — register a Java hook to react to a named insertion point
+     * (e.g. {@code "combat:pre_damage"}, {@code "combat:post_calculation"},
+     * {@code "combat:post_application"}, {@code "combat:on_dmg_dealt"}, {@code "combat:on_death"})
+     * without writing script DSL. See {@link org.nakii.valmora.api.pipeline.HookBus}.
+     */
+    org.nakii.valmora.api.pipeline.HookBus getHookBus();
 }
 
 class Holder {

@@ -177,6 +177,20 @@ public class QuestManager {
      * @param amount  how much progress to add (usually 1)
      */
     public void trigger(Player player, String typeId, String target, int amount) {
+        trigger(player, typeId, List.of(target), amount);
+    }
+
+    /**
+     * Same as {@link #trigger(Player, String, String, int)}, but matches an objective if its
+     * {@code target:} equals ANY of the given strings (or {@code "any"}). Lets a single Bukkit
+     * event carry several equally-valid target strings for one entity/item — e.g. a killed mob's
+     * exact id, its vanilla {@code EntityType} name, and every category it belongs to — so a
+     * quest can target a specific mob OR a whole category (e.g. {@code target: UNDEAD}) without
+     * the caller needing to know which one an objective will actually match on.
+     *
+     * @param targets type-specific target strings, e.g. a mob ID, its EntityType name, and its categories
+     */
+    public void trigger(Player player, String typeId, List<String> targets, int amount) {
         ValmoraProfile profile = getProfile(player);
         if (profile == null) return;
         SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
@@ -192,9 +206,11 @@ public class QuestManager {
 
                 // DELAY matches by objective ID; all other types match by target string
                 if (typeId.equalsIgnoreCase(QuestObjectiveTypes.DELAY)) {
-                    if (obj.getId() == null || !obj.getId().equalsIgnoreCase(target)) continue;
+                    String target = targets.isEmpty() ? null : targets.get(0);
+                    if (obj.getId() == null || target == null || !obj.getId().equalsIgnoreCase(target)) continue;
                 } else {
-                    if (!obj.getTarget().equalsIgnoreCase(target) && !obj.getTarget().equalsIgnoreCase("any")) continue;
+                    if (!obj.getTarget().equalsIgnoreCase("any")
+                            && targets.stream().noneMatch(t -> obj.getTarget().equalsIgnoreCase(t))) continue;
                 }
 
                 if (!evaluateConditions(obj.getConditions(), ctx)) continue;

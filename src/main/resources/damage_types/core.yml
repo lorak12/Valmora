@@ -1,0 +1,61 @@
+# Damage type definitions (Phase 2.1 of the generic-engine refactor).
+# Editing these values changes combat behavior server-wide without a plugin recompile.
+# `ignores-defense: true` means victim DEFENSE is never applied against this damage type
+# (previously a hardcoded VOID/DROWNING/FALL exclusion list in DamageCalculator.java).
+# `on-hit` is a list of script DSL events (see docs/modules/design/script.md) fired once per hit
+# of this damage type, pre-compiled at load time — never re-parsed on the combat hot path.
+
+melee:
+  color: "<white>"
+  ignores-defense: false
+  on-hit: []
+
+projectile:
+  color: "<gray>"
+  ignores-defense: false
+  on-hit: []
+
+fall:
+  color: "<dark_gray>"
+  ignores-defense: true
+  on-hit: []
+
+drowning:
+  color: "<blue>"
+  ignores-defense: true
+  on-hit: []
+
+fire:
+  color: "<#FF8C00>"
+  ignores-defense: false
+  on-hit: []
+
+lava:
+  color: "<dark_red>"
+  ignores-defense: false
+  on-hit: []
+
+magic:
+  color: "<aqua>"
+  ignores-defense: false
+  on-hit: []
+
+void:
+  color: "<black>"
+  ignores-defense: true
+  on-hit: []
+
+poison:
+  color: "<green>"
+  ignores-defense: false
+  on-hit: []
+
+wither:
+  color: "<black>"
+  ignores-defense: false
+  on-hit: []
+
+explosion:
+  color: "<red>"
+  ignores-defense: false
+  on-hit: []

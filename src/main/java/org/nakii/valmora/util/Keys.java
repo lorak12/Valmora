@@ -35,10 +35,10 @@ public class Keys {
     public static NamespacedKey PET_XP_KEY;
     public static NamespacedKey PET_LEVEL_KEY;
 
-    public static NamespacedKey SLAYER_BOSS_KEY;
+    public static NamespacedKey STORAGE_CONTENTS_KEY;
+    public static NamespacedKey CONTAINER_GUI_KEY;
 
-    public static NamespacedKey BACKPACK_CONTENTS_KEY;
-    public static NamespacedKey BACKPACK_SIZE_KEY;
+    public static NamespacedKey DAMAGE_RESISTANCES_KEY;
 
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
@@ -72,9 +72,9 @@ public class Keys {
         PET_XP_KEY = new NamespacedKey(plugin, "pet_xp");
         PET_LEVEL_KEY = new NamespacedKey(plugin, "pet_level");
 
-        SLAYER_BOSS_KEY = new NamespacedKey(plugin, "slayer_boss");
+        STORAGE_CONTENTS_KEY = new NamespacedKey(plugin, "storage_contents");
+        CONTAINER_GUI_KEY = new NamespacedKey(plugin, "container_gui");
 
-        BACKPACK_CONTENTS_KEY = new NamespacedKey(plugin, "backpack_contents");
-        BACKPACK_SIZE_KEY = new NamespacedKey(plugin, "backpack_size");
+        DAMAGE_RESISTANCES_KEY = new NamespacedKey(plugin, "damage_resistances");
     }
 }

@@ -2,6 +2,7 @@ package org.nakii.valmora.module.item.impl;
 
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
 import org.nakii.valmora.module.item.TemporaryStatService;
@@ -29,7 +30,7 @@ public class ModifyStatMechanic implements AbilityMechanic {
         double amount = context.resolveDouble("amount", 0.0);
         double duration = context.resolveDouble("duration", -1.0);
 
-        ValmoraProfile profile = Valmora.getInstance().getPlayerManager()
+        ValmoraProfile profile = ValmoraAPI.getInstance().getPlayerManager()
                 .getSession(player.getUniqueId()).getActiveProfile();
         if (profile == null) return;
 

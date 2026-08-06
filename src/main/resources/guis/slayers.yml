@@ -1,0 +1,278 @@
+# =====================================================================
+# Slayer menu — activates quests/slayers tier quests. Same GUI engine as
+# guis/geomancy_tree.yml (per-component `states:` conditions).
+#
+# Each tier button has two states:
+#   available   — not currently in progress (never started, or a prior run completed).
+#                 Clicking checks the coin cost, charges it, then re-arms the quest via
+#                 quest_cancel + quest_start (safe/idempotent even on a first run — see
+#                 resources/quests/slayers/quests.yml).
+#   in_progress — shows live kill/boss progress via the quest module's own variables.
+# =====================================================================
+
+slayers:
+  title: "<dark_purple>Slayer Quests</dark_purple>"
+  rows: 6
+  update-interval: 20
+
+  layout:
+    - "BBBBBBBBB"
+    - "B1B2B3BBB"
+    - "BB4BB5BBB"
+    - "BB6BB7BBB"
+    - "BBBBBBBBB"
+    - "BBBBZBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+
+    # ---------------------------------------------------------- Zombie Slayer I
+    "1":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.zombie_slayer_t1.status$ == in_progress"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer I"
+            lore:
+              - "<gray>Kill: <yellow>$quest.zombie_slayer_t1.objective.kill.progress$<gray>/<yellow>$quest.zombie_slayer_t1.objective.kill.required$ <gray>Undead"
+              - "<gray>Boss: <yellow>$quest.zombie_slayer_t1.objective.boss.progress$<gray>/<yellow>$quest.zombie_slayer_t1.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer I"
+            lore:
+              - "<gray>Kill <yellow>5 Undead <gray>mobs, then"
+              - "<gray>defeat the <dark_purple>Revenant Horror<gray>."
+              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Reward: <gold>250 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 100"
+              actions:
+                - "economy_remove 100"
+                - "quest_cancel zombie_slayer_t1"
+                - "quest_start zombie_slayer_t1"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Zombie Slayer II
+    "2":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.zombie_slayer_t2.status$ == in_progress"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer II"
+            lore:
+              - "<gray>Kill: <yellow>$quest.zombie_slayer_t2.objective.kill.progress$<gray>/<yellow>$quest.zombie_slayer_t2.objective.kill.required$ <gray>Undead"
+              - "<gray>Boss: <yellow>$quest.zombie_slayer_t2.objective.boss.progress$<gray>/<yellow>$quest.zombie_slayer_t2.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer II"
+            lore:
+              - "<gray>Kill <yellow>15 Undead <gray>mobs, then"
+              - "<gray>defeat the <dark_purple>Revenant Horror II<gray>."
+              - "<gray>Cost: <gold>500 coins"
+              - "<gray>Reward: <gold>1000 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 500"
+              actions:
+                - "economy_remove 500"
+                - "quest_cancel zombie_slayer_t2"
+                - "quest_start zombie_slayer_t2"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 500 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Zombie Slayer III
+    "3":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.zombie_slayer_t3.status$ == in_progress"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer III"
+            lore:
+              - "<gray>Kill: <yellow>$quest.zombie_slayer_t3.objective.kill.progress$<gray>/<yellow>$quest.zombie_slayer_t3.objective.kill.required$ <gray>Undead"
+              - "<gray>Boss: <yellow>$quest.zombie_slayer_t3.objective.boss.progress$<gray>/<yellow>$quest.zombie_slayer_t3.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: ROTTEN_FLESH
+            name: "<dark_purple>Zombie Slayer III"
+            lore:
+              - "<gray>Kill <yellow>30 Undead <gray>mobs, then"
+              - "<gray>defeat the <dark_purple>Revenant Horror III<gray>."
+              - "<gray>Cost: <gold>2000 coins"
+              - "<gray>Reward: <gold>5000 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 2000"
+              actions:
+                - "economy_remove 2000"
+                - "quest_cancel zombie_slayer_t3"
+                - "quest_start zombie_slayer_t3"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 2000 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Spider Slayer I
+    "4":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.spider_slayer_t1.status$ == in_progress"
+          display-item:
+            material: SPIDER_EYE
+            name: "<dark_gray>Spider Slayer I"
+            lore:
+              - "<gray>Kill: <yellow>$quest.spider_slayer_t1.objective.kill.progress$<gray>/<yellow>$quest.spider_slayer_t1.objective.kill.required$ <gray>Spiders"
+              - "<gray>Boss: <yellow>$quest.spider_slayer_t1.objective.boss.progress$<gray>/<yellow>$quest.spider_slayer_t1.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: SPIDER_EYE
+            name: "<dark_gray>Spider Slayer I"
+            lore:
+              - "<gray>Kill <yellow>5 Spiders<gray>, then"
+              - "<gray>defeat the <dark_gray>Broodmother<gray>."
+              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Reward: <gold>250 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 100"
+              actions:
+                - "economy_remove 100"
+                - "quest_cancel spider_slayer_t1"
+                - "quest_start spider_slayer_t1"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Spider Slayer II
+    "5":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.spider_slayer_t2.status$ == in_progress"
+          display-item:
+            material: SPIDER_EYE
+            name: "<dark_gray>Spider Slayer II"
+            lore:
+              - "<gray>Kill: <yellow>$quest.spider_slayer_t2.objective.kill.progress$<gray>/<yellow>$quest.spider_slayer_t2.objective.kill.required$ <gray>Spiders"
+              - "<gray>Boss: <yellow>$quest.spider_slayer_t2.objective.boss.progress$<gray>/<yellow>$quest.spider_slayer_t2.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: SPIDER_EYE
+            name: "<dark_gray>Spider Slayer II"
+            lore:
+              - "<gray>Kill <yellow>20 Spiders<gray>, then"
+              - "<gray>defeat the <dark_gray>Broodmother II<gray>."
+              - "<gray>Cost: <gold>500 coins"
+              - "<gray>Reward: <gold>1500 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 500"
+              actions:
+                - "economy_remove 500"
+                - "quest_cancel spider_slayer_t2"
+                - "quest_start spider_slayer_t2"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 500 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Wolf Slayer I
+    "6":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.wolf_slayer_t1.status$ == in_progress"
+          display-item:
+            material: BONE
+            name: "<white>Wolf Slayer I"
+            lore:
+              - "<gray>Kill: <yellow>$quest.wolf_slayer_t1.objective.kill.progress$<gray>/<yellow>$quest.wolf_slayer_t1.objective.kill.required$ <gray>Wolves"
+              - "<gray>Boss: <yellow>$quest.wolf_slayer_t1.objective.boss.progress$<gray>/<yellow>$quest.wolf_slayer_t1.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: BONE
+            name: "<white>Wolf Slayer I"
+            lore:
+              - "<gray>Kill <yellow>5 Wolves<gray>, then"
+              - "<gray>defeat <white>Alpha Fang<gray>."
+              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Reward: <gold>250 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 100"
+              actions:
+                - "economy_remove 100"
+                - "quest_cancel wolf_slayer_t1"
+                - "quest_start wolf_slayer_t1"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+
+    # ---------------------------------------------------------- Wolf Slayer II
+    "7":
+      type: DISPLAY
+      states:
+        in_progress:
+          condition: "$quest.wolf_slayer_t2.status$ == in_progress"
+          display-item:
+            material: BONE
+            name: "<white>Wolf Slayer II"
+            lore:
+              - "<gray>Kill: <yellow>$quest.wolf_slayer_t2.objective.kill.progress$<gray>/<yellow>$quest.wolf_slayer_t2.objective.kill.required$ <gray>Wolves"
+              - "<gray>Boss: <yellow>$quest.wolf_slayer_t2.objective.boss.progress$<gray>/<yellow>$quest.wolf_slayer_t2.objective.boss.required$"
+        available:
+          condition: "default"
+          display-item:
+            material: BONE
+            name: "<white>Wolf Slayer II"
+            lore:
+              - "<gray>Kill <yellow>25 Wolves<gray>, then"
+              - "<gray>defeat <white>Alpha Fang II<gray>."
+              - "<gray>Cost: <gold>1000 coins"
+              - "<gray>Reward: <gold>3000 coins"
+              - "<green>Click to activate!"
+          actions:
+            left:
+              conditions:
+                - "$economy.purse$ >= 1000"
+              actions:
+                - "economy_remove 1000"
+                - "quest_cancel wolf_slayer_t2"
+                - "quest_start wolf_slayer_t2"
+              fail-actions:
+                - "notify <red>Not enough coins! Requires 1000 coins. io:actionbar"
+
+    Z:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Back"
+      actions:
+        left:
+          actions: ["open_gui skills_list"]

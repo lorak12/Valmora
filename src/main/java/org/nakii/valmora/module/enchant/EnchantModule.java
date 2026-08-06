@@ -4,14 +4,11 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
-import org.nakii.valmora.module.enchant.logic.SharpnessLogic;
-import org.nakii.valmora.module.enchant.logic.GrowthLogic;
-import org.nakii.valmora.module.enchant.logic.FortuneLogic;
-import org.nakii.valmora.module.enchant.logic.EfficiencyLogic;
 import org.nakii.valmora.module.enchant.logic.StatBonusLogic;
 import org.nakii.valmora.module.enchant.logic.DamageMultiplierLogic;
 import org.nakii.valmora.module.enchant.logic.DefenseReductionLogic;
@@ -45,10 +42,33 @@ public class EnchantModule implements ReloadableModule {
     }
 
     private void registerBuiltinLogics() {
-        logicMap.put("valmora:sharpness", new SharpnessLogic());
-        logicMap.put("valmora:growth", new GrowthLogic());
-        logicMap.put("valmora:fortune", new FortuneLogic());
-        logicMap.put("valmora:efficiency", new EfficiencyLogic());
+        // Phase 4.5 follow-up (docs/REFACTOR/PROGRESS.md): "sharpness" used to be a separate
+        // hardcoded class (SharpnessLogic) applying a fixed 5%/level MELEE multiplier — an exact
+        // special case of the generic valmora:damage_multiplier logic below. Registering it as a
+        // factory with matching defaults means existing enchants/*.yml with `logic:
+        // valmora:sharpness` and no logic-params behave identically, while a new enchant can now
+        // override the damage type or percent-per-level via YAML.
+        logicFactories.put("valmora:sharpness", params ->
+            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0)));
+
+        // Phase 4.5 (docs/REFACTOR/PROGRESS.md): "growth", "fortune", and "efficiency" used to be
+        // separate hardcoded Java classes (GrowthLogic, FortuneLogic, EfficiencyLogic), each just
+        // a fixed per-level bonus to one stat — i.e. already a special case of the generic
+        // valmora:stat_bonus logic below. Registering them as factories means any existing
+        // enchants/*.yml with `logic: valmora:fortune` and no logic-params behaves identically
+        // (defaults match the old hardcoded values), while a new enchant can override the bonus
+        // via YAML without a code change. Defaults resolve through StatRoleRegistry (via
+        // SystemStats) rather than a literal "health"/"mining_fortune" string, so a server that
+        // renamed those roles keeps getting the right stat.
+        logicFactories.put("valmora:growth", params ->
+            new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getHealth()),
+                    params.getDouble("per-level", 10.0)));
+        logicFactories.put("valmora:fortune", params ->
+            new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getMiningFortune()),
+                    params.getDouble("per-level", 10.0)));
+        logicFactories.put("valmora:efficiency", params ->
+            new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getMiningSpeed()),
+                    params.getDouble("per-level", 50.0)));
 
         // Parameterized generic logics
         logicFactories.put("valmora:stat_bonus", params ->

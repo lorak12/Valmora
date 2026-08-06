@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -75,8 +76,27 @@ public final class AbilityExecutor {
                 profile.getCooldownManager().setCooldown(ability.getId(), ability.getCooldown());
             }
 
+            // Item ability pipeline hooks — see docs/VALMORA_DOCUMENTATION.md §39. Supplementary to
+            // the native cooldown/mana gating above (unchanged): a stage/addon can veto this
+            // specific ability firing (`interrupt` on item:pre_ability, e.g. "no abilities in this
+            // zone") or react after it resolves (item:post_ability). Zero-cost when nothing is
+            // registered at either point, same as every other domain.
+            HookBus bus = ValmoraAPI.getInstance().getHookBus();
+            boolean pipelineActive = bus != null && bus.hasAnyStages("item:pre_ability", "item:post_ability");
+            if (pipelineActive) {
+                context.set("item:ability_id", ability.getId());
+                context.set("item:ability_trigger", trigger.name());
+                if (!bus.runPoint("item:pre_ability", context)) {
+                    continue; // cooldown/mana already consumed above — the attempt happened, effects didn't
+                }
+            }
+
             for (ConfiguredMechanic mechanic : ability.getMechanics()) {
                 mechanic.execute(player, resolvedTarget);
+            }
+
+            if (pipelineActive) {
+                bus.runPoint("item:post_ability", context);
             }
         }
     }
@@ -96,12 +116,9 @@ public final class AbilityExecutor {
     }
 
     private static boolean conditionsPass(AbilityDefinition ability, ExecutionContext context) {
-        if (ability.getConditions() == null || ability.getConditions().isEmpty()) return true;
-        var evaluator = ValmoraAPI.getInstance().getScriptModule().getExpressionEvaluator();
-        for (String condition : ability.getConditions()) {
-            Object result = evaluator.evaluate(condition, context);
-            if (!(result instanceof Boolean b) || !b) return false;
-        }
-        return true;
+        // Phase 5 (docs/REFACTOR/PROGRESS.md Task 20): conditions are pre-compiled once at item
+        // load time (see AbilityDefinition/ItemDefinitionParser) — evaluating an already-built
+        // ConditionGroup here, not re-parsing raw strings on every ON_HIT/etc. trigger.
+        return ability.getConditions() == null || ability.getConditions().evaluate(context);
     }
 }

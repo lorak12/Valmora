@@ -39,9 +39,15 @@ class ProfilePersistenceMockTest {
     void setUp() {
         MockBukkit.mock();
         // Profile managers (StatManager) read registries from the Valmora API singleton on
-        // construction. Provide a mock backed by an empty StatRegistry so they build cleanly.
+        // construction. Register every stat id this test round-trips as a real StatDefinition —
+        // since Phase 5 Task 21 (docs/REFACTOR/PROGRESS.md), StatManager quarantines any saved
+        // stat id that isn't in the live StatRegistry rather than loading it, so an empty
+        // registry here would incorrectly quarantine "strength" instead of restoring it.
         ValmoraAPI api = mock(ValmoraAPI.class);
-        when(api.getStatRegistry()).thenReturn(new StatRegistry());
+        org.nakii.valmora.module.stat.StatRegistry statRegistry = new StatRegistry();
+        statRegistry.register(new org.nakii.valmora.module.stat.StatDefinition(
+                "strength", "Strength", 0.0, Double.MAX_VALUE, "<red>", "BLAZE_POWDER", "", false, null));
+        when(api.getStatRegistry()).thenReturn(statRegistry);
         ValmoraAPI.setProvider(api);
     }
 

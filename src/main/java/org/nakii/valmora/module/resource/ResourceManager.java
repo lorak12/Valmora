@@ -8,6 +8,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.zone.ResourceStage;
 import org.nakii.valmora.module.zone.ZoneDefinition;
@@ -26,6 +29,8 @@ public class ResourceManager {
         NOT_TRACKED,
         /** A resource block, but the player's Breaking Power is below the required threshold. */
         INSUFFICIENT_POWER,
+        /** A {@code resource:pre_break} pipeline stage called {@code interrupt} — the break is cancelled. */
+        INTERRUPTED,
         /** Successfully mined; drops were generated and the block progressed/regenerated. */
         HANDLED
     }
@@ -72,6 +77,22 @@ public class ResourceManager {
             return BreakResult.INSUFFICIENT_POWER;
         }
 
+        // Resource pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md §6 "grouped block breaking") — only
+        // engaged for tracked/configured resource blocks, so ordinary block breaking never touches
+        // the HookBus at all. Zero-cost when no stage/hook is registered at either point.
+        HookBus bus = ValmoraAPI.getInstance().getHookBus();
+        boolean pipelineActive = bus != null
+                && bus.hasAnyStages(ResourcePipelineLoader.PRE_BREAK, ResourcePipelineLoader.POST_BREAK);
+        ExecutionContext pipelineCtx = null;
+        if (pipelineActive) {
+            pipelineCtx = new SimpleExecutionContext(player, null, block.getLocation(), null);
+            pipelineCtx.set("resource:material", originalMaterial.name());
+            pipelineCtx.set("resource:stage", stageIndex);
+            if (!bus.runPoint(ResourcePipelineLoader.PRE_BREAK, pipelineCtx)) {
+                return BreakResult.INTERRUPTED;
+            }
+        }
+
         ResourceStage stage = config.getStage(stageIndex);
         double miningFortune = getPlayerMiningFortune(player);
 
@@ -81,6 +102,10 @@ public class ResourceManager {
                 ItemStack item = createItem(drop.getItemId(), amount);
                 if (item != null) player.getInventory().addItem(item);
             }
+        }
+
+        if (pipelineActive) {
+            bus.runPoint(ResourcePipelineLoader.POST_BREAK, pipelineCtx);
         }
 
         boolean isLastStage = (stageIndex == config.getStageCount() - 1);

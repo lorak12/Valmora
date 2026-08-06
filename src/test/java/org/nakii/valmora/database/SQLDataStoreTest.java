@@ -47,8 +47,10 @@ class SQLDataStoreTest {
             assertTrue(columnExists(ds, "valmora_profiles", "created_at"));
             assertTrue(columnExists(ds, "valmora_profiles", "last_used"));
             assertTrue(columnExists(ds, "valmora_profiles", "collections"));
-            assertTrue(columnExists(ds, "valmora_profiles", "quiver"));
+            assertFalse(columnExists(ds, "valmora_profiles", "quiver"), "quiver column was dropped in v5");
+            assertFalse(columnExists(ds, "valmora_profiles", "accessory_items"), "accessory_items column was dropped in v5");
             assertTrue(columnExists(ds, "valmora_economy", "purse"));
+            assertTrue(columnExists(ds, "valmora_storage", "contents"), "generic storage table exists (v4)");
         } finally {
             store.close();
         }
@@ -88,14 +90,15 @@ class SQLDataStoreTest {
             assertTrue(columnExists(ds, "valmora_profiles", "last_used"));
             assertTrue(columnExists(ds, "valmora_profiles", "tags"));
             assertTrue(columnExists(ds, "valmora_profiles", "variables"));
-            assertTrue(columnExists(ds, "valmora_profiles", "quiver"));
+            assertFalse(columnExists(ds, "valmora_profiles", "quiver"), "quiver column was dropped in v5");
+            assertTrue(columnExists(ds, "valmora_storage", "contents"), "generic storage table exists (v4)");
         } finally {
             store.close();
         }
     }
 
     @Test
-    void migratesV1DatabaseToAddQuiverColumn(@TempDir Path dir) throws Exception {
+    void migratesV1DatabaseAndDropsQuiverColumn(@TempDir Path dir) throws Exception {
         HikariDataSource ds = newDataSource(dir.resolve("v1.db"));
         // Simulate a database already on schema v1 (quiver column didn't exist yet).
         try (Connection c = ds.getConnection()) {
@@ -116,7 +119,10 @@ class SQLDataStoreTest {
         try {
             store.init();
             assertEquals(SQLDataStore.LATEST_SCHEMA_VERSION, readVersion(ds));
-            assertTrue(columnExists(ds, "valmora_profiles", "quiver"));
+            // v2 adds quiver, then v5 (same init() call, migrating straight through) drops it again —
+            // a v1 database should end up in the same clean-cutover state as a fresh one.
+            assertFalse(columnExists(ds, "valmora_profiles", "quiver"));
+            assertTrue(columnExists(ds, "valmora_storage", "contents"));
         } finally {
             store.close();
         }

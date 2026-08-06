@@ -38,12 +38,13 @@ This is a **modular RPG plugin**. Every major feature lives in its own `Reloadab
 
 ## 2. Mandatory Reading
 
-Before implementing any feature, open and read these two files:
+Before implementing any feature, open and read:
 
 - **`docs/MODULE_DEVELOPMENT.md`** — complete lifecycle guide for creating, registering, enabling, and hot-reloading modules. Covers `ReloadableModule`, `ModuleManager`, listener registration, and inter-module communication with code examples.
-- **`docs/VALMORA_DOCUMENTATION.md`** — 1300+ lines covering every subsystem: items, mobs, skills, abilities, GUI, scripting, execution context, and YAML schemas. If a system exists in Valmora, its contract is documented here.
+- **`docs/modules/design/<module>.md`** and **`docs/modules/user/<module>.md`** for the module(s) you're touching — the current, per-module, verified-against-code reference. Start from `docs/modules/design/INTEGRATION.md` / `docs/modules/user/INTEGRATION.md` for the cross-module map, and `docs/modules/modules.md` for the full module list.
+- **`docs/VALMORA_DOCUMENTATION.md`** — an older, broader single-file reference, kept for content not yet migrated into the per-module docs above. Prefer the per-module docs where they overlap.
 
-These two files are ground truth. If this AGENTS.md ever conflicts with them, the specific doc wins.
+These are ground truth. If this AGENTS.md ever conflicts with them, the specific doc wins.
 
 ---
 
@@ -77,7 +78,11 @@ valmora/
 │       └── java/org/nakii/valmora/
 ├── docs/
 │   ├── MODULE_DEVELOPMENT.md       ← READ THIS
-│   └── VALMORA_DOCUMENTATION.md    ← READ THIS
+│   ├── modules/
+│   │   ├── design/<module>.md      ← READ THIS (per module you touch)
+│   │   ├── user/<module>.md        ← READ THIS (per module you touch)
+│   │   └── modules.md              # index of all modules
+│   └── VALMORA_DOCUMENTATION.md    # broader older reference; per-module docs above take priority
 └── plugins/Valmora/                # Runtime data (generated, not committed)
     ├── config.yml
     ├── database.db

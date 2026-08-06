@@ -6,7 +6,7 @@ import org.nakii.valmora.module.combat.DamageType;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -137,7 +137,7 @@ public class MobDefinition {
         private double strength = 0.0;
         private double critChance = 0.0;
         private double critDamage = 0.0;
-        private Map<DamageType, Double> resistances = new EnumMap<>(DamageType.class);
+        private Map<DamageType, Double> resistances = new HashMap<>();
         private ItemStack[] armor;
         private ItemStack weapon;
         private ItemStack offHand;

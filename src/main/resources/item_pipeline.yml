@@ -1,0 +1,29 @@
+# Item ability pipeline — optional hook points around firing an item ability's mechanics. See
+# docs/VALMORA_DOCUMENTATION.md §39 for the full design.
+#
+# Leave `stages` empty (or delete this file) and item abilities behave exactly as if this feature
+# didn't exist — AbilityExecutor skips the pipeline entirely when no stage is registered. This does
+# NOT replace the ability's own trigger/condition/cooldown/mana gating (still fully native); it's a
+# supplementary hook around the mechanics themselves.
+#
+# Insertion points ("when"):
+#   pre_ability   - after the ability's own conditions/cooldown/mana check passes, before its
+#                   mechanics run. `interrupt` here cancels just this firing (mechanics don't run;
+#                   the cooldown/mana already consumed stays consumed).
+#   post_ability  - after the ability's mechanics have run.
+#
+# Variables: $item.ability_id$ / $item.ability_trigger$, plus the usual $player.*$, $target.*$, etc.
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: no_abilities_in_arena
+#     when: pre_ability
+#     conditions:
+#       - "zone pvp_arena"
+#     on-pass:
+#       - "notify <red>Abilities are disabled here!</red>"
+#       - "interrupt"
+#     on-fail: []
+
+stages: []

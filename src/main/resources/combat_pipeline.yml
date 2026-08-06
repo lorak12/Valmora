@@ -1,0 +1,31 @@
+# Combat Pipeline — optional hook points into the combat hit lifecycle.
+# See docs/COMBAT_PIPELINE_ANALYSIS.md for full design rationale and examples.
+#
+# This file is entirely optional. Leave `stages` empty (or delete this file) and combat behaves
+# exactly as if this feature didn't exist — CombatListener/MobDeathListener skip the pipeline
+# entirely when no stage is registered (HookBus#hasStages), so there is zero cost to not using it.
+#
+# Each stage runs at one named insertion point ("when"):
+#   pre_damage        - before DamageCalculator runs. `interrupt` here cancels the hit entirely.
+#   post_calculation  - after damage/crit/type are known, before it's applied to health.
+#                        `interrupt` here cancels application (the hit is "rolled" but doesn't land).
+#   post_application  - after health has been reduced and the indicator has spawned.
+#   on_dmg_dealt      - same timing as post_application, fires once per attacker (mirrors ON_HIT).
+#   on_death          - after MobDeathListener resolves XP/gold/loot for a custom mob's death.
+#
+# Available variables (in addition to the usual $player.*$, $target.*$, $prop.*$, etc. —
+# see docs/VALMORA_DOCUMENTATION.md): $dmg.final_damage$, $dmg.is_critical$, $dmg.damage_type$,
+# $dmg.is_immune$ (set from post_calculation onward).
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: berserker_rage
+#     when: pre_damage
+#     conditions:
+#       - "$player.hp$ < $player.max_hp$ * 0.25"
+#     on-pass:
+#       - "notify <red>Berserker Rage! Fighting below 25% HP!</red>"
+#     on-fail: []
+
+stages: []

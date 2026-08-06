@@ -1,0 +1,35 @@
+# Mob (boss) ability pipeline — optional hook points around firing a boss ability's mechanics. See
+# docs/VALMORA_DOCUMENTATION.md §39 for the full design.
+#
+# Leave `stages` empty (or delete this file) and boss abilities behave exactly as if this feature
+# didn't exist — BossController skips the pipeline entirely when no stage is registered. This does
+# NOT replace the ability's own timer/interval/chance/cooldown/announce machinery (still fully
+# native); it's a supplementary hook around the mechanics themselves.
+#
+# Insertion points ("when"):
+#   pre_ability   - after the ability's own cooldown/interval/chance check passes, before its
+#                   mechanics run. `interrupt` here cancels just this firing (e.g. a "silence" debuff
+#                   on the boss) — the cooldown already consumed stays consumed.
+#   post_ability  - after the ability's mechanics have run.
+#
+# Variables: $mob.ability_id$ / $mob.ability_trigger$ ($caster$ is the boss, $target$ its resolved
+# ability target if any), plus the usual $player.*$, etc.
+#
+# Note: most built-in events (`notify`, `variable set player.var.*`, `tag`, `give`) act on the
+# caster, and a boss ability's caster is the boss entity, not a player — they're no-ops here.
+# `interrupt` and `$target.*$` (the ability's resolved target, if any) are what's actually useful
+# in this context today.
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: block_enrage_below_10_percent
+#     when: pre_ability
+#     conditions:
+#       - "$mob.ability_id$ == enrage"
+#       - "$target.health$ <= 0"
+#     on-pass:
+#       - "interrupt"
+#     on-fail: []
+
+stages: []

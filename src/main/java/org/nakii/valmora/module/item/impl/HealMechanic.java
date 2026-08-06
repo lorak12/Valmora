@@ -3,6 +3,7 @@ package org.nakii.valmora.module.item.impl;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
 import org.nakii.valmora.module.item.TargetResolver;
@@ -43,12 +44,12 @@ public class HealMechanic implements AbilityMechanic {
         for (LivingEntity target : targets) {
             if (!(target instanceof Player healTarget)) continue; // Only players have a Valmora profile.
 
-            ValmoraProfile profile = Valmora.getInstance().getPlayerManager()
+            ValmoraProfile profile = ValmoraAPI.getInstance().getPlayerManager()
                     .getSession(healTarget.getUniqueId()).getActiveProfile();
             if (profile == null) continue;
 
             profile.getPlayerState().heal(healAmount, profile.getStatManager());
-            Valmora.getInstance().getPlayerManager()
+            ValmoraAPI.getInstance().getPlayerManager()
                     .syncVisualHealth(healTarget, profile.getPlayerState(), profile.getStatManager());
         }
     }

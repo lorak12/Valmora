@@ -48,6 +48,7 @@
 36. [Slayer Module — slayers/*.yml](#36-slayer-module--slayersyml)
 37. [Reforge Module — reforges/*.yml](#37-reforge-module--reforgesyml)
 38. [Points System](#38-points-system)
+39. [Extensible Pipeline System (HookBus)](#39-extensible-pipeline-system-hookbus)
 
 ---
 
@@ -103,13 +104,14 @@ onEnable()
  ├── 6. DatabaseFactory.createDataStore(this)   ← Reads config.yml -> type
  ├── 7. dataStore.init()            ← Creates SQL tables
  │
- ├── 8.  Instantiate all modules (fields in Valmora.java):
- │       ScriptModule, TimeModule, StatModule, PlayerManager, EconomyModule,
- │       UIManager, AbilityManager, ItemManager, MobManager, SkillModule,
- │       CombatModule, GuiModule, RecipeModule, AlchemyModule, EnchantModule,
- │       ZoneModule, ResourceModule, FishingModule, NpcModule, WarpModule, QuestModule
- │
- ├── 9.  moduleManager.registerModule(...)  ← 21 modules in dependency order
+ ├── 8.  Instantiate all modules (fields in Valmora.java)
+ ├── 9.  moduleManager.registerModule(...)  ← 29 modules in dependency order:
+ │       script → time → stat → profile(playerManager) → economy → ui →
+ │       ability → item → mob → skill → combat → gui → recipe → alchemy →
+ │       enchant → zone → resource → fishing → npc → warp → quest → points →
+ │       notify → collection → hud → calendar → reforge → pet → progression
+ │       (authoritative source: the comment block at `Valmora.java:186-222` —
+ │       this list drifts as modules are added/removed, that comment does not)
  ├── 10. moduleManager.enableModules()      ← onEnable() called on all
  │
  └── 11. Register Commands
@@ -597,6 +599,17 @@ finalDamage = floor(fullDamage × defenseMultiplier)
 
 Critical hits display: `✧ <bold>DAMAGE ✧` in gold. Normal hits display colored damage numbers based on `DamageType.getColor()`.
 
+### Extensible Pipeline Hooks
+
+`CombatListener` and `MobDeathListener` also run the shared **pipeline system** (see §39) at five
+named points around this flow — `combat:pre_damage`, `combat:post_calculation`,
+`combat:post_application`, `combat:on_dmg_dealt`, `combat:on_death` — configurable without touching
+Java via `combat_pipeline.yml`, or hookable directly in Java via `ValmoraAPI.getHookBus()`. A stage
+can contribute a multiplicative buff via the `multiply_damage <factor>` script event; see `docs/modules/design/pipeline.md` §4 for
+exactly where that applies relative to strength/crit/enchants/defense above. A default install with
+no `combat_pipeline.yml` and no registered Java hooks runs this exact flow unchanged — the pipeline
+adds nothing to the hot path until something is registered.
+
 ---
 
 ## 12. Profile & PlayerState Data Model
@@ -853,28 +866,12 @@ on-complete:
 
 ## 18. UI System Internals
 
-`UIManager` (id: `"ui"`) manages three UI sub-components and runs a **repeating task every 2 ticks** (10 times/second) to tick the ActionBar for smooth display overriding.
-
-### ChatUI
-
-Sends styled chat messages. Current implementation:
-- `sendLevelUp(Player, Skill, int newLevel)` — sends a level-up announcement to the player.
-
-### ActionBarUI
-
-Manages the action bar for all online players. Supports two modes:
-- **Permanent message** — stays until replaced.
-- **Temporary message** — displayed for N ticks, then reverts to the permanent message.
-
-Runs via the 2-tick UI clock task on `UIManager.onEnable()`.
-
-### ScoreboardUI
-
-Provides a per-player scoreboard with support for **dynamic sections** — plugin systems can inject a set of lines into the scoreboard that will be rendered in a designated area.
-
-`DynamicSection(List<String> lines, boolean locked)` — a locked section cannot be overwritten by other systems.
-
-> **Note:** The scoreboard rendering loop is currently commented out in the UI clock. The `tick(player)` method contains a pseudocode comment showing the intended assembly pattern. The infrastructure is in place; only the FastBoard/Objective integration needs to be wired.
+`UIManager` (id: `"ui"`) manages the ChatUI/ActionBarUI/ScoreboardUI sub-components. **See
+`docs/modules/design/ui.md` for the authoritative, verified-against-code reference** — this section
+previously claimed the scoreboard rendering loop was "commented out"; that is stale.
+`UIManager.java` currently ticks both the action bar and the scoreboard every 2 ticks, and `ChatUI`
+has more methods than just `sendLevelUp`. Don't trust the old claim here; `docs/modules/design/
+ui.md` supersedes it.
 
 ---
 
@@ -1143,83 +1140,15 @@ fallen_chestplate:
 
 ## 24. Mobs System — mobs/*.yml
 
-Place any number of `.yml` files inside `plugins/Valmora/mobs/`. Each top-level key defines one mob definition. The key becomes the mob's ID.
+Place any number of `.yml` files inside `plugins/Valmora/mobs/`. Each top-level key defines one mob
+definition. The key becomes the mob's ID.
 
-### Full Mob Schema
-
-```yaml
-<mob-id>:
-  name: "<display name with MiniMessage>"    # Optional. Shown above mob with health.
-  type: <ENTITY_TYPE>                        # REQUIRED. Bukkit EntityType enum name.
-  health: <number>                           # Optional. Default: 20.
-  damage: <number>                           # Optional. Default: 0.
-  speed: <number>                            # Optional. Vanilla attribute value (0.25 = normal).
-  level: <integer>                           # Optional. Default: 1. Shown in nameplate.
-  equipment:
-    helmet: <material or item-id>
-    chestplate: <material or item-id>
-    leggings: <material or item-id>
-    boots: <material or item-id>
-    main-hand: <material or item-id>
-    off-hand: <material or item-id>
-```
-
-### Field Reference
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `name` | String (MiniMessage) | No | Shown as a custom nameplate. The nameplate also shows current HP / max HP. |
-| `type` | String | **Yes** | Any `EntityType` enum value: `ZOMBIE`, `SKELETON`, `CREEPER`, `SPIDER`, etc. |
-| `health` | Double | No | Max HP in Valmora units. Default: 20. |
-| `damage` | Double | No | Damage dealt on hit. |
-| `speed` | Double | No | Vanilla movement speed attribute. Default (vanilla zombie): `~0.23`. Normal walk: `0.25`. |
-| `level` | Integer | No | Shown in nameplate. Does not affect stats automatically. Default: 1. |
-| `equipment` | Section | No | Equipment slots. Values can be vanilla material names or Valmora item IDs. |
-
-### Equipment Fields
-
-| Slot | Armor Array Index |
-|---|---|
-| `helmet` | Index 3 |
-| `chestplate` | Index 2 |
-| `leggings` | Index 1 |
-| `boots` | Index 0 |
-| `main-hand` | Weapon slot |
-| `off-hand` | Off-hand slot |
-
-Equipment values accept either a vanilla `Material` name (e.g., `IRON_SWORD`) or a Valmora custom item ID (e.g., `glacial_staff`).
-
-### Mob Nameplate Format
-
-The nameplate is automatically formatted as:
-```
-[Lv.X] <MobId> <currentHP>/<maxHP>❤
-```
-
-### Complete Mob Examples
-
-```yaml
-forest_goblin:
-  name: "<green>Forest Goblin"
-  type: ZOMBIE
-  health: 80.0
-  damage: 12.0
-  speed: 0.28
-  level: 5
-  equipment:
-    helmet: LEATHER_HELMET
-    main-hand: WOODEN_SWORD
-
-cave_archer:
-  name: "<gray>Cave Archer"
-  type: SKELETON
-  health: 50.0
-  damage: 8.0
-  speed: 0.25
-  level: 3
-  equipment:
-    main-hand: BOW
-```
+**Full current schema reference (this section previously duplicated an older, now-incorrect flat
+`health`/`damage`/`speed` schema — it has moved and been corrected):**
+- `docs/modules/user/mob.md` §"Configuration Reference" — the field-by-field schema for content
+  authors, including the `stats:`/`resistances:`/`boss-bar:`/`abilities:`/`gold-reward:`/`base-xp:`
+  blocks that replaced the old flat fields.
+- `docs/modules/design/mob.md` — implementation details, parser behavior, and known drift notes.
 
 ---
 
@@ -1291,7 +1220,7 @@ GUIs support dynamic variables that update when items change or scripts run:
 | `$gui.input.ID.id$` | The Valmora Item ID (or Material name) in the INPUT slot with matching `id`. |
 | `$gui.input.ID.amount$` | The amount of items in the INPUT slot. |
 | `$prop.NAME$` | A GUI-specific property (transient, lost on close). Updated via `variable set prop.NAME`. |
-| `$enchant.NAME.prop$` | In lists, resolves properties of a Valmora enchantment (name, description, level, etc). |
+| `$entry.*$` | In the enchanting GUI's list iteration, resolves properties of the current enchantment entry (name, description, level, etc.) — see `guis/enchanting.yml`. (Not `$enchant.NAME.prop$` — that form is not what the code uses; see `docs/modules/design/enchant.md`.) |
 
 ### Lifecycle Scripts
 
@@ -1412,22 +1341,13 @@ Skills are levelled by performing in-game actions. XP is gained automatically vi
 
 ### XP Thresholds
 
-The XP required to reach each level is cumulative (total XP, not per-level):
-
-| Level | Total XP Required |
-|---|---|
-| 1 | 10 |
-| 2 | 50 |
-| 3 | 100 |
-| 4 | 250 |
-| 5 | 500 |
-| 6 | 1,000 |
-| 7 | 1,500 |
-| 8 | 2,000 |
-| 9 | 5,000 |
-| 10 | 10,000 |
-| 11–28 | +5,000 per level from 15,000 to 100,000 |
-| 29+ | Level 28 threshold (100,000 XP) is the last defined threshold; subsequent levels use `maxLevel` cap |
+The XP required to reach each level is cumulative (total XP, not per-level), defined by an
+**XP curve** — see `docs/modules/design/skill.md` and `skills/xp_curves.yml`. The built-in
+`"default"` curve defines all 60 levels (through 10,000,000 total XP at max level); a skill can opt
+into a different curve (`formula:`- or `thresholds:`-based) via its `xp-curve:` field. There is no
+single fixed table anymore — check `XpCurveRegistry`/`skills/xp_curves.yml` (or
+`/skill get <player> <skill>` in-game) for the actual numbers rather than a hardcoded table here,
+which drifts easily.
 
 Players receive an action bar notification on XP gain and a chat message on level-up.
 
@@ -1440,6 +1360,8 @@ Players receive an action bar notification on XP gain and a chat message on leve
 | Subcommand | Usage | Description |
 |---|---|---|
 | `reload` | `/valmora reload` | Hot-reloads ALL modules: disables then re-enables all registered modules in order. Reloads all YAML configs without restarting the server. |
+| `variable get` | `/valmora variable get <path>` | Resolves a `$variable$` path against the sender's context and prints the value — useful for checking a namespace/provider is registered correctly. |
+| `pipeline list` | `/valmora pipeline list [point]` | Inspects the shared `HookBus` (see §39): with no point, lists every registered insertion point and its stage/hook counts; with a point (e.g. `combat:pre_damage`), lists the java-hook and yaml-stage ids registered there, in the order they run. |
 
 ### `/profile`
 
@@ -1480,12 +1402,13 @@ Players receive an action bar notification on XP gain and a chat message on leve
 
 | Subcommand | Usage | Permission | Description |
 |---|---|---|---|
-| `info` | `/skill info [skill]` | Any player | Shows XP and level for all skills (or one specific skill). |
-| `list` | `/skill list` | Any player | Lists all available skills and their max levels. |
-| `givexp` | `/skill givexp <player> <skill> <amount>` | `valmora.admin` | Gives XP in the specified skill to a player. |
-| `setlevel` | `/skill setlevel <player> <skill> <level>` | `valmora.admin` | Sets the player's skill level by adjusting their XP to the exact threshold. |
+| `list` | `/skill list` | Any player | Lists all registered skills. |
+| `get` | `/skill get <player> <skill>` | Any player | Shows level/XP/progress for the given player+skill (target player is always required, no self-only shorthand). |
+| `give` | `/skill give <player> <skill> <amount>` | `valmora.admin` | Gives XP in the specified skill to a player. |
+| `set` | `/skill set <player> <skill> <level>` | `valmora.admin` | Sets the player's skill level. |
 
-All commands support tab completion.
+(This corrects an earlier version of this doc, which listed `info`/`givexp`/`setlevel` —
+`SkillCommand.java` implements `list`/`get`/`give`/`set`.)
 
 ---
 
@@ -1493,9 +1416,9 @@ All commands support tab completion.
 
 | Permission | Default | Description |
 |---|---|---|
-| `valmora.admin` | OP | Grants access to `/valmora reload`, `/skill givexp`, `/skill setlevel`, and any other admin-only subcommands. |
+| `valmora.admin` | OP | Grants access to `/valmora reload`, `/skill give`, `/skill set`, and any other admin-only subcommands. |
 
-> All other commands (`/profile`, `/stat`, `/item`, `/mob`, `/skill info`, `/skill list`) are available to all players without any specific permission node.
+> All other commands (`/profile`, `/stat`, `/item`, `/mob`, `/skill get`, `/skill list`) are available to all players without any specific permission node.
 
 ---
 
@@ -1553,6 +1476,28 @@ Variables are used in conditions and expressions throughout the engine. The synt
 | `$player.skill.<skillId>.level$` | Integer | Player's level in the given skill |
 | `$player.skill.<skillId>.xp$` | Double | Player's total XP in the given skill |
 
+### Combat & Pipeline Variables (`$dmg.*$`, `$mob.*$`, `$resource.*$`, `$fishing.*$`, `$item.*$`, `$math.*$`, `$target.*$`)
+
+Set by whichever system is currently running (combat formula evaluation, a `combat:*`/`resource:*`/
+`fishing:*`/`item:*`/`mob:*` pipeline stage — see §39); resolve to `null` outside that context.
+
+| Variable | Returns | Set by |
+|---|---|---|
+| `$dmg.base_damage$`, `$dmg.strength$`, `$dmg.crit_chance$`, `$dmg.crit_damage$`, `$dmg.defense$` | Double | `DamageCalculator`, during formula evaluation. |
+| `$dmg.final_damage$` | Double | `CombatListener`, from `combat:post_calculation` onward. |
+| `$dmg.is_critical$` | Boolean | `CombatListener`, from `combat:post_calculation` onward. |
+| `$dmg.damage_type$` | String | `CombatListener`, from `combat:post_calculation` onward. |
+| `$dmg.is_immune$` | Boolean | `CombatListener`, from `combat:post_calculation` onward. |
+| `$target.health$` / `$target.max_health$` | Double | Always live (reads the entity directly) — usable at any pipeline point, including `post_application` for post-hit health. |
+| `$mob.id$` / `$mob.level$` | String / Integer | `MobDeathListener`, for `combat:on_death` stages. |
+| `$mob.ability_id$` / `$mob.ability_trigger$` | String | `BossController`, for `mob:pre_ability`/`mob:post_ability` stages. |
+| `$resource.material$` / `$resource.stage$` | String / Integer | `ResourceManager`, for `resource:*` stages. |
+| `$fishing.table$` | String | `FishingManager`, for `fishing:*` stages. |
+| `$fishing.item$` / `$fishing.amount$` | String / Integer | `FishingManager`, once a normal catch is rolled. |
+| `$fishing.sea_creature$` | String | `FishingManager`, once a sea-creature catch is rolled. |
+| `$item.ability_id$` / `$item.ability_trigger$` | String | `AbilityExecutor`, for `item:pre_ability`/`item:post_ability` stages. |
+| `$math.random$` | Double | Always live — a fresh `[0, 1)` value per resolution, for RNG-driven conditions. |
+
 ### World Variables (`$world.*$`)
 
 | Variable | Returns | Example |
@@ -1568,13 +1513,25 @@ Variables are used in conditions and expressions throughout the engine. The synt
 
 ### Time Variables (`$time.*$`)
 
+Full set (`TimeVariableProvider.java`) — this was previously an incomplete 5-variable subset:
+
 | Variable | Returns | Example |
 |---|---|---|
 | `$time.season$` | String | `"Summer"` |
 | `$time.hour$` | Integer | `14` (0–23) |
+| `$time.minute$` | Integer | `30` (0–59) |
 | `$time.is_day$` | Boolean | `true` |
-| `$time.day$` | Integer | Current RPG day of the season |
+| `$time.day$` | Integer | Current RPG day of the season (`dayInPhase`) |
 | `$time.year$` | Integer | Current RPG year |
+| `$time.phase$` | String | Current phase name |
+| `$time.total_days$` | Integer | Total elapsed RPG days |
+| `$time.total_minutes$` | Integer | Total elapsed RPG minutes |
+| `$time.time_of_day$` | String | Emote + `"Day"`/`"Night"`, e.g. `"☀ Day"` |
+| `$time.formatted_time$` | String | Pre-formatted clock string |
+| `$time.emote$` | String | Just the time-of-day emote |
+| `$time.color$` | String | MiniMessage color tag for the current time of day |
+
+Unknown/empty paths return `null`.
 
 ### Quest Variables (`$quest.*$`)
 
@@ -1790,6 +1747,72 @@ economy_remove <amount>
 economy_remove 250
 ```
 
+**`interrupt`** — Marks the current context so the enclosing pipeline stage (see §39) stops running
+further stages at that insertion point. Only meaningful inside a pipeline stage's `on-pass`/`on-fail`
+list — outside a pipeline run it's harmless but does nothing observable.
+```
+interrupt
+```
+
+**`notify`** — Sends a MiniMessage chat message to the caster, with `$variable$` tokens resolved first.
+```
+notify <message with spaces>
+notify <red>Berserker Rage! Fighting below 25% HP!</red>
+notify <gold>You dealt $dmg.final_damage$ damage!</gold>
+```
+
+**`multiply_damage`** — Combat-only. Contributes a multiplicative buff/debuff to the current hit;
+only has an effect when called from a `combat:pre_damage` pipeline stage (see `docs/modules/design/pipeline.md` §4 for exactly
+where this applies in the damage formula). Repeated calls within the same hit compound
+multiplicatively (`1.5` then `1.5` = `2.25x`, not `1.5x`).
+```
+multiply_damage <factor>
+multiply_damage 1.5
+multiply_damage $prop.desperation_mult$
+```
+
+**`counter`** — Increments/decrements/adds-to/resets a numeric `player.var.<name>` counter on the
+caster (sugar over `variable add player.var.*`, so `$player.var.<name>$` reads it back). Only
+operates on the caster's profile — no-op if the caster isn't a player (no PDC-backed counters on
+arbitrary entities yet).
+```
+counter <increment|decrement|add|reset> player.var.<name> [amount]
+counter increment player.var.combo_count
+counter add player.var.gold 25
+counter reset player.var.combo_count
+```
+
+**`entity`** — Sets a live property on a resolved target entity (health, max health, or display
+name). `<value>` for `health`/`max_health` is a full expression (same engine as
+`damage_formula.yml` — literals, `$variable$` tokens, arithmetic); for `name` it's a MiniMessage
+string with `$variable$` substitution. `<target-selector>` is any `TargetResolver` selector
+(`@player`/`@self`, `@target`, `@enemies_in_radius{r=X}`, `@allies_in_radius{r=X}`, `@cone{...}`),
+default `@target`, detected as the trailing arg if it starts with `@`.
+```
+entity set <health|max_health|name> <value> [<target-selector>]
+entity set max_health $target.max_health$ * 1.5
+entity set name <gold>Elite Zombie
+entity set health 50 @self
+```
+
+**`apply_potion`** — Applies a potion effect to a resolved target. The script-DSL counterpart to
+the `APPLY_EFFECT` ability mechanic (§14), for use directly in event lists instead of an item
+ability's `mechanics:` block. `amplifier` is 1-based; `<target-selector>` defaults to `@self`.
+```
+apply_potion <effect> <amplifier> <durationSeconds> [<target-selector>]
+apply_potion strength 1 10
+apply_potion speed 2 5 @target
+```
+
+**`give_coins`** / **`take_coins`** — Adds/removes coins via `EconomyService`. Non-player resolved
+targets are silently skipped; `<target-selector>` defaults to `@self`.
+```
+give_coins <amount> [<target-selector>]
+take_coins <amount> [<target-selector>]
+give_coins 500
+take_coins $prop.entry_fee$ @target
+```
+
 ### Event Examples
 
 ```yaml
@@ -1862,7 +1885,9 @@ public interface NotifyIO {
 
 ## 35. Collections Module — collections/*.yml
 
-`CollectionModule` (id: `"collection"`) tracks per-player counts of items collected or actions performed. When a player reaches a defined threshold (stage), they receive rewards.
+`CollectionModule` (id: `"collections"` — plural; this doc previously said `"collection"`, which is
+wrong) tracks per-player counts of items collected or actions performed. When a player reaches a
+defined threshold (stage), they receive rewards.
 
 ### 35.1 Directory Structure
 
@@ -1975,6 +2000,12 @@ coal:
         - "give netherite_pickaxe:1 notify"
 ```
 
+> **Note:** the `rewards:` example above (executable script events like `economy_add`/`give`) is
+> the intended format, but no shipped `collections/*.yml` file actually uses it — the shipped
+> files' `rewards:` entries are plain MiniMessage display strings (e.g. `"<gray>Novice Miner
+> title"`), which the script parser silently no-ops on. Treat this example as the documented
+> contract, not evidence of what's live. See `docs/modules/design/collection.md` for details.
+
 ### 35.6 Script Variables
 
 Used inside collection GUI definitions. Require session props `selected_category` and `selected_collection` to be set (via `variable set prop.selected_category <id>`).
@@ -1993,75 +2024,23 @@ Used inside collection GUI definitions. Require session props `selected_category
 
 ---
 
-## 36. Slayer Module — slayers/*.yml
+## 36. Slayer — quest packages + GUI (not a module)
 
-`SlayerModule` (id: `"slayer"`) provides tiered kill-challenge quests. A player activates a slayer at a cost, accumulates kills from a target category, and then spawns and kills a boss mob to complete the tier.
+**`SlayerModule` has been removed.** There is no `slayers/*.yml` schema, no `slayer_start` script
+event, and no dedicated GUI/kill-tracking Java code. Slayer content is now built entirely from
+existing generic primitives — see `docs/modules/design/slayer.md` and
+`docs/modules/user/slayer.md` for the full current picture:
 
-### 36.1 YAML Schema
+- Each tier is an ordinary **quest** with a `KILL` objective for the trash-mob phase (which spawns
+  the boss via `spawn_mob` on completion) followed by a second `KILL` objective targeting the
+  boss's exact mob id.
+- The boss is an ordinary custom **mob definition** (`category: BOSS`).
+- Activation/cost/progress display is an ordinary **GUI** button (`states:`/`actions:`) that gates
+  on `$economy.purse$`, calls `economy_remove`, and re-arms the quest via `quest_cancel` +
+  `quest_start`.
 
-```yaml
-<slayer-id>:
-  name: "<display name>"
-  tiers:
-    <tier-number>:               # Integer key (1, 2, 3 …)
-      cost: <int>                # Coins deducted when the slayer is started
-      target-category: <STRING>  # Mob category tag to count kills for
-      kills-required: <int>      # Kills needed before the boss spawns
-      boss-mob: <mob-id>         # Valmora mob ID to spawn as the boss
-      completion-events:
-        - "<event string>"
-```
-
-| Field | Required | Notes |
-|---|---|---|
-| `name` | Yes | Display name used in the slayer GUI and notifications. |
-| `tiers` | Yes | Map of tier number → tier definition. |
-| `cost` | Yes | Coins deducted on activation. Player must have enough coins. |
-| `target-category` | Yes | Category string matched against mob PDC tags (e.g., `UNDEAD`, `SPIDER`, `WOLF`). |
-| `kills-required` | Yes | Number of category kills before the boss mob is eligible to spawn. |
-| `boss-mob` | Yes | A Valmora mob ID. The boss spawns at the player's location when the kill count is met. |
-| `completion-events` | No | Script events fired when the boss is killed. Receives the player as context. |
-
-### 36.2 Script Event
-
-```
-slayer_start <slayer-id> <tier>
-slayer_start zombie_slayer 1
-```
-
-Starts the specified slayer tier for the player. Deducts `cost` coins and begins tracking kills.
-
-### 36.3 Complete Example
-
-```yaml
-zombie_slayer:
-  name: "Zombie Slayer"
-  tiers:
-    1:
-      cost: 100
-      target-category: UNDEAD
-      kills-required: 5
-      boss-mob: zombie
-      completion-events:
-        - "economy_add 250"
-        - "notify <gold>[Slayer] Zombie Slayer T1 complete! +250 coins io:chat"
-    2:
-      cost: 500
-      target-category: UNDEAD
-      kills-required: 15
-      boss-mob: zombie
-      completion-events:
-        - "economy_add 1000"
-        - "notify <gold>[Slayer] Zombie Slayer T2 complete! +1000 coins io:chat"
-    3:
-      cost: 2000
-      target-category: UNDEAD
-      kills-required: 30
-      boss-mob: zombie
-      completion-events:
-        - "economy_add 5000"
-        - "notify <gold>[Slayer] Zombie Slayer T3 complete! +5000 coins io:chat"
-```
+Shipped reference: `plugins/Valmora/quests/slayers/` (Zombie/Spider/Wolf chains) and
+`guis/slayers.yml`.
 
 ---
 
@@ -2108,7 +2087,7 @@ Alternatively, a **Random Forge** (`machine: forge_random`) accepts only the ite
 |---|---|---|
 | `name` | Yes | Display name shown on the reforge stone and item lore. |
 | `applicable-types` | Yes | List of `ItemType` values the reforge can be applied to. See valid values below. |
-| `generate-stone` | No | If `true`, a Reforge Stone (AMETHYST_SHARD) for this reforge is auto-generated and can be given via `/item give <reforge-id>_stone`. Default: `false`. |
+| `generate-stone` | No | If `true`, a Reforge Stone (AMETHYST_SHARD) for this reforge is auto-generated and can be given via `/item give <reforge-id>_reforge_stone` (the code checks the `_reforge_stone` suffix, not `_stone` — see `ItemCommand.java`). Default: `false`. |
 | `stat-bonuses-by-rarity` | Yes | Map of rarity name → stat-id → bonus value. If a rarity tier is missing, the nearest lower rarity is used as a fallback. |
 
 ### 37.3 Valid `applicable-types` Values
@@ -2254,5 +2233,15 @@ on-open:
 ```
 
 ---
+
+## 39. Extensible Pipeline System (HookBus)
+
+Moved to `docs/modules/design/pipeline.md` — HookBus is a cross-cutting engine primitive (used by
+combat, resource, fishing, item, mob, and gui), not tied to any one subsystem covered by this
+document's per-module sections. See that file for the full reference: registered insertion points,
+YAML stage format, the damage/enchant ordering rule, registering a Java hook, and the GUI retrofit.
+
+---
+
 
 *End of Valmora Engine Documentation — v0.1*

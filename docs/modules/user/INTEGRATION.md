@@ -17,9 +17,9 @@ Modules group into logical families:
 | Family            | Modules                                  |
 |-------------------|------------------------------------------|
 | **Core Engine**   | script, stat, profile, combat            |
-| **Items**         | item, enchant, reforge, accessory, backpack, quiver |
+| **Items**         | item, enchant, reforge |
 | **Entities**      | mob, npc, quest                          |
-| **Skills**        | skill, alchemy, slayer                   |
+| **Skills**        | skill, alchemy                   |
 | **World**         | zone, resource, fishing, time, calendar  |
 | **Progression**   | collection, progression                  |
 | **User Interface**| gui, ui, hud, notify                     |
@@ -35,7 +35,11 @@ Modules load in a strict order — earlier modules set up systems that later mod
 - **combat** uses profile + stat + mob (handles all combat logic)
 - **item** uses stat + profile + script (custom items with stats)
 - **skill** uses stat + profile + item + mob (active abilities)
-- ...and so on, with later modules like **slayer**, **quest**, and **progression** using the full stack.
+- ...and so on, with later modules like **quest** and **progression** using the full stack.
+
+> **Note:** Accessories, backpacks, and slayer content are **not modules** — they're built from
+> existing primitives (items + GUI storage slots, and quest packages) rather than dedicated code.
+> See `docs/modules/user/backpack.md` and `docs/modules/user/slayer.md`. There is no quiver feature.
 
 ---
 
@@ -59,7 +63,7 @@ Every player has a **profile** — an in-memory data container that tracks their
 - Equipped items (`item` module)
 - Enchants (`enchant` module)
 - Reforges (`reforge` module)
-- Accessories (`accessory` module)
+- Accessories (item + GUI storage, see `docs/modules/user/backpack.md`)
 - Skills (`skill` module)
 - Zone effects (`zone` module)
 - Potions/consumables (`alchemy` module)
@@ -93,7 +97,7 @@ The **item** module defines all custom items — weapons, armor, consumables, ma
 
 - **Time** — zone-local day/night cycles
 - **Resource/Fishing** — zone-specific nodes and catches
-- **Slayer** — zone-specific boss mobs
+- **Slayer** — zone-specific boss mobs (quest + GUI content, see `docs/modules/user/slayer.md`)
 - **Mob** — zone-specific spawns
 - **Hud** — zone name display
 
@@ -118,9 +122,9 @@ Stat module applies final modifiers:
   • Enchants on weapon (enchant)
   • Active skill bonuses (skill)
   • Zone modifiers (zone)
-  • Accessory bonuses (accessory)
+  • Accessory bonuses (equipped accessory items)
   ↓
-Slayer module checks if target is a slayer mob → grants slayer XP
+Slayer quest chain (if the mob is a slayer boss) tracks kill progress and grants its coin reward on completion
   ↓
 Notify module displays floating damage text
   ↓
@@ -177,9 +181,11 @@ If complete:
 ### 3.4 Boss Slayer Task
 
 ```
-Slayer module assigns a boss kill task
+Player clicks a tier button in the slayer GUI, pays the coin cost
   ↓
-Mob module spawns the boss in a designated zone
+Quest module starts the tier's "kill trash mobs" objective
+  ↓
+On completion, a `spawn_mob` event spawns the boss (a mob definition, not a special entity type)
   ↓
 Player fights the boss:
   • Combat module handles damage
@@ -189,10 +195,10 @@ Player fights the boss:
   • Hud module displays active task info
   ↓
 Boss defeated:
-  • Slayer module grants XP + task completion reward
+  • Slayer quest grants its coin reward on completion
   • Zone module may spawn reward chest
   • Quest module checks related objectives
-  • Progression module tracks slayer milestones
+  • Progression module tracks kill/completion milestones, if configured to
   • Profile module saves rewards
 ```
 
@@ -222,13 +228,13 @@ When an admin runs `/valmora reload`:
 | System       | What It Does                        | Key Modules                |
 |--------------|-------------------------------------|----------------------------|
 | **Profiles** | Player character data (stats, inventory, progress) | profile, stat, item, quest, skill, progression |
-| **Combat**   | Damage calculation, hit/miss, crits | combat, stat, skill, slayer |
-| **Items**    | Custom weapons, armor, consumables   | item, enchant, reforge, accessory |
+| **Combat**   | Damage calculation, hit/miss, crits | combat, stat, skill |
+| **Items**    | Custom weapons, armor, consumables   | item, enchant, reforge |
 | **Mobs**     | Custom enemy/NPC entities            | mob, npc, combat, quest     |
 | **Skills**   | Active and passive abilities         | skill, alchemy, combat      |
 | **World**    | Zones, events, environment           | zone, resource, time, fishing |
 | **Quests**   | Mission objectives and rewards       | quest, npc, progression     |
-| **Slayer**   | Boss hunting system                  | slayer, mob, combat, zone   |
+| **Slayer**   | Boss hunting system (quest + GUI content, not a module) | quest, gui, mob, combat |
 | **UI**       | Menus, HUD, notifications            | gui, ui, hud, notify        |
 | **Economy**  | Currency and trading                 | economy, npc, quest         |
 
@@ -244,10 +250,10 @@ A typical gear upgrade path involves:
 2. **Item** — craft/upgrade base gear
 3. **Enchant** — add enchantments (requires skill level + materials)
 4. **Reforge** — apply reforges for stat bonuses (requires currency + special anvil)
-5. **Accessory** — equip accessories in accessory slots
+5. **Accessory** — equip accessories in the accessory bag (`/accessories`)
 6. **Stat** — all gear contributes to final stats
 7. **Combat** — improved stats = stronger in combat
-8. **Slayer** — stronger gear unlocks tougher boss fights
+8. **Slayer** — stronger gear unlocks tougher boss fights (see `docs/modules/user/slayer.md`)
 9. **Progression** — defeating bosses unlocks new recipes/areas
 
 ### 6.2 Skill Build Planning
@@ -258,7 +264,7 @@ Skills interact with multiple systems:
 - **Item** — some skills require specific weapons equipped
 - **Alc**emy — potion brewing enables certain skill effects
 - **Enchant** — enchants can boost or modify skill damage
-- **Slayer** — slayer tasks grant skill points
+- **Slayer** — slayer tasks can grant skill points via their quest reward events
 - **Combat** — skills are the primary combat mechanic
 - **Progression** — skill milestones unlock new abilities
 

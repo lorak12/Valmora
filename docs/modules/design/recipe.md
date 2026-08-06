@@ -4,6 +4,11 @@
 > **Dependencies:** `script` (event parser), `items` (item registry / translator), `enchant` (anvil handler)
 > **Consumers:** `gui`, `alchemy`, `reforge`
 
+> **Generic-engine refactor (Phase 4.3):** `AnvilMachineHandler`'s merge cost (previously hardcoded
+> "10 coins per merged enchant level") now comes from `AnvilTemplateRegistry`
+> (`recipes/anvil_templates.yml` → `templates.merge.cost-per-level`, default 10). See
+> `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Table of Contents

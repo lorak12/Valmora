@@ -5,6 +5,12 @@
 > **Module ID:** `pets` | **Load order:** after `reforge`, before `slayer`
 > **Status:** implemented — summon/unsummon, stat bonuses, XP/levels, milestone scripts, ability triggers, `pet` script variables ✅; **pet-item distribution, pet menu shortcut, and follow AI are NOT implemented** (see [Unfinished Things / TODOs](#unfinished-things--todos))
 
+> **Generic-engine refactor (Phase 3.3):** `PetDefinition.xpForLevel` is no longer a hardcoded
+> `100 * level²` static method — it's an instance method backed by a per-pet precomputed table,
+> driven by `pets/defaults.yml` (server-wide default) with optional per-pet `xp-formula:`/
+> `max-level:` overrides. The default formula/max-level reproduce the exact old values. See
+> `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Overview
@@ -76,9 +82,11 @@ This follows the project convention (`XModule.java` + `XListener.java`), but not
 - Instantiation: `Valmora.java:179` (`this.petModule = new PetModule(this);`)
 - Module registration: `Valmora.java:217`
   `moduleManager.registerModule(petModule);          // Depends on scriptModule + statModule`
-  — registered **after** `reforgeModule` and **before** `slayerModule`. Both dependencies are
-  registered much earlier (`scriptModule` at `Valmora.java:188`, `statModule` at
-  `Valmora.java:190`), so the enable-time dependency is satisfied.
+  — registered **after** `reforgeModule` (the last module before it in the current order; there is
+  no `slayerModule` — slayer content is quest packages + GUI, not a module, see
+  `docs/modules/design/slayer.md`). Both dependencies are registered much earlier (`scriptModule`
+  at `Valmora.java:188`, `statModule` at `Valmora.java:190`), so the enable-time dependency is
+  satisfied.
 - Concrete getter: `Valmora.java:426` — `getPetModule()` (note: **not** on the `ValmoraAPI`
   interface — see [API Exposed](#api-exposed)).
 - **No command is registered** for pets (per project rule `AGENTS.md` §6.3 there is also

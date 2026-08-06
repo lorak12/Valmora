@@ -1,0 +1,48 @@
+# =====================================================================
+# Backpack Tier V — 45 storage slots + a 9-slot control row (Close),
+# filling the max 54-slot inventory. Item-bound.
+# =====================================================================
+
+backpack_tier5:
+  title: "<gold>Grand Backpack"
+  rows: 6
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "BBBBCBBBB"
+
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+        lore:
+          - "<gray>Close the backpack."
+          - "<gray>(saves automatically)"
+      actions:
+        left:
+          actions:
+            - "close"
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"

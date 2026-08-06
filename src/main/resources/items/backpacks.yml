@@ -1,0 +1,84 @@
+# =====================================================================
+# Backpack tier progression — right-click to open, each tier adds 9
+# storage slots (9 → 45). Contents live on the physical item itself
+# (STORAGE component, owner: ITEM) and survive trades/drops/restarts.
+# =====================================================================
+
+backpack_tier1:
+  name: "<gold>Woven Backpack"
+  material: LEATHER_HORSE_ARMOR
+  rarity: COMMON
+  item-type: BACKPACK
+  container-gui: backpack_tier1
+  lore:
+    - "<gray>A simple 9-slot pack."
+    - "<gray>Right-click to open."
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      mechanics:
+        - type: OPEN_CONTAINER_GUI
+
+backpack_tier2:
+  name: "<green>Reinforced Backpack"
+  material: IRON_HORSE_ARMOR
+  rarity: UNCOMMON
+  item-type: BACKPACK
+  container-gui: backpack_tier2
+  lore:
+    - "<gray>An 18-slot pack, stitched"
+    - "<gray>with iron-reinforced seams."
+    - "<gray>Right-click to open."
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      mechanics:
+        - type: OPEN_CONTAINER_GUI
+
+backpack_tier3:
+  name: "<aqua>Traveler's Backpack"
+  material: GOLDEN_HORSE_ARMOR
+  rarity: RARE
+  item-type: BACKPACK
+  container-gui: backpack_tier3
+  lore:
+    - "<gray>A sturdy 27-slot pack built"
+    - "<gray>for long expeditions."
+    - "<gray>Right-click to open."
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      mechanics:
+        - type: OPEN_CONTAINER_GUI
+
+backpack_tier4:
+  name: "<light_purple>Explorer's Backpack"
+  material: DIAMOND_HORSE_ARMOR
+  rarity: EPIC
+  item-type: BACKPACK
+  container-gui: backpack_tier4
+  lore:
+    - "<gray>A 36-slot pack favored by"
+    - "<gray>seasoned explorers."
+    - "<gray>Right-click to open."
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      mechanics:
+        - type: OPEN_CONTAINER_GUI
+
+backpack_tier5:
+  name: "<yellow>Grand Backpack"
+  material: NETHERITE_INGOT
+  rarity: LEGENDARY
+  item-type: BACKPACK
+  container-gui: backpack_tier5
+  lore:
+    - "<gray>The largest pack money can buy —"
+    - "<gray>45 slots, controls included."
+    - "<gray>Right-click to open."
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      mechanics:
+        - type: OPEN_CONTAINER_GUI

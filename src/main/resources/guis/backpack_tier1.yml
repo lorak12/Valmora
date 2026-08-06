@@ -1,0 +1,25 @@
+# =====================================================================
+# Backpack Tier I — 9 storage slots, item-bound (contents live on the
+# physical item's PDC, not the player). Demonstrates the STORAGE
+# component's ITEM owner mode.
+# =====================================================================
+
+backpack_tier1:
+  title: "<gold>Woven Backpack"
+  rows: 1
+
+  layout:
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"

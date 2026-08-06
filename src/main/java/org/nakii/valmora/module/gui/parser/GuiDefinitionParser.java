@@ -95,6 +95,22 @@ public class GuiDefinitionParser {
             }
             case "INPUT" -> new InputComponent(section.getString("id"));
             case "OUTPUT" -> new OutputComponent(section.getString("id"));
+            case "STORAGE" -> {
+                String sid = section.getString("id");
+                StorageComponent.Owner owner;
+                try {
+                    owner = StorageComponent.Owner.valueOf(section.getString("owner", "PLAYER").toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    owner = StorageComponent.Owner.PLAYER;
+                }
+                String storageId = section.getString("storage-id", sid);
+                String conditionStr = section.getString("condition", null);
+                Condition condition = conditionStr != null
+                        ? plugin.getScriptModule().getConditionParser().parse(conditionStr)
+                        : null;
+                boolean openContainer = section.getBoolean("open-container", true);
+                yield new StorageComponent(sid, owner, storageId, condition, openContainer);
+            }
             case "PAGINATED" -> {
                 String list = section.getString("list");
                 String iterator = section.getString("iterator", "loop_item");

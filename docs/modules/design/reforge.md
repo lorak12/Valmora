@@ -4,6 +4,11 @@
 > **Package:** `org.nakii.valmora.module.reforge` | **Module ID:** `reforge` | **Name:** "Reforge System"
 > **Dependencies:** `recipeModule` (registers dynamic machine handlers), `itemModule` (base stats, item type/rarity PDC, lore regeneration), `statModule` (`saveStats`, `StatRegistry`/`StatDefinition` formatting), `economy` (coin costs via `EconomyService`)
 
+> **Generic-engine refactor (Phase 4.4):** the hardcoded `RARITY_COST` static `EnumMap` is now
+> `ForgeCostRegistry`, loaded from `enchant/forge_costs.yml` (note the singular folder, distinct
+> from the enchant-definitions `enchants/` folder). Same default cost table as before. See
+> `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Table of Contents

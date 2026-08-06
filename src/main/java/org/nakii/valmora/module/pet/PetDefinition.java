@@ -15,11 +15,16 @@ public class PetDefinition {
     private final Map<String, Double> statsPerLevel;
     private final List<PetAbilityDefinition> abilities;
     private final TreeMap<Integer, List<String>> milestones; // level → DSL event list (raw strings)
+    // Phase 3.3 (docs/REFACTOR/PROGRESS.md): pre-computed level->XP-needed table. Replaces the old
+    // hardcoded `100 * level^2` static formula — each pet can now define its own xp-formula (or
+    // inherit the server-wide default from pets/defaults.yml), resolved once at load time here.
+    private final long[] xpThresholds;
 
     public PetDefinition(String id, String name, EntityType entityType,
                           Map<String, Double> baseStats, Map<String, Double> statsPerLevel,
                           List<PetAbilityDefinition> abilities,
-                          TreeMap<Integer, List<String>> milestones) {
+                          TreeMap<Integer, List<String>> milestones,
+                          long[] xpThresholds) {
         this.id = id;
         this.name = name;
         this.entityType = entityType;
@@ -27,6 +32,7 @@ public class PetDefinition {
         this.statsPerLevel = statsPerLevel;
         this.abilities = abilities;
         this.milestones = milestones;
+        this.xpThresholds = xpThresholds;
     }
 
     public String getId() { return id; }
@@ -45,7 +51,15 @@ public class PetDefinition {
         return result;
     }
 
-    public static long xpForLevel(int level) {
-        return 100L * level * level;
+    /** @return the max level reachable per this pet's precomputed XP table. */
+    public int getMaxLevel() {
+        return xpThresholds.length;
+    }
+
+    /** @return total XP required to reach {@code level} — looked up from the precomputed table, never re-evaluated. */
+    public long xpForLevel(int level) {
+        if (level <= 0) return 0L;
+        if (level > xpThresholds.length) return xpThresholds[xpThresholds.length - 1];
+        return xpThresholds[level - 1];
     }
 }

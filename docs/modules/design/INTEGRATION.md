@@ -11,13 +11,17 @@
 Module registration order (see `Valmora.java`) enforces a strict layering. Lower modules are available to higher ones; no upward references are permitted:
 
 ```
-script → stat → profile → combat → item → mob → npc → quest
-       → economy → skill → zone → resource → fishing
-       → alchemy → enchant → recipe → gui → ui
-       → time → collection → notify → pet → reforge
-       → accessory → backpack → quiver → hud
-       → slayer → calendar → progression
+script → time → stat → player → economy
+       → ui → ability → item → mob → skill → combat → gui → recipe
+       → alchemy → enchant → zone → resource → fishing → npc → warp → quest
+       → points → notify → collection → hud → calendar → reforge → pet → progression
 ```
+
+> **Note:** `accessory`, `backpack`, `quiver`, and `slayer` are **no longer modules** — they were
+> removed and rebuilt as plain data (items + GUI `STORAGE` components, and quest packages). See
+> `docs/modules/design/backpack.md` and `docs/modules/design/slayer.md`. There is no `pipeline`
+> registration slot either — `HookBus` is a shared cross-cutting primitive, not a `ReloadableModule`
+> (see `docs/modules/design/pipeline.md`).
 
 ### 1.1 Dependency Matrix
 
@@ -28,20 +32,20 @@ The tables below list **Uses** (modules this module depends on) and **Consumers*
 | Module  | Uses                                  | Consumers                              |
 |---------|---------------------------------------|----------------------------------------|
 | script  | (none)                                | stat, profile, combat, item, mob, skill, alchemy, enchant, quest, npc |
-| stat    | script                                | profile, combat, item, mob, skill, economy, accessory, reforge |
+| stat    | script                                | profile, combat, item, mob, skill, economy, reforge |
 | profile | stat, script                          | combat, item, mob, npc, economy, skill |
-| combat  | stat, profile, script, mob            | item, skill, enchant, slayer, progression |
+| combat  | stat, profile, script, mob            | item, skill, enchant, progression (slayer content consumes combat indirectly via quest KILL objectives, not as a module) |
 
 #### 1.1.2 Item & Equipment
 
 | Module     | Uses                              | Consumers                             |
 |------------|-----------------------------------|---------------------------------------|
-| item       | stat, profile, script, mob        | combat, enchant, skill, npc, quest, accessory, backpack |
+| item       | stat, profile, script, mob        | combat, enchant, skill, npc, quest, gui |
 | enchant    | item, stat, script                | combat, skill                         |
-| reforge    | item, stat, script                | accessory                             |
-| accessory  | item, stat, reforge, script       | combat, skill                         |
-| backpack   | item, stat, script                | player UI (storage access)            |
-| quiver     | item, stat, script                | combat (ammo resolution)              |
+| reforge    | item, stat, script                | (none — reforge stones apply directly to items) |
+
+Accessories/backpacks are `item-type` tags + a GUI `STORAGE` component, not modules — see §2.1.1
+and `docs/modules/design/backpack.md`. Quiver has no current implementation.
 
 #### 1.1.3 Mobs, NPCs, and Quests
 
@@ -56,15 +60,16 @@ The tables below list **Uses** (modules this module depends on) and **Consumers*
 | Module   | Uses                              | Consumers                             |
 |----------|-----------------------------------|---------------------------------------|
 | skill    | stat, profile, script, item, mob  | combat, enchant, alchemy              |
-| slayer   | combat, stat, script, mob         | progression                           |
 | alchemy  | item, stat, script                | skill                                 |
+
+Slayer content is quest packages + a GUI, not a module — see `docs/modules/design/slayer.md`.
 
 #### 1.1.5 World & Economy
 
 | Module      | Uses                              | Consumers                             |
 |-------------|-----------------------------------|---------------------------------------|
 | economy     | stat, profile, script             | npc, quest                            |
-| zone        | stat, profile, script             | time, resource, fishing, slayer       |
+| zone        | stat, profile, script             | time, resource, fishing               |
 | resource    | zone, stat, script                | collection                            |
 | fishing     | zone, stat, item, script          | collection                            |
 
@@ -102,19 +107,25 @@ All modules interact through a common set of APIs and utilities defined in `api/
 | `getItemManager()`        | `ItemManager`             | combat, enchant, npc, quest, gui           |
 | `getMobManager()`         | `MobManager`              | combat, skill, quest                       |
 | `getSkillManager()`       | `SkillManager`            | combat, alchemy                            |
-| `getCombatManager()`      | `CombatManager`           | item, skill, slayer                        |
+| `getCombatManager()`      | `CombatManager`           | item, skill                                |
 | `getQuestManager()`       | `QuestManager`            | progression, notify, npc                   |
 | `getEconomyManager()`     | `EconomyManager`          | npc, quest                                 |
 | `getGUIManager()`         | `GUIManager`              | quest, skill, npc                          |
-| `getZoneManager()`        | `ZoneManager`             | resource, fishing, slayer                |
+| `getZoneManager()`        | `ZoneManager`             | resource, fishing                |
 | `getEnchantManager()`     | `EnchantManager`          | combat, skill                              |
 | `getPetManager()`         | `PetManager`              | combat, stat, progression                  |
 | `getHudManager()`         | `HudManager`              | ui, profile                                |
 | `getNotifyManager()`      | `NotifyManager`           | quest, combat                              |
 | `getCollectionManager()`  | `CollectionManager`       | progression                                |
-| `getSlayerManager()`      | `SlayerManager`           | progression                                |
 | `getCalendarManager()`    | `CalendarManager`         | progression                                |
 | `getProgressionManager()` | `ProgressionManager`      | (terminal consumer)                        |
+
+### 2.1.1 HookBus — Cross-Cutting Extension Points
+
+`ValmoraAPI.getInstance().getHookBus()` is a shared dispatch primitive (not tied to any one
+module's registration slot) that lets combat, resource, fishing, item, mob, and gui insert
+YAML-defined or Java-registered logic at named points in their otherwise-hardcoded sequences
+(e.g. `combat:pre_damage`, `gui:<id>:on_open`). Full reference: `docs/modules/design/pipeline.md`.
 
 ### 2.2 Common Data Structures
 
@@ -151,7 +162,7 @@ All modules interact through a common set of APIs and utilities defined in `api/
    d. Enchant modifiers
 4. SkillManager applies on-hit skills (via ExecutionContext)
 5. ProfileManager updates defender's health
-6. SlayerManager grants slayer XP if applicable
+6. (Slayer content, if any, tracks its own progress via the quest module's KILL objectives — no dedicated manager)
 7. NotifyManager sends damage indicators
 8. ProgressionManager triggers damage-dealt achievements
 ```
@@ -199,7 +210,6 @@ All modules interact through a common set of APIs and utilities defined in `api/
 5. ResourceManager starts/stop resource nodes
 6. FishingManager updates fishing loot tables
 7. TimeManager adjusts local time/weather
-8. SlayerManager tracks zone-specific slayer tasks
 9. HudManager displays zone info
 ```
 
@@ -213,7 +223,7 @@ All modules interact through a common set of APIs and utilities defined in `api/
 
 1. **Disable phase** — All modules' `onDisable()` called in **reverse registration order**:
    ```
-   progression → calendar → slayer → hud → quiver → backpack → accessory
+   progression → calendar → hud
    → reforge → pet → notify → collection → time → ui → gui
    → recipe → enchant → alchemy → fishing → resource → zone
    → economy → skill → quest → npc → mob → item → combat
@@ -245,10 +255,10 @@ Each module must:
 
 | Event                           | Primary Module   | Secondary Consumers                    |
 |---------------------------------|------------------|----------------------------------------|
-| `EntityDamageEvent`             | combat           | stat, skill, slayer, notify            |
+| `EntityDamageEvent`             | combat           | stat, skill, notify            |
 | `EntityDeathEvent`              | mob              | combat, quest, stat, progression       |
 | `PlayerInteractEvent`           | item             | skill, gui, quest, npc                 |
-| `InventoryClickEvent`           | gui              | item, enchant, reforge, backpack       |
+| `InventoryClickEvent`           | gui              | item, enchant, reforge, storage components (accessory/backpack) |
 | `PlayerJoinEvent` / `QuitEvent` | profile          | hud, pet, quest, progression           |
 | `ChunkLoadEvent`                | zone             | resource, mob, npc                     |
 
@@ -259,7 +269,7 @@ Custom application events fired by modules:
 | Event                     | Fired By  | Listened By                               |
 |---------------------------|-----------|-------------------------------------------|
 | `ScriptExecuteEvent`      | script    | stat, combat, skill, item, mob            |
-| `ZoneEnterEvent`          | zone      | stat, resource, slayer, time, hud         |
+| `ZoneEnterEvent`          | zone      | stat, resource, time, hud         |
 | `QuestObjectiveUpdateEvent` | quest   | notify, progression, ui                   |
 | `CombatStartEvent`        | combat    | stat, skill, pet, hud, notify             |
 | `ItemUseEvent`            | item      | skill, stat, enchant, quest               |

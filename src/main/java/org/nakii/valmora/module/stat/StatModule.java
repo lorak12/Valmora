@@ -21,6 +21,7 @@ public class StatModule implements ReloadableModule {
 
     private final Valmora plugin;
     private final StatRegistry statRegistry = new StatRegistry();
+    private final StatRoleRegistry statRoleRegistry = new StatRoleRegistry();
     private SystemStats systemStats;
     private StatLoader statLoader;
     private PlayerListener playerListener;
@@ -34,7 +35,8 @@ public class StatModule implements ReloadableModule {
         plugin.getLogger().info("Starting Stat Module...");
         this.statLoader = new StatLoader(plugin, statRegistry);
         this.statLoader.load();
-        this.systemStats = SystemStats.load(plugin.getConfig());
+        this.statRoleRegistry.load(plugin);
+        this.systemStats = SystemStats.load(statRoleRegistry);
 
         this.playerListener = new PlayerListener(plugin);
         plugin.getServer().getPluginManager().registerEvents(playerListener, plugin);
@@ -47,6 +49,7 @@ public class StatModule implements ReloadableModule {
             org.bukkit.event.HandlerList.unregisterAll(playerListener);
         }
         statRegistry.clear();
+        statRoleRegistry.clear();
     }
 
     @Override
@@ -56,6 +59,10 @@ public class StatModule implements ReloadableModule {
 
     public StatRegistry getStatRegistry() {
         return statRegistry;
+    }
+
+    public StatRoleRegistry getStatRoleRegistry() {
+        return statRoleRegistry;
     }
 
     public SystemStats getSystemStats() {

@@ -13,9 +13,11 @@ import java.util.Optional;
 public class AnvilMachineHandler implements DynamicMachineHandler {
 
     private final Valmora plugin;
+    private final AnvilTemplateRegistry templateRegistry;
 
-    public AnvilMachineHandler(Valmora plugin) {
+    public AnvilMachineHandler(Valmora plugin, AnvilTemplateRegistry templateRegistry) {
         this.plugin = plugin;
+        this.templateRegistry = templateRegistry;
     }
 
     @Override
@@ -87,9 +89,9 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
         ItemStack result = base.clone();
         EnchantmentHelper.applyEnchantmentMap(result, newEnchants);
 
-        // Calculate cost: 10 coins per level of the merged enchants
+        // Calculate cost: recipes/anvil_templates.yml -> templates.merge.cost-per-level (Phase 4.3)
         int totalLevel = newEnchants.values().stream().mapToInt(Integer::intValue).sum();
-        int cost = totalLevel * 10;
+        int cost = totalLevel * templateRegistry.getMergeCostPerLevel();
 
         String script = "variable add player.var.coins -" + cost;
         org.nakii.valmora.api.scripting.CompiledEvent onCraft = plugin.getScriptModule().getEventParser().parseList(java.util.List.of(script));

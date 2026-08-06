@@ -48,8 +48,11 @@ Player-facing menu commands (`/profile`, `/skill`, `/warp`, `/quest`, `/collecti
 
 ## Documentation
 
-Developer and design documentation lives in [`docs/`](docs/), with `CLAUDE.md` and
-`docs/VALMORA_DOCUMENTATION.md` as the primary references.
+Developer and design documentation lives in [`docs/`](docs/). Start with `CLAUDE.md`, then
+`docs/MODULE_DEVELOPMENT.md` and the per-module docs in `docs/modules/design/` (architecture) and
+`docs/modules/user/` (admin/player-facing) — see `docs/modules/modules.md` for the full index.
+`docs/VALMORA_DOCUMENTATION.md` is an older, broader reference kept for content not yet migrated
+into the per-module docs.
 
 ## Contributing
 

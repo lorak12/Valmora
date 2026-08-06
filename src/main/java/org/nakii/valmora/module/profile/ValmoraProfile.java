@@ -29,13 +29,20 @@ public class ValmoraProfile {
     private ItemStack[] savedArmor = null;
     private ItemStack savedOffhand = null;
 
-    // Accessory bag. Backing array is grown on demand up to the configured
-    // max-slots-cap by AccessoryModule; -1 means "use the configured starting-slots default".
-    private ItemStack[] accessoryItems = new ItemStack[45];
-    private int accessorySlotsUnlocked = -1;
+    // In-memory mirror of this profile's generic GUI storage slots (see module/gui/storage),
+    // keyed by storage-id (e.g. "accessories"). Eagerly populated from the DB on profile load
+    // and kept in sync by GuiModule on every write-through save, so stat calculation (which
+    // needs synchronous access to equipped accessory contents) never has to touch the DB.
+    private final Map<String, ItemStack[]> storageCache = new HashMap<>();
 
-    // Quiver (27 slots, arrow-type items only)
-    private ItemStack[] quiverItems = new ItemStack[27];
+    // Phase 5 (docs/REFACTOR/PROGRESS.md Task 21): stat ids found in this profile's saved SQL row
+    // that no longer exist in the live StatRegistry (e.g. an admin deleted or renamed a custom
+    // stat role). Kept here — separate from StatManager's baseStats/effectiveStats — so they never
+    // silently affect gameplay math, but are written back to the SQL row unchanged on save rather
+    // than being dropped. If the stat is ever re-registered, it starts resolving normally again
+    // the next time this profile is loaded (SQLDataStore re-splits recognized/unrecognized keys
+    // fresh on every load).
+    private final Map<String, Double> quarantinedStats = new HashMap<>();
 
     public ValmoraProfile(UUID id, String name, long createdAt, long lastUsed) {
         this.id = id;
@@ -93,13 +100,15 @@ public class ValmoraProfile {
     public void setSavedArmor(ItemStack[] armor) { this.savedArmor = armor; }
     public void setSavedOffhand(ItemStack offhand) { this.savedOffhand = offhand; }
 
-    public ItemStack[] getAccessoryItems() { return accessoryItems; }
-    public void setAccessoryItems(ItemStack[] items) { this.accessoryItems = items; }
+    /** Returns the cached contents for a generic GUI storage-id, or an empty array if never loaded/populated. */
+    public ItemStack[] getStorage(String storageId) {
+        return storageCache.getOrDefault(storageId, new ItemStack[0]);
+    }
 
-    /** -1 means unset — caller should fall back to the configured starting-slots default. */
-    public int getAccessorySlotsUnlocked() { return accessorySlotsUnlocked; }
-    public void setAccessorySlotsUnlocked(int slots) { this.accessorySlotsUnlocked = slots; }
+    public void putStorage(String storageId, ItemStack[] contents) {
+        storageCache.put(storageId, contents);
+    }
 
-    public ItemStack[] getQuiverItems() { return quiverItems; }
-    public void setQuiverItems(ItemStack[] items) { this.quiverItems = items; }
+    /** Unrecognized stat ids preserved verbatim across load/save — see field comment above. */
+    public Map<String, Double> getQuarantinedStats() { return quarantinedStats; }
 }

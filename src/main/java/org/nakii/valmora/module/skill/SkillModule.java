@@ -22,6 +22,9 @@ public class SkillModule implements ReloadableModule {
     @Override
     public void onEnable() {
         plugin.getLogger().info("Enabling Skill Module...");
+        // Phase 3.2 (docs/REFACTOR/PROGRESS.md): load custom XP curves before skill definitions,
+        // since a skill's xp_curve field is just an id looked up against this registry.
+        skillRegistry.getXpCurveRegistry().load(plugin, plugin.getScriptModule().getExpressionParser());
         this.skillLoader.loadSkills();
         plugin.getServer().getPluginManager().registerEvents(skillListener, plugin);
     }
@@ -30,6 +33,7 @@ public class SkillModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Skill Module...");
         org.bukkit.event.HandlerList.unregisterAll(skillListener);
+        skillRegistry.getXpCurveRegistry().clear();
     }
 
     @Override

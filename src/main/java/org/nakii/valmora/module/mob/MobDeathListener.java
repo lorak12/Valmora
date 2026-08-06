@@ -10,6 +10,9 @@ import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.stat.StatManager;
@@ -81,6 +84,16 @@ public class MobDeathListener implements Listener {
                     event.getDrops().add(drop);
                 }
             }
+        }
+
+        // Combat pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — same zero-cost-when-unused guard as
+        // CombatListener: skip building a context entirely if nothing is registered at this point.
+        HookBus bus = ValmoraAPI.getInstance().getHookBus();
+        if (bus != null && bus.hasStages("combat:on_death") && killer != null) {
+            var ctx = new SimpleExecutionContext(killer, entity, entity.getLocation(), null);
+            ctx.set("mob:id", mobId);
+            ctx.set("mob:level", definition.getLevel());
+            bus.runPoint("combat:on_death", ctx);
         }
     }
 

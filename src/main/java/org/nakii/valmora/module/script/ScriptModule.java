@@ -2,6 +2,7 @@ package org.nakii.valmora.module.script;
 
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.script.variable.VariableProvider;
@@ -26,6 +27,16 @@ public class ScriptModule implements ReloadableModule {
     private final Valmora plugin;
     private final Registry<VariableProvider> variableProviderRegistry = new SimpleRegistry<>();
     private final Registry<EventFactory> eventFactoryRegistry = new SimpleRegistry<>();
+    /**
+     * Shared "trigger name -> conditions -> pass/fail actions" dispatch bus, hosted here because
+     * it's generic scripting infra (same primitive as GUI event blocks / item abilities / mob
+     * abilities, just reusable instead of reimplemented per-domain — see
+     * docs/COMBAT_PIPELINE_ANALYSIS.md). Held as a field so it survives {@code /valmora reload}:
+     * Java-registered hooks from addon plugins are not tied to this module's onEnable/onDisable
+     * cycle. Domain loaders (e.g. combat's {@code CombatPipelineLoader}) clear and re-register only
+     * their own YAML-loaded stages on reload via {@link HookBus#clearYamlStages(String)}.
+     */
+    private final HookBus hookBus;
 
     private VariableResolver variableResolver;
     private ExpressionParser expressionParser;
@@ -35,6 +46,7 @@ public class ScriptModule implements ReloadableModule {
 
     public ScriptModule(Valmora plugin) {
         this.plugin = plugin;
+        this.hookBus = new HookBus(plugin);
     }
 
     @Override
@@ -57,6 +69,13 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new RangeVariableProvider());
         registerProvider(new TimeVariableProvider());
         registerProvider(new TargetVariableProvider());
+        registerProvider(new DamageVariableProvider());
+        registerProvider(new CurveVariableProvider());
+        registerProvider(new MobVariableProvider());
+        registerProvider(new ResourceVariableProvider());
+        registerProvider(new FishingVariableProvider());
+        registerProvider(new ItemAbilityVariableProvider());
+        registerProvider(new MathVariableProvider());
 
         // Register default events
         registerEvent(new ConditionEvent(this));
@@ -66,9 +85,15 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new TeleportEventFactory());
         registerEvent(new SpawnMobEventFactory());
         registerEvent(new StatModifyEventFactory());
-        registerEvent(new AccessorySlotsEventFactory());
         registerEvent(new ForeachEventFactory(this));
         registerEvent(new RunScriptEventFactory(this));
+        registerEvent(new InterruptEventFactory());
+        registerEvent(new NotifyEventFactory());
+        registerEvent(new CounterEventFactory());
+        registerEvent(new EntityEventFactory(this));
+        registerEvent(new ApplyPotionEventFactory());
+        registerEvent(new EconomyCoinsEventFactory(true));
+        registerEvent(new EconomyCoinsEventFactory(false));
     }
 
     public void registerProvider(VariableProvider provider) {
@@ -132,5 +157,10 @@ public class ScriptModule implements ReloadableModule {
 
     public EventParser getEventParser() {
         return eventParser;
+    }
+
+    /** @return the shared pipeline dispatch bus (see {@link HookBus}'s class doc). */
+    public HookBus getHookBus() {
+        return hookBus;
     }
 }

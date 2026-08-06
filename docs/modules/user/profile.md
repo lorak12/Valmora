@@ -36,7 +36,7 @@ Each profile independently stores:
 | **Custom variables** | `player.var.<name>` values used by scripts, quests, and the economy's legacy coins. |
 | **Collections** | Collection progress. |
 | **Inventory snapshot** | Storage, armor, and offhand slots are saved per profile and swapped when you switch. |
-| **Accessory bag & quiver** | The 45-slot accessory bag and 27-slot quiver are per-profile. |
+| **Accessory bag** | Accessory-bag contents (a GUI `STORAGE` component, DB-backed) are per-profile. There is no quiver feature. |
 
 Things that are **shared across all of your profiles**: your UUID-based identity, and your **coins**
 (the economy purse/bank balance, `docs/modules/user/economy.md`).
@@ -72,8 +72,7 @@ offhand) and loads the new profile's inventory in its place (`PlayerManager.java
 inventory therefore follows your profile — no need to stash your gear manually. The same swap happens
 when you join: you log in with the inventory snapshot of whichever profile is active.
 
-> **Note:** the accessory bag contents and quiver are also per-profile, so switching profiles swaps
-> those too.
+> **Note:** the accessory bag contents are also per-profile, so switching profiles swaps those too.
 
 ### The Profile Manager GUI (`/profile gui`)
 
@@ -97,7 +96,7 @@ reachable via `/profile switch <name>`.
 ### What resets if you delete a profile
 
 Everything **inside** the deleted profile is gone for good — its stats, skills, tags, variables,
-collections, inventory snapshot, accessory bag, and quiver. Your **coins** are shared per player and
+collections, inventory snapshot, and accessory bag. Your **coins** are shared per player and
 are **not** deleted with a profile.
 
 ---
@@ -120,8 +119,10 @@ configured MySQL server):
 - `valmora_players` — one row per player, holding the currently **active** profile UUID
   (`SQLDataStore.java:124-129`).
 - `valmora_profiles` — one row per profile, holding stats, skills, health/mana state, tags,
-  variables, collections, inventory, quiver, creation time, and last-used time
-  (`SQLDataStore.java:131-144`, v2 quiver column `:117-120`).
+  variables, collections, inventory, creation time, and last-used time (`SQLDataStore.java:131-144`).
+- `valmora_storage` — the generic per-profile GUI storage-slot table (schema v4) backing any GUI
+  `STORAGE` component with `owner: PLAYER` (e.g. the accessory bag), keyed by profile + `storage-id`.
+  It replaced the old fixed `quiver`/accessory columns, which schema v5 drops entirely.
 - The schema is versioned (`valmora_schema_version`) and migrates automatically on startup;
   upgrading Valmora from an older version migrates existing data in place (`SQLDataStore.java:50-72`,
   `:104-115`).

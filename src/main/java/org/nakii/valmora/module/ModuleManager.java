@@ -6,6 +6,7 @@ import org.nakii.valmora.api.ReloadableModule;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Level;
 
 /**
@@ -78,6 +79,16 @@ public class ModuleManager {
 
     public ReloadableModule getModule(String id) {
         return modules.get(id.toLowerCase());
+    }
+
+    /**
+     * Case-insensitive, type-safe module lookup (Phase 1 API foundation).
+     * Returns empty if the id is unregistered or registered under a different type —
+     * callers never need to null-check or cast.
+     */
+    public <T extends ReloadableModule> Optional<T> getModule(String id, Class<T> type) {
+        ReloadableModule module = modules.get(id.toLowerCase());
+        return type.isInstance(module) ? Optional.of(type.cast(module)) : Optional.empty();
     }
 
     /**

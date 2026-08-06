@@ -476,11 +476,9 @@ Grep across `src/main/java` for `getPlayerManager().getSession(...)` /
 | **ui** | `module/ui/ActionBarUI.java:72-83`, `ScoreboardUI.java:196-197` | Shows live HP/mana and the active profile name on the HUD/scoreboard. |
 | **warp** | `module/warp/WarpManager.java:31-33` | Reads profile variables for warp unlocks/behaviour. |
 | **collection** | `module/collection/CollectionListener.java:34-36`, `CollectionVariableProvider.java:40-42` | Collection counts are stored per profile (`profile.getCollectionManager()`). |
-| **slayer** | `module/slayer/SlayerListener.java:147-148`, `SlayerStartEventFactory.java:49-51` | Slayer progress and state on the active profile. |
 | **pet** | `module/pet/PetModule.java:214-216` | Recalculates stats on summon/remove for the active profile. |
 | **progression** | `module/progression/ProgressionManager.java:200-201`, `ProgressionModule.java:61-63` | Skill-point trees grant profile stats. |
-| **accessory** | `module/accessory/AccessoryModule.java:76-85` | Bag open/save reads/writes `profile.getAccessoryItems()`. |
-| **quiver** | `module/quiver/QuiverModule.java:125-126` | Ammo storage on `profile.getQuiverItems()`. |
+| **gui (accessory/backpack storage)** | `module/gui/components/StorageComponent.java`, `module/gui/storage/*` | Accessory-bag/backpack contents persist through the GUI `STORAGE` component, not a dedicated profile field — `owner: PLAYER` storage is DB-backed keyed by `storage-id`, `owner: ITEM` storage lives on the item's own PDC. There are no `getAccessoryItems()`/`getQuiverItems()` methods (the old `accessory`/`quiver` modules that owned them are removed). |
 | **gui** | `module/gui/GuiVariableProvider.java:96-98`, `gui/event/GiveXpEventFactory.java:33-35` | GUI scripts read profile variables / grant XP. |
 | **zone** | `module/script/condition/ZoneCondition.java:17-19` | Reads `PlayerState.getCurrentZoneId()`. |
 

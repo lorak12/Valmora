@@ -1,0 +1,24 @@
+# =====================================================================
+# Backpack Tier II — 18 storage slots, item-bound.
+# =====================================================================
+
+backpack_tier2:
+  title: "<gold>Reinforced Backpack"
+  rows: 2
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"

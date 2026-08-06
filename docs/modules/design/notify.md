@@ -258,7 +258,7 @@ Both resolve the manager **at execution time** via `ValmoraAPI.getInstance().get
 
 - Tokens are matched **case-sensitively** (`startsWith("category:")`), so `CATEGORY:` or `IO:` is treated as a message word.
 - Any token with a colon that isn't `category:`/`io:` becomes a generic setting. A colon inside a message word (e.g. `Peter:Heya`) is therefore consumed as `key:value` — this is exactly the escape warning in `docs/QUEST_MODULE_OUTLINE.md:449-457`.
-- The shipped configs use `notify chat <gold>[Slayer] ...` (`slayers/zombie.yml:11`, `pets/baby_wolf.yml:13`). Since bare `chat` has no colon, it is treated as **the first message word** — the player sees the literal word `chat` prepended. The documented form is `notify <message> io:chat`. (Also flagged in `docs/modules/design/slayer.md:291`.)
+- The shipped `pets/baby_wolf.yml:13` config uses `notify chat <gold>...`. Since bare `chat` has no colon, it is treated as **the first message word** — the player sees the literal word `chat` prepended. The documented form is `notify <message> io:chat`. (The equivalent slayer bug was fixed when the old `slayers/*.yml` module configs were replaced by `quests/slayers/quests.yml`, which correctly uses `category:` instead.)
 
 ### 3.6 Text Rendering — `util/Formatter.java`
 
@@ -477,7 +477,6 @@ Load order: `notifyModule` is registered at `Valmora.java:212`, **after** `scrip
   - `hud-items/default.yml:11,13,25` — `notifyall io:actionbar ...` ("Menu coming soon!", "Profile coming soon!")
   - `calendar/seasonal.yml:8-46` — `notifyall io:title / io:subtitle / io:chat / io:actionbar` for the Harvest Festival, Winter Blessing, and Spring Renewal events
   - `pets/baby_wolf.yml:13-72` — `notify chat ...` for pet ability triggers and milestone levels
-  - `slayers/zombie.yml:11-67` — `notify chat ...` on slayer tier completion (via slayer completion events)
   - `quests/forgotten_mine/quests.yml:9,50,86` — `notify ... category:quest_complete`
   - `quests/blacksmith_hub/events.yml:4,10` — `notify ... category:quest_progress` / `category:quest_complete`
   - `quests/shardworks_quests.yml` — `notify:` interval tokens (objective-level)
@@ -493,7 +492,7 @@ Load order: `notifyModule` is registered at `Valmora.java:212`, **after** `scrip
 4. **`BossBarIO` uses the global scheduler** for auto-hide (`BossBarIO.java:29`); `AGENTS.md` §11.13 recommends the entity scheduler for entity-bound tasks. The hide task is not cancelled on player quit.
 5. **Documented features that do not exist in code.** `docs/QUEST_MODULE_OUTLINE.md:459-568` describes: comma-separated category lists (`category:a,b` — first existing wins), sound options attachable to *any* IO, `advancement` `frame`/`icon`, a `totem` IO, `bossbar` `barFlags`/`countdown`, `soundlocation`/`soundplayeroffset`. None are implemented. `docs/USER_DOCS.md:1239` mentions a `duration` key that no IO honors.
 6. **Doc mismatch on the `info` built-in.** Code default is `chat` (`NotifyManager.java:16`); `docs/QUEST_SYSTEM.md:991` claims `actionbar`; `docs/USER_DOCS.md:1230` agrees with code.
-7. **Shipped `notify chat …` syntax prints the literal word "chat".** `slayers/zombie.yml:11-67` and `pets/baby_wolf.yml:13-72` use `notify chat <gold>…`, which `NotifyEvent` treats as message text (`NotifyEvent.java:34-37`). Should be `notify <gold>… io:chat`. (Also flagged in `docs/modules/design/slayer.md:291`.)
+7. **Shipped `notify chat …` syntax prints the literal word "chat".** `pets/baby_wolf.yml:13-72` uses `notify chat <gold>…`, which `NotifyEvent` treats as message text (`NotifyEvent.java:34-37`). Should be `notify <gold>… io:chat`. (The slayer configs that had the same bug were rewritten as part of the quest-based slayer redesign — `quests/slayers/quests.yml` now correctly uses `category:`.)
 8. **No way to customize the built-in categories globally.** `info`/`error` are hard-coded in the constructor (`NotifyManager.java:14-18`); per-package overrides exist in config but are currently unreachable (§ item 1).
 9. **Category map never cleared.** `loadCategory` overwrites (`NotifyManager.java:24-26`) but there is no reset; a package reload that stops defining a category leaves the stale entry in place.
 10. **Message grammar hazards.** Colons in message words are consumed as `key:value` (`NotifyEvent.java:31-33`), and the bare tokens `notify`, `delay:…`, `conditions:…`, `condition:…` are stripped by `EventParser` before the factory runs (`EventParser.java:43-51`). Nothing validates or escapes this for pack authors.
@@ -509,7 +508,7 @@ Load order: `notifyModule` is registered at `Valmora.java:212`, **after** `scrip
 4. **Harden `SoundIO`:** validate/catch `Key.key(...)` parse failures (log a warning instead of throwing), and consider resolving bare names like `block.anvil.use` into a namespaced key if the raw key lacks a `:`.
 5. **Use Paper's entity scheduler** for the boss bar hide and cancel it on player quit (`player.getScheduler().runDelayed(...)` per `AGENTS.md` §11.13), so a logout mid-`stay` doesn't leave a scheduled task touching a stale player.
 6. **Implement the documented DSL extras** from `docs/QUEST_MODULE_OUTLINE.md:459-568` that are cheap: comma-separated categories (first existing), `sound` options accepted on any IO, and `duration` (currently documented but ignored). Drop or re-document the expensive ones (`totem`, `soundlocation`, `countdown`).
-7. **Fix the shipped configs** that emit the literal word `chat` (`slayers/zombie.yml`, `pets/baby_wolf.yml`) to the documented `io:chat` form.
+7. **Fix the shipped `pets/baby_wolf.yml`** config that still emits the literal word `chat` to the documented `io:chat` form.
 8. **Expose the IO registry publicly** (e.g. `getIO(String)` / `getIOs()`) so other modules/plugins can add display channels, and add a `clearCategories()` for reload hygiene.
 9. **Validate the notify grammar at compile time** — warn in the console (like `EventParser.java:66` does for unknown events) when a `category:` reference is unknown at execution time, and document the colon/token escaping rules in the user docs.
 10. **Tests:** unit-test `NotifyManager.send()` merge/resolution/fallback behavior (category defaults + overrides + unknown IO → chat), each IO's settings parsing (defaults on missing/invalid values), and the `NotifyEvent`/`NotifyAllEvent` arg grammar (category/io/extra/message reconstruction), per `AGENTS.md` §9.

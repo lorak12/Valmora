@@ -9,23 +9,31 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 
 public class CombatListener implements Listener {
+
+    private static final String PRE_DAMAGE = "combat:pre_damage";
+    private static final String POST_CALCULATION = "combat:post_calculation";
+    private static final String POST_APPLICATION = "combat:post_application";
+    private static final String ON_DMG_DEALT = "combat:on_dmg_dealt";
 
     public CombatListener(Valmora plugin) {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
- 
-        
+
+
         if (!(event.getEntity() instanceof LivingEntity victim)) {
              return;
         }
 
         if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() / 2.0F) {
              event.setCancelled(true);
-             return; 
+             return;
         }
 
         LivingEntity attacker = null;
@@ -43,10 +51,40 @@ public class CombatListener implements Listener {
                                     event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.MOB_PROJECTILE) ?
                                     DamageType.PROJECTILE : DamageType.MELEE;
 
-            DamageResult damageResult = DamageCalculator.calculateDamage(attacker, victim, damageType);
+            // Combat pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — only builds a context and runs
+            // the bus if at least one stage/hook is registered at any of these points, so a default
+            // install (no combat_pipeline.yml, no addon Java hooks) pays nothing for this feature.
+            HookBus bus = ValmoraAPI.getInstance().getHookBus();
+            boolean pipelineActive = bus != null
+                    && bus.hasAnyStages(PRE_DAMAGE, POST_CALCULATION, POST_APPLICATION, ON_DMG_DEALT);
+            ExecutionContext pipelineCtx = null;
+
+            if (pipelineActive) {
+                pipelineCtx = new SimpleExecutionContext(attacker, victim, victim.getLocation(), null);
+                if (!bus.runPoint(PRE_DAMAGE, pipelineCtx)) {
+                    return; // a stage called `interrupt` — cancel this hit entirely
+                }
+            }
+
+            DamageResult damageResult = DamageCalculator.calculateDamage(attacker, victim, damageType, 0.0, pipelineCtx);
+
+            if (pipelineActive) {
+                pipelineCtx.set("dmg:final_damage", damageResult.getFinalDamage());
+                pipelineCtx.set("dmg:is_critical", damageResult.isCritical());
+                pipelineCtx.set("dmg:damage_type", damageResult.getDamageType().getId());
+                pipelineCtx.set("dmg:is_immune", damageResult.isImmune());
+                if (!bus.runPoint(POST_CALCULATION, pipelineCtx)) {
+                    return; // the hit was rolled but a stage prevented it from landing
+                }
+            }
+
             damageResult.apply();
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
+
+            if (pipelineActive) {
+                bus.runPoint(POST_APPLICATION, pipelineCtx);
+            }
 
             // Record the hit and fire any ON_HIT item abilities on the attacker's weapon.
             if (attacker instanceof org.bukkit.entity.Player attackerPlayer) {
@@ -65,6 +103,10 @@ public class CombatListener implements Listener {
             }
             if (bossController.isTracked(victim.getUniqueId())) {
                 bossController.onDamaged(victim, attacker);
+            }
+
+            if (pipelineActive) {
+                bus.runPoint(ON_DMG_DEALT, pipelineCtx);
             }
         }
     }

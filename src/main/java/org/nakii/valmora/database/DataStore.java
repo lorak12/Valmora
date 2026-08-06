@@ -1,5 +1,6 @@
 package org.nakii.valmora.database;
 
+import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import java.util.Map;
 import java.util.UUID;
@@ -9,6 +10,14 @@ public interface DataStore {
     void init();
     CompletableFuture<ValmoraPlayer> loadPlayer(UUID uuid);
     CompletableFuture<Void> savePlayer(ValmoraPlayer player);
+
+    /**
+     * Profile-owned generic GUI storage slot (e.g. accessory bag), keyed by (profile id, storage id).
+     * Scoped to a profile — not the player account — so each of a player's profiles has independent
+     * storage, matching how accessory/quiver data worked before this became a generic mechanism.
+     */
+    CompletableFuture<ItemStack[]> loadStorage(UUID profileId, String storageId, int expectedSize);
+    CompletableFuture<Void> saveStorage(UUID profileId, String storageId, ItemStack[] contents);
 
     CompletableFuture<Void> deleteProfile(UUID profileId);
 

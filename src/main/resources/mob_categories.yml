@@ -1,0 +1,5 @@
+# Extra mob categories (Phase 3.4 of the generic-engine refactor).
+# The 10 built-in categories (UNDEAD, ENDER, NETHER, BEAST, AQUATIC, ARTHROPOD, ILLAGER, GOLEM,
+# BOSS, OTHER) are always available even with an empty list here — add new ones below without a
+# plugin recompile. Used by `category:` in mobs/*.yml and per-category skill XP bonuses.
+categories: []

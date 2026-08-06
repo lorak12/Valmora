@@ -344,7 +344,7 @@ test_zombie:
 
 - **Scaling:** A mob's `base-damage` scales with its `level` directly. The formula `baseDamage + (level - 1)` is injected into the entity attribute upon spawning.
 - **Custom Name Overrides:** The engine forcibly overrides the entity's custom name in `MobFactory.applyVisuals()` to display its level, category, and health pool dynamically (e.g., `[Lv.5] Test Zombie 30.0/30.0❤`).
-- **Economy Integration:** `gold-reward` is parsed and extracted but currently explicitly marked as `// TODO: Integrate with Economy system` in `MobDeathListener.java`.
+- **Economy Integration:** `gold-reward` is live — `MobDeathListener.java:67` grants it to the killer through the economy service. (This note previously said it was a `// TODO`; that's stale — the integration shipped.)
 
 ---
 

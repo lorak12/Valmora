@@ -4,6 +4,10 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.zone.ZoneDefinition;
@@ -23,18 +27,45 @@ public class FishingManager {
         FishingLootTable table = getTableForPlayer(player);
         if (table == null) return false;
 
+        // Fishing pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — low-frequency event, no meaningful
+        // hot-path risk, but still gated on hasAnyStages so a default install pays nothing for it.
+        HookBus bus = ValmoraAPI.getInstance().getHookBus();
+        boolean pipelineActive = bus != null
+                && bus.hasAnyStages(FishingPipelineLoader.PRE_CATCH, FishingPipelineLoader.POST_CATCH);
+        ExecutionContext pipelineCtx = null;
+        if (pipelineActive) {
+            pipelineCtx = new SimpleExecutionContext(player, null, player.getLocation(), null);
+            pipelineCtx.set("fishing:table", table.getId());
+            if (!bus.runPoint(FishingPipelineLoader.PRE_CATCH, pipelineCtx)) {
+                return false; // interrupted — nothing granted
+            }
+        }
+
+        boolean caught;
         if (table.getSeaCreatureMobId() != null && Math.random() < table.getSeaCreatureChance()) {
             var def = plugin.getMobManager().getMobDefinition(table.getSeaCreatureMobId());
             if (def != null) plugin.getMobManager().spawnMob(def, player.getLocation());
-            return true;
+            if (pipelineActive) pipelineCtx.set("fishing:sea_creature", table.getSeaCreatureMobId());
+            caught = def != null;
+        } else {
+            FishingLootEntry entry = table.roll();
+            if (entry == null) {
+                caught = false;
+            } else {
+                ItemStack item = createItem(entry.getItemId(), entry.rollAmount());
+                if (item != null) player.getInventory().addItem(item);
+                if (pipelineActive) {
+                    pipelineCtx.set("fishing:item", entry.getItemId());
+                    pipelineCtx.set("fishing:amount", entry.rollAmount());
+                }
+                caught = item != null;
+            }
         }
 
-        FishingLootEntry entry = table.roll();
-        if (entry == null) return false;
-
-        ItemStack item = createItem(entry.getItemId(), entry.rollAmount());
-        if (item != null) player.getInventory().addItem(item);
-        return true;
+        if (pipelineActive) {
+            bus.runPoint(FishingPipelineLoader.POST_CATCH, pipelineCtx);
+        }
+        return caught;
     }
 
     private FishingLootTable getTableForPlayer(Player player) {

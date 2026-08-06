@@ -1,0 +1,25 @@
+# =====================================================================
+# Backpack Tier III — 27 storage slots, item-bound.
+# =====================================================================
+
+backpack_tier3:
+  title: "<gold>Traveler's Backpack"
+  rows: 3
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+  on-close:
+    actions:
+      - "sound player block.chest.close"

@@ -1,80 +1,41 @@
 package org.nakii.valmora.module.stat;
 
-import org.bukkit.configuration.file.FileConfiguration;
-
+/**
+ * Backward-compatible facade over {@link StatRoleRegistry} (Phase 3.1 — see
+ * docs/REFACTOR/PROGRESS.md). Every original getter is kept so the many existing call sites
+ * (`sys.getDamage()`, `sys.getStrength()`, ...) compile and behave unchanged; new roles beyond the
+ * original 15 are reachable through {@link #getRole(String)} without touching this class.
+ */
 public class SystemStats {
 
-    private final String health;
-    private final String mana;
-    private final String damage;
-    private final String strength;
-    private final String defense;
-    private final String critChance;
-    private final String critDamage;
-    private final String speed;
-    private final String healthRegen;
-    private final String manaRegen;
-    private final String luck;
-    private final String miningFortune;
-    private final String miningSpeed;
-    private final String breakingPower;
-    private final String miningSpread;
+    private final StatRoleRegistry roles;
 
-    private SystemStats(String health, String mana, String damage, String strength,
-                        String defense, String critChance, String critDamage, String speed,
-                        String healthRegen, String manaRegen, String luck,
-                        String miningFortune, String miningSpeed,
-                        String breakingPower, String miningSpread) {
-        this.health = health;
-        this.mana = mana;
-        this.damage = damage;
-        this.strength = strength;
-        this.defense = defense;
-        this.critChance = critChance;
-        this.critDamage = critDamage;
-        this.speed = speed;
-        this.healthRegen = healthRegen;
-        this.manaRegen = manaRegen;
-        this.luck = luck;
-        this.miningFortune = miningFortune;
-        this.miningSpeed = miningSpeed;
-        this.breakingPower = breakingPower;
-        this.miningSpread = miningSpread;
+    private SystemStats(StatRoleRegistry roles) {
+        this.roles = roles;
     }
 
-    public static SystemStats load(FileConfiguration config) {
-        return new SystemStats(
-            config.getString("combat.health-stat", "health"),
-            config.getString("combat.mana-stat", "mana"),
-            config.getString("combat.damage-stat", "damage"),
-            config.getString("combat.strength-stat", "strength"),
-            config.getString("combat.defense-stat", "defense"),
-            config.getString("combat.crit-chance-stat", "crit_chance"),
-            config.getString("combat.crit-damage-stat", "crit_damage"),
-            config.getString("combat.speed-stat", "speed"),
-            config.getString("combat.health-regen-stat", "health_regen"),
-            config.getString("combat.mana-regen-stat", "mana_regen"),
-            config.getString("combat.luck-stat", "luck"),
-            config.getString("mining.mining-fortune-stat", "mining_fortune"),
-            config.getString("mining.mining-speed-stat", "mining_speed"),
-            config.getString("mining.breaking-power-stat", "breaking_power"),
-            config.getString("mining.mining-spread-stat", "mining_spread")
-        );
+    public static SystemStats load(StatRoleRegistry roles) {
+        return new SystemStats(roles);
     }
 
-    public String getHealth() { return health; }
-    public String getMana() { return mana; }
-    public String getDamage() { return damage; }
-    public String getStrength() { return strength; }
-    public String getDefense() { return defense; }
-    public String getCritChance() { return critChance; }
-    public String getCritDamage() { return critDamage; }
-    public String getSpeed() { return speed; }
-    public String getHealthRegen() { return healthRegen; }
-    public String getManaRegen() { return manaRegen; }
-    public String getLuck() { return luck; }
-    public String getMiningFortune() { return miningFortune; }
-    public String getMiningSpeed() { return miningSpeed; }
-    public String getBreakingPower() { return breakingPower; }
-    public String getMiningSpread() { return miningSpread; }
+    /** Generic accessor — the only one a *new* stat role needs. Roles beyond the original 15 have no dedicated getter. */
+    public String getRole(String role) {
+        return roles.get(role);
+    }
+
+    public String getHealth() { return roles.get("health"); }
+    public String getMana() { return roles.get("mana"); }
+    public String getDamage() { return roles.get("damage"); }
+    public String getStrength() { return roles.get("strength"); }
+    public String getDefense() { return roles.get("defense"); }
+    public String getCritChance() { return roles.get("crit_chance"); }
+    public String getCritDamage() { return roles.get("crit_damage"); }
+    public String getSpeed() { return roles.get("speed"); }
+    public String getHealthRegen() { return roles.get("health_regen"); }
+    public String getManaRegen() { return roles.get("mana_regen"); }
+    public String getLuck() { return roles.get("luck"); }
+    public String getMiningFortune() { return roles.get("mining_fortune"); }
+    public String getMiningSpeed() { return roles.get("mining_speed"); }
+    public String getBreakingPower() { return roles.get("breaking_power"); }
+    public String getMiningSpread() { return roles.get("mining_spread"); }
 }

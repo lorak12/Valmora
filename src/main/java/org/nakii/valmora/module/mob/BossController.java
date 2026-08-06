@@ -9,6 +9,10 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.module.item.ConfiguredMechanic;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 import org.nakii.valmora.module.mob.ability.MobAbilityTrigger;
@@ -189,8 +193,30 @@ public class BossController {
             }
         }
 
+        // Mob ability pipeline hooks — see docs/VALMORA_DOCUMENTATION.md §39. Unlike combat's
+        // pre_damage/post_calculation, this does NOT replace the native cooldown/interval/announce
+        // machinery above (that stays boss-controller-owned); it's a supplementary extension point
+        // so a stage/addon can veto a specific ability firing (`interrupt` on mob:pre_ability, e.g.
+        // a "silence" debuff) or react after it resolves (mob:post_ability), same zero-cost-when-
+        // unused guard as every other domain.
+        HookBus bus = ValmoraAPI.getInstance().getHookBus();
+        boolean pipelineActive = bus != null && bus.hasAnyStages("mob:pre_ability", "mob:post_ability");
+        ExecutionContext pipelineCtx = null;
+        if (pipelineActive) {
+            pipelineCtx = new SimpleExecutionContext(instance.entity, target, instance.entity.getLocation(), null);
+            pipelineCtx.set("mob:ability_id", ability.getId());
+            pipelineCtx.set("mob:ability_trigger", ability.getTrigger().name());
+            if (!bus.runPoint("mob:pre_ability", pipelineCtx)) {
+                return true; // cooldown/interval already consumed above — the attempt happened, effects didn't
+            }
+        }
+
         for (ConfiguredMechanic mechanic : ability.getMechanics()) {
             mechanic.execute(instance.entity, target);
+        }
+
+        if (pipelineActive) {
+            bus.runPoint("mob:post_ability", pipelineCtx);
         }
         return true;
     }

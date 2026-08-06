@@ -1,0 +1,9 @@
+# Reforge/forge coin costs per rarity tier (Phase 4.4 of the generic-engine refactor).
+forge_costs:
+  COMMON: 250
+  UNCOMMON: 500
+  RARE: 1000
+  EPIC: 2500
+  LEGENDARY: 5000
+  MYTHIC: 10000
+  DIVINE: 15000

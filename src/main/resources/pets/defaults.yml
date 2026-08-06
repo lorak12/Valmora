@@ -1,0 +1,7 @@
+# Server-wide pet XP defaults (Phase 3.3 of the generic-engine refactor).
+# Any pets/<id>.yml entry can override these per-pet with its own `xp-formula` / `max-level` keys.
+# `$curve.level$` is the level (1..max-level) being evaluated — resolved once per level at load
+# time, never re-evaluated while a player is actually gaining pet XP.
+pet_defaults:
+  xp-formula: "100 * $curve.level$ * $curve.level$"
+  max-level: 200

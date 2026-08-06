@@ -32,6 +32,7 @@ public class GuiRenderer {
 
         Map<Integer, ItemStack> savedInputItems = saveInputItems(session);
         Map<Integer, ItemStack> savedOutputItems = saveOutputItems(session);
+        Map<Integer, ItemStack> savedStorageItems = saveStorageItems(session);
 
         // Cache input snapshot BEFORE clearing so mid-render variable
         // resolution (e.g. $gui.input.ingredient.available_enchants$)
@@ -44,8 +45,44 @@ public class GuiRenderer {
         renderLayout(session, inv);
 
         restoreInputItems(session, savedInputItems);
+        restoreInputItems(session, savedStorageItems);
         session.clearInputSnapshot();
         updateOutputSlot(session, savedOutputItems);
+    }
+
+    /**
+     * Captures current STORAGE slot contents before the inventory is cleared. On a session's
+     * very first render the inventory is empty, so any preloaded contents (from item PDC or
+     * the async DB load) are seeded in here instead — see {@link GuiSession#pollInitialStorageContents}.
+     */
+    private Map<Integer, ItemStack> saveStorageItems(GuiSession session) {
+        Map<Integer, ItemStack> saved = new HashMap<>();
+        GuiDefinition def = session.getDefinition();
+        Inventory inv = session.getInventory();
+
+        for (StorageComponent storage : getStorageComponents(def)) {
+            List<Integer> slots = findAllSlotsForComponent(def, storage);
+            ItemStack[] initial = session.pollInitialStorageContents(storage.getStorageId());
+            for (int i = 0; i < slots.size(); i++) {
+                int slot = slots.get(i);
+                ItemStack current = inv.getItem(slot);
+                if (current == null && initial != null && i < initial.length && initial[i] != null) {
+                    current = initial[i];
+                }
+                saved.put(slot, current);
+            }
+        }
+        return saved;
+    }
+
+    private List<StorageComponent> getStorageComponents(GuiDefinition def) {
+        java.util.LinkedHashSet<StorageComponent> set = new java.util.LinkedHashSet<>();
+        for (GuiComponent component : def.getComponents().values()) {
+            if (component instanceof StorageComponent storage) {
+                set.add(storage);
+            }
+        }
+        return new ArrayList<>(set);
     }
 
     private Map<Integer, ItemStack> saveInputItems(GuiSession session) {

@@ -48,6 +48,10 @@ public class StatLoader {
     private int loadFromConfig(FileConfiguration config, String fileName) {
         int count = 0;
         for (String id : config.getKeys(false)) {
+            // Phase 3.1 (docs/REFACTOR/PROGRESS.md): stat_roles: is a role->stat-id mapping read
+            // separately by StatRoleRegistry, not a stat definition — skip it here.
+            if (id.equalsIgnoreCase(StatRoleRegistry.SECTION_KEY)) continue;
+
             ConfigurationSection s = config.getConfigurationSection(id);
             if (s == null) continue;
 

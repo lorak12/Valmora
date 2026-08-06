@@ -1,3 +1,15 @@
+> **This is external reference material, not Valmora's schema.** This file is pasted/adapted from
+> **BetonQuest**'s documentation (note `/bq reload`, BetonQuest-specific config keys like
+> `max_conversation_distance` and `npcs.accept_left_click` that don't exist in Valmora's
+> `config.yml`) — it was the design inspiration for Valmora's quest system, not a description of
+> what shipped. Several things described here were never implemented in Valmora (comma-separated
+> category lists, sound options on any notify IO, `advancement` frame/icon, a `totem` IO, `bossbar`
+> flags/countdown, `soundlocation`/`soundplayeroffset` — see `docs/modules/design/notify.md` for
+> which). **For Valmora's actual, current, verified-against-code quest/dialogue/notify schema, see
+> `docs/QUEST_SYSTEM.md`, `docs/modules/design/quest.md`, `docs/modules/user/quest.md`, and
+> `docs/modules/design/notify.md`.** Keep this file only as historical "what BetonQuest did that we
+> may or may not have copied" background.
+
 The scripting language is based on a few basic building blocks which are outlined in the following sections. They can be freely combined to create any quest you want. All of these are defined using an instruction text.
 ```yml
 Instruction Text Example

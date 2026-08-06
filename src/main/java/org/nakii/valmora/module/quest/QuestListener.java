@@ -52,6 +52,9 @@ import org.nakii.valmora.module.quest.points.PointsChangedEvent;
 import org.nakii.valmora.module.skill.SkillLevelUpEvent;
 import org.nakii.valmora.module.skill.SkillXpGainEvent;
 import org.nakii.valmora.module.zone.event.ZoneEnterEvent;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.nakii.valmora.util.Keys;
 
 public class QuestListener implements Listener {
@@ -86,9 +89,26 @@ public class QuestListener implements Listener {
     public void onKill(EntityDeathEvent event) {
         LivingEntity entity = event.getEntity();
         if (entity.getKiller() == null) return;
+
+        // Build every string a KILL objective's `target:` could match against this entity:
+        // its exact Valmora mob id / vanilla EntityType name, plus any category it belongs to
+        // (its MobCategory if it's a custom mob, and any rule-based EntityCategoryRegistry
+        // category — the latter is what lets a target like "UNDEAD" match plain vanilla mobs).
         String mobId = entity.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
-        String target = mobId != null ? mobId : entity.getType().name();
-        questManager.trigger(entity.getKiller(), QuestObjectiveTypes.KILL, target, 1);
+        List<String> targets = new ArrayList<>();
+        targets.add(mobId != null ? mobId : entity.getType().name());
+        targets.add(entity.getType().name());
+
+        org.nakii.valmora.module.mob.MobManager mobManager = org.nakii.valmora.api.ValmoraAPI.getInstance().getMobManager();
+        if (mobManager != null) {
+            if (mobId != null) {
+                org.nakii.valmora.module.mob.MobDefinition def = mobManager.getMobDefinition(mobId);
+                if (def != null && def.getCategory() != null) targets.add(def.getCategory().name());
+            }
+            targets.addAll(mobManager.getEntityCategoryRegistry().matchingCategories(entity));
+        }
+
+        questManager.trigger(entity.getKiller(), QuestObjectiveTypes.KILL, targets, 1);
     }
 
     // ── COLLECT ──────────────────────────────────────────────────────────────

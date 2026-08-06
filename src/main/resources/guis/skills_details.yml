@@ -90,6 +90,10 @@ skill_details:
         name: "<dark_purple>Slayer"
         lore:
           - "<gray>Take on a <dark_purple>Slayer Quest..."
+          - "<yellow>Click to open!"
+      actions:
+        left:
+          actions: ["open_gui slayers"]
     Z:
       type: DISPLAY
       display-item:

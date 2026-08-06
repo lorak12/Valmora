@@ -210,37 +210,8 @@ public class GuiVariableProvider implements VariableProvider {
     // ── Item type detection ─────────────────────────────────────────────
 
     private ItemType getItemType(ItemStack item) {
-        // First check PDC for Valmora items — this is the authoritative source
-        if (item.hasItemMeta()) {
-            ItemMeta meta = item.getItemMeta();
-            String pdcType = meta.getPersistentDataContainer()
-                    .get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-            if (pdcType != null) {
-                try {
-                    return ItemType.valueOf(pdcType.toUpperCase());
-                } catch (IllegalArgumentException ignored) {}
-            }
-        }
-
-        // Fallback: infer from material name for vanilla items
-        String material = item.getType().name();
-        if (material.contains("SWORD")) return ItemType.SWORD;
-        if (material.contains("PICKAXE")) return ItemType.PICKAXE;
-        if (material.contains("AXE")) return ItemType.AXE;
-        if (material.contains("SHOVEL")) return ItemType.SHOVEL;
-        if (material.contains("HOE")) return ItemType.HOE;
-        if (material.contains("HELMET")) return ItemType.HELMET;
-        if (material.contains("CHESTPLATE")) return ItemType.CHESTPLATE;
-        if (material.contains("LEGGINGS")) return ItemType.LEGGINGS;
-        if (material.contains("BOOTS")) return ItemType.BOOTS;
-        if (material.contains("BOW")) return ItemType.BOW;
-        if (material.contains("CROSSBOW")) return ItemType.CROSSBOW;
-        if (material.contains("TRIDENT")) return ItemType.TRIDENT;
-        if (material.contains("FISHING_ROD")) return ItemType.FISHING_ROD;
-        if (material.contains("SHIELD")) return ItemType.SHIELD;
-        if (material.contains("ELYTRA")) return ItemType.ELYTRA;
-        if (material.contains("SHEARS")) return ItemType.SHEARS;
-        return ItemType.ALL;
+        ItemType type = ItemType.fromItemStack(item);
+        return type == ItemType.NONE ? ItemType.ALL : type;
     }
 
     private List<EnchantmentDefinition> getAvailableEnchants(ItemStack item) {

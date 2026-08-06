@@ -3,6 +3,11 @@
 > **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
 > **Module ID:** `skills` | **Source:** `src/main/java/org/nakii/valmora/module/skill/`
 
+> **Generic-engine refactor (Phase 3.2):** XP curves are now data-driven via `XpCurveRegistry`
+> (`skills/xp_curves.yml`), either an explicit threshold list or a `formula:` evaluated once per
+> level at load time. The built-in `"default"` curve is the exact original 59-level table — no
+> existing skill config needs any change. See `docs/REFACTOR/CONFIG_REFERENCE.md`.
+
 ---
 
 ## Table of Contents

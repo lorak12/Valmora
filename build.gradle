@@ -44,6 +44,12 @@ test {
 }
 
 tasks.register('testMock', Test) {
+    // NOTE: custom Test tasks registered via tasks.register(..., Test) do NOT automatically
+    // inherit the `test` source set's classpath the way the conventional `test` task does — this
+    // was previously missing, which made this task silently discover and run zero tests
+    // (reported as "NO-SOURCE") despite MockBukkit tests existing in the codebase.
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform { includeTags 'mockbukkit' }
     forkEvery = 1 // fresh JVM per class — avoids cross-test Bukkit static pollution
     group = 'verification'
@@ -53,12 +59,16 @@ tasks.register('testMock', Test) {
 tasks.named('check') { dependsOn('testMock') }
 
 tasks.register('testUnit', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform { includeTags 'unit', 'config', 'database' }
     group = 'verification'
     description = 'Runs pure unit tests, YAML config validation, and DB tests (no Bukkit server needed).'
 }
 
 tasks.register('testFull', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform { includeTags 'unit', 'scripting', 'recipe', 'skill', 'alchemy', 'config', 'integration', 'database' }
     dependsOn('testMock') // MockBukkit tests run in their own isolated JVM
     group = 'verification'

@@ -5,6 +5,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.Nullable;
+import org.nakii.valmora.module.gui.storage.ItemBindingHandle;
 
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +23,17 @@ public class GuiSession {
     private boolean craftingLocked = false;
     private boolean inputPending = false;
     private @Nullable String inputPropKey = null;
+
+    /** Set only when this GUI has an ITEM-owned StorageComponent — points at that item's origin. */
+    private @Nullable ItemBindingHandle boundItemHandle;
+
+    /**
+     * Storage contents loaded (from item PDC or the async DB read) before this session's very
+     * first render, keyed by storage-id. Each entry is consumed (removed) the first time
+     * {@link org.nakii.valmora.module.gui.renderer.GuiRenderer} seeds that storage component's
+     * slots, so later re-renders read live inventory state instead.
+     */
+    private @Nullable Map<String, ItemStack[]> initialStorageContents;
 
     public GuiSession(Player player, GuiDefinition definition, Inventory inventory, Map<String, Object> props) {
         this.player = player;
@@ -50,6 +62,19 @@ public class GuiSession {
     public void setInputPending(boolean pending) { this.inputPending = pending; }
     public @Nullable String getInputPropKey() { return inputPropKey; }
     public void setInputPropKey(@Nullable String key) { this.inputPropKey = key; }
+
+    public @Nullable ItemBindingHandle getBoundItemHandle() { return boundItemHandle; }
+    public void setBoundItemHandle(@Nullable ItemBindingHandle handle) { this.boundItemHandle = handle; }
+
+    public void setInitialStorageContents(@Nullable Map<String, ItemStack[]> contents) {
+        this.initialStorageContents = contents != null ? new HashMap<>(contents) : null;
+    }
+
+    /** Consumes (removes) and returns the preloaded contents for this storage-id, if any. */
+    public @Nullable ItemStack[] pollInitialStorageContents(String storageId) {
+        if (initialStorageContents == null) return null;
+        return initialStorageContents.remove(storageId);
+    }
 
     /**
      * Captures the current input items and caches them. Call this before

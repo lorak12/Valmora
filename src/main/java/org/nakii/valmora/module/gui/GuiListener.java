@@ -5,19 +5,24 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.gui.components.*;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
 import org.nakii.valmora.module.script.event.ConditionAbortException;
+import org.nakii.valmora.util.Keys;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class GuiListener implements Listener {
 
@@ -80,6 +85,8 @@ public class GuiListener implements Listener {
                 if (isInputLocked(session, input)) return;
                 event.setCancelled(false);
                 triggerSlotUpdate(session);
+            } else if (component instanceof StorageComponent storage) {
+                handleStorageClick(event, session, storage, rawSlot);
             } else if (component instanceof PaginatedComponent paginated) {
                 char clickedChar = session.getDefinition().getLayout().get(rawSlot / 9).get(rawSlot % 9);
                 handlePaginatedClick(event, session, paginated, rawSlot, clickedChar);
@@ -181,6 +188,42 @@ public class GuiListener implements Listener {
             }
         }
         return -1;
+    }
+
+    private void handleStorageClick(InventoryClickEvent event, GuiSession session, StorageComponent storage, int rawSlot) {
+        Player player = (Player) event.getWhoClicked();
+        ClickType click = event.getClick();
+        boolean isShift = click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT;
+
+        // Nested-open: clicking a container item (e.g. a backpack) opens its own storage GUI
+        // instead of picking it up. Shift-click is excluded so it still takes the item out normally.
+        if (!isShift && storage.isOpenContainer()) {
+            String containerGuiId = getContainerGuiId(event.getCurrentItem());
+            if (containerGuiId != null) {
+                guiModule.openNestedGui(player, containerGuiId, new java.util.HashMap<>(), session, rawSlot);
+                return; // event stays cancelled — the click never touches the item
+            }
+        }
+
+        // Condition check on the item being placed (cursor). Removing an item never needs a check.
+        if (storage.getCondition() != null) {
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && !cursor.getType().isAir()) {
+                GuiExecutionContext ctx = new GuiExecutionContext(player, session);
+                ctx.setLoopVar("candidate", cursor);
+                if (!storage.getCondition().evaluate(ctx)) {
+                    return; // leave cancelled — rejected
+                }
+            }
+        }
+
+        event.setCancelled(false);
+        Bukkit.getScheduler().runTask(plugin, () -> guiModule.persistStorageComponent(session, storage));
+    }
+
+    private String getContainerGuiId(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return null;
+        return item.getItemMeta().getPersistentDataContainer().get(Keys.CONTAINER_GUI_KEY, PersistentDataType.STRING);
     }
 
     private void handleOutputClick(InventoryClickEvent event, GuiSession session, OutputComponent output) {
@@ -368,6 +411,17 @@ public class GuiListener implements Listener {
         if (session != null && session.getInventory().equals(event.getInventory())) {
             // Dialog/sign input closes the inventory intentionally — keep the session alive.
             if (session.isInputPending()) return;
+
+            // Nested container (e.g. a backpack opened from an accessory bag slot) — resume the
+            // parent GUI instead of a full teardown. Note: opening the child GUI already swapped
+            // the session mapping to the child before player.openInventory() ran, so Bukkit's
+            // synchronous close-then-open sequence never mismatches this branch for the parent's
+            // own close — it only fires here for the child's real close.
+            GuiSession parent = session.getParent();
+            if (parent != null) {
+                guiModule.resumeParentSession(player, session, parent);
+                return;
+            }
             guiModule.closeGuiSession(player);
         }
     }
@@ -379,26 +433,42 @@ public class GuiListener implements Listener {
         if (session == null) return;
 
         boolean inputAffected = false;
+        Set<StorageComponent> storageAffected = new HashSet<>();
+
         for (int slot : event.getRawSlots()) {
             // Only check slots inside the top GUI (ignore player's own inventory)
             if (slot < event.getInventory().getSize()) {
                 GuiComponent component = getComponentAt(session, slot);
-                
-                // Strict whitelist: Only allow dragging into unlocked Input Components
-                if (!(component instanceof InputComponent input)) {
-                    event.setCancelled(true);
-                    return;
-                } else if (isInputLocked(session, input)) {
-                    event.setCancelled(true);
-                    return;
-                } else {
+
+                if (component instanceof InputComponent input) {
+                    if (isInputLocked(session, input)) {
+                        event.setCancelled(true);
+                        return;
+                    }
                     inputAffected = true;
+                } else if (component instanceof StorageComponent storage) {
+                    if (storage.getCondition() != null) {
+                        GuiExecutionContext ctx = new GuiExecutionContext(player, session);
+                        ctx.setLoopVar("candidate", event.getOldCursor());
+                        if (!storage.getCondition().evaluate(ctx)) {
+                            event.setCancelled(true);
+                            return;
+                        }
+                    }
+                    storageAffected.add(storage);
+                } else {
+                    // Strict whitelist: only Input/Storage components accept drags
+                    event.setCancelled(true);
+                    return;
                 }
             }
         }
 
         if (inputAffected) {
             triggerSlotUpdate(session);
+        }
+        for (StorageComponent storage : storageAffected) {
+            Bukkit.getScheduler().runTask(plugin, () -> guiModule.persistStorageComponent(session, storage));
         }
     }
 
@@ -413,25 +483,13 @@ public class GuiListener implements Listener {
     private void triggerSlotUpdate(GuiSession session) {
         Bukkit.getScheduler().runTask(plugin, () -> {
             updateRecipeOutput(session);
-            
-            GuiEventBlock slotUpdate = session.getDefinition().getOnSlotUpdate();
-            if (slotUpdate != null) {
-                GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
-                if (slotUpdate.conditions() != null && !slotUpdate.conditions().evaluate(context)) {
-                    if (slotUpdate.failActions() != null) {
-                        try { slotUpdate.failActions().execute(context); } catch (ConditionAbortException ignored) {}
-                    }
-                } else if (slotUpdate.actions() != null) {
-                    try {
-                        slotUpdate.actions().execute(context);
-                    } catch (ConditionAbortException ignored) {
-                        if (slotUpdate.failActions() != null) {
-                            try { slotUpdate.failActions().execute(context); } catch (ConditionAbortException ignored2) {}
-                        }
-                    }
-                }
-            }
-            
+
+            // Routed through the shared HookBus (see GuiEventBlockStage) — always re-renders after,
+            // regardless of outcome, so the runPoint() result is intentionally ignored here.
+            GuiExecutionContext context = new GuiExecutionContext(session.getPlayer(), session);
+            plugin.getScriptModule().getHookBus()
+                    .runPoint(GuiModule.onSlotUpdatePoint(session.getDefinition().getId()), context);
+
             new GuiRenderer(plugin).render(session);
         });
     }

@@ -527,7 +527,7 @@ When `interval` is set, the scheduler fires every `interval` ticks and accumulat
 
 ### `ENCHANT` — Enchant an item
 
-⚠️ *Defined in the system but the in-game listener is not yet fully implemented. The objective will be registered but may not automatically track player enchanting actions.*
+✅ *Implemented.* `QuestListener` handles `EnchantItemEvent`, firing `trigger()` for each enchantment applied and for `"any"` (`QuestListener.java:218-229`). (This section previously said the listener was not yet implemented — that was stale.)
 
 ```yaml
 type: ENCHANT
@@ -551,7 +551,7 @@ amount: 10
 
 ### `BREW` — Brew potions
 
-⚠️ *Defined in the system; in-game listener attribution is pending implementation.*
+⚠️ *Defined in the system; the listener is genuinely not yet implemented (this and `VARIABLE` are the two real gaps — `ENCHANT`/`JUMP`/`LOCATION` below are actually implemented despite older notes in this file saying otherwise).*
 
 ```yaml
 type: BREW
@@ -563,7 +563,7 @@ amount: 5
 
 ### `VARIABLE` — Custom variable gate
 
-⚠️ *Defined in the system; the dedicated listener is not yet implemented. Progress cannot be automatically tracked.*
+⚠️ *Defined in the system; the dedicated listener is genuinely not yet implemented (unlike `ENCHANT`/`JUMP`/`LOCATION` below, which are). Progress cannot be automatically tracked.*
 
 ```yaml
 type: VARIABLE
@@ -575,7 +575,7 @@ amount: 1
 
 ### `JUMP` — Count jumps
 
-⚠️ *Defined in the system; listener is not yet implemented.*
+✅ *Implemented* (`QuestListener.java:233`). (This section previously said the listener was not yet implemented — that was stale.)
 
 ```yaml
 type: JUMP
@@ -587,7 +587,7 @@ amount: 100
 
 ### `LOCATION` — Reach a coordinate
 
-⚠️ *Defined in the system; listener is not yet implemented.*
+✅ *Implemented* (`QuestListener.java:265`). (This section previously said the listener was not yet implemented — that was stale.)
 
 ```yaml
 type: LOCATION
@@ -988,7 +988,7 @@ These exist by default and can be overridden per-package by defining them in you
 
 | Category | Default IO |
 |----------|-----------|
-| `info` | `actionbar` — used by the automatic objective progress notifications |
+| `info` | `chat` — used by the automatic objective progress notifications. (This table previously said `actionbar`; the code default is `chat` — `NotifyManager.java:16`. `docs/USER_DOCS.md` §18 has always had this right.) |
 
 ### The `notify` action syntax
 
