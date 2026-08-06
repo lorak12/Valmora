@@ -485,11 +485,12 @@ public class NpcCommand implements TabExecutor {
         }
 
         NpcDefinition updated = def.withLookAtPlayer(!def.isLookAtPlayer());
-        nm.getRegistry().register(updated.getId(), updated);
+        boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
         String state = updated.isLookAtPlayer() ? "<green>enabled" : "<red>disabled";
         sender.sendMessage(Formatter.format(PREFIX + "<white>" + id + " <gray>look-at-player " + state + "<gray>."));
+        warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdShowName(CommandSender sender, String[] args, NpcManager nm) {

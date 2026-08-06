@@ -1,0 +1,98 @@
+# A minimal example NPC shop GUI — demonstrates the "NPC shops" backlog item.
+#
+# The shop mechanic needs no new engine code: it's just a DISPLAY-component GUI whose click
+# handlers gate a purchase behind a `conditions:` coin check, `take_coins`, and `give`, with
+# `fail-actions:` for the "can't afford it" case. Bind it to an NPC via `on-right-click: ["open_gui general_store"]`
+# (see npcs/shopkeeper.yml) to get a fully working shop.
+general_store:
+  title: "<gold>⚜ General Store"
+  rows: 3
+  update-interval: 20
+
+  #  B B B B B B B B B
+  #  B B A B C B D B B   A=bread  C=torches  D=iron ingot
+  #  B B B B X B B B B   X=close
+  layout:
+    - "BBBBBBBBB"
+    - "BBABCBDBB"
+    - "BBBBXBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    A:
+      type: DISPLAY
+      display-item:
+        material: BREAD
+        name: "<yellow>Bread <gray>x8"
+        lore:
+          - "<gray>Price: <gold>10 coins"
+          - "<gray>Your purse: <gold>$economy.purse$ coins"
+          - ""
+          - "<yellow>Click to buy!"
+      actions:
+        left:
+          conditions:
+            - "$economy.purse$ >= 10"
+          actions:
+            - "take_coins 10"
+            - "give BREAD:8"
+            - "notify <green>Purchased 8 Bread! io:actionbar"
+          fail-actions:
+            - "notify <red>You don't have enough coins! io:actionbar"
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: TORCH
+        name: "<yellow>Torches <gray>x16"
+        lore:
+          - "<gray>Price: <gold>5 coins"
+          - "<gray>Your purse: <gold>$economy.purse$ coins"
+          - ""
+          - "<yellow>Click to buy!"
+      actions:
+        left:
+          conditions:
+            - "$economy.purse$ >= 5"
+          actions:
+            - "take_coins 5"
+            - "give TORCH:16"
+            - "notify <green>Purchased 16 Torches! io:actionbar"
+          fail-actions:
+            - "notify <red>You don't have enough coins! io:actionbar"
+
+    D:
+      type: DISPLAY
+      display-item:
+        material: IRON_INGOT
+        name: "<yellow>Iron Ingot <gray>x4"
+        lore:
+          - "<gray>Price: <gold>40 coins"
+          - "<gray>Your purse: <gold>$economy.purse$ coins"
+          - ""
+          - "<yellow>Click to buy!"
+      actions:
+        left:
+          conditions:
+            - "$economy.purse$ >= 40"
+          actions:
+            - "take_coins 40"
+            - "give IRON_INGOT:4"
+            - "notify <green>Purchased 4 Iron Ingots! io:actionbar"
+          fail-actions:
+            - "notify <red>You don't have enough coins! io:actionbar"
+
+    X:
+      type: DISPLAY
+      display-item:
+        material: BARRIER
+        name: "<red>Close"
+      actions:
+        left:
+          actions:
+            - "close"

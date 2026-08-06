@@ -134,9 +134,9 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 ## NPC module
 
 - [x] **Remove dead `NpcType` enum** (SHOP/DIALOGUE/QUEST/WARP/BANK/SLAYER) — never referenced anywhere; the loader has no `type:` key. *(2026-08-07: confirmed zero references outside the file itself, deleted `NpcType.java`.)*
-- [ ] **Fix `look` subcommand** — doesn't respawn the NPC, stays stale until next respawn/reload.
-- [ ] **Fix hologram conditions evaluating with a null caster** — any player-referencing condition silently fails for holograms.
-- [ ] **NPC shops** (todo.md "npc shops" — referenced for Hub/Gold Mine/Deep Cavern content but no shop mechanic exists yet).
+- [x] **Fix `look` subcommand** — doesn't respawn the NPC, stays stale until next respawn/reload. *(2026-08-07: `cmdLook` now uses `nm.updateAndRespawn(updated)` (same pattern as `cmdShowName`) instead of just mutating the registry entry.)*
+- [x] **Fix hologram conditions evaluating with a null caster** — any player-referencing condition silently fails for holograms. *(2026-08-07: `applyHologramVisibility` now finds the nearest online player within 32 blocks and uses them as the condition-evaluation caster instead of `null`, since hologram visibility is shared/ambient rather than per-viewer.)*
+- [x] **NPC shops** (todo.md "npc shops" — referenced for Hub/Gold Mine/Deep Cavern content but no shop mechanic exists yet). *(2026-08-07: turns out no new engine code was needed — `on-right-click: open_gui`, coin-gated DISPLAY click `conditions:`/`fail-actions:`, and the existing `take_coins`/`give` script events already compose into a full shop. Added a real working example: `guis/general_store.yml` (3 buyable items) + `npcs/shopkeeper.yml` binding an NPC to it — a documented, copyable pattern for Hub/Gold Mine/Deep Cavern shop content.)*
 
 ---
 

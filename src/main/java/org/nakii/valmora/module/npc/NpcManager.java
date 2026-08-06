@@ -204,11 +204,29 @@ public class NpcManager {
         holoTasks.put(taskKey, task);
     }
 
+    /** Nearest online player to a location within maxDistance, or null if nobody's in range. */
+    private org.bukkit.entity.Player findNearestPlayer(Location loc, double maxDistance) {
+        org.bukkit.entity.Player nearest = null;
+        double nearestDistSq = maxDistance * maxDistance;
+        for (org.bukkit.entity.Player p : loc.getWorld().getPlayers()) {
+            double distSq = p.getLocation().distanceSquared(loc);
+            if (distSq <= nearestDistSq) {
+                nearest = p;
+                nearestDistSq = distSq;
+            }
+        }
+        return nearest;
+    }
+
     private void applyHologramVisibility(NpcDefinition def, World world, HologramDefinition holo, ConditionGroup conditions) {
         boolean shouldShow;
         try {
             Location npcLoc = new Location(world, def.getX(), def.getY(), def.getZ());
-            shouldShow = conditions.evaluate(new SimpleExecutionContext(null, npcLoc, null));
+            // Hologram visibility is shared (not per-viewer), but many conditions reference
+            // $player.*$ — use the nearest player as a representative caster instead of null, so
+            // those conditions don't silently fail. Falls back to no caster if nobody's nearby.
+            org.bukkit.entity.Player nearest = findNearestPlayer(npcLoc, 32.0);
+            shouldShow = conditions.evaluate(new SimpleExecutionContext(nearest, npcLoc, null));
         } catch (Exception e) {
             shouldShow = false;
         }

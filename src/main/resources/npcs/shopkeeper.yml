@@ -1,0 +1,15 @@
+# Example "NPC shop" — pairs with guis/general_store.yml. Demonstrates that shops need no new
+# engine code: just an NPC whose on-right-click opens a GUI built from DISPLAY components with
+# coin-gated buy actions (see general_store.yml for the actual shop logic).
+general_store_keeper:
+  display-name: "<green>Merchant Talia"
+  entity-type: VILLAGER
+  world: world
+  x: 0
+  y: 65
+  z: 5
+  yaw: 180
+  look-at-player: true
+  show-name: true
+  on-right-click:
+    - "open_gui general_store"
