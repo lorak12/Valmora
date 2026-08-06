@@ -97,14 +97,14 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Combat module
 
-- [ ] **Register `RegenTask` from `CombatModule`** instead of `PlayerManager` owning it — current split causes a reload/lifecycle mismatch.
-- [ ] **Add null-safety guards**: `DamageCalculator.java:33` (no null-check on `getActiveProfile()`), `DamageApplier.java:28-29` (silently no-damages null-profile players, doesn't distinguish vanilla vs custom mobs).
-- [ ] **Reset `DamageIndicatorManager` rate-limit state in `onDisable()`.**
-- [ ] **Evict `CombatTracker`'s per-UUID map on player quit** — currently never cleared, unbounded memory growth.
-- [ ] **Map unhandled `DamageCause`s** (SUICIDE, CONTACT, STARVATION, DRAGON_BREATH, SONIC_BOOM, OUTSIDE_BORDER) to a real `DamageType` instead of defaulting to MELEE.
-- [ ] **Move hardcoded combat tunables to config**: environment-damage multiplier (5.0), defense formula constant, 400ms indicator rate limit, 20-tick indicator lifetime, 20 no-damage-ticks, 3s combat window, 10-heart visual scale, per-damage-type colors.
-- [ ] **Make the `immune` flag suppress damage indicators**, not just damage.
-- [ ] **Wire attack-speed/cooldown into the combat pipeline** — `bonus_attack_speed` stat currently unused.
+- [x] **Register `RegenTask` from `CombatModule`** instead of `PlayerManager` owning it — current split causes a reload/lifecycle mismatch. *(2026-08-07: moved the `regenTask` field/lifecycle from `PlayerManager` into `CombatModule.onEnable`/`onDisable`.)*
+- [x] **Add null-safety guards**: `DamageCalculator.java:33` (no null-check on `getActiveProfile()`), `DamageApplier.java:28-29` (silently no-damages null-profile players, doesn't distinguish vanilla vs custom mobs). *(2026-08-07: `DamageCalculator` now null-checks `getActiveProfile()` in all 3 spots that read it; `DamageApplier` now logs a warning instead of silently discarding damage when a player has no active profile.)*
+- [x] **Reset `DamageIndicatorManager` rate-limit state in `onDisable()`.** *(2026-08-07: `cleanup()` — already called from `onDisable` — now also clears `lastIndicatorSpawned`.)*
+- [x] **Evict `CombatTracker`'s per-UUID map on player quit** — currently never cleared, unbounded memory growth. *(2026-08-07: `CombatTracker.clear(UUID)` already existed but was never called — added a `PlayerQuitEvent` handler to `CombatListener`.)*
+- [x] **Map unhandled `DamageCause`s** (SUICIDE, CONTACT, STARVATION, DRAGON_BREATH, SONIC_BOOM, OUTSIDE_BORDER) to a real `DamageType` instead of defaulting to MELEE. *(2026-08-07: added matching `DamageType` constants and switch cases in `CombatListener.mapCauseToType`; `OUTSIDE_BORDER` maps from Bukkit's `DamageCause.WORLD_BORDER`.)*
+- [x] **Move hardcoded combat tunables to config**: environment-damage multiplier (5.0), defense formula constant, 400ms indicator rate limit, 20-tick indicator lifetime, 20 no-damage-ticks, 3s combat window, 10-heart visual scale, per-damage-type colors. *(2026-08-07: added a `combat:` config block for the multiplier/rate-limit/lifetime/no-damage-ticks/combat-window/visual-hearts values, wired into `DamageCalculator`, `DamageIndicatorManager`, `DamageApplier`, `PlayerState`, `PlayerManager.syncVisualHealth`. The "defense formula constant" and "per-damage-type colors" were already config-driven — `damage_formula.yml`/`DamageFormulaRegistry` and `damage_types/*.yml` respectively — the hardcoded values in code are just their documented fallback when no YAML overrides them.)*
+- [x] **Make the `immune` flag suppress damage indicators**, not just damage. *(2026-08-07: `DamageIndicatorManager.spawnIndicator` now returns early when `result.isImmune()`.)*
+- [x] **Wire attack-speed/cooldown into the combat pipeline** — `bonus_attack_speed` stat currently unused. *(2026-08-07: added `vanilla-attribute: attack_speed` to the stat definition and a percentage-scalar special case in `StatModule.recalculateAttributes` (mirroring the existing `block_break_speed` special case) since, unlike the 100-baseline stats, `bonus_attack_speed` is a 0-baseline percentage bonus stacked on top of the weapon's own base attack speed via an `ADD_SCALAR` modifier rather than overwriting it.)*
 
 ---
 

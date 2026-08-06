@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.combat;
 
+import org.bukkit.Bukkit;
+import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 
@@ -11,6 +13,7 @@ public class CombatModule implements ReloadableModule {
     private final DamageTypeLoader damageTypeLoader;
     private DamageFormulaRegistry damageFormulaRegistry;
     private CombatPipelineLoader combatPipelineLoader;
+    private BukkitTask regenTask;
 
     public CombatModule(Valmora plugin) {
         this.plugin = plugin;
@@ -23,6 +26,11 @@ public class CombatModule implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Enabling Combat Module...");
         plugin.getServer().getPluginManager().registerEvents(combatListener, plugin);
+
+        if (regenTask != null) {
+            regenTask.cancel();
+        }
+        regenTask = Bukkit.getScheduler().runTaskTimer(plugin, new RegenTask(plugin), 0L, 20L);
 
         // Phase 2 of the generic-engine refactor — see docs/REFACTOR/PROGRESS.md.
         damageTypeLoader.load();
@@ -41,6 +49,10 @@ public class CombatModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Combat Module...");
         org.bukkit.event.HandlerList.unregisterAll(combatListener);
+        if (regenTask != null) {
+            regenTask.cancel();
+            regenTask = null;
+        }
         damageIndicatorManager.cleanup();
         if (damageFormulaRegistry != null) {
             damageFormulaRegistry.clear();

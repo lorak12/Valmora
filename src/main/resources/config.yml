@@ -100,6 +100,23 @@ combat:
   mana-regen-stat: mana_regen
   luck-stat: luck
 
+  # Multiplier applied to raw vanilla environmental damage (fall/fire/lava/drowning/etc.) before
+  # defense mitigation, so environmental sources hit meaningfully hard against the RPG stat curve.
+  environment-damage-multiplier: 5.0
+  # Minimum time (ms) between floating damage-indicator spawns per victim entity — protects
+  # against indicator spam from rapid DoT ticks.
+  damage-indicator-rate-limit-ms: 400
+  # How long (ticks) a floating damage indicator stays before despawning.
+  damage-indicator-lifetime-ticks: 20
+  # Vanilla invulnerability ticks applied after a hit lands, to prevent rapid overlapping DoT
+  # triggers from double-counting the same tick of damage.
+  post-hit-no-damage-ticks: 20
+  # How long (ms) a player is considered "in combat" after dealing or taking damage.
+  combat-window-ms: 3000
+  # Number of vanilla hearts the visual health bar is scaled to display (independent of the
+  # player's actual max-health stat, which can be much higher).
+  visual-health-hearts: 10
+
 # ========================================================== #
 #                     Mining Settings                        #
 # ========================================================== #

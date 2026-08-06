@@ -149,6 +149,7 @@ bonus_attack_speed:
   color: "<yellow>"
   icon: "GOLDEN_SWORD"
   description: "Reduces the cooldown between attacks."
+  vanilla-attribute: "attack_speed"
 
 ability_damage:
   display-name: "Ability Damage"

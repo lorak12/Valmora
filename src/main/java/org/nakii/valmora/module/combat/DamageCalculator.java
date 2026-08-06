@@ -51,8 +51,9 @@ public class DamageCalculator {
 
         if (attacker instanceof Player player) {
             ValmoraPlayer vPlayer = api.getPlayerManager().getSession(player.getUniqueId());
-            if (vPlayer != null) {
-                StatManager statManager = vPlayer.getActiveProfile().getStatManager();
+            org.nakii.valmora.module.profile.ValmoraProfile activeProfile = vPlayer != null ? vPlayer.getActiveProfile() : null;
+            if (activeProfile != null) {
+                StatManager statManager = activeProfile.getStatManager();
                 if (baseDamageOverride <= 0) {
                     baseDamage = statManager.getStat(sys.getDamage());
                 }
@@ -78,8 +79,9 @@ public class DamageCalculator {
         MobDefinition victimMob = mobOf(victim);
         if (victim instanceof Player victimPlayer) {
             ValmoraPlayer vVictim = api.getPlayerManager().getSession(victimPlayer.getUniqueId());
-            if (vVictim != null) {
-                defense = vVictim.getActiveProfile().getStatManager().getStat(sys.getDefense());
+            org.nakii.valmora.module.profile.ValmoraProfile victimProfile = vVictim != null ? vVictim.getActiveProfile() : null;
+            if (victimProfile != null) {
+                defense = victimProfile.getStatManager().getStat(sys.getDefense());
             }
         } else if (victimMob != null) {
             defense = victimMob.getDefense();
@@ -215,7 +217,10 @@ public class DamageCalculator {
 
     public static DamageResult calculateDamage(LivingEntity victim, DamageType damageType, double baseVanillaDamage) {
         ValmoraAPI api = ValmoraAPI.getInstance();
-        double multiplier = 5.0;
+        org.nakii.valmora.Valmora plugin = org.nakii.valmora.Valmora.getInstance();
+        double multiplier = plugin != null
+                ? plugin.getConfig().getDouble("combat.environment-damage-multiplier", 5.0)
+                : 5.0;
         double fullDamage = baseVanillaDamage * multiplier;
 
         MobDefinition victimMob = mobOf(victim);
@@ -225,8 +230,9 @@ public class DamageCalculator {
             double defense = 0.0;
             if (victim instanceof Player player) {
                 ValmoraPlayer vVictim = api.getPlayerManager().getSession(player.getUniqueId());
-                if (vVictim != null) {
-                    defense = vVictim.getActiveProfile().getStatManager().getStat(api.getSystemStats().getDefense());
+                org.nakii.valmora.module.profile.ValmoraProfile victimProfile = vVictim != null ? vVictim.getActiveProfile() : null;
+                if (victimProfile != null) {
+                    defense = victimProfile.getStatManager().getStat(api.getSystemStats().getDefense());
                 }
             } else if (victimMob != null) {
                 defense = victimMob.getDefense();

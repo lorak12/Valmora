@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
@@ -21,6 +22,13 @@ public class CombatListener implements Listener {
     private static final String ON_DMG_DEALT = "combat:on_dmg_dealt";
 
     public CombatListener(Valmora plugin) {
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        // Evicts the per-UUID $player.last_damage$ tracker entry — otherwise it grows unbounded
+        // across the server's lifetime as players come and go.
+        org.nakii.valmora.module.item.CombatTracker.clear(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -153,7 +161,13 @@ public class CombatListener implements Listener {
             case WITHER -> DamageType.WITHER;
             case ENTITY_EXPLOSION, BLOCK_EXPLOSION -> DamageType.EXPLOSION;
             case PROJECTILE -> DamageType.PROJECTILE;
-            default -> DamageType.MELEE; 
+            case SUICIDE -> DamageType.SUICIDE;
+            case CONTACT -> DamageType.CONTACT;
+            case STARVATION -> DamageType.STARVATION;
+            case DRAGON_BREATH -> DamageType.DRAGON_BREATH;
+            case SONIC_BOOM -> DamageType.SONIC_BOOM;
+            case WORLD_BORDER -> DamageType.OUTSIDE_BORDER;
+            default -> DamageType.MELEE;
         };
     }
 }

@@ -26,7 +26,10 @@ public class DamageApplier {
                 return;
             }
             ValmoraProfile profile = vp.getActiveProfile();
-            if (profile == null) return;
+            if (profile == null) {
+                plugin.getLogger().warning("DamageApplier: no active profile for " + player.getUniqueId() + " — damage discarded.");
+                return;
+            }
             PlayerState state = profile.getPlayerState();
             
             // Apply damage to virtual health
@@ -45,6 +48,7 @@ public class DamageApplier {
         }
 
         // Apply invulnerability frames to prevent rapid overlapping DoT triggers
-        damageResult.getVictim().setNoDamageTicks(20);
+        int noDamageTicks = plugin.getConfig().getInt("combat.post-hit-no-damage-ticks", 20);
+        damageResult.getVictim().setNoDamageTicks(noDamageTicks);
     }
 }

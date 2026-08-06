@@ -74,6 +74,8 @@ public class StatModule implements ReloadableModule {
      */
     private static final NamespacedKey MINING_SPEED_MOD_KEY = new NamespacedKey("valmora", "mining_speed_bonus");
     private static final String BLOCK_BREAK_SPEED_KEY = "block_break_speed";
+    private static final NamespacedKey ATTACK_SPEED_MOD_KEY = new NamespacedKey("valmora", "bonus_attack_speed");
+    private static final String ATTACK_SPEED_KEY = "attack_speed";
 
     public void recalculateAttributes(Player player, StatManager statManager) {
         for (StatDefinition def : statRegistry.values()) {
@@ -98,6 +100,17 @@ public class StatModule implements ReloadableModule {
                     attrInst.addModifier(new AttributeModifier(
                         MINING_SPEED_MOD_KEY, bonus,
                         AttributeModifier.Operation.ADD_NUMBER));
+                }
+            } else if (attrKey.getKey().equals(ATTACK_SPEED_KEY)) {
+                // bonus_attack_speed is a percentage bonus (0 = no change), unlike the 100-baseline
+                // stats above — apply as a scalar modifier stacked on the weapon's own base attack
+                // speed rather than overwriting it via setBaseValue.
+                attrInst.removeModifier(ATTACK_SPEED_MOD_KEY);
+                double bonus = statValue / 100.0;
+                if (bonus != 0) {
+                    attrInst.addModifier(new AttributeModifier(
+                        ATTACK_SPEED_MOD_KEY, bonus,
+                        AttributeModifier.Operation.ADD_SCALAR));
                 }
             } else {
                 attrInst.setBaseValue(0.1 * statValue / 100.0);

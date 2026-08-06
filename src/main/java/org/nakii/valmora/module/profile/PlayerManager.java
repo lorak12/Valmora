@@ -6,10 +6,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
-import org.nakii.valmora.module.combat.RegenTask;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.module.stat.StatManager;
 
@@ -25,7 +23,6 @@ public class PlayerManager implements ReloadableModule {
     private final DataStore dataStore;
     private final Map<UUID, ValmoraPlayer> activeSession = new HashMap<>();
     private final Valmora plugin;
-    private BukkitTask regenTask;
     private final Random random = new Random();
 
     public PlayerManager(Valmora plugin, DataStore dataStore) {
@@ -37,11 +34,6 @@ public class PlayerManager implements ReloadableModule {
 
     @Override
     public void onEnable() {
-        if (regenTask != null) {
-            regenTask.cancel();
-        }
-        regenTask = Bukkit.getScheduler().runTaskTimer(plugin, new RegenTask(plugin), 0L, 20L);
-
         this.connectionListener = new PlayerConnectionListener(this);
         plugin.getServer().getPluginManager().registerEvents(connectionListener, plugin);
 
@@ -103,11 +95,6 @@ public class PlayerManager implements ReloadableModule {
     @Override
     public void onDisable() {
         ProfileGui.unregister();
-
-        if (regenTask != null) {
-            regenTask.cancel();
-            regenTask = null;
-        }
 
         if (connectionListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(connectionListener);
@@ -244,19 +231,22 @@ public class PlayerManager implements ReloadableModule {
         double maxHealth = stats.getStat(plugin.getStatModule().getSystemStats().getHealth());
         double current = state.getCurrentHealth();
 
+        double visualHearts = plugin.getConfig().getDouble("combat.visual-health-hearts", 10.0);
+        double visualScale = visualHearts * 2.0; // vanilla health points = 2 per heart
+
         // Calculate percentage of health remaining
         double percentage = current / maxHealth;
-        
-        // Map it to 20 vanilla HP (10 hearts)
-        double visualHealth = percentage * 20.0;
+
+        // Map it to the configured vanilla HP scale
+        double visualHealth = percentage * visualScale;
 
         // Prevent vanilla death if they still have custom health > 0
         if (current > 0 && visualHealth < 0.5) {
             visualHealth = 0.5; // Half a heart minimum if alive
         }
 
-        // Use Paper's health scaling so the UI is always locked to 10 hearts
-        player.setHealthScale(20.0); 
+        // Use Paper's health scaling so the UI is always locked to the configured heart count
+        player.setHealthScale(visualScale);
         player.setHealthScaled(true);
 
         if (current <= 0) {

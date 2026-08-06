@@ -45,6 +45,12 @@ public final class DamageType {
     public static final DamageType POISON = define("POISON", "<green>", false, List.of());
     public static final DamageType WITHER = define("WITHER", "<black>", false, List.of());
     public static final DamageType EXPLOSION = define("EXPLOSION", "<red>", false, List.of());
+    public static final DamageType SUICIDE = define("SUICIDE", "<black>", true, List.of());
+    public static final DamageType CONTACT = define("CONTACT", "<green>", false, List.of());
+    public static final DamageType STARVATION = define("STARVATION", "<gold>", true, List.of());
+    public static final DamageType DRAGON_BREATH = define("DRAGON_BREATH", "<light_purple>", false, List.of());
+    public static final DamageType SONIC_BOOM = define("SONIC_BOOM", "<aqua>", true, List.of());
+    public static final DamageType OUTSIDE_BORDER = define("OUTSIDE_BORDER", "<black>", true, List.of());
 
     private final String id;
     private volatile String color;

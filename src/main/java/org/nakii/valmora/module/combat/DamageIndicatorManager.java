@@ -31,6 +31,7 @@ public class DamageIndicatorManager {
             }
         }
         activeIndicators.clear();
+        lastIndicatorSpawned.clear();
     }
 
     /**
@@ -38,12 +39,17 @@ public class DamageIndicatorManager {
      * @param result The result of the combat calculation.
      */
     public void spawnIndicator(DamageResult result) {
+        // The immune flag already suppresses damage application (see DamageApplier) — it should
+        // suppress the visual indicator too, not just the damage.
+        if (result.isImmune()) return;
+
         // Rate limiting for DoTs
         UUID victimId = result.getVictim().getUniqueId();
         long now = System.currentTimeMillis();
-        
-        // Spawn at most 1 indicator every 400ms per entity
-        if (lastIndicatorSpawned.containsKey(victimId) && (now - lastIndicatorSpawned.get(victimId)) < 400) {
+        long rateLimitMs = plugin.getConfig().getLong("combat.damage-indicator-rate-limit-ms", 400);
+
+        // Spawn at most 1 indicator every `rateLimitMs` per entity
+        if (lastIndicatorSpawned.containsKey(victimId) && (now - lastIndicatorSpawned.get(victimId)) < rateLimitMs) {
             return;
         }
         lastIndicatorSpawned.put(victimId, now);
@@ -61,11 +67,12 @@ public class DamageIndicatorManager {
         display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
         display.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
         activeIndicators.add(display);
-        
+        long lifetimeTicks = plugin.getConfig().getLong("combat.damage-indicator-lifetime-ticks", 20);
+
         org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
             display.remove();
             activeIndicators.remove(display);
-        }, 20L);
+        }, lifetimeTicks);
     }
 
     private Component getIndicatorComponent(DamageResult result) {

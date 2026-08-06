@@ -37,7 +37,12 @@ public class PlayerState {
     public long getLastCombatTime() { return lastCombatTime; }
     public void setInCombat() { this.lastCombatTime = System.currentTimeMillis(); }
     public boolean isInCombat() {
-        return (System.currentTimeMillis() - lastCombatTime) < 3000;
+        long windowMs = 3000;
+        org.nakii.valmora.Valmora plugin = org.nakii.valmora.Valmora.getInstance();
+        if (plugin != null) {
+            windowMs = plugin.getConfig().getLong("combat.combat-window-ms", 3000);
+        }
+        return (System.currentTimeMillis() - lastCombatTime) < windowMs;
     }
 
     public double getCurrentHealth() { return currentHealth; }
