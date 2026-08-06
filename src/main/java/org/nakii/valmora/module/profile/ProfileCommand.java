@@ -44,8 +44,13 @@ public class ProfileCommand implements TabExecutor {
                     return true;
                 }
                 String name = args[1];
-                playerManager.createProfile(player.getUniqueId() , name);
-                player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' created."));
+                boolean created = playerManager.createProfile(player.getUniqueId(), name);
+                if (created) {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' created."));
+                } else {
+                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Could not create profile '" + name
+                            + "' — you may be at the profile limit (" + playerManager.getMaxProfiles() + ") or that name is already in use."));
+                }
                 break;
             case "delete":
                 if (args.length < 2) {
@@ -53,8 +58,14 @@ public class ProfileCommand implements TabExecutor {
                     return true;
                 }
                 name = args[1];
-                playerManager.deleteProfile(player.getUniqueId(), name);
-                player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' deleted."));
+                PlayerManager.DeleteResult result = playerManager.deleteProfile(player.getUniqueId(), name);
+                switch (result) {
+                    case OK -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' deleted."));
+                    case NOT_FOUND -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Profile '" + name + "' not found."));
+                    case ONLY_PROFILE -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>You cannot delete your only profile."));
+                    case IS_ACTIVE -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Switch to another profile before deleting this one."));
+                    case NO_SESSION -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Your session isn't loaded yet."));
+                }
                 break;
             case "switch":
                 if (args.length < 2) {

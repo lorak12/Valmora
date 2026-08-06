@@ -36,7 +36,15 @@ public final class ProfileGui {
     // Row 2: border (all)
     // Row 3: border · CREATE · border · border · CLOSE · border · border · border · border
     private static final int SIZE_MAIN = 36;
-    private static final int[] PROFILE_SLOTS = {10, 12, 14, 16};
+    // Row 1 holds up to 4 profile cards (10,12,14,16); row 2 (19,21,23,25) is used too once
+    // profiles.max-profiles exceeds 4, so the GUI isn't hardcoded to a 4-profile ceiling. Caps at
+    // 8 (both rows full) — beyond that would need pagination, out of scope for this fix.
+    private static final int[] ALL_PROFILE_SLOTS = {10, 12, 14, 16, 19, 21, 23, 25};
+
+    private static int[] profileSlots(int maxProfiles) {
+        int count = Math.max(1, Math.min(maxProfiles, ALL_PROFILE_SLOTS.length));
+        return java.util.Arrays.copyOf(ALL_PROFILE_SLOTS, count);
+    }
     private static final int SLOT_INFO   = 4;   // top row center
     private static final int SLOT_CREATE = 28;  // bottom row left area
     private static final int SLOT_CLOSE  = 31;  // bottom row center
@@ -104,13 +112,14 @@ public final class ProfileGui {
             UUID activeId = vp.getActiveProfile() != null ? vp.getActiveProfile().getId() : null;
             double totalCoins = getTotalCoins(player.getUniqueId());
 
-            for (int i = 0; i < PROFILE_SLOTS.length; i++) {
+            int[] profileSlots = profileSlots(pm.getMaxProfiles());
+            for (int i = 0; i < profileSlots.length; i++) {
                 if (i < profiles.size()) {
                     ValmoraProfile profile = profiles.get(i);
                     boolean active = profile.getId().equals(activeId);
-                    inv.setItem(PROFILE_SLOTS[i], profileCard(profile, active, totalCoins));
+                    inv.setItem(profileSlots[i], profileCard(profile, active, totalCoins));
                 } else {
-                    inv.setItem(PROFILE_SLOTS[i], emptySlotItem());
+                    inv.setItem(profileSlots[i], emptySlotItem());
                 }
             }
 
@@ -322,8 +331,9 @@ public final class ProfileGui {
                 return;
             }
 
-            for (int i = 0; i < PROFILE_SLOTS.length; i++) {
-                if (slot != PROFILE_SLOTS[i]) continue;
+            int[] profileSlots = profileSlots(pm.getMaxProfiles());
+            for (int i = 0; i < profileSlots.length; i++) {
+                if (slot != profileSlots[i]) continue;
                 ValmoraPlayer vp = pm.getSession(uuid);
                 if (vp == null) return;
                 List<ValmoraProfile> profiles = new ArrayList<>(vp.getProfiles().values());

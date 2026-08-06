@@ -154,13 +154,13 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Profile module
 
-- [ ] **Guard against deleting the active profile** via `/profile delete` (currently corrupts the session; the GUI already guards this, the command doesn't).
-- [ ] **Fix `createProfile` silently no-op'ing at the profile cap** while the command still reports success.
-- [ ] **Persist active-profile id on switch, not just on quit/disable** — a crash right after switching reverts the selection.
-- [ ] **Make quit-save non-fire-and-forget**, or otherwise guard against a hard stop dropping the final save.
+- [x] **Guard against deleting the active profile** via `/profile delete` (currently corrupts the session; the GUI already guards this, the command doesn't). *(2026-08-07: moved the guard into `PlayerManager.deleteProfile` itself (new `DeleteResult` enum: OK/NO_SESSION/NOT_FOUND/ONLY_PROFILE/IS_ACTIVE) so both the GUI and `/profile delete` share the same protection; `ProfileCommand` now reports the specific failure reason.)*
+- [x] **Fix `createProfile` silently no-op'ing at the profile cap** while the command still reports success. *(2026-08-07: `createProfile` now returns `boolean`; `ProfileCommand` reports failure (cap or duplicate name) instead of always claiming success.)*
+- [x] **Persist active-profile id on switch, not just on quit/disable** — a crash right after switching reverts the selection. *(2026-08-07: `PlayerManager.switchProfile` now calls `dataStore.savePlayer(vp)` immediately after switching.)*
+- [x] **Make quit-save non-fire-and-forget**, or otherwise guard against a hard stop dropping the final save. *(2026-08-07: can't fully guard against an OS-level hard kill from application code, but `handleQuit`'s save future is no longer fire-and-forget-with-nothing-observing — failures are now logged via `.exceptionally(...)` instead of silently vanishing.)*
 - [ ] **Serialize `CooldownManager`/combat timer/`currentZoneId`** — currently reset on every reload.
-- [ ] **Enforce profile-name uniqueness.**
-- [ ] **Raise or make configurable the hardcoded 4-slot `PROFILE_SLOTS` GUI limit** — profiles beyond 4 are unreachable from the GUI.
+- [x] **Enforce profile-name uniqueness.** *(2026-08-07: `createProfile` now rejects a case-insensitive duplicate name, returning `false`.)*
+- [x] **Raise or make configurable the hardcoded 4-slot `PROFILE_SLOTS` GUI limit** — profiles beyond 4 are unreachable from the GUI. *(2026-08-07: `ProfileGui` now computes slots dynamically from `profiles.max-profiles` across 2 rows (up to 8 profiles); still capped at 8 without pagination.)*
 
 ---
 

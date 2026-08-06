@@ -119,7 +119,15 @@ public class PlayerManager implements ReloadableModule {
         }
         ValmoraPlayer stored = activeSession.remove(uuid);
         if (stored != null) {
-            dataStore.savePlayer(stored);
+            // Not truly guarded against a hard process kill mid-write (that's an OS-level
+            // concern no application code can fully close), but at minimum a save failure is no
+            // longer silently swallowed — previously fire-and-forget with nothing observing the
+            // future at all.
+            dataStore.savePlayer(stored).exceptionally(ex -> {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Failed to save player " + uuid + " on quit — data for this session may be lost.", ex);
+                return null;
+            });
         }
     }
 
@@ -147,6 +155,9 @@ public class PlayerManager implements ReloadableModule {
             next.getStatManager().recalculateStats(player);
             next.getStatManager().recalculateAttributes(player);
         }
+        // Persist the new active-profile id immediately — previously only saved on quit/disable,
+        // so a crash right after switching would revert the selection on next join.
+        dataStore.savePlayer(vp);
     }
 
     public ValmoraPlayer getSession(UUID uuid) {
@@ -174,13 +185,18 @@ public class PlayerManager implements ReloadableModule {
         return available.get(random.nextInt(available.size()));
     }
 
-    public void createProfile(UUID uuid, String profileName) {
+    /** @return false if the profile was NOT created (no session, at the profile cap, or a duplicate name) */
+    public boolean createProfile(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
-        if (vp == null) return;
-        if (vp.getProfiles().size() >= getMaxProfiles()) return;
+        if (vp == null) return false;
+        if (vp.getProfiles().size() >= getMaxProfiles()) return false;
+        for (ValmoraProfile existing : vp.getProfiles().values()) {
+            if (existing.getName().equalsIgnoreCase(profileName)) return false;
+        }
         ValmoraProfile newProfile = new ValmoraProfile(profileName);
         vp.addProfile(newProfile);
         dataStore.savePlayer(vp);
+        return true;
     }
 
     public void createNextProfile(UUID uuid) {
@@ -189,22 +205,36 @@ public class PlayerManager implements ReloadableModule {
         createProfile(uuid, pickNextProfileName(vp));
     }
 
-    public void deleteProfile(UUID playerUuid, UUID profileId) {
+    public enum DeleteResult { OK, NO_SESSION, NOT_FOUND, ONLY_PROFILE, IS_ACTIVE }
+
+    /**
+     * Deletes a profile, guarding against corrupting the session — previously only the GUI
+     * enforced these two checks (can't delete your only profile, can't delete the active one
+     * without switching away first); {@code /profile delete} bypassed them entirely.
+     */
+    public DeleteResult deleteProfile(UUID playerUuid, UUID profileId) {
         ValmoraPlayer vp = activeSession.get(playerUuid);
-        if (vp == null) return;
+        if (vp == null) return DeleteResult.NO_SESSION;
+        if (!vp.getProfiles().containsKey(profileId)) return DeleteResult.NOT_FOUND;
+        if (vp.getProfiles().size() <= 1) return DeleteResult.ONLY_PROFILE;
+        ValmoraProfile active = vp.getActiveProfile();
+        if (active != null && active.getId().equals(profileId)) return DeleteResult.IS_ACTIVE;
+
         vp.removeProfile(profileId);
         dataStore.deleteProfile(profileId);
         dataStore.savePlayer(vp);
+        return DeleteResult.OK;
     }
 
     // Legacy command-compatible overload; keep for ProfileCommand
-    public void deleteProfile(UUID uuid, String profileName) {
+    public DeleteResult deleteProfile(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
-        if (vp == null) return;
-        vp.getProfiles().values().stream()
+        if (vp == null) return DeleteResult.NO_SESSION;
+        return vp.getProfiles().values().stream()
                 .filter(p -> p.getName().equalsIgnoreCase(profileName))
                 .findFirst()
-                .ifPresent(p -> deleteProfile(uuid, p.getId()));
+                .map(p -> deleteProfile(uuid, p.getId()))
+                .orElse(DeleteResult.NOT_FOUND);
     }
 
     private void savePlayerInventory(Player player, ValmoraProfile profile) {
