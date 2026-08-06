@@ -6,9 +6,10 @@ public enum Skill {
     FISHING("Fishing", "Catch fish and sea creatures to earn XP and level up.", 60),
     MINING("Mining", "Mine ores and gems to earn XP and level up.", 60),
     FORAGING("Foraging", "Forage herbs and mushrooms to earn XP and level up.", 60),
-    CRAFTING("Crafting", "Craft items to earn XP and level up.", 60),
+    CARPENTRY("Carpentry", "Craft items to earn XP and level up.", 60),
     ALCHEMY("Alchemy", "Brew potions to earn XP and level up.", 60),
-    ENCHANTING("Enchanting", "Enchant items to earn XP and level up.", 60);  
+    ENCHANTING("Enchanting", "Enchant items to earn XP and level up.", 60),
+    TAMING("Taming", "Tame and raise pets to earn XP and level up.", 60);
 
     private final String name;
     private final String description;

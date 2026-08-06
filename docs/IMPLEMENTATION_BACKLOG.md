@@ -125,7 +125,7 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 - [ ] **Fix the quest/notify module load-order bug.** `questModule` registers before `notifyModule`, so `NotifyManager` is null during `QuestModule.onEnable()` — quest-package notification categories never actually load. Net effect: `category:quest_complete`/`quest_progress` silently fall back to default chat IO. Either reorder module registration or defer category registration to a later hook.
 - [ ] **Implement a real `AdvancementIO`** (currently a stub rendering `✦ <message>` in the action bar, ignoring `frame`/`icon` — needs NMS/packet work for a true toast).
 - [ ] **Fix `SoundIO`** — ignores message text (fine, expected) but should catch `Key.key()` parse failures on invalid `sound:` instead of throwing.
-- [ ] **Cancel `BossBarIO`'s auto-hide task on player quit.**
+- [x] **Cancel `BossBarIO`'s auto-hide task on player quit.** *(2026-08-07: `BossBarIO` now tracks pending auto-hide `BukkitTask`s per player UUID; added `NotifyQuitListener` (registered/unregistered in `NotifyModule.onEnable`/`onDisable` per module convention) that cancels them and hides the bar on `PlayerQuitEvent`.)*
 - [x] **Fix the shipped `pets/baby_wolf.yml` `notify chat ...` bug** — prints the literal word "chat"; should be `notify ... io:chat`. *(2026-08-07: fixed all occurrences in the file — `baby_wolf`, `baby_sheep`, and `ender_dragon_pet` all had the same bug, changed to `notify <message> io:chat`.)*
 - [ ] **Decide whether to implement or drop the BetonQuest-inspired but never-built notify features** listed in `docs/QUEST_MODULE_OUTLINE.md` (marked as external reference, not a spec): comma-separated category lists, sound options on any IO, `advancement` frame/icon, a `totem` IO, `bossbar` flags/countdown, `soundlocation`/`soundplayeroffset`, the `duration` key.
 
@@ -242,8 +242,8 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 ## Skill module
 
 - [ ] **Make `xp-curve` non-dead config** — `SkillRegistry` currently hardcodes `DEFAULT_XP_THRESHOLDS` and ignores the curve id argument entirely, even though `XpCurveRegistry`/`skills/xp_curves.yml` exist (per the generic-engine refactor) and `getLevelFromXp`/`getXpForLevel`/`getProgressData` already accept a `curveId` param. This looks like the wiring got half-done — verify against `docs/modules/design/skill.md` and finish connecting the two.
-- [ ] **Fix the `Skill` enum vs. shipped skill ids mismatch** — enum has `CRAFTING` (shipped id is `carpentry`) and no `TAMING` entry; `givexp` silently no-ops for those two skills.
-- [ ] **Wire a tab completer for `/skill`** (`Valmora.java:239` only calls `setExecutor`).
+- [x] **Fix the `Skill` enum vs. shipped skill ids mismatch** — enum has `CRAFTING` (shipped id is `carpentry`) and no `TAMING` entry; `givexp` silently no-ops for those two skills. *(2026-08-07: renamed `Skill.CRAFTING` → `Skill.CARPENTRY` and added a `Skill.TAMING` entry. `SimpleRegistry` lookups are case-insensitive so `Skill.name()` matching the shipped id casing-insensitively is sufficient — verified `carpentry.yml`/`taming.yml` ship those exact ids. Sole call site was `GiveXpEventFactory` (`Skill.valueOf(args[1].toUpperCase())`), no other references to the old constant.)*
+- [x] **Wire a tab completer for `/skill`** (`Valmora.java:239` only calls `setExecutor`). *(2026-08-07: `SkillCommand` already implemented `TabExecutor`/`onTabComplete` fully — Bukkit's `PluginCommand.setExecutor` auto-wires it as the tab completer when none is set explicitly, so this technically already worked. Added an explicit `setTabCompleter` call in `Valmora.java` anyway for clarity/consistency with the other commands.)*
 - [ ] **Remove or wire dead XP source entries** — `fishing.yml`'s `TREASURE: 1000.0` is unreachable; `alchemy.yml` has no `sources`, so brewing currently grants no skill XP by default.
 - [ ] **Add an XP curve editor / reset-wipe subcommand / offline XP grant** to `/skill`.
 
@@ -282,7 +282,7 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 - [ ] **Build the sign-warp subsystem** — `Keys.WARP_ID_KEY` is defined but has zero usages anywhere.
 - [ ] **Ship the `fast_travel` GUI** (see GUI module section above — `/warp` with no args currently no-ops).
-- [ ] **Wire a tab completer for `/warp`.**
+- [x] **Wire a tab completer for `/warp`.** *(2026-08-07: `WarpCommand` already had a full `onTabComplete` implementation; added the explicit `getCommand("warp").setTabCompleter(...)` call in `Valmora.java`.)*
 - [ ] **Enforce the zone `teleportation` flag from the warp module itself** (currently only the script `teleport` event checks it).
 - [ ] **Add fees/cooldowns/warmup/per-warp permissions** — `/warp` currently has no permission node at all.
 - [ ] **Trigger warp pads for players already standing on one** (or teleported/portaled onto one), not just move events.
@@ -356,7 +356,7 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 - [ ] **Implement bank interest / bank upgrades** (todo.md).
 - [ ] **Make the death-penalty percentage configurable** (currently hardcoded 50% purse loss).
-- [ ] **Wire `/eco`'s tab completer** (`setTabCompleter` currently never called).
+- [x] **Wire `/eco`'s tab completer** (`setTabCompleter` currently never called). *(2026-08-07: `EcoCommand` already had a full `onTabComplete` implementation; added the explicit `getCommand("eco").setTabCompleter(...)` call in `Valmora.java`.)*
 - [ ] **Support offline-player targeting for `/eco`.**
 - [ ] **Fix the first-login cache race** (`cache.putIfAbsent` can eclipse a DB-loaded balance).
 - [ ] **Add a real transaction ledger** — the bank GUI's "Recent Transactions" is currently decorative.
