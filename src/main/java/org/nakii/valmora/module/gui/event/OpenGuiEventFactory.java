@@ -3,6 +3,7 @@ package org.nakii.valmora.module.gui.event;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.api.scripting.Expression;
+import org.nakii.valmora.module.gui.GuiExecutionContext;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
 import java.util.HashMap;
@@ -41,7 +42,14 @@ public class OpenGuiEventFactory implements EventFactory {
                 Object val = entry.getValue().evaluate(context);
                 evaluatedProps.put(entry.getKey(), val);
             }
-            plugin.getGuiModule().openGui(player, guiId, evaluatedProps);
+            // Remember the currently-open GUI as the parent to return to via `gui_back` (added
+            // 2026-08-07), whenever this open_gui was itself fired from inside a GUI (a button
+            // click, on-open, etc.) rather than from a command/NPC with no GUI context.
+            if (context instanceof GuiExecutionContext guiContext && guiContext.getSession() != null) {
+                plugin.getGuiModule().openGui(player, guiId, evaluatedProps, guiContext.getSession());
+            } else {
+                plugin.getGuiModule().openGui(player, guiId, evaluatedProps);
+            }
         });
     }
 }

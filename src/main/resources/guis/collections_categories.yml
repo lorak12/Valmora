@@ -4,7 +4,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 collections_categories:
-  command: collections
+  # No `command:` key here (fixed 2026-08-07 — was `command: collections`, which collided with
+  # the explicit `/collections` -> CollectionCommand registration in Valmora.java; commands are
+  # wired up after all modules enable, so CollectionCommand always won and this binding never
+  # actually ran). CollectionCommand already opens this exact GUI, so remove the dead/misleading
+  # key rather than fight over which one wins.
   title: "<gold><bold>✦ Collections</bold></gold>"
   rows: 6
   update-interval: 0

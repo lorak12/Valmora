@@ -55,6 +55,8 @@ public class GuiModule implements ReloadableModule {
     private final Map<UUID, GuiSession> openSessions = new HashMap<>();
     private GuiListener listener;
     private final List<String> registeredCommandNames = new ArrayList<>();
+    private org.nakii.valmora.module.gui.sign.SignInputManager signInputManager;
+    private org.nakii.valmora.module.gui.sign.SignInputListener signInputListener;
 
     public GuiModule(Valmora plugin, DataStore dataStore) {
         this.plugin = plugin;
@@ -70,6 +72,7 @@ public class GuiModule implements ReloadableModule {
         plugin.getScriptModule().registerProvider(new CandidateVariableProvider());
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.SoundEventFactory());
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.OpenGuiEventFactory(plugin));
+        plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GuiBackEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.CloseEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.GiveXpEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.EnchantApplyEventFactory(plugin));
@@ -82,6 +85,15 @@ public class GuiModule implements ReloadableModule {
         plugin.getScriptModule().registerEvent(new org.nakii.valmora.module.gui.event.RecalculateStatsEventFactory(plugin));
 
         plugin.getScriptModule().registerEvent(new OpenDialogInputEventFactory(plugin, this));
+
+        // Virtual sign input (added 2026-08-07 — the classes existed but were never wired up
+        // anywhere, so `open_sign_input` was a silently-dead DSL event).
+        this.signInputManager = new org.nakii.valmora.module.gui.sign.SignInputManager(plugin);
+        signInputManager.init();
+        this.signInputListener = new org.nakii.valmora.module.gui.sign.SignInputListener(plugin, signInputManager, this);
+        plugin.getServer().getPluginManager().registerEvents(signInputListener, plugin);
+        plugin.getScriptModule().registerEvent(
+                new org.nakii.valmora.module.gui.event.OpenSignInputEventFactory(plugin, signInputManager, this));
 
         plugin.getAbilityManager().getMechanicRegistry().registerMechanic(new OpenContainerMechanic(this));
 
@@ -101,6 +113,14 @@ public class GuiModule implements ReloadableModule {
         unregisterGuiCommands();
         if (plugin.getScriptModule() != null) {
             plugin.getScriptModule().getHookBus().clearYamlStages(GUI_POINT_PREFIX);
+        }
+        if (signInputListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(signInputListener);
+            signInputListener = null;
+        }
+        if (signInputManager != null) {
+            signInputManager.cleanup();
+            signInputManager = null;
         }
     }
 
@@ -131,6 +151,17 @@ public class GuiModule implements ReloadableModule {
 
     public void openGui(Player player, String id) {
         openGui(player, id, new HashMap<>());
+    }
+
+    /**
+     * Opens a top-level GUI remembering {@code parentSession} as where to return via the generic
+     * {@code gui_back} script event (added 2026-08-07 — {@code GuiSession.parent} previously was
+     * only ever set by the nested item-bound-storage flow, so general GUI-to-GUI "back" navigation
+     * had no way to work despite being documented). Distinct from {@link #openNestedGui} — this
+     * path does not bind an item storage handle, it's purely for chaining ordinary screens.
+     */
+    public void openGui(Player player, String id, Map<String, Object> props, GuiSession parentSession) {
+        openGuiInternal(player, id, props, parentSession, null);
     }
 
     /** Opens a GUI bound to a physical item's own storage (e.g. a backpack right-clicked in hand). */
@@ -236,6 +267,17 @@ public class GuiModule implements ReloadableModule {
         session.setParent(parentSession);
         session.setBoundItemHandle(boundHandle);
         session.setInitialStorageContents(preloadedStorage);
+
+        // Fixed 2026-08-07: navigating from a GUI with an update-interval straight into another
+        // GUI (via open_gui) previously just overwrote the player's session entry, leaving the
+        // old session's repeating on-update task running forever — a real per-navigation leak,
+        // continuing to fire on-update scripts against a session whose inventory was no longer
+        // even open.
+        GuiSession previous = openSessions.get(player.getUniqueId());
+        if (previous != null && previous.getUpdateTask() != null) {
+            previous.getUpdateTask().cancel();
+        }
+
         openSessions.put(player.getUniqueId(), session);
 
         renderer.render(session);

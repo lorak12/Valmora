@@ -23,6 +23,18 @@ public class GuiRenderer {
     private final Valmora plugin;
     private final Map<PaginatedComponent, Integer> paginatedCounters = new HashMap<>();
 
+    /**
+     * Parsed-condition cache for PAGINATED component states (added 2026-08-07 — {@link
+     * #findMatchingState} previously re-parsed every candidate state's raw condition string from
+     * scratch on every single render, for every list item, every render tick). A {@code
+     * GuiRenderer} is constructed fresh at essentially every call site (see the ~14 {@code new
+     * GuiRenderer(plugin)} sites across the module), so an instance field would be discarded
+     * immediately — this has to be static to actually cache anything across renders. Safe to
+     * share across reloads: a {@link org.nakii.valmora.api.scripting.Condition} is a pure
+     * function of its source string, not tied to a particular loaded GUI/registry generation.
+     */
+    private static final Map<String, org.nakii.valmora.api.scripting.Condition> CONDITION_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+
     public GuiRenderer(Valmora plugin) {
         this.plugin = plugin;
     }
@@ -313,7 +325,8 @@ public class GuiRenderer {
             
             // Try evaluating as a script condition
             try {
-                if (plugin.getScriptModule().getConditionParser().parse(condStr).evaluate(context)) {
+                var condition = CONDITION_CACHE.computeIfAbsent(condStr, plugin.getScriptModule().getConditionParser()::parse);
+                if (condition.evaluate(context)) {
                     return state;
                 }
             } catch (Exception ignored) {}

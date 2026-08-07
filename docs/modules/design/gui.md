@@ -399,28 +399,27 @@ Event DSL: the 12 registered factories are public implementations of the script 
 
 ## 8. Unfinished Things / TODOs
 
-- **Virtual sign input is dead code.** `OpenSignInputEventFactory`, `SignInputManager`, and `SignInputListener` are complete and compile, but **`GuiModule.onEnable` never registers the factory or the listener** (only 12 of 13 factories are registered). No reachable path can open a sign input today. Either wire it up or delete it. (`OpenSignInputEventFactory.java`, `sign/SignInputManager.java`, `sign/SignInputListener.java`)
-- **`GuiSession.parent` is never assigned** (`GuiSession.java:19`). The documented `CLOSE`/`BACK` navigation has no `BACK` implementation — there is no `back` event token and no parent-session re-open. `enchant_back` only clears the enchanting selection.
 - **`PaginatedComponent.destructure` is parsed but unused** (`GuiDefinitionParser.java:127`). The renderer and click handler ignore it.
-- **Task leak on GUI-to-GUI open.** `openGui` overwrites `openSessions.put(uuid, …)` (`GuiModule.java:113`) **without cancelling the previous session's update task**. Every `open_gui` from within a GUI with `update-interval > 0` leaks a repeating Bukkit task until that old session is closed. `closeGuiSession` on the new session does not stop the old one.
-- **`fast_travel` GUI is referenced but not shipped** (`WarpCommand.java:28`). `/warp` silently fails or misbehaves until an admin writes `fast_travel.yml`.
-- **`collections_categories` `command:` collides** with the `/collections` plugin.yml command (`Valmora.java:249`); the YAML-driven command never runs. The `command:` key is otherwise fine.
 - **No GUI module tests.** Every other subsystem has at least one unit test under `src/test/java/.../module/`; the GUI module has none (its logic is heavily Bukkit-bound, but `GuiDefinitionParser`, `ClickHandlerParser`, and the pagination slicing are testable in isolation).
 - **GUI ids are case-sensitive** (plain `HashMap`, `GuiModule.java:43`), diverging from AGENTS.md §7.2's `Registry<T>` convention.
-- **Enhancement plan Phase 5 open** (`docs/GUI_MODULE_ENHANCEMENT_PLAN.md`): docs + optimization (paginated-list/NBT parsing caching, etc.) not yet done.
 - `docs/todo.md:7` ("gui: add ability to register commands that open a gui") is effectively **done** via `command:`/`GuiOpenCommand` — the todo can be closed.
+
+*(2026-08-07: virtual sign input, `GuiSession.parent`/`BACK` navigation, the open_gui task leak, the
+`fast_travel` GUI, the `collections_categories` command collision, and Phase 5's pagination-caching
+half are all resolved — see `docs/IMPLEMENTATION_BACKLOG.md`'s GUI module section for what changed
+in each case. Phase 5's "dupe-protection hardening for AnvilMachineHandler under mass-shift-click"
+half turned out to already be covered — `GuiSession.isCraftingLocked()`/`setCraftingLocked()` are
+correctly wired in `GuiForceCraftEventFactory`, contrary to an initial grep that mis-flagged them
+as unused due to a case-sensitivity search mistake.)*
 
 ---
 
 ## 9. Possible Improvements / Changes
 
 1. **Expose the module on `ValmoraAPI`** (`getGuiManager()`), replacing the `plugin.getGuiModule()` convention so it matches §6.4 decoupling and is reload-safe for API consumers.
-2. **Cancel the previous session's update task in `openGui`** before overwriting the map entry — one line, removes the §8 leak.
-3. **Wire the sign-input pipeline**: register `OpenSignInputEventFactory` + `SignInputListener`, and give `gui_alchemy_start`'s flow or a configurable button a `sign` action. This would also let banks use a real sign for amounts instead of `open_dialog_input`.
-4. **Implement `BACK`** via `GuiSession.parent` + a `back` event token (or reuse `open_gui`), closing the documented-navigation gap.
-5. **Use `Registry<GuiDefinition>`** (case-insensitive keys) and normalize ids in the parser for parity with every other registry (§7.2).
-6. **Add parser/pagination unit tests** — `GuiDefinitionParser` and the pagination/sort slicing are pure enough to cover with JUnit 5 + Mockito following `ExpressionTest.java`'s `ValmoraAPI.setProvider` pattern.
-7. **PDC-first button identity** (AGENTS.md §11.12): item identity is already keyed via PDC at render time, but click routing still depends on the layout char → component map; a hardened lookup could resolve purely from the clicked slot's PDC key.
-8. **Ship a `fast_travel` default YAML** or guard `WarpCommand` when the GUI is absent.
-9. **Phase 5 optimization**: cache resolved paginated lists per session+props signature, cache parsed NBT/display item stacks across re-renders (they're currently rebuilt on every `render()`).
-10. **Remove dead keys/fields** (`destructure`) or implement them, and delete the unregistered sign classes if sign input is definitively dropped.
+2. **Use `Registry<GuiDefinition>`** (case-insensitive keys) and normalize ids in the parser for parity with every other registry (§7.2).
+3. **Add parser/pagination unit tests** — `GuiDefinitionParser` and the pagination/sort slicing are pure enough to cover with JUnit 5 + Mockito following `ExpressionTest.java`'s `ValmoraAPI.setProvider` pattern.
+4. **PDC-first button identity** (AGENTS.md §11.12): item identity is already keyed via PDC at render time, but click routing still depends on the layout char → component map; a hardened lookup could resolve purely from the clicked slot's PDC key.
+5. **Further Phase 5 optimization**: cache resolved paginated lists per session+props signature, cache parsed NBT/display item stacks across re-renders (they're currently rebuilt on every `render()`) — the condition-parsing half of pagination caching is done (2026-08-07), this is the remaining, larger-scoped part.
+6. **Remove dead keys/fields** (`destructure`) or implement them.
+7. **Wire `gui_back` into shipped multi-screen GUIs** — the mechanism exists (2026-08-07) but no shipped GUI (`collections_list` → `collections_categories`, etc.) has been updated to use it yet; they still each author their own explicit `open_gui <parent_id>` button.
