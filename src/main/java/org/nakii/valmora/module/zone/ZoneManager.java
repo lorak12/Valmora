@@ -206,6 +206,12 @@ public class ZoneManager {
     }
 
     private void tickMobHomes() {
+        // Cheap guard (added 2026-08-07): MOB_HOME_KEY is only ever set by tickSpawners() when a
+        // mob spawns from a zone's mob-spawner config, so if no zone has any spawners configured,
+        // no mob can possibly carry the tag — skip the full living-entities-in-every-world scan
+        // entirely instead of doing it every 40 ticks for nothing.
+        if (registry.values().stream().allMatch(z -> z.getMobSpawners().isEmpty())) return;
+
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         for (World world : plugin.getServer().getWorlds()) {
             for (LivingEntity entity : world.getLivingEntities()) {

@@ -22,7 +22,8 @@ public class ZoneCommand implements TabExecutor {
 
     private static final String PREFIX = "<dark_gray>[<gold>Zone<dark_gray>] ";
     private static final List<String> FLAGS = List.of(
-            "pvp", "natural-mob-spawning", "block-breaking", "block-placing");
+            "pvp", "natural-mob-spawning", "block-breaking", "block-placing",
+            "hunger", "entry", "teleportation", "leaf-decay");
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "info", "list", "wand", "pos1", "pos2", "clear",
             "flag", "spawner", "visualize");

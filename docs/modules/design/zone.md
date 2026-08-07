@@ -432,7 +432,7 @@ The file header comment notes the AABB/spawner coords must match a cavern actual
 
 **Script integration:**
 - `ZoneVariableProvider` (`ZoneVariableProvider.java:10-30`) registers namespace `"zone"` with the script module (`ZoneModule.java:31`): `$zone.id$` → zone ID, `$zone.current$` / `$zone.name$` → display name (fallback `"<green>Wilderness"`), `$zone.pvp$` → `isPvpEnabled()` boolean. `null` when there is no player caster.
-- The **script `zone` condition** (`ZoneCondition.java`) matches against `PlayerState.getCurrentZoneId()` — **which is never populated** (see [Unfinished Things](#unfinished-things--todos)).
+- The **script `zone` condition** (`ZoneCondition.java`) matches against `PlayerState.getCurrentZoneId()`, kept in sync with zone transitions by `ZoneListener` (fixed 2026-08-07 — see [Unfinished Things](#unfinished-things--todos)).
 
 **Concrete-class extras:** `ZoneModule.getZoneRegistry()` (`ZoneModule.java:57`). `Valmora.getZoneModule()` (`Valmora.java:387-389`).
 
@@ -464,7 +464,7 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 | `quest` (`QuestListener`) | `REACH_ZONE` objective triggered on `ZoneEnterEvent` (`QuestListener.java:108-112`). |
 | `ui` (`ScoreboardUI`) | "Zone:" scoreboard line from `getCurrentZone(...).getDisplayName()` (`ScoreboardUI.java:201-206`). |
 | `script` (`TeleportEventFactory`) | Blocks `teleport` DSL events when `teleportation()` is `false` (`TeleportEventFactory.java:44-48`). |
-| `script` (`ZoneCondition`) | `zone <id>` condition — but see the dead `currentZoneId` note below. |
+| `script` (`ZoneCondition`) | `zone <id>` condition, backed by `PlayerState.currentZoneId` (kept live by `ZoneListener` since 2026-08-07). |
 | `mob` (module docs) | Zone spawners are one of the four spawn callers; `MOB_HOME_KEY` behavior task complements the mob module's lack of AI (`docs/modules/design/mob.md:413`, `:432`). |
 | command layer | `/zone` executor + tab completer wired in `Valmora.java:246-248`, declared `plugin.yml:46-49`. |
 
@@ -472,16 +472,19 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 
 ## Unfinished Things / TODOs
 
-- **`ZoneCondition` never matches.** `ZoneCondition.java:17-21` reads `vp.getActiveProfile().getPlayerState().getCurrentZoneId()`, but `setCurrentZoneId` is **never called anywhere** (grep across `src/main/java` finds only the setter itself at `PlayerState.java:35`). The `zone` script condition therefore always evaluates `false`. `currentZoneId` is also `transient` (`PlayerState.java:11`), so even wiring it up would need a live update hook (e.g. from `ZoneEnterEvent`/`ZoneExitEvent`).
-- **`teleportation` flag is only honored by the script engine.** There is no `PlayerTeleportEvent` listener for it (`ZoneListener` handles move, join, quit, pvp, block, spawn, hunger, leaves-decay — `ZoneListener.java:42-147`). Warps (`WarpManager.teleport`), `player.teleportAsync`, and other teleports are unaffected by `allow.teleportation: false`. The plan (`ZONE_MODULE_PLAN.md`) lists teleportation among the flags to manage.
 - **`saveZoneToFile` drops hand-written keys.** `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` are not serialized (`ZoneManager.java:347-385`). Any `/zone flag` or `/zone spawner` command on a YAML-edited zone rewrites the file and silently loses those keys. A reload after editing `resource-blocks` in YAML followed by an admin command would purge them.
 - **Deleted shipped zones come back.** `deleteZone` removes `zones/<id>.yml` (`ZoneManager.java:302-303`), but `saveAllResources` re-copies `zones/*` from the JAR on the next startup whenever the file is missing (`Valmora.java:472-484`).
-- **Tab-completion only lists 4 of 8 flags.** `FLAGS` at `ZoneCommand.java:24-25` covers `pvp`, `natural-mob-spawning`, `block-breaking`, `block-placing`, while the `flag` sub-command accepts all eight (`ZoneCommand.java:219-228`). `hunger`, `entry`, `teleportation`, `leaf-decay` complete as free text only.
 - **`/zone spawner add` radius formula is inconsistent with the YAML default.** The command builds `radius = spawnRadius * 4.0` (`ZoneCommand.java:283`), while the loader default is a flat `20.0` (`ZoneLoader.java:95`); spawner IDs are `mobId_<count+1>` (`ZoneCommand.java:281`) and can collide after removals (no uniqueness check in `addSpawner`).
-- **Planned flags from `ZONE_MODULE_PLAN.md` not implemented** — fall damage, ability use, healing, cold damage, crop growth, block regeneration for farms/trees (the plan's Hub/Forest/Mine feature list). `docs/todo.md:33` ("manage other flags for zones like hunger, teleportation, entry, leaf decay") is now mostly done for hunger/entry/leaf-decay but `teleportation` remains partial (above).
+- **Planned flags from `ZONE_MODULE_PLAN.md` not implemented** — fall damage, ability use, healing, cold damage, crop growth, block regeneration for farms/trees (the plan's Hub/Forest/Mine feature list). `docs/todo.md:33` ("manage other flags for zones like hunger, teleportation, entry, leaf decay") is now fully done for hunger/entry/leaf-decay/teleportation (see "Resolved 2026-08-07" below).
 - **No `extra-boxes` in-game editing.** The parser supports multiple boxes (`ZoneLoader.java:62-81`) and `saveZoneToFile` writes them (`ZoneManager.java:361-370`), but there is no `/zone` command to add/remove them; `docs/todo.md:20` ("zones to have multiple boxes...") is only half-addressed.
-- **`getZoneAt` is O(n) per call** — streams the whole registry on every flag check, membership check, resource lookup, and mob count. With many zones this is the module's hot path.
-- **`tickMobHomes` iterates all living entities in all worlds** every 40 ticks (`ZoneManager.java:210-211` via `world.getLivingEntities()`), regardless of whether any spawner-tagged mob exists — a scaling concern on large servers.
+- **`getZoneAt` is O(n) per call** — streams the whole registry on every flag check, membership check, resource lookup, and mob count. With many zones this is the module's hot path. Deliberately not addressed this pass (see Possible Improvements) — a real spatial index needs invalidation hooks everywhere the registry mutates (every `/zone` edit command), which is more risk than a quick tweak.
+
+### Resolved 2026-08-07
+
+- **`ZoneCondition` never matches** (fixed) — `ZoneListener.onZoneEnter`/`onZoneExit` now call a new `setPlayerStateZoneId` helper that keeps `PlayerState.currentZoneId` in sync with zone transitions. (`transient` had already been removed from the field in an earlier Profile module pass — that part of the original note was stale.)
+- **`teleportation` flag now honored globally** — a new `ZoneListener.onTeleportGate` cancels any `PlayerTeleportEvent` (not just the script `teleport` DSL event) whose *origin* zone has `teleportation: false`, so warps and other plugin/vanilla teleports are covered too.
+- **Tab-completion now lists all 8 flags** — `hunger`, `entry`, `teleportation`, `leaf-decay` added to `ZoneCommand.FLAGS`.
+- **`tickMobHomes` guarded.** `MOB_HOME_KEY` can only ever be set by `tickSpawners()`, so the full living-entities-in-every-world scan is now skipped entirely when no registered zone has any spawners configured, instead of running every 40 ticks regardless.
 - **No `natural-mob-spawning`/time-of-day/capacity logic** — `docs/todo.md:32` ("flesh out mob spawning in zones"). Spawners are purely interval-based; the plan's "smart spawning at night up to a capacity" is not implemented.
 - **Spawner interval is measured against an internal `tickCount`** incremented by 20 per task tick (`ZoneManager.java:124`), which is fine for a 20-tick timer but makes the timing depend on the task being scheduled exactly every 20 ticks.
 - **Entry push-back only guards `entry()` zones.** `onMoveEntryCheck` also ignores Y-coordinate-only movement changes? No — it compares block X/Y/Z (`ZoneListener.java:45-47`), so falling into a blocked zone *is* caught. However, `/zone entry` blocks the *destination* box even if the player was already inside via a nested setup; reference-equality comparison `toZone != fromZone` (`ZoneListener.java:50`) works because `getZoneAt` returns registry instances.
@@ -491,12 +494,9 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 
 ## Possible Improvements / Changes
 
-- **Wire up `currentZoneId`.** Set `PlayerState.setCurrentZoneId` from `ZoneEnterEvent`/`ZoneExitEvent` (e.g. a `MONITOR` listener) so the script `zone` condition, quest conditions, and any future system agree on the current zone. Alternatively have `ZoneCondition` use `ZoneManager.getCurrentZone` directly (`ZoneManager.java:74-78`).
-- **Honor `teleportation` flag globally** — add a `PlayerTeleportEvent` handler (cancelling only when the *destination* is in a `teleportation() == false` zone), consistent with the other six flags.
 - **Round-trip the full schema in `saveZoneToFile`:** serialize `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` so admin commands never destroy hand-written config.
 - **Add `/zone box` (add/remove extra boxes), `/zone resource` (attach a `resource-blocks` entry to a selected block), and `/zone fishing`** subcommands, mirroring the existing spawner flow and reusing `saveZoneToFile`.
-- **Spatial index for `getZoneAt`** (e.g. chunk-keyed buckets or an interval tree) to avoid the per-call registry stream; short-circuit on empty registry.
-- **Optimize `tickMobHomes`** — iterate only spawner-tagged mobs (track UUIDs from the spawner task) or restrict to zones/worlds that actually have spawners.
+- **Spatial index for `getZoneAt`** (e.g. chunk-keyed buckets or an interval tree) to avoid the per-call registry stream; short-circuit on empty registry. Needs invalidation hooks wired into every `/zone` mutation command — not done this pass (see Unfinished Things).
 - **Unify spawner defaults/radius:** use one radius definition (loader default vs `spawnRadius * 4.0`) and a collision-safe spawner ID generator (`spawner_<timestamp>` or first free index).
 - **Persistence for mid-progress zones** — track spawner tick state and player membership in the database so a `/valmora reload` doesn't reset spawner phase (currently `spawnerLastSpawnTick`/`tickCount` reset on every reload).
 - **Extra-box support in the wand flow** — extend selection to a multi-box list so admins can build non-cuboid shapes entirely in-game.
