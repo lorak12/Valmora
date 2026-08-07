@@ -52,7 +52,8 @@ public class QuestLoader {
                         conditions, events, persistent, autoOnce, notifyInterval));
             }
             List<String> rewardEvents = sec.getStringList("reward-events");
-            return LoadResult.success(new QuestDefinition(id, name, objectives, rewardEvents));
+            long cooldownSeconds = sec.getLong("cooldown-seconds", 0);
+            return LoadResult.success(new QuestDefinition(id, name, objectives, rewardEvents, cooldownSeconds));
         } catch (Exception e) {
             return LoadResult.failure("[" + path + "] Error parsing quest '" + id + "': " + e.getMessage());
         }

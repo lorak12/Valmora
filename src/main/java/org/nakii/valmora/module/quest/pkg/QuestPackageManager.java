@@ -413,7 +413,8 @@ public class QuestPackageManager {
             }
         }
 
-        return new QuestDefinition(questId, name, objectives);
+        long cooldownSeconds = sec.getLong("cooldown-seconds", 0);
+        return new QuestDefinition(questId, name, objectives, List.of(), cooldownSeconds);
     }
 
     // -------------------------------------------------------------------------
@@ -513,6 +514,21 @@ public class QuestPackageManager {
         for (String ref : refs) {
             String trimmed = ref.trim();
             if (trimmed.isEmpty()) continue;
+
+            // Cross-package reference ("pkgPath>eventName") — previously only the public
+            // resolveEvent() supported this syntax, but this parse pipeline never called it, so
+            // refs fell through to "inline DSL" below and warned/failed at compile time.
+            if (trimmed.contains(">")) {
+                List<String> crossPackage = resolveEvent(trimmed, pkg.getPath());
+                if (crossPackage != null) {
+                    resolved.addAll(crossPackage);
+                } else {
+                    log.warning("[QuestPackages] Unknown cross-package event reference '" + trimmed
+                            + "' in package '" + pkg.getPath() + "'.");
+                }
+                continue;
+            }
+
             List<String> named = pkg.getEvents().get(trimmed.toLowerCase());
             if (named != null) resolved.addAll(named);
             else resolved.add(trimmed); // inline DSL

@@ -177,11 +177,11 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Quest module
 
-- [ ] **Implement the `BREW` objective listener** — constant exists, no handler in `QuestListener`. (Source spec: `docs/Objective_list.md`'s `Brew` syntax, and the alchemy module's matching gap.)
-- [ ] **Implement the `VARIABLE` objective listener** — constant exists, `QuestVariableProvider` reads variables but nothing triggers progress from them.
-- [ ] **Wire cross-package event references (`>` separator) into `resolveEventRefs()`** — currently only the public `resolveEvent()` supports the syntax, but the parse pipeline never calls it, so cross-package refs fall through to raw DSL and warn/fail.
-- [ ] **Add admin commands for quest management** (`QuestCommand` currently only supports `journal`) — at minimum force-complete/reset/inspect-progress for support/debugging.
-- [ ] **Add a repeatable-quest / quest-cooldown system** (slayer content currently fakes this with `quest_cancel`+`quest_start`, per `docs/modules/design/slayer.md`).
+- [x] **Implement the `BREW` objective listener** — constant exists, no handler in `QuestListener`. (Source spec: `docs/Objective_list.md`'s `Brew` syntax, and the alchemy module's matching gap.) *(2026-08-07: wired into `GuiForceCraftEventFactory` — fires on a successful `alchemy` machine craft (the actor is whoever ran `gui_force_craft`, matching "the player who last added/changed an item before the brew completed"), target = the output item id/material, amount = output stack size.)*
+- [x] **Implement the `VARIABLE` objective listener** — constant exists, `QuestVariableProvider` reads variables but nothing triggers progress from them. *(2026-08-07: new `QuestManager.checkVariableObjective(player, varName)` (STAT_REACH/POINT threshold pattern), called from `VariableEvent` after every `player.var.*` set/add.)*
+- [x] **Wire cross-package event references (`>` separator) into `resolveEventRefs()`** — currently only the public `resolveEvent()` supports the syntax, but the parse pipeline never calls it, so cross-package refs fall through to raw DSL and warn/fail. *(2026-08-07: `resolveEventRefs` now detects a `>` in the ref and delegates to `resolveEvent()`, warning on an unresolvable cross-package reference instead of silently misinterpreting it as inline DSL.)*
+- [x] **Add admin commands for quest management** (`QuestCommand` currently only supports `journal`) — at minimum force-complete/reset/inspect-progress for support/debugging. *(2026-08-07: added `/quest complete <player> <questId>`, `/quest reset <player> <questId>`, `/quest inspect <player> [questId]` (all `valmora.admin`-gated), plus tab completion.)*
+- [x] **Add a repeatable-quest / quest-cooldown system** (slayer content currently fakes this with `quest_cancel`+`quest_start`, per `docs/modules/design/slayer.md`). *(2026-08-07: added `cooldown-seconds:` to `QuestDefinition`/both loaders (flat `quests/*.yml` and package-based). 0 (default) = not repeatable, unchanged behavior. `startQuest` now allows restarting a `STATUS_COMPLETED` repeatable quest once its cooldown has elapsed, tracked via a new `quest.<id>.completed_at` variable set in `finishQuest`.)*
 
 ---
 

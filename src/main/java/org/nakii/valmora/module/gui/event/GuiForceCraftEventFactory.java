@@ -70,6 +70,22 @@ public class GuiForceCraftEventFactory implements EventFactory {
                 // Execute on-craft script
                 if (craft.onCraft() != null) craft.onCraft().execute(guiContext);
 
+                // BREW quest objective: "the player who last added/changed an item before the
+                // brew completed" (docs/Objective_list.md) — that's exactly this craft's actor,
+                // for the alchemy machine specifically (not crafting/anvil/etc).
+                if ("alchemy".equalsIgnoreCase(machineId) && craft.output() != null) {
+                    var questManager = org.nakii.valmora.api.ValmoraAPI.getInstance().getQuestManager();
+                    if (questManager != null) {
+                        String itemId = craft.output().getItemMeta() != null
+                                ? craft.output().getItemMeta().getPersistentDataContainer()
+                                        .get(org.nakii.valmora.util.Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING)
+                                : null;
+                        String target = itemId != null ? itemId : craft.output().getType().name();
+                        questManager.trigger(player, org.nakii.valmora.module.quest.QuestObjectiveTypes.BREW,
+                                target, craft.output().getAmount());
+                    }
+                }
+
                 // Re-render
                 new GuiRenderer(plugin).render(session);
             } finally {

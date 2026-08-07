@@ -219,7 +219,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.enableModules();
 
         // 5. Commands
-        getCommand("quest").setExecutor(new QuestCommand(this));
+        QuestCommand questCommand = new QuestCommand(this);
+        getCommand("quest").setExecutor(questCommand);
+        getCommand("quest").setTabCompleter(questCommand);
         NpcCommand npcCommand = new NpcCommand(this);
         getCommand("npc").setExecutor(npcCommand);
         getCommand("npc").setTabCompleter(npcCommand);

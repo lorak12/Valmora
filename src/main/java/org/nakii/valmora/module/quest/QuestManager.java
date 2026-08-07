@@ -85,7 +85,21 @@ public class QuestManager {
         QuestDefinition quest = registry.get(questId).orElse(null);
         if (quest == null) return;
         String status = getStatus(profile, questId);
-        if (status.equals(STATUS_IN_PROGRESS) || status.equals(STATUS_COMPLETED)) return;
+        if (status.equals(STATUS_IN_PROGRESS)) return;
+        if (status.equals(STATUS_COMPLETED)) {
+            // Repeatable-quest support: a completed, non-repeatable quest stays blocked forever
+            // (unchanged behavior). A repeatable one can restart once its cooldown has elapsed —
+            // previously the only way to get repeat behavior at all was content faking it with an
+            // explicit quest_cancel+quest_start script pair (see docs/modules/design/slayer.md).
+            if (!quest.isRepeatable()) return;
+            long completedAt = getCompletedAt(profile, questId);
+            long readyAt = completedAt + quest.getCooldownSeconds() * 1000L;
+            if (System.currentTimeMillis() < readyAt) {
+                long remaining = (readyAt - System.currentTimeMillis()) / 1000L;
+                player.sendMessage(Formatter.format("<red>This quest is on cooldown for another " + remaining + "s."));
+                return;
+            }
+        }
 
         Map<String, Object> vars = profile.getVariables();
         vars.put("quest." + questId + ".status", STATUS_IN_PROGRESS);
@@ -190,6 +204,30 @@ public class QuestManager {
      *
      * @param targets type-specific target strings, e.g. a mob ID, its EntityType name, and its categories
      */
+    /**
+     * Checks every in-progress quest's VARIABLE objectives targeting {@code varName} against the
+     * profile's current value for it, triggering completion progress if the (numeric) value has
+     * reached the objective's {@code required} threshold. Mirrors the STAT_REACH/POINT pattern —
+     * call this whenever a {@code player.var.*} variable changes (see {@code VariableEvent}).
+     */
+    public void checkVariableObjective(Player player, String varName) {
+        ValmoraProfile profile = getProfile(player);
+        if (profile == null) return;
+        Object value = profile.getVariables().get(varName);
+        if (!(value instanceof Number number)) return;
+
+        for (QuestDefinition quest : registry.values()) {
+            if (!getStatus(profile, quest.getId()).equals(STATUS_IN_PROGRESS)) continue;
+            for (QuestObjective obj : quest.getObjectives()) {
+                if (!obj.getType().equalsIgnoreCase(QuestObjectiveTypes.VARIABLE)) continue;
+                if (!obj.getTarget().equalsIgnoreCase(varName)) continue;
+                if (number.doubleValue() >= obj.getRequired()) {
+                    trigger(player, QuestObjectiveTypes.VARIABLE, obj.getTarget(), obj.getRequired());
+                }
+            }
+        }
+    }
+
     public void trigger(Player player, String typeId, List<String> targets, int amount) {
         ValmoraProfile profile = getProfile(player);
         if (profile == null) return;
@@ -285,7 +323,15 @@ public class QuestManager {
     private void finishQuest(Player player, ValmoraProfile profile, QuestDefinition quest) {
         clearObjectiveFlags(profile, quest.getId());
         profile.getVariables().put("quest." + quest.getId() + ".status", STATUS_COMPLETED);
+        if (quest.isRepeatable()) {
+            profile.getVariables().put("quest." + quest.getId() + ".completed_at", System.currentTimeMillis());
+        }
         player.sendMessage(Formatter.format("<gold><bold>Quest Completed: " + quest.getName()));
+    }
+
+    private long getCompletedAt(ValmoraProfile profile, String questId) {
+        Object v = profile.getVariables().get("quest." + questId + ".completed_at");
+        return v instanceof Number n ? n.longValue() : 0L;
     }
 
     private void clearObjectiveFlags(ValmoraProfile profile, String questId) {

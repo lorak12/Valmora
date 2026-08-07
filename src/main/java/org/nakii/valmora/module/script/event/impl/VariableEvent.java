@@ -54,21 +54,32 @@ public class VariableEvent implements EventFactory {
             if (!path.startsWith("player.var.")) return;
 
             String varName = path.substring(11);
-            context.getPlayerCaster()
-                    .map(Player::getUniqueId)
-                    .map(uuid -> ValmoraAPI.getInstance().getPlayerManager().getSession(uuid).getActiveProfile())
-                    .ifPresent(profile -> {
-                        Object current = profile.getVariables().get(varName);
-                        if (action.equalsIgnoreCase("set")) {
-                            profile.getVariables().put(varName, parseValue(resolvedValue));
-                        } else if (action.equalsIgnoreCase("add")) {
-                            double curVal = current instanceof Number n ? n.doubleValue() : 0.0;
-                            double addVal = parseDouble(resolvedValue);
-                            profile.getVariables().put(varName, curVal + addVal);
-                        } else if (action.equalsIgnoreCase("remove")) {
-                            profile.getVariables().remove(varName);
-                        }
-                    });
+            context.getPlayerCaster().ifPresent(player -> {
+                var vp = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
+                var profile = vp != null ? vp.getActiveProfile() : null;
+                if (profile == null) return;
+
+                Object current = profile.getVariables().get(varName);
+                boolean changed = false;
+                if (action.equalsIgnoreCase("set")) {
+                    profile.getVariables().put(varName, parseValue(resolvedValue));
+                    changed = true;
+                } else if (action.equalsIgnoreCase("add")) {
+                    double curVal = current instanceof Number n ? n.doubleValue() : 0.0;
+                    double addVal = parseDouble(resolvedValue);
+                    profile.getVariables().put(varName, curVal + addVal);
+                    changed = true;
+                } else if (action.equalsIgnoreCase("remove")) {
+                    profile.getVariables().remove(varName);
+                }
+
+                // Drives the VARIABLE quest objective type — previously nothing triggered
+                // progress from variable changes at all despite QuestVariableProvider reading them.
+                if (changed) {
+                    var questManager = ValmoraAPI.getInstance().getQuestManager();
+                    if (questManager != null) questManager.checkVariableObjective(player, varName);
+                }
+            });
         };
     }
 
