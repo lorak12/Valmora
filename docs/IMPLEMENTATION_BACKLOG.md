@@ -317,9 +317,9 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Slayer (quest+GUI content, not a module)
 
-- [ ] **Add a player-facing progress indicator outside the slayer GUI** (e.g. boss-bar-on-hit) — currently purely GUI-poll-driven.
-- [ ] **Share slayer tier coin costs through one table** instead of hardcoding them per-button in `guis/slayers.yml`.
-- [ ] **Write a generator/template (or at least a documented recipe) for adding a new slayer line** — currently requires manually copying the two-objective quest shape + boss `MobDefinition` + GUI button.
+- [x] **Add a player-facing progress indicator outside the slayer GUI** (e.g. boss-bar-on-hit) — currently purely GUI-poll-driven. *(2026-08-07: docs drift — already implemented. Every boss `MobDefinition` in `mobs/slayer_bosses.yml` ships `boss-bar: enabled: true`, driven by the pre-existing `BossController`, a live health-synced Adventure boss bar shown to nearby players and refreshed every tick — event-pushed, not GUI-poll-driven. The trash-mob `kill` phase already gets an action-bar progress ping via each objective's `notify: 1` + the package's `info` category override to `io: actionbar` (`quests/slayers/notifications.yml`). Updated `docs/modules/design/slayer.md` §4 to correct the stale gap note.)*
+- [x] **Share slayer tier coin costs through one table** instead of hardcoding them per-button in `guis/slayers.yml`. *(2026-08-07: added a shared `on-open:` block declaring `variable set prop.cost_<n> <amount>` once per tier; every lore `Cost:` line, `$economy.purse$ >=` condition, `economy_remove` amount, and "Not enough coins" fail message across all 7 tier buttons now references `$prop.cost_<n>$` instead of repeating the literal 4x. `economy_remove`/conditions already resolve `$var$` tokens through the variable resolver, so no Java change was needed.)*
+- [x] **Write a generator/template (or at least a documented recipe) for adding a new slayer line** — currently requires manually copying the two-objective quest shape + boss `MobDefinition` + GUI button. *(2026-08-07: added a "Recipe: Adding a New Slayer Line" §5 to `docs/modules/design/slayer.md` — the 3-file edit (boss mob(s), quest(s), GUI button) with exact field-by-field guidance. No generator/tool was built; a documented recipe was judged sufficient per the backlog item's own "or at least" phrasing.)*
 
 ---
 

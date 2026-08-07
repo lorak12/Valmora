@@ -15,6 +15,19 @@ slayers:
   rows: 6
   update-interval: 20
 
+  # Shared cost table (added 2026-08-07) — each tier's coin cost is set exactly once here and
+  # referenced everywhere else (lore, purse-check condition, economy_remove amount, fail message)
+  # via $prop.cost_<n>$, instead of the same literal number being repeated 4x per button.
+  on-open:
+    actions:
+      - "variable set prop.cost_1 100"
+      - "variable set prop.cost_2 500"
+      - "variable set prop.cost_3 2000"
+      - "variable set prop.cost_4 100"
+      - "variable set prop.cost_5 500"
+      - "variable set prop.cost_6 100"
+      - "variable set prop.cost_7 1000"
+
   layout:
     - "BBBBBBBBB"
     - "B1B2B3BBB"
@@ -50,19 +63,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>5 Undead <gray>mobs, then"
               - "<gray>defeat the <dark_purple>Revenant Horror<gray>."
-              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Cost: <gold>$prop.cost_1$ coins"
               - "<gray>Reward: <gold>250 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 100"
+                - "$economy.purse$ >= $prop.cost_1$"
               actions:
-                - "economy_remove 100"
+                - "economy_remove $prop.cost_1$"
                 - "quest_cancel zombie_slayer_t1"
                 - "quest_start zombie_slayer_t1"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_1$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Zombie Slayer II
     "2":
@@ -84,19 +97,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>15 Undead <gray>mobs, then"
               - "<gray>defeat the <dark_purple>Revenant Horror II<gray>."
-              - "<gray>Cost: <gold>500 coins"
+              - "<gray>Cost: <gold>$prop.cost_2$ coins"
               - "<gray>Reward: <gold>1000 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 500"
+                - "$economy.purse$ >= $prop.cost_2$"
               actions:
-                - "economy_remove 500"
+                - "economy_remove $prop.cost_2$"
                 - "quest_cancel zombie_slayer_t2"
                 - "quest_start zombie_slayer_t2"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 500 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_2$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Zombie Slayer III
     "3":
@@ -118,19 +131,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>30 Undead <gray>mobs, then"
               - "<gray>defeat the <dark_purple>Revenant Horror III<gray>."
-              - "<gray>Cost: <gold>2000 coins"
+              - "<gray>Cost: <gold>$prop.cost_3$ coins"
               - "<gray>Reward: <gold>5000 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 2000"
+                - "$economy.purse$ >= $prop.cost_3$"
               actions:
-                - "economy_remove 2000"
+                - "economy_remove $prop.cost_3$"
                 - "quest_cancel zombie_slayer_t3"
                 - "quest_start zombie_slayer_t3"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 2000 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_3$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Spider Slayer I
     "4":
@@ -152,19 +165,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>5 Spiders<gray>, then"
               - "<gray>defeat the <dark_gray>Broodmother<gray>."
-              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Cost: <gold>$prop.cost_4$ coins"
               - "<gray>Reward: <gold>250 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 100"
+                - "$economy.purse$ >= $prop.cost_4$"
               actions:
-                - "economy_remove 100"
+                - "economy_remove $prop.cost_4$"
                 - "quest_cancel spider_slayer_t1"
                 - "quest_start spider_slayer_t1"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_4$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Spider Slayer II
     "5":
@@ -186,19 +199,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>20 Spiders<gray>, then"
               - "<gray>defeat the <dark_gray>Broodmother II<gray>."
-              - "<gray>Cost: <gold>500 coins"
+              - "<gray>Cost: <gold>$prop.cost_5$ coins"
               - "<gray>Reward: <gold>1500 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 500"
+                - "$economy.purse$ >= $prop.cost_5$"
               actions:
-                - "economy_remove 500"
+                - "economy_remove $prop.cost_5$"
                 - "quest_cancel spider_slayer_t2"
                 - "quest_start spider_slayer_t2"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 500 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_5$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Wolf Slayer I
     "6":
@@ -220,19 +233,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>5 Wolves<gray>, then"
               - "<gray>defeat <white>Alpha Fang<gray>."
-              - "<gray>Cost: <gold>100 coins"
+              - "<gray>Cost: <gold>$prop.cost_6$ coins"
               - "<gray>Reward: <gold>250 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 100"
+                - "$economy.purse$ >= $prop.cost_6$"
               actions:
-                - "economy_remove 100"
+                - "economy_remove $prop.cost_6$"
                 - "quest_cancel wolf_slayer_t1"
                 - "quest_start wolf_slayer_t1"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 100 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_6$ coins. io:actionbar"
 
     # ---------------------------------------------------------- Wolf Slayer II
     "7":
@@ -254,19 +267,19 @@ slayers:
             lore:
               - "<gray>Kill <yellow>25 Wolves<gray>, then"
               - "<gray>defeat <white>Alpha Fang II<gray>."
-              - "<gray>Cost: <gold>1000 coins"
+              - "<gray>Cost: <gold>$prop.cost_7$ coins"
               - "<gray>Reward: <gold>3000 coins"
               - "<green>Click to activate!"
           actions:
             left:
               conditions:
-                - "$economy.purse$ >= 1000"
+                - "$economy.purse$ >= $prop.cost_7$"
               actions:
-                - "economy_remove 1000"
+                - "economy_remove $prop.cost_7$"
                 - "quest_cancel wolf_slayer_t2"
                 - "quest_start wolf_slayer_t2"
               fail-actions:
-                - "notify <red>Not enough coins! Requires 1000 coins. io:actionbar"
+                - "notify <red>Not enough coins! Requires $prop.cost_7$ coins. io:actionbar"
 
     Z:
       type: DISPLAY

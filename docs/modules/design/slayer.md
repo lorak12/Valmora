@@ -63,15 +63,49 @@ slayers.yml` is the only entry point: each tier button is a `DISPLAY` component 
 - **`in_progress`** (`condition: "$quest.<id>.status$ == in_progress"`) — shows live
   `$quest.<id>.objective.<name>.progress$/…required$` values, no click action.
 
-Coin costs/rewards are hardcoded per-button in `guis/slayers.yml` (100/250 for tier 1, scaling up)
-— there's no shared "slayer cost table," each tier's numbers live directly in its own GUI button
-and its own quest reward events.
+Coin costs are declared once per GUI, in `guis/slayers.yml`'s `on-open:` block (added 2026-08-07):
+`variable set prop.cost_<n> <amount>` for each of the 7 tier buttons. Every place that previously
+hardcoded the literal number — the `Cost:` lore line, the `$economy.purse$ >=` gate, the
+`economy_remove` amount, and the "Not enough coins" fail message — now references `$prop.cost_<n>$`
+instead, so a tier's price is a single edit. Reward amounts (coins on boss kill) are separate —
+they still live per-tier in `quests/slayers/quest.yml`'s `events:` block (e.g. `zombie_t1_reward`),
+since they're quest rewards, not GUI-gated costs, and are already only defined in one place each.
 
 ## 4. Known Gaps
 
-- **No player-facing progress indicator outside the GUI** — unlike the old module (which had
-  `MobCategory`-driven listener hooks for things like boss-bar-on-hit), everything here is
-  GUI-poll-driven (`update-interval` re-render) rather than event-pushed.
-- Reusing this pattern for a new slayer line means copying the two-objective quest shape, adding a
-  boss `MobDefinition`, and adding a GUI button by hand — there is no generator/template, and no
-  admin-facing walkthrough beyond `docs/modules/user/slayer.md`.
+*(2026-08-07: progress-indicator gap resolved — see below. Cost-table gap resolved, see §3.)*
+
+- **Player-facing progress indicator outside the GUI already exists for the boss phase**: every
+  boss `MobDefinition` in `slayer_bosses.yml` ships `boss-bar: enabled: true`, driven by
+  `BossController` (`module/mob/BossController.java`) — a live, health-synced Adventure `BossBar`
+  shown to all players within `range` blocks, refreshed every tick alongside `ON_TIMER`/`ON_HEALTH`
+  abilities. This is real-time and event-pushed, not GUI-poll-driven, and was already shipped
+  before this doc's gap note was written (docs drift). It only covers the `boss` objective, not the
+  `kill` (trash-mob) phase.
+- **The `kill` phase's progress indicator is the objective's own `notify: 1`**, which — per
+  `quests/slayers/notifications.yml` overriding the `info` category to `io: actionbar` — sends an
+  action-bar "target (current/required)" ping on every qualifying kill. Combined with the boss-bar
+  above, both phases of a slayer tier already have a real-time indicator outside the GUI; no new
+  code was needed.
+
+## 5. Recipe: Adding a New Slayer Line
+
+No generator exists — a new line/tier is three edits, all in existing files, following the exact
+shape of the shipped Zombie/Spider/Wolf chains:
+
+1. **Boss mob(s)** — add one `MobDefinition` entry per tier to `mobs/slayer_bosses.yml`:
+   `category: BOSS`, scaled `stats:`, `glowing: true`, and a `boss-bar:` block (`enabled: true`,
+   pick a `color`/`style`/`range`) so the tier gets a progress bar for free. Optional: `abilities:`
+   for boss mechanics (see `docs/modules/design/mob.md`).
+2. **Quest(s)** — add one two-objective quest per tier to `quests/slayers/quests.yml` (see §2 for
+   the shape): a `kill` objective (`type: KILL`, `target: <MobCategory>`, `amount`, `notify: 1`,
+   `events: "spawn_mob <boss_id>"`) followed by a `boss` objective (`type: KILL`,
+   `target: <boss_id>`, `amount: 1`, `events: "<reward_event_name>"`). Add the reward event itself
+   under `quest.yml`'s `events:` block (`economy_add <n>` + `notify ... category:slayer_complete`).
+3. **GUI button** — add a new component/state pair to `guis/slayers.yml`'s layout: an
+   `available`/`in_progress` `DISPLAY` pair (copy an existing tier button, retarget the quest IDs),
+   plus one `variable set prop.cost_<n> <amount>` line in the shared `on-open:` block (§3) and
+   `$prop.cost_<n>$` references in the new button's lore/condition/action/fail-action.
+
+That's the whole recipe — no Java changes, no new module. `/valmora reload` picks up all three
+files.
