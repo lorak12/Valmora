@@ -325,10 +325,10 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Alchemy module
 
-- [ ] **Handle lingering potions** — currently fall through to vanilla entirely, no Valmora handler.
-- [ ] **Generalize poison DOT to all `LivingEntity`**, not just players.
-- [ ] **Fix the degenerate static SHAPELESS potion recipe path** — currently outputs a plain vanilla `POTION`, not a real Valmora potion.
-- [ ] **Decide/document whether active effects clearing on reload is intentional** (`AlchemyManager.clear()` currently skips `activeEffects`/`hardcodedEffects` — this may be deliberate, confirm and document either way).
+- [x] **Handle lingering potions** — currently fall through to vanilla entirely, no Valmora handler. *(2026-08-07: added `AlchemyListener.onLingeringSplash` — cancels vanilla lingering behavior for Valmora potions, applies the effect once immediately to entities within the cloud's radius at impact. Simplified: no reapplication to entities that enter the cloud later while it lingers.)*
+- [x] **Generalize poison DOT to all `LivingEntity`**, not just players. *(2026-08-07: `HardcodedAlchemyEffect.onTick` regeneralized `Player`→`LivingEntity`; `AlchemyManager.tick(Player)`→`tick(LivingEntity)`; the module's tick task now iterates every entity UUID holding an active effect via `Server.getEntity(uuid)` instead of only online players. `PoisonAlchemyEffect` now damages non-player entities directly (same pattern as `DamageAlchemyEffect`'s existing non-player branch).)*
+- [x] **Fix the degenerate static SHAPELESS potion recipe path** — currently outputs a plain vanilla `POTION`, not a real Valmora potion. *(2026-08-07: deleted `recipes/alchemy.yml` instead of patching it — it was provably unreachable dead content, since `RecipeEngine` always checks the registered `DynamicMachineHandler` for machine `alchemy` before any YAML recipe, and a static recipe can never reference a procedurally-built Valmora potion via `outputs.result.item` anyway (those aren't `ItemRegistry` entries). `YamlConfigLoadTest` updated to drop the file from its checked-path lists.)*
+- [x] **Decide/document whether active effects clearing on reload is intentional** (`AlchemyManager.clear()` currently skips `activeEffects`/`hardcodedEffects` — this may be deliberate, confirm and document either way). *(2026-08-07: decided — keep the current behavior (effects survive `/valmora reload`). Clearing them would silently strip online players' active buffs/debuffs mid-duration on every routine admin reload, which is worse than the status quo. Documented in `docs/modules/design/alchemy.md` §8. The real remaining gap is that effects don't survive a full server *restart* — no DB persistence — noted as a possible future improvement, not this decision.)*
 
 ---
 

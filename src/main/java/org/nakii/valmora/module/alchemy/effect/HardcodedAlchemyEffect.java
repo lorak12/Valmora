@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.alchemy.effect;
 
 import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
 
 /**
  * API for code-driven alchemy effects (night vision, blindness, stun, etc.).
@@ -16,5 +15,6 @@ public interface HardcodedAlchemyEffect {
 
     void onExpire(LivingEntity entity, int level);
 
-    default void onTick(Player player, int level) {}
+    /** Called once per alchemy tick for every {@link LivingEntity} (not just players) currently holding this effect. */
+    default void onTick(LivingEntity entity, int level) {}
 }

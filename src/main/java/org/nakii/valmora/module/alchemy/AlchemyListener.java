@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.alchemy;
 
+import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -8,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.LingeringPotionSplashEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
@@ -131,6 +134,42 @@ public class AlchemyListener implements Listener {
             }
 
             alchemyManager.applyEffect(entity, effectId, level, scaledDuration);
+        }
+    }
+
+    /**
+     * Handles a Valmora potion thrown/converted into a lingering potion (dragon's breath at a
+     * brewing stand). Previously fell through to vanilla entirely — no Valmora effect applied,
+     * no AreaEffectCloud interception. Simplified relative to real lingering behavior: the effect
+     * is applied once, immediately, to every valid entity within the cloud's radius at impact —
+     * not reapplied to entities that wander into the cloud later while it lingers.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onLingeringSplash(LingeringPotionSplashEvent event) {
+        ItemStack item = event.getEntity().getItem();
+        if (!item.hasItemMeta()) return;
+        ItemMeta meta = item.getItemMeta();
+
+        String effectId = meta.getPersistentDataContainer().get(Keys.ALCHEMY_EFFECT_ID, PersistentDataType.STRING);
+        if (effectId == null) return; // not a Valmora potion — let vanilla lingering behavior apply
+
+        event.setCancelled(true); // no vanilla AreaEffectCloud / vanilla PotionEffect application
+
+        int level = meta.getPersistentDataContainer().getOrDefault(Keys.ALCHEMY_EFFECT_LEVEL, PersistentDataType.INTEGER, 1);
+        int duration = meta.getPersistentDataContainer().getOrDefault(Keys.ALCHEMY_DURATION, PersistentDataType.INTEGER, 60);
+
+        var effectOpt = alchemyManager.getEffect(effectId);
+        AlchemyEffectType type = effectOpt.map(e -> e.getType()).orElse(AlchemyEffectType.BUFF);
+
+        Location origin = event.getEntity().getLocation();
+        double radius = Math.max(splashRadius, event.getAreaEffectCloud().getRadius());
+        if (origin.getWorld() == null || radius <= 0) return;
+
+        for (Entity nearby : origin.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
+            if (!(nearby instanceof LivingEntity entity)) continue;
+            if (type != AlchemyEffectType.DEBUFF && !(entity instanceof Player)) continue;
+            if (entity.getLocation().distance(origin) > radius) continue;
+            alchemyManager.applyEffect(entity, effectId, level, duration);
         }
     }
 }

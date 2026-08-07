@@ -117,10 +117,16 @@ public class AlchemyManager {
         activeEffects.remove(uuid);
     }
 
+    /** UUIDs of every entity (player or otherwise) currently holding at least one tracked active effect — used to drive the tick loop over more than just online players. */
+    public java.util.Set<UUID> getTrackedEntityIds() {
+        return java.util.Set.copyOf(activeEffects.keySet());
+    }
+
     // ── Tick ─────────────────────────────────────────────────────────────
 
-    public void tick(Player player) {
-        List<ActiveEffect> effects = activeEffects.get(player.getUniqueId());
+    /** Ticks one entity's active effects — expiring/onTick-ing them. Generalized 2026-08-07 from a player-only {@code tick(Player)} so non-player entities (e.g. a mob hit by a DEBUFF splash potion) also get their DOT/onTick mechanics. */
+    public void tick(LivingEntity entity) {
+        List<ActiveEffect> effects = activeEffects.get(entity.getUniqueId());
         if (effects == null || effects.isEmpty()) return;
 
         boolean anyExpired = false;
@@ -131,14 +137,14 @@ public class AlchemyManager {
                 it.remove();
                 anyExpired = true;
                 HardcodedAlchemyEffect hardcoded = hardcodedEffects.get(ae.effectId().toLowerCase());
-                if (hardcoded != null) hardcoded.onExpire(player, ae.level());
+                if (hardcoded != null) hardcoded.onExpire(entity, ae.level());
             } else {
                 HardcodedAlchemyEffect hardcoded = hardcodedEffects.get(ae.effectId().toLowerCase());
-                if (hardcoded != null) hardcoded.onTick(player, ae.level());
+                if (hardcoded != null) hardcoded.onTick(entity, ae.level());
             }
         }
 
-        if (anyExpired) recalculatePlayerStats(player);
+        if (anyExpired && entity instanceof Player player) recalculatePlayerStats(player);
     }
 
     // ── Stat Integration ──────────────────────────────────────────────────

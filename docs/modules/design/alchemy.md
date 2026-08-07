@@ -77,7 +77,6 @@ src/main/resources/
 ├── guis/alchemy.yml                # Alchemy Table GUI (machine: alchemy) — consumer
 ├── guis/active_effects.yml         # Active Effects GUI ($alchemy.effects.*$) — consumer
 ├── items/alchemy_ingredients.yml   # Enchanted tier-2/tier-3 ingredients + modifier items
-├── recipes/alchemy.yml             # Static shapeless alchemy recipes (XP path) — consumer
 └── skills/alchemy.yml              # Alchemy skill definition (XP rewards, no sources by default)
 ```
 
@@ -182,7 +181,7 @@ Two more effects — `water_breathing` and `burning` — are **not** `HardcodedA
 
 **`HealingAlchemyEffect`** (`HealingAlchemyEffect.java:14-50`) heals players through the profile `PlayerState.heal(...)` + `syncVisualHealth` (`:41-49`); non-players get `setHealth(min(maxHealth, health + amount))` (`:27-30`).
 
-**`PoisonAlchemyEffect`** (`PoisonAlchemyEffect.java:13-36`): `onApply`/`onExpire` are no-ops; `onTick` applies `10 × level` raw damage via `PlayerState.reduceHealth` for players (`:25-35`). Note it only ever ticks for **players** (`onTick` signature is `Player`), so a poisoned mob suffers no DOT.
+**`PoisonAlchemyEffect`** (`PoisonAlchemyEffect.java`): `onApply`/`onExpire` are no-ops; `onTick` applies `10 × level` damage — via `PlayerState.reduceHealth` for players, or a direct `entity.setHealth(...)` reduction (same pattern as `DamageAlchemyEffect`'s non-player branch) for any other `LivingEntity`. Generalized from a players-only tick 2026-08-07 (see §3.6) — a poisoned mob now takes DOT too.
 
 **`AbsorptionAlchemyEffect`** (`AbsorptionAlchemyEffect.java:10-27`): sets `entity.setAbsorptionAmount(...)` on apply, resets to `0` on expire. Values clamped to the table length.
 
@@ -283,7 +282,7 @@ Holds five maps (`AlchemyManager.java:27-33`):
 
 **`removeEffect`** (`:99-104`) removes by id and recalculates for players. **`getActiveEffects(UUID)`** (`:106-110`) returns an unmodifiable view. **`clearAllEffects(UUID)`** (`:112-114`) removes the whole entry — currently **dead code**, no caller exists (see §8).
 
-**`tick(Player)`** (`:118-138`) — called from the module's repeating task for every online player. Iterates the player's effects; expired ones are removed and `onExpire` fired (`:124-130`); live ones get `onTick` (`:131-134`). If anything expired, recalculates stats (`:137`). Because expiry uses wall-clock time, a player who logs out mid-effect keeps their effect (memory) and it continues ticking once they log back in.
+**`tick(LivingEntity)`** *(generalized 2026-08-07, was `tick(Player)`)* — called from the module's repeating task for every entity currently holding at least one active effect (`AlchemyManager.getTrackedEntityIds()`, resolved via `Server.getEntity(uuid)`), not just online players. Iterates the entity's effects; expired ones are removed and `onExpire` fired; live ones get `onTick`. If anything expired **and** the entity is a player, recalculates stats. Because expiry uses wall-clock time, a player who logs out mid-effect keeps their effect (memory) and it continues ticking once they log back in; a despawned/unloaded mob's entry simply stops resolving via `getEntity` (harmless — the map entry sits idle until GC'd by nothing in particular, a minor known leak shared with the pre-existing player-quit-keeps-cache-entry pattern elsewhere in the codebase).
 
 **`applyEffectsToStats(player, statManager)`** (`:142-155`) — the stat integration hook. For each non-expired effect, looks up the `AlchemyEffect` definition and adds every stat value (`def.getStatValue(statId, level)`) as a **modifier** via `statManager.addModifier` (`:150-153`). Skipped entirely when the value is `0` (`:152`). Invoked by `StatManager.recalculateStats` (`StatManager.java:138-141`).
 
@@ -311,7 +310,7 @@ Registered in `AlchemyModule.onEnable()` (`AlchemyModule.java:56-57`); unregiste
 - Effect type is read from the definition, defaulting to `BUFF` if the id no longer resolves.
 - Entities beyond `alchemy.splash-radius` blocks of the splash's impact location (`event.getEntity().getLocation()`) are skipped entirely; entities within range get a duration scaled by linear falloff (`1.0 - distance/radius`), floored at 1 second. Level is not scaled by distance. The `AlchemyListener` constructor takes `splashRadius` as a parameter, supplied from `config.yml` by `AlchemyModule.onEnable()`.
 
-There is also an **unused import** of `LingeringPotionSplashEvent` (`AlchemyListener.java:11`) — lingering potions are not handled at all.
+**`onLingeringSplash(LingeringPotionSplashEvent)`** *(added 2026-08-07)* — `HIGH`: mirrors `onSplash` but for lingering potions (thrown, or a Valmora splash potion converted at a brewing stand with dragon's breath). Cancels the vanilla `AreaEffectCloud` for Valmora potions and applies the effect once, immediately, to every valid `LivingEntity` within `max(splashRadius, cloud.getRadius())` at impact — same `DEBUFF`-hits-everyone / `BUFF`-hits-players-only rule as `onSplash`, but **no** distance falloff and **no** reapplication to entities that wander into the cloud later while it lingers (a deliberate simplification over true lingering behavior).
 
 ### 3.8 Stat Integration
 
@@ -484,7 +483,7 @@ Contains only `# Effects moved to effects.yml` — a leftover from when healing 
 - **`items/alchemy_ingredients.yml`** — the custom tier-2/tier-3 ingredients and the `enchanted_*` modifier items; defines the item ids referenced by `effects.yml`/`modifiers.yml`.
 - **`guis/alchemy.yml`** — the Alchemy Table GUI (`command: alchemy`, `machine: alchemy`, 6 rows, `update-interval: 20`). Layout legend: `B` = purple-glass border display, `I` = ingredient input, `T` = status display (uses `$prop.brew_status$` / `$prop.brew_time$`), `P` = bottle inputs (replaced with the result at completion), `C` = close button (`guis/alchemy.yml:8-21`, `:23-60`). Brew flow: `on-open` resets props and plays the brewing-stand sound; `on-slot-update` resets status when nothing useful is present; `on-update` counts `brew_time` down from 10 and fires `gui_alchemy_brew` at zero, or — when idle with ingredient + bottles present — fires `gui_alchemy_start` to validate/consume. Registered dynamically via `GuiModule`'s command binding, same as `geomancy_tree`/`skills_list`, so `/alchemy` opens it directly.
 - **`guis/active_effects.yml`** — paginated Active Effects GUI driven by `$alchemy.effects.list$` with `buff`/`debuff`/`default` item states (`active_effects.yml:18-46`) and previous/next page arrows.
-- **`recipes/alchemy.yml`** — 13 static SHAPELESS recipes on `machine: alchemy` (awkward, thick, healing, strength, fire resistance, night vision, swiftness, each with `_bottle` and `_potion` variants) that produce a plain `POTION` output and grant `player.var.alchemy_xp` on craft (`recipes/alchemy.yml:14-244`). These are a legacy XP path distinct from the dynamic pipeline.
+- **`recipes/alchemy.yml` — removed 2026-08-07.** Previously 13 static SHAPELESS recipes on `machine: alchemy` outputting a plain `POTION`; deleted as provably-unreachable dead content (see §8/§9 — `AlchemyMachineHandler`'s dynamic handler always intercepts machine `alchemy` before YAML recipes are even considered).
 - **`skills/alchemy.yml`** — the Alchemy skill (`max-level: 60`, per-level `coins = level*5`, milestones 10 → BLAZE_POWDER×5 and 30 → NETHER_WART×16), plus a `sources: BREW_POTION: DEFAULT: 15.0` entry consumed by `AlchemyBrewEventFactory.grantBrewXp` whenever the dynamic brewing pipeline completes a brew (independent of `SkillListener.onBrew`, which still hooks the unrelated vanilla `BrewEvent`).
 
 ---
@@ -528,7 +527,7 @@ AlchemyManager alchemy = ValmoraAPI.getInstance().getAlchemyManager();
 - `void applyEffect(LivingEntity, String effectId, int level, int durationSeconds)` — programmatic effect application (stat recalc + hardcoded `onApply` included) (`AlchemyManager.java:80-97`).
 - `void removeEffect(LivingEntity, String effectId)` (`AlchemyManager.java:99-104`), `List<ActiveEffect> getActiveEffects(UUID)` (`:106-110`), `void clearAllEffects(UUID)` (`:112-114`, currently uncalled).
 - `void registerEffect(AlchemyEffect)` / `registerHardcodedEffect(HardcodedAlchemyEffect)` / `registerModifier(AlchemyModifier)` — extension points. **Caveat:** `effectRegistry`/`ingredientIndex`/`modifierRegistry` are cleared on every module `clear()` (reload), so YAML-loaded registrations are rebuilt automatically but externally registered effects/modifiers would need re-registering after `/valmora reload`.
-- `void tick(Player)` and `void applyEffectsToStats(Player, StatManager)` — internal hooks, public for the Stat/Skill integration.
+- `void tick(LivingEntity)` and `void applyEffectsToStats(Player, StatManager)` — internal hooks, public for the Stat/Skill integration.
 
 **Item-building API:** `AlchemyMachineHandler.buildPotion(AlchemyEffect, int level, int durationSeconds, boolean isSplash, boolean levelModified, boolean durationModified)` (`AlchemyMachineHandler.java:178-181`) is public and is how `/potion` builds potions (`PotionCommand.java:68-69`).
 
@@ -563,7 +562,7 @@ AlchemyManager alchemy = ValmoraAPI.getInstance().getAlchemyManager();
 | GUI `guis/alchemy.yml` | Dynamic brewing machine; `gui_alchemy_start`/`gui_alchemy_brew` events validate through the handler | `guis/alchemy.yml:4`, `:84`, `:99` |
 | GUI `guis/active_effects.yml` | `$alchemy.effects.list$` paginated display | `active_effects.yml:20` |
 | Skill `SkillListener` | `BREW_POTION`/`ANY` XP award on vanilla `BrewEvent` (unrelated to Valmora potions in practice) | `SkillListener.java:118-130` |
-| Recipe engine static recipes | Same `machine: alchemy` namespace, legacy XP path | `recipes/alchemy.yml:15` |
+| ~~Recipe engine static recipes~~ | *(removed 2026-08-07 — `recipes/alchemy.yml` deleted, was dead/unreachable content)* | — |
 | `PotionCommand` | Builds admin potions via `buildPotion` | `PotionCommand.java:68-69` |
 | Quest module | `QuestObjectiveTypes.BREW` is **declared but unimplemented** (no handler) | `QuestObjectiveTypes.java:21` |
 
@@ -571,12 +570,12 @@ AlchemyManager alchemy = ValmoraAPI.getInstance().getAlchemyManager();
 
 ## Unfinished Things / TODOs
 
-- **Unused `LingeringPotionSplashEvent` import removed.** Lingering potions still fall through to vanilla behavior entirely (no handler for them) — only the dead import was cleaned up.
-- **Active effects are never cleared on reload.** `AlchemyManager.clear()` (`:72-76`) still skips `activeEffects` and `hardcodedEffects`, so a `/valmora reload` keeps all in-memory effects and their pending expiry/`onTick`. This remains intentional-but-undocumented behavior — out of scope for this pass since it touches restart/persistence semantics.
 - **Dead code:** `AlchemyManager.removeEffect` (`:99-104`) and `clearAllEffects` (`:112-114`) still have no callers; `AlchemyEffect.getTierForIngredient` (`AlchemyEffect.java:57-59`) is unused (tier indexing happens in `registerEffect`). Left as public API surface for `AlchemyManager` consumers.
-- **Poison only ticks for players.** `PoisonAlchemyEffect.onTick(Player, ...)` (`PoisonAlchemyEffect.java:25`) is still called only from the player-scoped tick loop (`AlchemyManager.java:118-138`); a poisoned mob receives the `ActiveEffect` record (and DEBUFF splash applies to mobs, `AlchemyListener.java:117-121`) but takes no DOT damage. Generalizing this to all `LivingEntity`s would require a global entity-tick path and was left for a follow-up.
 - **`BREW` quest objective is unimplemented.** `QuestObjectiveTypes.java:21` declares `BREW = "brew"` and `docs/Objective_list.md:85-89` documents it, but no objective handler/type class exists.
-- **Static recipe path is degenerate.** The `recipes/alchemy.yml` SHAPELESS recipes output a plain `POTION` item (base type water) — a "swiftness" brew through the static path produces a water potion, not a Valmora potion. The dynamic handler is the only real brewing path.
+
+### Decided (2026-08-07): active effects are *intentionally* never cleared on reload
+
+`AlchemyManager.clear()` (`:72-76`) only clears the three YAML-backed registries (`effectRegistry`, `ingredientIndex`, `modifierRegistry`) — `activeEffects` and `hardcodedEffects` are deliberately left alone, so a `/valmora reload` keeps every in-memory active effect and its pending expiry/`onTick` running. **Decision: keep this.** The alternative (clearing on reload) would silently strip every online player's active buffs/debuffs — including their stat modifiers, mid-duration — on every routine admin reload, which is worse than the status quo of effects simply surviving it. `hardcodedEffects` is safe to leave alone regardless, since `registerHardcodedEffects()` re-registers the same fixed set of handlers over the same keys every `onEnable()` — never a source of drift. The real, separate limitation is that **effects still don't survive a full server restart** (no DB persistence) — that's the actual gap worth revisiting, not the reload behavior (see Possible Improvements).
 
 ### Resolved in this pass
 
@@ -589,11 +588,13 @@ AlchemyManager alchemy = ValmoraAPI.getInstance().getAlchemyManager();
 - **Tier/`max-level` mismatches now warn at parse time.** `AlchemyEffectLoader.parse` logs a warning for any tier whose `level` exceeds the effect's `max-level`, instead of silently clamping only at brew time.
 - **`/potion` has tab completion and reuses one handler.** `PotionCommand` implements `TabCompleter` (subcommand, effect id, level, player name) and holds a single `AlchemyMachineHandler` instance instead of constructing one per invocation.
 - **Brewing grants Alchemy XP.** `skills/alchemy.yml` now has a `sources: BREW_POTION: DEFAULT: 15.0` entry, and `AlchemyBrewEventFactory` grants `BREW_POTION` XP (keyed by the brewed effect id, falling back to `DEFAULT`) to the brewing player when a dynamic brew completes — independent of the unrelated vanilla-`BrewEvent`-based `SkillListener.onBrew`.
+- **Lingering potions are now handled.** `AlchemyListener.onLingeringSplash` cancels vanilla lingering behavior for Valmora potions and applies the effect once, immediately, to every valid entity within the cloud's radius at impact — a Valmora splash potion converted at a brewing stand (dragon's breath) now does something instead of falling through to plain vanilla. Simplified relative to true lingering behavior: no reapplication to entities that walk into the cloud later while it lingers (documented in the handler's Javadoc).
+- **Poison (and any future DOT-style hardcoded effect) now ticks for all `LivingEntity`s, not just players.** `HardcodedAlchemyEffect.onTick` was regeneralized from `Player` to `LivingEntity`, `AlchemyManager.tick(Player)` became `tick(LivingEntity)`, and the module's tick task now iterates every entity UUID with an active effect (`AlchemyManager.getTrackedEntityIds()`) via `Server.getEntity(uuid)` instead of only `Bukkit.getOnlinePlayers()`. A mob hit by a DEBUFF splash/lingering potion now actually takes poison DOT damage.
+- **The degenerate static SHAPELESS recipe path was removed.** `recipes/alchemy.yml` (13 recipes, all outputting a plain vanilla `POTION`) was deleted rather than "fixed" — it was provably unreachable dead content, not just low-quality: `RecipeEngine.match()` always checks the registered `DynamicMachineHandler` for a machine **before** YAML recipes (CLAUDE.md §9), and `AlchemyModule` registers `AlchemyMachineHandler` for machine id `"alchemy"`, so no craft attempt on that machine could ever reach these YAML recipes in the first place. There is no way for a static YAML recipe to produce a "real" Valmora potion regardless (those are procedurally built by `buildPotionItem`, not registered `ItemRegistry` items an `outputs.result.item` could reference) — so "fixing" the output was never actually possible; removing the misleading dead file was the correct fix. `YamlConfigLoadTest` updated to match.
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Persist or explicitly clear active effects.** Either add a database table for active effects (surviving restart) or document + intentionally clear them on reload; right now the behavior is accidental.
-- **Allow `onTick` for non-player entities** — generalize `HardcodedAlchemyEffect.onTick` to `LivingEntity` (or a separate tick path) so poison/burning-style DOTs work on mobs.
+- **Persist active effects across a full restart.** They already correctly survive `/valmora reload` (see the "Decided" note in §8); a DB table keyed by `(uuid, effect_id, level, expires_at)` would additionally survive a real server restart, at the cost of designing around effects that expired while offline.
 - **Add unit tests.** There are none for the alchemy module; the stat/`AlchemyVariableProvider`/`AlchemyMachineHandler` logic (esp. modifier combination order) is a good Mockito target following the `ExpressionTest` pattern (see AGENTS.md §9).

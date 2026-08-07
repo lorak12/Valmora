@@ -35,7 +35,6 @@ class YamlConfigLoadTest {
                 "/skills/alchemy.yml",
                 "/recipes/forge.yml",
                 "/recipes/crafting_table.yml",
-                "/recipes/alchemy.yml",
                 "/alchemy/effects.yml",
                 "/alchemy/modifiers.yml",
                 "/alchemy/healing_boost.yml",
@@ -116,8 +115,7 @@ class YamlConfigLoadTest {
 
     @Test
     void testRecipeFiles_eachRecipeHasMachineAndType() {
-        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml",
-                "/recipes/alchemy.yml")) {
+        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);
@@ -133,8 +131,7 @@ class YamlConfigLoadTest {
     @Test
     void testRecipeTypes_areValidValues() {
         Set<String> validTypes = Set.of("EXACT_SLOT", "SHAPED", "SHAPELESS");
-        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml",
-                "/recipes/alchemy.yml")) {
+        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);

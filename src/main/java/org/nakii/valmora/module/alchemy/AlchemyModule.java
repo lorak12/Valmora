@@ -59,8 +59,13 @@ public class AlchemyModule implements ReloadableModule {
 
         int intervalTicks = plugin.getConfig().getInt("alchemy.tick-interval", 20);
         tickTaskId = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
-                alchemyManager.tick(player);
+            // Drives every entity currently holding an active effect, not just online players —
+            // e.g. a mob hit by a DEBUFF splash/lingering potion now also gets onTick (poison DOT).
+            for (java.util.UUID uuid : alchemyManager.getTrackedEntityIds()) {
+                org.bukkit.entity.Entity entity = plugin.getServer().getEntity(uuid);
+                if (entity instanceof org.bukkit.entity.LivingEntity living) {
+                    alchemyManager.tick(living);
+                }
             }
         }, 20L, intervalTicks).getTaskId();
     }
