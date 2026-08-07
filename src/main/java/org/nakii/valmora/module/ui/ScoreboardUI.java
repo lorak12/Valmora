@@ -172,7 +172,7 @@ public class ScoreboardUI {
 
         try {
             var tm = ValmoraAPI.getInstance().getTimeManager();
-            if (tm != null) {
+            if (tm != null && tm.isScoreboardEnabled()) {
                 var snap = tm.getSnapshot();
                 lines.add(Formatter.format("<aqua>⏰ <white>" + snap.formattedTime()
                         + "  " + snap.timeOfDayMiniColor() + snap.timeOfDayEmote()

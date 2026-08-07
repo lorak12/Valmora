@@ -37,7 +37,47 @@ public class TimeCommand implements CommandExecutor {
             return true;
         }
 
-        sender.sendMessage(Formatter.format("<red>Usage: /time [info|reset]"));
+        if (args[0].equalsIgnoreCase("set")) {
+            // /time set <year> <season> <phase> <day>
+            if (args.length < 5) {
+                sender.sendMessage(Formatter.format("<red>Usage: /time set <year> <season> <phase> <day>"));
+                return true;
+            }
+            int year;
+            int day;
+            try {
+                year = Integer.parseInt(args[1]);
+                day = Integer.parseInt(args[4]);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(Formatter.format("<red>Year and day must be numbers."));
+                return true;
+            }
+            Season season;
+            Phase phase;
+            try {
+                season = Season.valueOf(args[2].toUpperCase());
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(Formatter.format("<red>Invalid season. Must be one of: SPRING, SUMMER, AUTUMN, WINTER."));
+                return true;
+            }
+            try {
+                phase = Phase.valueOf(args[3].toUpperCase());
+            } catch (IllegalArgumentException e) {
+                sender.sendMessage(Formatter.format("<red>Invalid phase. Must be one of: EARLY, MID, LATE."));
+                return true;
+            }
+
+            timeManager.setDate(year, season, phase, day);
+            TimeSnapshot snap = timeManager.getSnapshot();
+            sender.sendMessage(Formatter.format(
+                    "<green>Time set. Now: <white>" + snap.phaseName() + " " + snap.seasonName()
+                    + ", Day " + snap.dayInPhase() + ", Year " + snap.year()
+                    + " (" + snap.formattedTime() + ")"
+            ));
+            return true;
+        }
+
+        sender.sendMessage(Formatter.format("<red>Usage: /time [info|reset|set <year> <season> <phase> <day>]"));
         return true;
     }
 

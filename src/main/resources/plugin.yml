@@ -37,8 +37,8 @@ commands:
     permission: valmora.admin.gui
     description: Gui debugging and opening commands.
   time:
-    usage: /time [info|reset]
-    description: Display or reset the Valmora RPG calendar clock.
+    usage: /time [info|reset|set <year> <season> <phase> <day>]
+    description: Display, reset, or set the Valmora RPG calendar clock.
   potion:
     usage: /potion give <effect_id> <level> [player]
     permission: valmora.admin

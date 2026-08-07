@@ -171,7 +171,9 @@ Notes on the math:
 - **Negative-safe:** `Math.floorMod` (not `%`) is used for phase/season indexing so negative `totalDays` (possible with a large negative offset or world time) never indexes out of bounds.
 - **Phase/season length is fixed:** 30 days/phase, 3 phases/season, 4 seasons/year, 360 days/year. These constants are compile-time literals — there is no config knob for them.
 
-**`resetOffset()`** (`TimeManager.java:142-148`): recomputes `dayOffset` from the configured `time.start-*` values via `computeInitialOffset()`, refreshes `lastPhase`/`lastSeason` from the new snapshot, and saves. This is what `/time reset` calls. **It realigns the calendar to the `time.start-*` position *relative to the current world day*** — it does not zero the offset to 0.
+**`resetOffset()`**: recomputes `dayOffset` from the configured `time.start-*` values via `computeInitialOffset()`, refreshes `lastPhase`/`lastSeason` from the new snapshot, and saves. This is what `/time reset` calls. **It realigns the calendar to the `time.start-*` position *relative to the current world day*** — it does not zero the offset to 0.
+
+**`setDate(year, season, phase, day)`** *(added 2026-08-07)*: the explicit-date sibling of `resetOffset()` — same `targetDays - currentWorldDays` math as `computeInitialOffset()`, but from the method's arguments instead of `config.yml`'s `time.start-*` keys. `day` is clamped to `[1, 30]`. Refreshes `lastPhase`/`lastSeason`/`lastWorldDay` and saves, same as `resetOffset()`. Backs `/time set`.
 
 **`save()`** (`TimeManager.java:150-159`): writes a fresh `YamlConfiguration` with a single key `day-offset` to `plugins/Valmora/time.yml`; IO errors are logged as warnings but never thrown.
 
@@ -186,14 +188,15 @@ then returns `targetDays - currentWorldDays` (`TimeManager.java:168-175`). This 
 
 **Helpers:** `parseSeason`/`parsePhase` (`TimeManager.java:178-184`) parse config strings via `valueOf(...toUpperCase())` with `SPRING`/`EARLY` fallbacks on any exception; `capitalize` (`TimeManager.java:186-189`) uppercases the first char and lowercases the rest.
 
-### 3.3 `TimeCommand` — `/time [info|reset]`
+### 3.3 `TimeCommand` — `/time [info|reset|set <year> <season> <phase> <day>]`
 
 `TimeCommand.java:9` — a `CommandExecutor` constructed with a `TimeManager` (`TimeCommand.java:11-15`). Registered in `Valmora.onEnable()` (`Valmora.java:241`), never inside the module — per `AGENTS.md` §6.3.
 
-**`onCommand(...)`** (`TimeCommand.java:18-42`):
-1. **`info` (or no args)** → `sendInfo(sender)` (`TimeCommand.java:19-22`). This path has **no permission check** — any player can view the time.
-2. **`reset`** → requires `valmora.admin`; without it the player gets `"<red>You don't have permission to use this command."` (`TimeCommand.java:24-27`). On success: `timeManager.resetOffset()`, then confirms with the new position (`TimeCommand.java:29-38`).
-3. Anything else → `"<red>Usage: /time [info|reset]"` (`TimeCommand.java:40`).
+**`onCommand(...)`**:
+1. **`info` (or no args)** → `sendInfo(sender)`. This path has **no permission check** — any player can view the time.
+2. **`reset`** → requires `valmora.admin`; without it the player gets `"<red>You don't have permission to use this command."`. On success: `timeManager.resetOffset()`, then confirms with the new position.
+3. **`set <year> <season> <phase> <day>`** *(added 2026-08-07)* → requires `valmora.admin`. Parses `year`/`day` as integers and `season`/`phase` via `Season.valueOf`/`Phase.valueOf` (case-insensitive), with a distinct error message for each bad argument. On success: `timeManager.setDate(year, season, phase, day)`, then confirms with the new position — same confirmation shape as `reset`.
+4. Anything else → `"<red>Usage: /time [info|reset|set <year> <season> <phase> <day>]"`.
 
 **`sendInfo(...)`** (`TimeCommand.java:44-54`): builds a MiniMessage block:
 ```
@@ -208,8 +211,8 @@ The time line combines `timeOfDayMiniColor()` (a MiniMessage color tag) + `timeO
 The command declaration in `plugin.yml:29-31` is:
 ```yaml
 time:
-  usage: /time [info|reset]
-  description: Display or reset the Valmora RPG calendar clock.
+  usage: /time [info|reset|set <year> <season> <phase> <day>]
+  description: Display, reset, or set the Valmora RPG calendar clock.
 ```
 
 ### 3.4 `TimeSnapshot` — the immutable value type
@@ -261,7 +264,7 @@ Defined in `src/main/resources/config.yml:65-83`. All keys are read in `TimeMana
 | `time.start-day` | int | `1` | `TimeManager.java:166` | Starting day-of-phase, clamped to `max(1, …)` (`TimeManager.java:166`). Not clamped to ≤ 30. |
 | `time.season-names` | list of string | `[Spring, Summer, Autumn, Winter]` | `TimeManager.java:41` | Display names used in scoreboard, `/time`, season announcements and `$time.season$`/`$time.phase$`. Indexed by `season.ordinal()` with a `capitalize(season.name())` fallback if the list is shorter (`TimeManager.java:136-137`). |
 | `time.phase-names` | list of string | `[Early, Mid, Late]` | `TimeManager.java:42` | Same role for phases (`TimeManager.java:134-135`). |
-| `time.scoreboard-enabled` | boolean | `true` | **never** | **Dead option.** Present in the shipped `config.yml:83` but **not read anywhere** in the codebase (a repo-wide grep for `scoreboard-enabled` matches only `config.yml`). The scoreboard's time lines are instead controlled by `ui.yml` `scoreboard.lines` and are always rendered. See §8. |
+| `time.scoreboard-enabled` | boolean | `true` | `TimeManager.java` (`isScoreboardEnabled()`) | *(wired 2026-08-07, was dead)* Gates only `ScoreboardUI`'s legacy pre-config-load fallback time block. The normal `ui.yml`-driven scoreboard is unaffected — admins there already control which lines (if any) show time by editing `scoreboard.lines` directly. |
 
 The `time.start-*` keys only matter on **first launch** (when `time.yml` does not exist yet, `TimeManager.java:48-51`) and when `/time reset` is run. After that, the position lives in `time.yml` (§5) — editing `time.start-*` later has no effect until a reset.
 
@@ -274,8 +277,8 @@ Unlike most Valmora modules, the Time module has **no dedicated content folder**
 `plugin.yml:29-31`:
 ```yaml
 time:
-  usage: /time [info|reset]
-  description: Display or reset the Valmora RPG calendar clock.
+  usage: /time [info|reset|set <year> <season> <phase> <day>]
+  description: Display, reset, or set the Valmora RPG calendar clock.
 ```
 No `permission:` is declared here — the `reset` subcommand enforces `valmora.admin` in code (`TimeCommand.java:24`). (`plugin.yml` defines no `permissions:` section at all; `valmora.admin` is a code-checked node.)
 
@@ -285,19 +288,18 @@ No `permission:` is declared here — the `reset` subcommand enforces `valmora.a
 
 - **No database involvement.** The module never touches `DataStore`/DAO. The only persistent state is the `day-offset` value.
 
-- **File:** `plugins/Valmora/time.yml` — a bare two-line file:
+- **File:** `plugins/Valmora/time.yml`:
   ```yaml
   day-offset: 123
+  last-world-day: 456
   ```
-  Written by `TimeManager.save()` (`TimeManager.java:150-159`) on **first launch** (`TimeManager.java:50`), on every `onDisable()` (`TimeManager.java:70`), and on `resetOffset()` (`TimeManager.java:147`). Read on every `onEnable()` (`TimeManager.java:44-47`).
+  `last-world-day` was added 2026-08-07 — see below. Written by `TimeManager.save()` on **first launch**, on every `onDisable()`, on `resetOffset()`/`setDate(...)`, and after every real day-change (`tick()`). Read on every `onEnable()`.
 
-- **Meaning of `day-offset`:** `totalDays = world.getFullTime()/24000 + dayOffset` (`TimeManager.java:125`). It is the (potentially negative) number of days that must be added to the world's raw day count to reach the configured RPG start date. It is computed once as `targetDays - currentWorldDays` (`TimeManager.java:161-176`) and then stays constant forever — the calendar advances because `world.getFullTime()` advances.
+- **Meaning of `day-offset`:** `totalDays = world.getFullTime()/24000 + dayOffset`. It is the (potentially negative) number of days that must be added to the world's raw day count to reach the configured RPG start date. It is computed once as `targetDays - currentWorldDays` and then stays constant forever — the calendar advances because `world.getFullTime()` advances.
 
-- **State that is *not* persisted:** `lastWorldDay`, `lastPhase`, `lastSeason` (`TimeManager.java:28-30`) are pure runtime fields. Consequences:
-  - On a reload/restart, `lastWorldDay` is reseeded to the *current* day (`TimeManager.java:56-57`), so **day-change events are never replayed** for days that passed while the server was offline (there is no catch-up).
-  - The season announcement will only fire for a season change that actually happens *after* load.
+- **Offline/skip catch-up state** *(added 2026-08-07)*: `last-world-day` is the raw world-day count (not `totalDays`) this module last observed. On `onEnable()`, if it's less than the current world day, `reconcileMissedTransitions` fires the net day-change/season-change events for the gap once — see §3.2 and §8's "Resolved 2026-08-07" note. `lastPhase`/`lastSeason` (in-memory only) are then re-derived from the current snapshot as before; they don't need their own persistence since the reconciliation pass already accounts for the gap.
 
-- **`time.yml` robustness:** reading uses `tc.getLong("day-offset", computeInitialOffset())` (`TimeManager.java:47`), so a missing/corrupt key falls back to the config-derived offset. A corrupt/non-YAML file would throw at `YamlConfiguration.loadConfiguration` — there is no try/catch around the load (`TimeManager.java:45-47`), so a malformed `time.yml` would abort `onEnable()`.
+- **`time.yml` robustness:** reading uses `tc.getLong("day-offset", computeInitialOffset())`, so a missing/corrupt key falls back to the config-derived offset. The whole read is now wrapped in try/catch *(added 2026-08-07, was unguarded)* — a corrupt/non-YAML file logs a warning and falls back to `computeInitialOffset()` instead of aborting `onEnable()`.
 
 - **Threading:** the tick task and all persistence run on the main thread (`TimeManager.java:59`); `save()` is only called from main-thread contexts. No async concerns.
 
@@ -331,7 +333,7 @@ The public surface of `TimeManager` (`TimeManager.java`):
 - `ValmoraDayChangeEvent` (`ValmoraDayChangeEvent.java:7`)
 - `ValmoraSeasonChangeEvent` (`ValmoraSeasonChangeEvent.java:9`)
 
-**Command:** `/time [info|reset]` (`TimeCommand.java:18-42`, declared `plugin.yml:29-31`).
+**Command:** `/time [info|reset|set <year> <season> <phase> <day>]` (declared `plugin.yml`).
 
 ---
 
@@ -399,31 +401,35 @@ Unknown or empty paths return `null` (`TimeVariableProvider.java:18`, `:37`). Th
 
 ## 8. Unfinished Things / TODOs
 
-- **`time.scoreboard-enabled` is dead config.** `config.yml:83` ships the option but no Java code reads it. The scoreboard always renders the time lines; the flag is either an unimplemented toggle or stale.
-- **`/time` cannot set time.** Only `info` and `reset` exist (`TimeCommand.java:19-40`). There is no way for an admin to jump to a specific day/season/year without restarting with a chosen `time.start-*` (or editing `time.yml` and reloading).
-- **Read-only observer.** `TimeManager` never calls `World.setTime(...)`; there is no day-length control, no time acceleration/slowdown, and no per-player time. If other content needs a custom day/night cycle, this module does not provide it.
 - **`ValmoraSeasonChangeEvent` fires on phase changes too.** The event name implies season-only (`ValmoraSeasonChangeEvent.java:9`), but `TimeManager.tick()` fires it whenever *either* phase or season changes (`TimeManager.java:92`). Consumers must check `isNewSeason()`.
-- **No offline catch-up.** `lastWorldDay`/`lastPhase`/`lastSeason` are runtime-only and reseeded on load (`TimeManager.java:56-57`); day-change events never replay for offline time. (The calendar module independently seeds its active set — `CalendarEventModule.java:39-48` — but does not replay `on-start` either.)
 - **No hour/minute granularity events.** Only the per-second `ValmoraTimeTickEvent` and per-day `ValmoraDayChangeEvent` exist; there is no "hour changed" hook for content that wants per-hour triggers.
 - **Silent EPOCH on missing world.** If `time.world` isn't loaded, `getSnapshot()` returns `EPOCH` (`TimeManager.java:122`) — the calendar silently reads as "06:00, Spring Day 1, Year 1" until the world exists. The tick still fires events with the EPOCH snapshot every second (`TimeManager.java:77-78`).
 - **Hard-coded announcement.** The season message (`TimeManager.java:112-113`) is a compile-time MiniMessage literal, not configurable or localizable; it also only uses the action-bar channel.
-- **Time constants are compile-time.** 30/90/360-day lengths and the 06:00 day boundary are literals (`TimeManager.java:127-132`); no config knobs.
-- **`time.yml` load is unguarded.** A malformed `time.yml` throws during `YamlConfiguration.loadConfiguration` (`TimeManager.java:45-47`) with no fallback try/catch (the `getLong` default only covers a missing key).
 - **`TimeManager` itself is untested.** Only `TimeSnapshot` and `TimeVariableProvider` have unit tests; the snapshot-derivation math in `getSnapshot()` and the rollover logic in `tick()` have no direct coverage.
 - **Doc drift:** `docs/VALMORA_DOCUMENTATION.md:1569-1577` documents only a 5-variable subset of `$time.*$`; the full set is in `TimeVariableProvider.java:23-38`. The `MODULE_DEVELOPMENT.md` §9 load-order list (`MODULE_DEVELOPMENT.md:493-517`) predates several late modules — the comment block at `Valmora.java:186-222` is authoritative.
 - **Project roadmap** (`docs/todo.md:56`, `:66`): "mob spawning naturally on time interval" and "events like a schematic that appears based on time of year" are listed as future work — neither exists yet; both would build on this module's snapshot/events.
+
+### Resolved 2026-08-07
+
+- **`time.scoreboard-enabled` wired.** `TimeManager.isScoreboardEnabled()` reads it (default `true`); `ScoreboardUI.legacyLines()`'s hardcoded time block is now skipped when disabled. Scoped intentionally to the *legacy fallback* only — the normal `ui.yml`-driven scoreboard already gives admins full control over which lines (if any) render time, so there was nothing to gate there.
+- **`/time set` added.** `/time set <year> <season> <phase> <day>` (`valmora.admin`) via `TimeManager.setDate(...)`, which computes `dayOffset` the same way `computeInitialOffset()`/`resetOffset()` do, just from explicit arguments.
+- **Offline/skip catch-up added.** A `last-world-day` marker persists in `time.yml`, updated on every day-change and read back on `onEnable()`. If the current world day has moved past the last-recorded one, `reconcileMissedTransitions` fires the *net* day-change/season-change events once for the gap — same scoped approach (net transition, not a full day-by-day replay) as the Calendar module's own catch-up (`docs/modules/design/calendar.md` §3.1/§5). Under normal operation this rarely fires, since `world.getFullTime()` doesn't advance while the server process is down — it mainly guards against external time manipulation (another plugin/command, or a hand-edited `time.yml`).
+- **`time.yml` load guarded.** `onEnable()` wraps the read in try/catch; a malformed file now logs a warning and falls back to `computeInitialOffset()` instead of aborting `onEnable()`.
+
+### Decided 2026-08-07: read-only observer, and calendar constants stay compile-time
+
+Two items were evaluated and deliberately **not** implemented this pass, per the backlog's own "or at least document" allowance:
+
+- **Day-length control / acceleration / per-player time.** `TimeManager` remains a pure read-only observer — it never calls `World.setTime(...)`. Real day-length/acceleration/per-player time would change the `TimeSnapshot`/`getSnapshot()` contract and every downstream assumption about how fast the calendar advances; scoping that properly is a separate, larger feature.
+- **Season-length constants (30/90/360-day) and the 06:00 boundary stay compile-time.** Making these configurable is cross-cutting risk, not a quick config tweak: the Calendar module's own catch-up math (`CalendarEventModule.snapshotForTotalDays`) duplicates the same 30/90/360 arithmetic, and its `day-start`/`day-end` `[1,30]` validation (added in the same 2026-08-07 pass) implicitly assumes a 30-day phase. Both would need to move in lockstep with any change here.
 
 ---
 
 ## 9. Possible Improvements / Changes
 
-- **Add time manipulation commands** — e.g. `/time set <year> <season> <phase> <day>`, `/time add <days>`, or `/time offset <n>` — implemented by mutating `dayOffset` (the one lever that exists) and saving. Requires a `valmora.admin` guard and refreshing `lastPhase`/`lastSeason` like `resetOffset()` does (`TimeManager.java:142-148`).
-- **Honor or remove `scoreboard-enabled`** — either wire `config.yml:83` into `ScoreboardUI` (it currently can't see it; the scoreboard reads `ui.yml`, not `config.yml`) or delete the dead key.
-- **Make calendar constants configurable** — day length per RPG day (currently fixed 24000 ticks), phase/season lengths, the hour-offset (+6) and the day/night boundary (06:00–18:00). Would change the `TimeSnapshot`/`getSnapshot()` contract, so default-preserving config with fallbacks is important.
-- **Persist runtime state** — write `lastWorldDay` (and optionally `lastPhase`/`lastSeason`) into `time.yml` so a reload can replay missed `ValmoraDayChangeEvent`/`ValmoraSeasonChangeEvent` transitions (offline catch-up). Coordinate with the calendar module so `on-start`/`on-end` don't double-fire.
+- **Make calendar constants configurable** — day length per RPG day (currently fixed 24000 ticks), phase/season lengths, the hour-offset (+6) and the day/night boundary (06:00–18:00). Would change the `TimeSnapshot`/`getSnapshot()` contract and the Calendar module's mirrored math (see the "Decided" note above), so default-preserving config with fallbacks — rolled out to both modules together — is important.
 - **Add hour/minute events** — `ValmoraHourChangeEvent` (and keep tick as the coarse heartbeat) so content can schedule per-hour effects without polling.
 - **Configurable announcement** — move the season message template (`TimeManager.java:112-113`) into `config.yml` and add a chat/announcement channel option; also allow disabling it.
-- **Guard `time.yml` loading** — wrap `YamlConfiguration.loadConfiguration` (`TimeManager.java:45-47`) in try/catch so a corrupt file degrades to `computeInitialOffset()` instead of failing `onEnable()`.
 - **Per-world calendar support** — today a single `time.world` drives everything (`TimeManager.java:40`); a `Map<worldName, offset>` would let multiple worlds keep independent calendars.
 - **Expose richer API** — convenience methods on `TimeManager` such as `isDay()`, `getHour()`, `isSeason(Season)` delegating to `getSnapshot()`, plus maybe a `TimeSnapshot.of(World)` static for computing a snapshot for an arbitrary world without touching module state.
 - **Unit tests for the manager** — mock a `World` (`getTime()`, `getFullTime()`) and assert the `getSnapshot()` derivation table and `tick()` rollover/event-firing logic, following the `ExpressionTest`/`TimeVariableProviderTest` Mockito pattern (`AGENTS.md` §9).

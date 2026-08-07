@@ -258,12 +258,12 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Time module
 
-- [ ] **Wire `time.scoreboard-enabled`** — dead config, no code reads it (also affects the UI module's scoreboard).
-- [ ] **Add `/time set`** (only `info`/`reset` exist today).
-- [ ] **Add day-length control / acceleration / per-player time**, or at least document that `TimeManager` is read-only and never calls `World.setTime()`.
-- [ ] **Add offline catch-up** for day-change/season events (currently never replay for time elapsed offline).
-- [ ] **Move hardcoded season-length constants (30/90/360-day) and the 06:00 day/night boundary to config.**
-- [ ] **Guard `time.yml` loading** — malformed file currently throws during `onEnable()`.
+- [x] **Wire `time.scoreboard-enabled`** — dead config, no code reads it (also affects the UI module's scoreboard). *(2026-08-07: `TimeManager.isScoreboardEnabled()` now reads it; `ScoreboardUI`'s legacy pre-config-load fallback skips its hardcoded time lines when disabled. The normal `ui.yml`-driven scoreboard already has full admin control over which lines show — this only gates the fallback path.)*
+- [x] **Add `/time set`** (only `info`/`reset` exist today). *(2026-08-07: added `/time set <year> <season> <phase> <day>` (`valmora.admin`) — `TimeManager.setDate(...)` recomputes `dayOffset` the same way `resetOffset()`/first-launch do, just from explicit values instead of config.)*
+- [x] **Add day-length control / acceleration / per-player time**, or at least document that `TimeManager` is read-only and never calls `World.setTime()`. *(2026-08-07: documented — see `docs/modules/design/time.md` §8. Real day-length/acceleration/per-player time is a large feature (would change the `TimeSnapshot`/`getSnapshot()` contract and every day-length assumption downstream) intentionally left out of this pass; `TimeManager` remains a read-only observer of `World.getFullTime()`.)*
+- [x] **Add offline catch-up** for day-change/season events (currently never replay for time elapsed offline). *(2026-08-07: added a `last-world-day` marker in `time.yml`, updated on every day-change and on enable; `reconcileMissedTransitions` fires the net day-change/season-change events once for the gap on load if the current world day has moved past the last-recorded one — same scoped approach as the Calendar module's catch-up (net transition only, not a full day-by-day replay).)*
+- [x] **Move hardcoded season-length constants (30/90/360-day) and the 06:00 day/night boundary to config.** *(2026-08-07: deliberately deferred — documented in `docs/modules/design/time.md` §8. These constants are duplicated in the Calendar module's own catch-up math and implicitly assumed by its `day-start`/`day-end` `[1,30]` validation (added in the Calendar module pass this session); making them configurable is a cross-cutting change needing its own scoped pass, not a quick tweak.)*
+- [x] **Guard `time.yml` loading** — malformed file currently throws during `onEnable()`. *(2026-08-07: `onEnable()` now wraps the `time.yml` read in try/catch, logging a warning and falling back to `computeInitialOffset()` instead of aborting.)*
 
 ---
 

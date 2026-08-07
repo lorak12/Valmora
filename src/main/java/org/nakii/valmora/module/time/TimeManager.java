@@ -28,6 +28,7 @@ public class TimeManager {
     private long lastWorldDay = -1;
     private Phase lastPhase;
     private Season lastSeason;
+    private boolean scoreboardEnabled = true;
 
     private BukkitTask dayCheckTask;
 
@@ -40,11 +41,22 @@ public class TimeManager {
         worldName = cfg.getString("time.world", "world");
         seasonNames = cfg.getStringList("time.season-names");
         phaseNames = cfg.getStringList("time.phase-names");
+        scoreboardEnabled = cfg.getBoolean("time.scoreboard-enabled", true);
 
         File timeFile = new File(plugin.getDataFolder(), "time.yml");
+        Long lastKnownWorldDay = null;
         if (timeFile.exists()) {
-            YamlConfiguration tc = YamlConfiguration.loadConfiguration(timeFile);
-            dayOffset = tc.getLong("day-offset", computeInitialOffset());
+            try {
+                YamlConfiguration tc = YamlConfiguration.loadConfiguration(timeFile);
+                dayOffset = tc.getLong("day-offset", computeInitialOffset());
+                // Offline/skip catch-up marker (added 2026-08-07) — see reconcileMissedTransitions().
+                if (tc.contains("last-world-day")) lastKnownWorldDay = tc.getLong("last-world-day");
+            } catch (Exception e) {
+                // A malformed time.yml previously aborted onEnable() entirely (unguarded
+                // YamlConfiguration.loadConfiguration). Degrade to the config-derived offset instead.
+                plugin.getLogger().warning("Failed to read time.yml (" + e.getMessage() + ") — falling back to the configured start date.");
+                dayOffset = computeInitialOffset();
+            }
         } else {
             dayOffset = computeInitialOffset();
             save();
@@ -54,12 +66,63 @@ public class TimeManager {
         lastPhase = initial.phase();
         lastSeason = initial.season();
         World world = Bukkit.getWorld(worldName);
-        lastWorldDay = world != null ? world.getFullTime() / 24000 : 0;
+        long currentWorldDay = world != null ? world.getFullTime() / 24000 : 0;
+
+        // Offline/skip catch-up: under normal operation world time never advances while the
+        // server process itself is down, so this is mainly a safety net for external time
+        // manipulation (another plugin/command fast-forwarding the world clock, or a
+        // hand-edited time.yml) rather than something that fires on every restart.
+        if (lastKnownWorldDay != null && lastKnownWorldDay < currentWorldDay) {
+            reconcileMissedTransitions(lastKnownWorldDay);
+        }
+        lastWorldDay = currentWorldDay;
 
         dayCheckTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
         plugin.getLogger().info("Time loaded: " + initial.phaseName() + " " + initial.seasonName()
                 + ", Day " + initial.dayInPhase() + ", Year " + initial.year()
                 + " (" + initial.formattedTime() + ")");
+    }
+
+    /** Whether the sidebar scoreboard's built-in fallback time display is enabled ({@code time.scoreboard-enabled}, default true). Only affects {@code ScoreboardUI}'s legacy pre-config-load fallback — the normal `ui.yml`-driven scoreboard has full admin control over which lines (if any) show time. */
+    public boolean isScoreboardEnabled() {
+        return scoreboardEnabled;
+    }
+
+    /**
+     * Fires the day-change/season-change events once for the *net* transition between the last
+     * day this module observed and now — not a full day-by-day replay (an intermediate day's
+     * events, if any were skipped, are not individually replayed). Mirrors the Calendar module's
+     * `reconcileMissedTransitions` (see docs/modules/design/calendar.md §3.1/§5).
+     */
+    private void reconcileMissedTransitions(long fromWorldDay) {
+        TimeSnapshot fromSnap = snapshotForWorldDay(fromWorldDay);
+        TimeSnapshot toSnap = getSnapshot();
+
+        plugin.getServer().getPluginManager().callEvent(new ValmoraDayChangeEvent(toSnap));
+
+        if (toSnap.phase() != fromSnap.phase() || toSnap.season() != fromSnap.season()) {
+            boolean isNewSeason = toSnap.season() != fromSnap.season();
+            boolean isNewYear = isNewSeason && toSnap.season() == Season.SPRING && toSnap.phase() == Phase.EARLY;
+            plugin.getServer().getPluginManager().callEvent(new ValmoraSeasonChangeEvent(toSnap, isNewSeason, isNewYear));
+        }
+        plugin.getLogger().info("[Time] Reconciled a " + (getWorldDay() - fromWorldDay) + "-day gap on load — fired catch-up day/season events.");
+    }
+
+    private long getWorldDay() {
+        World world = Bukkit.getWorld(worldName);
+        return world != null ? world.getFullTime() / 24000 : 0;
+    }
+
+    /** Reconstructs a {@link TimeSnapshot} for an arbitrary world-day count (hour/minute pinned to midday — only phase/season/dayInPhase matter for the catch-up comparison). */
+    private TimeSnapshot snapshotForWorldDay(long worldDay) {
+        long totalDays = worldDay + dayOffset;
+        int dayInPhase = (int) Math.floorMod(totalDays, 30) + 1;
+        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / 30, 3)];
+        Season season = Season.values()[(int) Math.floorMod(totalDays / 90, 4)];
+        int year = Math.max(1, (int) (totalDays / 360) + 1);
+        String phaseName = phase.ordinal() < phaseNames.size() ? phaseNames.get(phase.ordinal()) : capitalize(phase.name());
+        String seasonName = season.ordinal() < seasonNames.size() ? seasonNames.get(season.ordinal()) : capitalize(season.name());
+        return new TimeSnapshot(12, 0, dayInPhase, phase, season, year, totalDays, phaseName, seasonName);
     }
 
     public void onDisable() {
@@ -105,6 +168,10 @@ public class TimeManager {
                     notifySeasonChange(daySnap);
                 }
             }
+
+            // Keep the catch-up marker current so a future onEnable() only ever needs to
+            // reconcile a genuine gap, not every normal day-change.
+            save();
         }
     }
 
@@ -147,10 +214,29 @@ public class TimeManager {
         save();
     }
 
+    /** Jumps the calendar to an explicit date — backs {@code /time set}. {@code day} is 1-indexed day-of-phase, clamped to `[1, 30]`. */
+    public void setDate(int year, Season season, Phase phase, int day) {
+        int clampedDay = Math.max(1, Math.min(30, day));
+        long targetDays = (long) (Math.max(1, year) - 1) * 360
+                + season.ordinal() * 90L
+                + phase.ordinal() * 30L
+                + (clampedDay - 1);
+        long currentWorldDays = getWorldDay();
+        dayOffset = targetDays - currentWorldDays;
+
+        TimeSnapshot snap = getSnapshot();
+        lastPhase = snap.phase();
+        lastSeason = snap.season();
+        lastWorldDay = currentWorldDays;
+        save();
+    }
+
     public void save() {
         File timeFile = new File(plugin.getDataFolder(), "time.yml");
         YamlConfiguration tc = new YamlConfiguration();
         tc.set("day-offset", dayOffset);
+        // Catch-up marker (added 2026-08-07) — see reconcileMissedTransitions().
+        tc.set("last-world-day", lastWorldDay >= 0 ? lastWorldDay : getWorldDay());
         try {
             tc.save(timeFile);
         } catch (IOException e) {
