@@ -43,6 +43,10 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
         forgeCostRegistry.load(plugin);
         loadDefinitions();
 
+        if (plugin.getScriptModule() != null) {
+            plugin.getScriptModule().registerProvider(new ReforgeVariableProvider(this));
+        }
+
         // Reforge anvil: item + specific stone → apply exact reforge, cost by item rarity
         plugin.getRecipeModule().getRecipeEngine().registerHandler("reforge_anvil", new DynamicMachineHandler() {
             @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return Optional.empty(); }
@@ -79,6 +83,11 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
     public Collection<ReforgeDefinition> getDefinitions() { return definitions.values(); }
 
     public ReforgeDefinition getDefinition(String id) { return definitions.get(id.toLowerCase()); }
+
+    public ForgeCostRegistry getForgeCostRegistry() { return forgeCostRegistry; }
+
+    /** Public wrapper so a script/GUI variable provider can format a cost the same way the stone lore does. */
+    public String formatCoinsPublic(int amount) { return formatCoins(amount); }
 
     // ─── DynamicMachineHandler: "reforge" machine (reforge.yml — stone-based) ───
 
@@ -143,15 +152,27 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
                     .get(Keys.REFORGE_ID_KEY, PersistentDataType.STRING)
                 : null;
 
+        // A custom item's own `reforge-pool:` (ItemDefinition) restricts eligible reforges to that
+        // allowlist — previously parsed onto the item (ItemFactory) but never actually read back
+        // here, so forge_random ignored it and rolled from every registered reforge regardless.
+        Set<String> allowedIds = null;
+        String poolRaw = baseItem.getItemMeta() != null
+                ? baseItem.getItemMeta().getPersistentDataContainer().get(Keys.REFORGE_POOL_KEY, PersistentDataType.STRING)
+                : null;
+        if (poolRaw != null && !poolRaw.isBlank()) {
+            allowedIds = new HashSet<>();
+            for (String s : poolRaw.split(",")) allowedIds.add(s.trim().toLowerCase(Locale.ROOT));
+        }
+
         List<ReforgeDefinition> eligible = new ArrayList<>();
         for (ReforgeDefinition def : definitions.values()) {
-            if (def.appliesTo(itemType) && !def.getId().equals(currentReforgeId)) {
-                eligible.add(def);
-            }
+            if (!def.appliesTo(itemType) || def.getId().equals(currentReforgeId)) continue;
+            if (allowedIds != null && !allowedIds.contains(def.getId().toLowerCase(Locale.ROOT))) continue;
+            eligible.add(def);
         }
         if (eligible.isEmpty()) return Optional.empty();
 
-        ReforgeDefinition chosen = eligible.get(ThreadLocalRandom.current().nextInt(eligible.size()));
+        ReforgeDefinition chosen = pickWeighted(eligible);
         int cost = forgeCostRegistry.getCost(rarity);
 
         if (!checkAndNotifyCoins(player, cost)) return Optional.empty();
@@ -161,6 +182,18 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
             consumeItem(inp, "base_item");
             deductCoins(player, cost);
         }));
+    }
+
+    /** Weighted random pick using each definition's `weight:` (default 1.0 = uniform, unchanged behavior). */
+    private ReforgeDefinition pickWeighted(List<ReforgeDefinition> eligible) {
+        double totalWeight = eligible.stream().mapToDouble(ReforgeDefinition::getWeight).sum();
+        double roll = ThreadLocalRandom.current().nextDouble() * totalWeight;
+        double cumulative = 0;
+        for (ReforgeDefinition def : eligible) {
+            cumulative += def.getWeight();
+            if (roll < cumulative) return def;
+        }
+        return eligible.get(eligible.size() - 1); // floating-point fallback
     }
 
     // ─── Core reforge logic ───
@@ -177,6 +210,22 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
             plugin.getItemManager().getItemRegistry().getItem(itemId)
                     .map(ItemDefinition::getStats)
                     .ifPresent(baseStats::putAll);
+        } else {
+            // Vanilla/unregistered item — there's no ItemDefinition to read a clean base from, so
+            // previously this silently produced an EMPTY baseStats, discarding whatever stats the
+            // item actually carried (e.g. hand-applied via /item modify). Reconstruct base by
+            // reading the item's own currently-stored stats and, if it was already reforged once,
+            // subtracting that previous reforge's bonuses back out (so re-reforging doesn't stack).
+            baseStats.putAll(plugin.getStatModule().loadStats(meta));
+            String previousReforgeId = meta.getPersistentDataContainer().get(Keys.REFORGE_ID_KEY, PersistentDataType.STRING);
+            if (previousReforgeId != null) {
+                ReforgeDefinition previous = definitions.get(previousReforgeId.toLowerCase(Locale.ROOT));
+                if (previous != null) {
+                    for (Map.Entry<String, Double> entry : previous.getStatBonusesForRarity(rarity).entrySet()) {
+                        baseStats.merge(entry.getKey(), -entry.getValue(), Double::sum);
+                    }
+                }
+            }
         }
 
         // Merge with rarity-scaled reforge bonuses
@@ -324,13 +373,20 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
                     if (statsSec == null) continue;
                     Map<String, Double> bonuses = new HashMap<>();
                     for (String statKey : statsSec.getKeys(false)) {
+                        // Previously an unknown/typo'd stat id just silently vanished from the
+                        // built lore later with no indication why — warn at load time instead.
+                        if (plugin.getStatModule().getStatRegistry().get(statKey.toLowerCase()).isEmpty()) {
+                            plugin.getLogger().warning("[" + filePath + "] Reforge '" + id
+                                    + "' references unknown stat id '" + statKey + "' under " + rarityKey + " — check for a typo.");
+                        }
                         bonuses.put(statKey.toLowerCase(), statsSec.getDouble(statKey));
                     }
                     statBonusesByRarity.put(rarity, bonuses);
                 }
             }
 
-            return LoadResult.success(new ReforgeDefinition(id, name, applicableTypes, statBonusesByRarity, generateStone));
+            double weight = section.getDouble("weight", 1.0);
+            return LoadResult.success(new ReforgeDefinition(id, name, applicableTypes, statBonusesByRarity, generateStone, weight));
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Failed to parse reforge '" + id + "': " + e.getMessage());
         }

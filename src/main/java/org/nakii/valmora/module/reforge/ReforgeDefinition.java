@@ -14,15 +14,24 @@ public class ReforgeDefinition {
     private final List<ItemType> applicableTypes;
     private final Map<Rarity, Map<String, Double>> statBonusesByRarity;
     private final boolean generateStone;
+    /** Relative weight for Random Forge selection — higher rolls more often. Default 1.0 (uniform). */
+    private final double weight;
 
     public ReforgeDefinition(String id, String name, List<ItemType> applicableTypes,
                               Map<Rarity, Map<String, Double>> statBonusesByRarity,
                               boolean generateStone) {
+        this(id, name, applicableTypes, statBonusesByRarity, generateStone, 1.0);
+    }
+
+    public ReforgeDefinition(String id, String name, List<ItemType> applicableTypes,
+                              Map<Rarity, Map<String, Double>> statBonusesByRarity,
+                              boolean generateStone, double weight) {
         this.id = id;
         this.name = name;
         this.applicableTypes = applicableTypes;
         this.statBonusesByRarity = new EnumMap<>(statBonusesByRarity);
         this.generateStone = generateStone;
+        this.weight = weight > 0 ? weight : 1.0;
     }
 
     public String getId() { return id; }
@@ -30,6 +39,7 @@ public class ReforgeDefinition {
     public List<ItemType> getApplicableTypes() { return applicableTypes; }
     public Map<Rarity, Map<String, Double>> getStatBonusesByRarity() { return statBonusesByRarity; }
     public boolean isGenerateStone() { return generateStone; }
+    public double getWeight() { return weight; }
 
     /** Returns the stat bonuses for the given rarity, falling back to the nearest lower rarity. */
     public Map<String, Double> getStatBonusesForRarity(Rarity rarity) {

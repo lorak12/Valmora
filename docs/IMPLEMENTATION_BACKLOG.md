@@ -200,16 +200,16 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Reforge module
 
-- [ ] **Expose `ReforgeModule` via `ValmoraAPI`.**
+- [x] **Expose `ReforgeModule` via `ValmoraAPI`.** *(2026-08-07: confirmed already done — docs drift, see the cross-cutting item at the top of this file.)*
 - [x] **Remove the dead `reforge` machine-id alias** (duplicate of `reforge_anvil`). *(2026-08-07: confirmed no GUI/recipe uses machine id `reforge` — only `reforge_anvil` — removed the `registerHandler("reforge", this)` line from `ReforgeModule.onEnable()`. Left `ReforgeModule`'s own `DynamicMachineHandler` method implementations in place (harmless, and removing `implements DynamicMachineHandler` entirely was out of scope for this item).)*
-- [ ] **Unregister reforge handlers from `RecipeEngine` in `onDisable()`** — currently leaks on single-module reload.
+- [x] **Unregister reforge handlers from `RecipeEngine` in `onDisable()`** — currently leaks on single-module reload. *(2026-08-07: done alongside the Recipe module pass — `ReforgeModule.onDisable()` now unregisters `reforge_anvil`/`forge_random`.)*
 - [ ] **Add a live output preview** in the Anvil/Forge GUI (currently empty until craft click).
 - [x] **Fix case-sensitive definition storage vs. lowercase lookups** — uppercase reforge keys become unreachable. *(2026-08-07: fixed alongside the cross-cutting case-sensitivity item above — see note there.)*
-- [ ] **Preserve base stats on vanilla items when reforged** (currently lost — empty `baseStats` for unregistered items).
-- [ ] **Support multi-id `reforge-pool` on custom items** — currently parsed but the anvil only reads the first id.
-- [ ] **Validate stat ids at load time** (typos currently vanish silently from lore instead of warning).
-- [ ] **Deduplicate the hardcoded coin-cost table** — currently defined in 3 places (`RARITY_COST`, Anvil GUI lore, stone lore builder).
-- [ ] **Add weighting for Random Forge** (currently uniform random).
+- [x] **Preserve base stats on vanilla items when reforged** (currently lost — empty `baseStats` for unregistered items). *(2026-08-07: for unregistered items, `buildReforgedItem` now reads the item's own currently-stored stats via `StatModule.loadStats`, subtracting a previous reforge's bonuses back out first (if any) so re-reforging doesn't stack instead of losing everything.)*
+- [x] **Support multi-id `reforge-pool` on custom items** — currently parsed but the anvil only reads the first id. *(2026-08-07: `matchForgeRandom` now reads the base item's own `REFORGE_POOL_KEY` (set from `ItemDefinition.reforgePool` by `ItemFactory`) as an eligibility allowlist — previously parsed onto the item but never read back for Random Forge.)*
+- [x] **Validate stat ids at load time** (typos currently vanish silently from lore instead of warning). *(2026-08-07: `parseDefinition` now warns when a `stat-bonuses-by-rarity` key isn't a registered stat id.)*
+- [x] **Deduplicate the hardcoded coin-cost table** — currently defined in 3 places (`RARITY_COST`, Anvil GUI lore, stone lore builder). *(2026-08-07: the Java-side `RARITY_COST` was already deduplicated into `ForgeCostRegistry` by an earlier refactor pass (stone lore already read from it). The Anvil GUI's hardcoded lore numbers were the real remaining copy — added a new `ReforgeVariableProvider` (`$reforge.cost.<rarity>$`) and switched `guis/reforge_anvil.yml` to use it.)*
+- [x] **Add weighting for Random Forge** (currently uniform random). *(2026-08-07: added an optional `weight:` field to `ReforgeDefinition`/the YAML parser (default 1.0 = unchanged uniform behavior) and a weighted-random `pickWeighted` helper used by `matchForgeRandom`.)*
 
 ---
 

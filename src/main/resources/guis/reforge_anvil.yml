@@ -68,13 +68,13 @@ reforge_anvil:
           - "<gray>be directly applied to your item."
           - ""
           - "<gray>Cost by item rarity:"
-          - "<white>  Common       <yellow>250 Coins"
-          - "<green>  Uncommon     <yellow>500 Coins"
-          - "<blue>  Rare         <yellow>1,000 Coins"
-          - "<dark_purple>  Epic         <yellow>2,500 Coins"
-          - "<gold>  Legendary    <yellow>5,000 Coins"
-          - "<light_purple>  Mythic       <yellow>10,000 Coins"
-          - "<aqua>  Divine       <yellow>15,000 Coins"
+          - "<white>  Common       <yellow>$reforge.cost.common$ Coins"
+          - "<green>  Uncommon     <yellow>$reforge.cost.uncommon$ Coins"
+          - "<blue>  Rare         <yellow>$reforge.cost.rare$ Coins"
+          - "<dark_purple>  Epic         <yellow>$reforge.cost.epic$ Coins"
+          - "<gold>  Legendary    <yellow>$reforge.cost.legendary$ Coins"
+          - "<light_purple>  Mythic       <yellow>$reforge.cost.mythic$ Coins"
+          - "<aqua>  Divine       <yellow>$reforge.cost.divine$ Coins"
         amount: 1
       actions:
         LEFT:
