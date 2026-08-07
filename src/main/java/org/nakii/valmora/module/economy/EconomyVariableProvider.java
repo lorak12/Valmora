@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,6 +34,20 @@ public class EconomyVariableProvider implements VariableProvider {
             }
             case "bank"  -> module.getBank(uuid);
             case "total" -> module.getTotal(uuid);
+            // $economy.ledger.<1-5>$ — one formatted "Recent Transactions" line, newest first;
+            // empty string past the end of history (blank lore line in the bank GUI, not an error).
+            case "ledger" -> {
+                if (path.length < 2) yield null;
+                int index;
+                try {
+                    index = Integer.parseInt(path[1]) - 1;
+                } catch (NumberFormatException ex) {
+                    yield null;
+                }
+                List<EconomyLedgerEntry> entries = module.getRecentTransactions(uuid);
+                if (index == 0 && entries.isEmpty()) yield "<gray>There are no recent transactions!";
+                yield (index >= 0 && index < entries.size()) ? entries.get(index).formatLine() : "";
+            }
             default      -> null;
         };
     }

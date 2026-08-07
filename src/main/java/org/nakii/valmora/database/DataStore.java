@@ -1,7 +1,9 @@
 package org.nakii.valmora.database;
 
 import org.bukkit.inventory.ItemStack;
+import org.nakii.valmora.module.economy.EconomyLedgerEntry;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +35,12 @@ public interface DataStore {
      * saving thousands of cached players individually would otherwise dominate the cost.
      */
     CompletableFuture<Void> saveEconomyBatch(Map<UUID, double[]> balances);
+
+    /** Appends one bank-transaction ledger row, pruning older rows beyond the retention window for that player. */
+    CompletableFuture<Void> appendLedgerEntry(UUID uuid, String type, double amount, double purseAfter, double bankAfter);
+
+    /** Returns up to {@code limit} most recent ledger rows for a player, newest first. */
+    CompletableFuture<List<EconomyLedgerEntry>> loadRecentLedger(UUID uuid, int limit);
 
     void close();
 }

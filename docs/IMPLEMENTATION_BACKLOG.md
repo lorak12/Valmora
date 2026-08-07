@@ -354,12 +354,12 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Economy module
 
-- [ ] **Implement bank interest / bank upgrades** (todo.md).
-- [ ] **Make the death-penalty percentage configurable** (currently hardcoded 50% purse loss).
+- [x] **Implement bank interest / bank upgrades** (todo.md). *(2026-08-07: implemented flat-rate bank interest — `economy.bank-interest-percent`/`economy.bank-interest-interval-seconds` config, applied periodically to every cached player's bank via a new `EconomyModule` task (0% = disabled, no task scheduled). "Bank upgrades" (capacity tiers) deliberately **not** implemented — scoped out to avoid a mismatched design (economy is player-account-wide, not per-profile, so a purchasable-capacity system needs its own persistence decision); documented as a deferred decision in `docs/modules/design/economy.md`.)*
+- [x] **Make the death-penalty percentage configurable** (currently hardcoded 50% purse loss). *(2026-08-07: added `economy.death-loss-percent` (default 50.0) to `config.yml`; `EconomyListener.onDeath` now reads it via `EconomyModule.getDeathLossPercent()`, clamped 0-100.)*
 - [x] **Wire `/eco`'s tab completer** (`setTabCompleter` currently never called). *(2026-08-07: `EcoCommand` already had a full `onTabComplete` implementation; added the explicit `getCommand("eco").setTabCompleter(...)` call in `Valmora.java`.)*
-- [ ] **Support offline-player targeting for `/eco`.**
-- [ ] **Fix the first-login cache race** (`cache.putIfAbsent` can eclipse a DB-loaded balance).
-- [ ] **Add a real transaction ledger** — the bank GUI's "Recent Transactions" is currently decorative.
+- [x] **Support offline-player targeting for `/eco`.** *(2026-08-07: `EcoCommand` now resolves targets against `Bukkit.getOfflinePlayers()` (no blocking network lookup) when not online, and reads/writes through new `EconomyModule.readOffline`/`writeOffline` — cached players still resolve synchronously through the existing cache path; offline players go straight to the DB and reply once the async round-trip completes.)*
+- [x] **Fix the first-login cache race** (`cache.putIfAbsent` can eclipse a DB-loaded balance). *(2026-08-07: `handleJoin` now loads synchronously (`.join()`, same pattern already used by the `onEnable()` online-player preload) instead of async-then-`putIfAbsent`, closing the window where a transaction landing mid-load could seed a zero-balance entry that then couldn't be overwritten.)*
+- [x] **Add a real transaction ledger** — the bank GUI's "Recent Transactions" is currently decorative. *(2026-08-07: new `valmora_economy_ledger` table (schema v7, `SQLDataStore`/`DataStore.appendLedgerEntry`/`loadRecentLedger`), recording every `deposit`/`withdraw`/`depositAll`/`withdrawAll`, pruned to the most recent 10 rows per player. `EconomyModule` keeps an in-memory 5-entry ring buffer per player for synchronous reads (seeded from the DB on join), exposed as `$economy.ledger.1$`–`$economy.ledger.5$` via `EconomyVariableProvider`; `guis/bank.yml`'s "Recent Transactions" display now renders these instead of a static placeholder.)*
 
 ---
 

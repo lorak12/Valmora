@@ -10,8 +10,12 @@ import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.module.economy.event.*;
 
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -38,10 +42,15 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     private final DataStore dataStore;
     private final Map<UUID, EconomyData> cache = new ConcurrentHashMap<>();
     private final Set<UUID> dirty = ConcurrentHashMap.newKeySet();
+    /** In-memory ring buffer (newest-first) backing the bank GUI's transaction display — synchronous reads, DB-backed for cross-restart history. */
+    private final Map<UUID, Deque<EconomyLedgerEntry>> recentTransactions = new ConcurrentHashMap<>();
     private EconomyListener listener;
     private BukkitTask flushTask;
+    private BukkitTask interestTask;
 
     private static final EconomyData EMPTY = new EconomyData(0, 0);
+    /** How many recent transactions the bank GUI displays / are kept in the in-memory ring buffer. */
+    private static final int LEDGER_DISPLAY_LIMIT = 5;
 
     public EconomyModule(Valmora plugin, DataStore dataStore) {
         this.plugin = plugin;
@@ -69,6 +78,17 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         long intervalTicks = plugin.getConfig().getLong("economy.autosave-interval-seconds", 60) * 20L;
         flushTask = plugin.getServer().getScheduler()
                 .runTaskTimerAsynchronously(plugin, this::flushDirty, intervalTicks, intervalTicks);
+
+        // Bank interest — a flat percentage of the bank balance, applied periodically. Rate 0
+        // (or the interval being non-positive) leaves the task unscheduled entirely — a no-op
+        // default keeps behavior unchanged for installs that don't opt in.
+        double interestRate = plugin.getConfig().getDouble("economy.bank-interest-percent", 0.0);
+        long interestIntervalSeconds = plugin.getConfig().getLong("economy.bank-interest-interval-seconds", 3600);
+        if (interestRate > 0 && interestIntervalSeconds > 0) {
+            long interestTicks = interestIntervalSeconds * 20L;
+            interestTask = plugin.getServer().getScheduler()
+                    .runTaskTimer(plugin, () -> applyInterest(interestRate), interestTicks, interestTicks);
+        }
     }
 
     @Override
@@ -81,6 +101,10 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             flushTask.cancel();
             flushTask = null;
         }
+        if (interestTask != null) {
+            interestTask.cancel();
+            interestTask = null;
+        }
 
         // Final flush: one batched transaction covering every cached player instead of one
         // blocking round-trip each — the difference between an instant reload/shutdown and a
@@ -92,6 +116,17 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         dirty.clear();
         dataStore.saveEconomyBatch(snapshot).join();
         cache.clear();
+        recentTransactions.clear();
+    }
+
+    /** Applies flat-rate interest to every cached player's bank balance. Runs on the main thread — cheap, in-memory, bounded by the online/cached-player count. */
+    private void applyInterest(double ratePercent) {
+        for (Map.Entry<UUID, EconomyData> entry : cache.entrySet()) {
+            double bank = entry.getValue().getBank();
+            if (bank <= 0) continue;
+            double interest = bank * (ratePercent / 100.0);
+            if (interest > 0) addBank(entry.getKey(), interest);
+        }
     }
 
     @Override
@@ -106,9 +141,22 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         // Already cached (e.g. a quick rejoin within the same server session) — skip the DB
         // round-trip and keep serving the in-memory value, which is authoritative until flushed.
         if (cache.containsKey(uuid)) return;
-        dataStore.loadEconomy(uuid).thenAcceptAsync(row -> {
-            EconomyData data = row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0);
-            Bukkit.getScheduler().runTask(plugin, () -> cache.putIfAbsent(uuid, data));
+
+        // Loaded synchronously (blocking, same pattern as the onEnable() online-player preload)
+        // rather than async-then-putIfAbsent: joins are rare, so the blocking cost is negligible,
+        // and it closes the previous race where a transaction landing between "join fires" and
+        // "the async load completes" would seed a zero-balance cache entry that putIfAbsent then
+        // refused to overwrite — silently eclipsing the real DB-loaded balance for the session.
+        double[] row = dataStore.loadEconomy(uuid).join();
+        EconomyData data = row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0);
+        cache.putIfAbsent(uuid, data);
+
+        // Seed the in-memory transaction ring buffer from DB history so a fresh session doesn't
+        // show an empty "Recent Transactions" list when history actually exists.
+        dataStore.loadRecentLedger(uuid, LEDGER_DISPLAY_LIMIT).thenAcceptAsync(entries -> {
+            if (entries.isEmpty()) return;
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>(entries)));
         });
     }
 
@@ -148,6 +196,62 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     public double getPurse(UUID uuid) { return cache.getOrDefault(uuid, EMPTY).getPurse(); }
     public double getBank(UUID uuid)  { return cache.getOrDefault(uuid, EMPTY).getBank(); }
     public double getTotal(UUID uuid) { return cache.getOrDefault(uuid, EMPTY).getTotal(); }
+
+    /** Percentage of purse lost on death — {@code economy.death-loss-percent}, default 50 (unchanged behavior). */
+    public double getDeathLossPercent() {
+        return plugin.getConfig().getDouble("economy.death-loss-percent", 50.0);
+    }
+
+    /**
+     * Reads a possibly-offline player's balances and invokes {@code callback} on the main thread
+     * with {@code [purse, bank]}. Cached (online, or a recently-online) players resolve
+     * synchronously with no DB round-trip; anyone else is read directly from the database. Used
+     * by {@code /eco} to support offline targets.
+     */
+    public void readOffline(UUID uuid, java.util.function.Consumer<double[]> callback) {
+        EconomyData cached = cache.get(uuid);
+        if (cached != null) {
+            callback.accept(new double[]{cached.getPurse(), cached.getBank()});
+            return;
+        }
+        dataStore.loadEconomy(uuid).thenAccept(row -> {
+            double[] result = row != null ? row : new double[]{0, 0};
+            Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
+        });
+    }
+
+    /**
+     * Writes a possibly-offline player's balances, then invokes {@code onComplete} on the main
+     * thread. If the player is cached, this goes through the normal set path (dirty-marked,
+     * write-behind); otherwise it's a direct DB write since there's no cache entry to keep in
+     * sync.
+     */
+    public void writeOffline(UUID uuid, double purse, double bank, Runnable onComplete) {
+        if (cache.containsKey(uuid)) {
+            setPurse(uuid, purse);
+            setBank(uuid, bank);
+            onComplete.run();
+            return;
+        }
+        dataStore.saveEconomy(uuid, purse, bank).thenRun(() -> Bukkit.getScheduler().runTask(plugin, onComplete));
+    }
+
+    /** Most recent bank transactions for this player, newest first, capped at {@link #LEDGER_DISPLAY_LIMIT}. Synchronous — served from the in-memory ring buffer, not a DB read. */
+    public List<EconomyLedgerEntry> getRecentTransactions(UUID uuid) {
+        Deque<EconomyLedgerEntry> deque = recentTransactions.get(uuid);
+        return deque == null ? Collections.emptyList() : List.copyOf(deque);
+    }
+
+    private void recordTransaction(UUID uuid, String type, double amount) {
+        if (amount <= 0) return;
+        EconomyData data = cache.get(uuid);
+        if (data == null) return;
+        EconomyLedgerEntry entry = new EconomyLedgerEntry(type, amount, data.getPurse(), data.getBank(), System.currentTimeMillis());
+        Deque<EconomyLedgerEntry> deque = recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>());
+        deque.addFirst(entry);
+        while (deque.size() > LEDGER_DISPLAY_LIMIT) deque.removeLast();
+        dataStore.appendLedgerEntry(uuid, type, amount, entry.purseAfter(), entry.bankAfter());
+    }
 
     // --- Set (admin commands) ---
 
@@ -191,24 +295,24 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
     public boolean deposit(UUID uuid, double amount) {
         boolean ok = getOrCreate(uuid).deposit(amount);
-        if (ok) dirty.add(uuid);
+        if (ok) { dirty.add(uuid); recordTransaction(uuid, "DEPOSIT", amount); }
         return ok;
     }
 
     public boolean withdraw(UUID uuid, double amount) {
         boolean ok = getOrCreate(uuid).withdraw(amount);
-        if (ok) dirty.add(uuid);
+        if (ok) { dirty.add(uuid); recordTransaction(uuid, "WITHDRAW", amount); }
         return ok;
     }
 
     public void depositAll(UUID uuid) {
         double moved = getOrCreate(uuid).depositAll();
-        if (moved > 0) dirty.add(uuid);
+        if (moved > 0) { dirty.add(uuid); recordTransaction(uuid, "DEPOSIT", moved); }
     }
 
     public void withdrawAll(UUID uuid) {
         double moved = getOrCreate(uuid).withdrawAll();
-        if (moved > 0) dirty.add(uuid);
+        if (moved > 0) { dirty.add(uuid); recordTransaction(uuid, "WITHDRAW", moved); }
     }
 
     // --- Formatting ---

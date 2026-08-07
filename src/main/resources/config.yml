@@ -37,6 +37,14 @@ economy:
   # (a clean shutdown/reload always flushes everything immediately regardless).
   autosave-interval-seconds: 60
 
+  # Percentage of purse lost on death (0-100).
+  death-loss-percent: 50.0
+
+  # Flat-rate bank interest, applied to every online/cached player's bank balance every
+  # `bank-interest-interval-seconds`. 0 disables interest entirely (no task is scheduled).
+  bank-interest-percent: 0.5
+  bank-interest-interval-seconds: 3600
+
 # ========================================================== #
 #                      Profile Settings                      #
 # ========================================================== #

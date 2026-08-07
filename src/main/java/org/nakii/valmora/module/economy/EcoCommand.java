@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.economy;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -15,6 +16,10 @@ import java.util.UUID;
  * /eco set <player> <purse|bank> <amount>
  * /eco add <player> <purse|bank> <amount>
  * /eco remove <player> <purse|bank> <amount>
+ *
+ * <p>Targets may be online or offline (any player who has played before) — offline targets are
+ * read/written directly against the database via {@link EconomyModule#readOffline}/{@link
+ * EconomyModule#writeOffline} rather than the in-memory cache.
  */
 public class EcoCommand implements TabExecutor {
 
@@ -40,72 +45,95 @@ public class EcoCommand implements TabExecutor {
         }
 
         String sub = args[0].toLowerCase();
-        Player target = Bukkit.getPlayerExact(args[1]);
+        OfflinePlayer target = resolveTarget(args[1]);
         if (target == null) {
-            sender.sendMessage(Formatter.format("<red>Player <white>" + args[1] + "<red> is not online."));
+            sender.sendMessage(Formatter.format("<red>Player <white>" + args[1] + "<red> was not found (must have played on this server before)."));
             return true;
         }
         UUID uuid = target.getUniqueId();
+        String name = target.getName() != null ? target.getName() : args[1];
 
         switch (sub) {
             case "get" -> {
                 // /eco get <player> [purse|bank]  — defaults to showing both
                 String wallet = args.length >= 3 ? args[2].toLowerCase() : "both";
-                switch (wallet) {
-                    case "purse" -> sender.sendMessage(Formatter.format(
-                        "<gold>" + target.getName() + "<gray>'s purse: <white>" + fmt(economy.getPurse(uuid)) + " coins"));
-                    case "bank" -> sender.sendMessage(Formatter.format(
-                        "<gold>" + target.getName() + "<gray>'s bank: <white>" + fmt(economy.getBank(uuid)) + " coins"));
-                    default -> {
-                        sender.sendMessage(Formatter.format(
-                            "<gold>" + target.getName() + "<gray>'s purse: <white>" + fmt(economy.getPurse(uuid)) + " coins"));
-                        sender.sendMessage(Formatter.format(
-                            "<gold>" + target.getName() + "<gray>'s bank:  <white>" + fmt(economy.getBank(uuid)) + " coins"));
+                economy.readOffline(uuid, row -> {
+                    double purse = row[0], bank = row[1];
+                    switch (wallet) {
+                        case "purse" -> sender.sendMessage(Formatter.format(
+                            "<gold>" + name + "<gray>'s purse: <white>" + fmt(purse) + " coins"));
+                        case "bank" -> sender.sendMessage(Formatter.format(
+                            "<gold>" + name + "<gray>'s bank: <white>" + fmt(bank) + " coins"));
+                        default -> {
+                            sender.sendMessage(Formatter.format(
+                                "<gold>" + name + "<gray>'s purse: <white>" + fmt(purse) + " coins"));
+                            sender.sendMessage(Formatter.format(
+                                "<gold>" + name + "<gray>'s bank:  <white>" + fmt(bank) + " coins"));
+                        }
                     }
-                }
+                });
             }
             case "set" -> {
                 if (args.length < 4) { sender.sendMessage(Formatter.format(USAGE)); return true; }
                 String wallet = args[2].toLowerCase();
                 double amount = parseAmount(args[3]);
                 if (amount < 0) { sender.sendMessage(Formatter.format("<red>Amount must be ≥ 0.")); return true; }
-                switch (wallet) {
-                    case "purse" -> economy.setPurse(uuid, amount);
-                    case "bank"  -> economy.setBank(uuid, amount);
-                    default -> { sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>.")); return true; }
+                if (!wallet.equals("purse") && !wallet.equals("bank")) {
+                    sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>."));
+                    return true;
                 }
-                sender.sendMessage(Formatter.format(
-                    "<green>Set <white>" + target.getName() + "<green>'s <white>" + wallet + "<green> to <white>" + fmt(amount) + " coins."));
+                economy.readOffline(uuid, row -> {
+                    double purse = wallet.equals("purse") ? amount : row[0];
+                    double bank = wallet.equals("bank") ? amount : row[1];
+                    economy.writeOffline(uuid, purse, bank, () -> sender.sendMessage(Formatter.format(
+                        "<green>Set <white>" + name + "<green>'s <white>" + wallet + "<green> to <white>" + fmt(amount) + " coins.")));
+                });
             }
             case "add" -> {
                 if (args.length < 4) { sender.sendMessage(Formatter.format(USAGE)); return true; }
                 String wallet = args[2].toLowerCase();
                 double amount = parseAmount(args[3]);
                 if (amount <= 0) { sender.sendMessage(Formatter.format("<red>Amount must be > 0.")); return true; }
-                switch (wallet) {
-                    case "purse" -> economy.addPurse(uuid, amount);
-                    case "bank"  -> economy.addBank(uuid, amount);
-                    default -> { sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>.")); return true; }
+                if (!wallet.equals("purse") && !wallet.equals("bank")) {
+                    sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>."));
+                    return true;
                 }
-                sender.sendMessage(Formatter.format(
-                    "<green>Added <white>" + fmt(amount) + "<green> coins to <white>" + target.getName() + "<green>'s <white>" + wallet + "<green>."));
+                economy.readOffline(uuid, row -> {
+                    double purse = wallet.equals("purse") ? row[0] + amount : row[0];
+                    double bank = wallet.equals("bank") ? row[1] + amount : row[1];
+                    economy.writeOffline(uuid, purse, bank, () -> sender.sendMessage(Formatter.format(
+                        "<green>Added <white>" + fmt(amount) + "<green> coins to <white>" + name + "<green>'s <white>" + wallet + "<green>.")));
+                });
             }
             case "remove" -> {
                 if (args.length < 4) { sender.sendMessage(Formatter.format(USAGE)); return true; }
                 String wallet = args[2].toLowerCase();
                 double amount = parseAmount(args[3]);
                 if (amount <= 0) { sender.sendMessage(Formatter.format("<red>Amount must be > 0.")); return true; }
-                switch (wallet) {
-                    case "purse" -> economy.removePurse(uuid, amount);
-                    case "bank"  -> economy.removeBank(uuid, amount);
-                    default -> { sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>.")); return true; }
+                if (!wallet.equals("purse") && !wallet.equals("bank")) {
+                    sender.sendMessage(Formatter.format("<red>Specify <white>purse<red> or <white>bank<red>."));
+                    return true;
                 }
-                sender.sendMessage(Formatter.format(
-                    "<green>Removed <white>" + fmt(amount) + "<green> coins from <white>" + target.getName() + "<green>'s <white>" + wallet + "<green>."));
+                economy.readOffline(uuid, row -> {
+                    double purse = wallet.equals("purse") ? Math.max(0, row[0] - amount) : row[0];
+                    double bank = wallet.equals("bank") ? Math.max(0, row[1] - amount) : row[1];
+                    economy.writeOffline(uuid, purse, bank, () -> sender.sendMessage(Formatter.format(
+                        "<green>Removed <white>" + fmt(amount) + "<green> coins from <white>" + name + "<green>'s <white>" + wallet + "<green>.")));
+                });
             }
             default -> sender.sendMessage(Formatter.format(USAGE));
         }
         return true;
+    }
+
+    /** Online players resolve directly; offline targets are matched (case-insensitively) against the server's known-player cache — never a blocking network lookup. */
+    private OfflinePlayer resolveTarget(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online;
+        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+            if (op.hasPlayedBefore() && name.equalsIgnoreCase(op.getName())) return op;
+        }
+        return null;
     }
 
     @Override

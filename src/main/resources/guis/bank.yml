@@ -72,7 +72,11 @@ bank:
         material: MAP
         name: "<white>Recent Transactions"
         lore:
-          - "<gray>There are no recent transactions!"
+          - "$economy.ledger.1$"
+          - "$economy.ledger.2$"
+          - "$economy.ledger.3$"
+          - "$economy.ledger.4$"
+          - "$economy.ledger.5$"
 
     X:
       type: DISPLAY

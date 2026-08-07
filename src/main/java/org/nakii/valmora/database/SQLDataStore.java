@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.zaxxer.hikari.HikariDataSource;
 
 import org.bukkit.inventory.ItemStack;
+import org.nakii.valmora.module.economy.EconomyLedgerEntry;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -13,7 +14,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +48,10 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 6;
+    static final int LATEST_SCHEMA_VERSION = 7;
+
+    /** Ledger rows kept per player — see {@link #migrateToV7}. */
+    private static final int LEDGER_RETENTION_PER_PLAYER = 10;
 
     @Override
     public void init() {
@@ -126,6 +132,31 @@ public class SQLDataStore implements DataStore {
             migrateToV6(conn);
             setSchemaVersion(conn, 6);
         }
+        if (from < 7) {
+            migrateToV7(conn);
+            setSchemaVersion(conn, 7);
+        }
+    }
+
+    /**
+     * v7 — adds the append-only bank transaction ledger backing the bank GUI's "Recent
+     * Transactions" display (docs/IMPLEMENTATION_BACKLOG.md, Economy module). Kept to the most
+     * recent {@link #LEDGER_RETENTION_PER_PLAYER} rows per player, pruned on every insert.
+     */
+    private void migrateToV7(Connection conn) throws SQLException {
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_economy_ledger (
+                uuid VARCHAR(36) NOT NULL,
+                type VARCHAR(32) NOT NULL,
+                amount DOUBLE NOT NULL,
+                purse_after DOUBLE NOT NULL,
+                bank_after DOUBLE NOT NULL,
+                created_at BIGINT NOT NULL
+            )
+        """).execute();
+        conn.prepareStatement(
+                "CREATE INDEX IF NOT EXISTS idx_economy_ledger_uuid ON valmora_economy_ledger(uuid, created_at)"
+        ).execute();
     }
 
     /**
@@ -647,6 +678,60 @@ public class SQLDataStore implements DataStore {
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to batch-save economy data for " + balances.size() + " players", e);
             }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> appendLedgerEntry(UUID uuid, String type, double amount, double purseAfter, double bankAfter) {
+        return CompletableFuture.runAsync(() -> {
+            try (Connection conn = hikari.getConnection()) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "INSERT INTO valmora_economy_ledger (uuid, type, amount, purse_after, bank_after, created_at) VALUES (?,?,?,?,?,?)")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setString(2, type);
+                    ps.setDouble(3, amount);
+                    ps.setDouble(4, purseAfter);
+                    ps.setDouble(5, bankAfter);
+                    ps.setLong(6, System.currentTimeMillis());
+                    ps.executeUpdate();
+                }
+                // Prune to the retention window. The inner derived-table wrapper is required for
+                // MySQL, which otherwise rejects selecting from the same table a DELETE targets.
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "DELETE FROM valmora_economy_ledger WHERE uuid = ? AND created_at NOT IN (" +
+                        "SELECT created_at FROM (SELECT created_at FROM valmora_economy_ledger WHERE uuid = ? " +
+                        "ORDER BY created_at DESC LIMIT " + LEDGER_RETENTION_PER_PLAYER + ") AS keep)")) {
+                    ps.setString(1, uuid.toString());
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to append economy ledger entry for " + uuid, e);
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<List<EconomyLedgerEntry>> loadRecentLedger(UUID uuid, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<EconomyLedgerEntry> results = new ArrayList<>();
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT type, amount, purse_after, bank_after, created_at FROM valmora_economy_ledger " +
+                         "WHERE uuid = ? ORDER BY created_at DESC LIMIT ?")) {
+                ps.setString(1, uuid.toString());
+                ps.setInt(2, limit);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        results.add(new EconomyLedgerEntry(
+                                rs.getString("type"), rs.getDouble("amount"),
+                                rs.getDouble("purse_after"), rs.getDouble("bank_after"), rs.getLong("created_at")));
+                    }
+                }
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to load economy ledger for " + uuid, e);
+            }
+            return results;
         }, dbExecutor);
     }
 

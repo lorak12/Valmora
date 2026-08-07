@@ -146,9 +146,9 @@ The task runs on the Bukkit **async** scheduler (`runTaskTimerAsynchronously`, `
 
 | Event | Handler | Behavior | Lines |
 |---|---|---|---|
-| `PlayerJoinEvent` | `handleJoin(uuid)` | If the UUID is already cached (quick rejoin this session) skip the DB read entirely. Otherwise load async, then `cache.putIfAbsent` back on the main thread | `EconomyListener.java:19-21`, `EconomyModule.java:105-113` |
+| `PlayerJoinEvent` | `handleJoin(uuid)` | If the UUID is already cached (quick rejoin this session) skip the DB read entirely. Otherwise load **synchronously** (`.join()`, fixed 2026-08-07 — was async-then-`putIfAbsent`, which had a race where a mutation landing mid-load could seed a zero-balance entry that then couldn't be overwritten), then also async-seeds the in-memory transaction ring buffer from `loadRecentLedger` | `EconomyListener.java:19-21`, `EconomyModule.java` |
 | `PlayerQuitEvent` | `handleQuit(uuid)` | **Deliberately does NOT evict from cache** (keeps a couple of doubles per player, avoids a cache-miss race on rejoin). Immediately persists the current balances (`saveEconomy`) and removes the player from the dirty set | `EconomyListener.java:24-26`, `EconomyModule.java:115-126` |
-| `PlayerDeathEvent` (MONITOR, `ignoreCancelled`) | inline | Removes `purse / 2.0` from the dead player's purse | `EconomyListener.java:28-35` |
+| `PlayerDeathEvent` (MONITOR, `ignoreCancelled`) | inline | Removes `purse * (economy.death-loss-percent / 100)` (default 50%, configurable since 2026-08-07) from the dead player's purse, via `EconomyModule.getDeathLossPercent()` | `EconomyListener.java` |
 
 ### 3.6 The `/eco` Admin Command — `EcoCommand.java`
 
@@ -165,7 +165,9 @@ The task runs on the Bukkit **async** scheduler (`runTaskTimerAsynchronously`, `
 | Amount parsing | `CoinExpressionParser.parse` — supports `2.5k`, `1m`, `1b`, arithmetic | `EcoCommand.java:134-136` |
 | Display formatting | Compact `k/m/b` suffixes via private `fmt` | `EcoCommand.java:138-144` |
 
-Tab completion suggests subcommands, online player names, `purse`/`bank`, and amount presets (`1000`/`1k`/`10k`/`100k`/`1m`) (`EcoCommand.java:112-132`). **Note:** the command is wired in `Valmora.java` with only `setExecutor(...)` — `setTabCompleter(...)` is never called, so the implemented `onTabComplete` is currently dead code (see [Unfinished Things / TODOs](#unfinished-things--todos)).
+Tab completion suggests subcommands, online player names, `purse`/`bank`, and amount presets (`1000`/`1k`/`10k`/`100k`/`1m`) (`EcoCommand.java:112-132`), wired via `getCommand("eco").setTabCompleter(...)` in `Valmora.java`.
+
+**Offline targeting** *(added 2026-08-07)*: `resolveTarget(name)` checks `Bukkit.getPlayerExact` first, then falls back to scanning `Bukkit.getOfflinePlayers()` for a `hasPlayedBefore()` case-insensitive name match — deliberately never `Bukkit.getOfflinePlayer(String)`, which can trigger a blocking network UUID lookup for never-seen names. Every subcommand now routes balance reads/writes through `EconomyModule.readOffline`/`writeOffline`, which resolve synchronously for cached (online) players and asynchronously against the database otherwise, replying once the round-trip completes.
 
 ### 3.7 `CoinExpressionParser` — `CoinExpressionParser.java`
 
@@ -198,6 +200,8 @@ All five factories implement `EventFactory`, are registered in `onEnable()` (`Ec
 
 Both deposit/withdraw factories prefix user feedback with `[Bank]` (`EconomyDepositEventFactory.java:17`, `EconomyWithdrawEventFactory.java:17`, `EconomyDepositAllEventFactory.java:13`) and format amounts with `EconomyModule.formatCoins` (compact `k/m/b`).
 
+A successful `deposit`/`withdraw`/`depositAll`/`withdrawAll` also records a ledger entry (§5.3b) — `economy_add`/`economy_remove` do not, by design (see §9's ledger-detail note).
+
 ### 3.10 Formatting Helpers — `EconomyModule.java:216-229`
 
 - `formatCoins(double)` — compact form: `≥1b → "%.2fb"`, `≥1m → "%.2fm"`, `≥1k → "%.1fk"`, else rounded integer (`EconomyModule.java:216-222`). Used by the script events.
@@ -223,11 +227,14 @@ Both deposit/withdraw factories prefix user feedback with `[Bank]` (`EconomyDepo
 
 ## Configuration (YAML)
 
-The module reads exactly one key from `config.yml`:
+The module reads the following keys from `config.yml`'s `economy:` block:
 
-| Key | Type | Default | Lines | Explanation |
-|---|---|---|---|---|
-| `economy.autosave-interval-seconds` | long | `60` | `config.yml:38` | How often (in seconds) dirty balances are flushed to the database in one batched transaction. Balances always live in memory and are safe between flushes; this only bounds how much progress could be lost on an unclean crash. A clean shutdown/reload always flushes everything immediately regardless. Read into ticks via `× 20` at enable time. |
+| Key | Type | Default | Explanation |
+|---|---|---|---|
+| `economy.autosave-interval-seconds` | long | `60` | How often (in seconds) dirty balances are flushed to the database in one batched transaction. Balances always live in memory and are safe between flushes; this only bounds how much progress could be lost on an unclean crash. A clean shutdown/reload always flushes everything immediately regardless. Read into ticks via `× 20` at enable time. |
+| `economy.death-loss-percent` | double | `50.0` | *(added 2026-08-07)* Percentage of purse lost on death, clamped to 0-100 by `EconomyListener`. |
+| `economy.bank-interest-percent` | double | `0.5` | *(added 2026-08-07)* Flat-rate interest applied to bank balances every `bank-interest-interval-seconds`. `0` (or a non-positive interval) disables the feature entirely — no periodic task is even scheduled. |
+| `economy.bank-interest-interval-seconds` | long | `3600` | *(added 2026-08-07)* How often bank interest is applied. |
 
 The surrounding `economy:` block is at `config.yml:30-38`.
 
@@ -275,6 +282,23 @@ One row per player; upserts never duplicate (see §5.3). The table is created by
 
 Contract in `DataStore.java:16-26`; both methods are `CompletableFuture`-based (async).
 
+### 5.3b Transaction ledger — `valmora_economy_ledger` *(added 2026-08-07, schema v7)*
+
+```sql
+CREATE TABLE IF NOT EXISTS valmora_economy_ledger (
+    uuid VARCHAR(36) NOT NULL,
+    type VARCHAR(32) NOT NULL,        -- "DEPOSIT" | "WITHDRAW"
+    amount DOUBLE NOT NULL,
+    purse_after DOUBLE NOT NULL,
+    bank_after DOUBLE NOT NULL,
+    created_at BIGINT NOT NULL
+)
+```
+
+Append-only, no primary key (natural insertion order via `created_at`); indexed on `(uuid, created_at)`. `SQLDataStore.appendLedgerEntry` inserts one row per successful `deposit`/`withdraw`/`depositAll`/`withdrawAll`, then prunes that player's rows down to the most recent 10 (`LEDGER_RETENTION_PER_PLAYER`) via a single `DELETE ... NOT IN (SELECT ... LIMIT 10)` — wrapped in a derived-table subquery so the same delete-source-table statement works on MySQL, which otherwise rejects selecting from the table a `DELETE` targets.
+
+`EconomyModule` does **not** read this table on every access — it keeps a synchronous in-memory ring buffer (`recentTransactions`, capped at `LEDGER_DISPLAY_LIMIT = 5`) updated on every ledger-worthy mutation, seeded once from `loadRecentLedger` on join (only if the buffer is still empty, so cross-session history survives a restart without racing in-session mutations). Script/GUI reads (`$economy.ledger.<n>$`) hit this buffer, never the database.
+
 ### 5.4 WAL mode
 
 For SQLite, the pool is configured with `PRAGMA journal_mode=WAL` at connection init so concurrent readers and the (now infrequent, batched) writer proceed without blocking each other (`DatabaseFactory.java:36-43`). MySQL gets prepared-statement caching pool properties (`DatabaseFactory.java:29-31`).
@@ -321,10 +345,13 @@ Beyond the `EconomyService` four, the concrete class exposes (all UUID-keyed, al
 | `depositAll(uuid)` / `withdrawAll(uuid)` | `EconomyModule.java:204-212` |
 | `getOrCreateData(uuid)` | `EconomyModule.java:240-242` |
 | `static formatCoins(double)` / `static formatCoinsDisplay(double)` | `EconomyModule.java:216-229` |
+| `getDeathLossPercent()` *(2026-08-07)* | reads `economy.death-loss-percent`, used by `EconomyListener` |
+| `readOffline(uuid, Consumer<double[]>)` / `writeOffline(uuid, purse, bank, Runnable)` *(2026-08-07)* | offline-aware balance read/write, used by `EcoCommand` |
+| `getRecentTransactions(uuid)` *(2026-08-07)* | `List<EconomyLedgerEntry>`, newest-first, from the in-memory ring buffer (§5.3b) |
 
 ### 6.4 Script DSL surface
 
-- **Variables:** `$economy.purse$`, `$economy.purse.formatted$`, `$economy.bank$`, `$economy.total$` (see [§3.8](#38-script-variable-provider--economyvariableproviderjava)).
+- **Variables:** `$economy.purse$`, `$economy.purse.formatted$`, `$economy.bank$`, `$economy.total$`, `$economy.ledger.<1-5>$` *(added 2026-08-07 — one formatted "Recent Transactions" line, newest first; empty string past the end of history)* (see [§3.8](#38-script-variable-provider--economyvariableproviderjava)).
 - **Events:** `economy_add`, `economy_remove`, `economy_deposit`, `economy_withdraw`, `economy_deposit_all` (see [§3.9](#39-script-events--event-subpackage)).
 
 ---
@@ -363,26 +390,25 @@ Beyond the `EconomyService` four, the concrete class exposes (all UUID-keyed, al
 
 ## Unfinished Things / TODOs
 
-- **Bank interest / bank upgrades.** `docs/todo.md:4` lists "economy: bank upgrades, intrest" as outstanding. Nothing in `module/economy/` implements interest accrual or upgradable bank capacity.
-- **Death-penalty configurability.** The 50% purse loss on death is hardcoded in `EconomyListener.java:28-35` — no config key, no toggle.
-- **`/eco` tab completion is dead code.** `EcoCommand` implements a full `onTabComplete` (`EcoCommand.java:112-132`), but `Valmora.java:242` calls only `setExecutor(...)` and never `setTabCompleter(...)`.
-- **No offline-player targeting.** `/eco` requires the target to be online (`EcoCommand.java:43-47`); there is no DB-backed balance editor for offline players.
-- **Join race on first login.** `handleJoin` loads async and inserts with `cache.putIfAbsent` (`EconomyModule.java:109-112`). If a transaction for that player fires between join and the load completing, `getOrCreate` seeds a zero-balance entry and `putIfAbsent` then refuses to overwrite it — the DB-loaded balance would be eclipsed for the session (see [Possible Improvements](#9-possible-improvements--changes)).
-- **No transaction ledger.** The bundled bank GUI has a "Recent Transactions" display (`guis/bank.yml:69-75`) that is decorative — there is no transaction history persisted.
+*(2026-08-07: bank interest, configurable death penalty, `/eco` offline-player targeting, the first-login cache race, and a real transaction ledger — all previously listed here — are now implemented. See `docs/IMPLEMENTATION_BACKLOG.md`'s Economy module section for what changed. Details folded into the relevant sections above/below; summary kept here for anyone landing on this doc first:)*
+
+- **Bank interest** — `economy.bank-interest-percent`/`economy.bank-interest-interval-seconds` (`config.yml`), applied by a periodic main-thread task in `EconomyModule` to every cached player's bank balance. 0% (or a non-positive interval) leaves the task unscheduled — unchanged behavior for installs that don't opt in.
+- **Bank upgrades — deliberately deferred.** A purchasable bank-capacity system was scoped out of the 2026-08-07 pass: economy balances are **player-account-wide** (one `EconomyData` per UUID), not per-profile, so a capacity/tier system needs its own persistence design decision (does capacity live per-account or per-profile? does it interact with the existing unbounded-bank assumption other code paths rely on?) rather than being bolted on alongside interest. Revisit as its own item if/when bank capacity limits are actually wanted.
+- **Death-penalty configurability** — `economy.death-loss-percent` (default `50.0`), read by `EconomyModule.getDeathLossPercent()`.
+- **`/eco` tab completion** — wired via `getCommand("eco").setTabCompleter(...)` in `Valmora.java`.
+- **Offline-player targeting** — `EcoCommand` resolves against `Bukkit.getOfflinePlayers()` (a cached, non-network-blocking lookup) and reads/writes via `EconomyModule.readOffline`/`writeOffline`.
+- **Join race** — `handleJoin` now loads synchronously (`.join()`) instead of async-then-`putIfAbsent`.
+- **Transaction ledger** — `valmora_economy_ledger` table (schema v7) + an in-memory 5-entry ring buffer per player for synchronous GUI reads; wired into `guis/bank.yml`'s "Recent Transactions" display via `$economy.ledger.1$`–`$economy.ledger.5$`.
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Seal the join race.** In `handleJoin`, populate the cache synchronously on the main thread for the joining player (join is rare, so the blocking cost is acceptable), or re-check `cache` inside the async completion and merge rather than `putIfAbsent`.
-- **Configurable death penalty** — e.g. `economy.death-loss-percent` (default 50) replacing the hardcoded `purse / 2.0`.
-- **Bank interest / upgrades** — a periodic tick adding interest to `bank`, plus per-player capacity (currently bank is unbounded).
-- **Offline balance editing** — allow `/eco` (or a `--offline` flag) to operate on DB rows for offline players.
-- **Wire tab completion** — `getCommand("eco").setTabCompleter(new EcoCommand(economyModule))` in `Valmora.java`.
 - **Merge the `player.var.coins` anvil path** (`AnvilMachineHandler.java:94`) onto `EconomyService` so the economy is the single source of truth for coin costs.
-- **Transaction ledger** — persist deposit/withdraw history so the bank GUI's "Recent Transactions" can show real data.
 - **MySQL batch tuning** — the batch upsert is connection-per-batch; for multi-server setups, verify statement-batching overhead stays acceptable at 10k-player scale.
 - **Read-through on first access** — optionally have `getOrCreateData` trigger an async load for players who joined without the pre-load completing (e.g. NPC-triggered transactions while offline-then-online).
+- **Bank capacity / upgrade tiers** — see the "deliberately deferred" note above; needs a scoping decision before implementation.
+- **Ledger detail** — the current ledger only records `deposit`/`withdraw`/`depositAll`/`withdrawAll` (the bank GUI's own actions); `economy_add`/`economy_remove` (e.g. mob kill rewards) are intentionally excluded to keep the "Recent Transactions" list meaningful rather than flooded — revisit if a fuller audit trail is ever needed.
 
 ---
 

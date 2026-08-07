@@ -30,7 +30,8 @@ public class EconomyListener implements Listener {
         var uuid = event.getEntity().getUniqueId();
         double purse = module.getPurse(uuid);
         if (purse > 0) {
-            module.removePurse(uuid, purse / 2.0);
+            double lossPercent = Math.max(0.0, Math.min(100.0, module.getDeathLossPercent()));
+            module.removePurse(uuid, purse * (lossPercent / 100.0));
         }
     }
 }
