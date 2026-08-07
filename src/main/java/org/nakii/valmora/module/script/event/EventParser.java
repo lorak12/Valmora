@@ -27,7 +27,7 @@ public class EventParser {
     public CompiledEvent parse(String raw) {
         if (raw == null || raw.isEmpty()) return context -> {};
 
-        String[] parts = raw.split(" ");
+        String[] parts = tokenize(raw);
         if (parts.length == 0) return context -> {};
 
         String eventName = parts[0];
@@ -88,6 +88,33 @@ public class EventParser {
             );
         }
         return event;
+    }
+
+    /**
+     * Splits a raw event string on whitespace, except inside double-quoted segments (added
+     * 2026-08-07 — was a naive {@code raw.split(" ")}, unable to express an argument containing
+     * spaces, e.g. a display name). Quotes are stripped from the resulting token; everything
+     * else (including a stray unclosed quote) degrades gracefully rather than throwing.
+     */
+    private static String[] tokenize(String raw) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (c == ' ' && !inQuotes) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current.setLength(0);
+                }
+            } else {
+                current.append(c);
+            }
+        }
+        if (current.length() > 0) tokens.add(current.toString());
+        return tokens.toArray(new String[0]);
     }
 
     /**

@@ -140,10 +140,14 @@ public class PlayerVariableProvider implements VariableProvider {
         SystemStats sys = api.getSystemStats();
         if (key.equalsIgnoreCase("hp")) return profile.getPlayerState().getCurrentHealth();
         if (key.equalsIgnoreCase("max_hp")) return profile.getStatManager().getStat(sys.getHealth());
+        // Returns Double (not Integer, fixed 2026-08-07) for consistency with $player.hp$ and
+        // every other numeric variable this provider resolves — resolveTemplate() already
+        // renders a whole-number Double without a trailing ".0", so this is purely a type fix,
+        // not a display regression, and fractional percentages are now exact instead of truncated.
         if (key.equalsIgnoreCase("health_percent"))
-            return (int) ((profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100);
+            return (profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100.0;
         if (key.equalsIgnoreCase("missing_hp_percent"))
-            return 100 - (int) ((profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100);
+            return 100.0 - (profile.getPlayerState().getCurrentHealth() / profile.getStatManager().getStat(sys.getHealth())) * 100.0;
         if (key.equalsIgnoreCase("mana")) return profile.getPlayerState().getCurrentMana();
         if (key.equalsIgnoreCase("max_mana")) return profile.getStatManager().getStat(sys.getMana());
 

@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.script.event.impl;
 
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
@@ -54,7 +53,7 @@ public class ForeachEventFactory implements EventFactory {
         if (selector.equalsIgnoreCase("@all")) {
             return ctx -> {
                 for (Player p : Bukkit.getOnlinePlayers()) {
-                    inner.execute(contextFor(p));
+                    inner.execute(contextFor(p, ctx));
                 }
             };
         }
@@ -71,7 +70,7 @@ public class ForeachEventFactory implements EventFactory {
                 if (ctx.getLocation() == null) return;
                 Collection<Player> nearby = ctx.getLocation().getNearbyPlayers(finalRadius);
                 for (Player p : nearby) {
-                    inner.execute(contextFor(p));
+                    inner.execute(contextFor(p, ctx));
                 }
             };
         }
@@ -79,7 +78,19 @@ public class ForeachEventFactory implements EventFactory {
         return ctx -> {};
     }
 
-    private ExecutionContext contextFor(Player player) {
-        return new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
+    /**
+     * Builds the per-target context each iteration executes with. Fixed 2026-08-07 — previously
+     * always got a fresh, always-empty {@code YamlConfiguration} for params (so inner events
+     * could never see the outer event's params) and had no way to reference the original caster
+     * at all. Now: params are inherited from the outer context (via the parent-chain constructor,
+     * so a local miss on {@code ctx.get(key)} falls through to the outer context), and the
+     * original caster is stashed under a well-known attachment key for Java-level mechanics that
+     * need it (not reachable from the variable DSL without a dedicated provider — the target
+     * player is still, necessarily, the new caster for scripting purposes like `stat_modify`).
+     */
+    private ExecutionContext contextFor(Player player, ExecutionContext outer) {
+        SimpleExecutionContext inner = new SimpleExecutionContext(player, null, player.getLocation(), outer.getParams(), outer);
+        if (outer.getCaster() != null) inner.set("foreach:original_caster", outer.getCaster());
+        return inner;
     }
 }

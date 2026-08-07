@@ -119,8 +119,8 @@ references.
 | `TeleportEventFactory.java` | 25–97 | `teleport` | `teleport warp:<id>` / `teleport @look <blocks>` / `teleport <x> <y> <z>` / `teleport <world> <x> <y> <z>` — Checks zone teleport flags. Uses `player.teleportAsync()`. |
 | `SpawnMobEventFactory.java` | 21–77 | `spawn_mob` | `spawn_mob <mob_id> [count] [radius:<r>]` — Spawns custom mobs near caster location. |
 | `StatModifyEventFactory.java` | 21–65 | `stat_modify` | `stat_modify <add\|set\|reset> <stat_id> [value]` — Modifies base stats. Value supports `$variable$` interpolation. |
-| `ForeachEventFactory.java` | 26–85 | `foreach` | `foreach @all <event>` / `foreach @nearby:<radius> <event>` — Creates a fresh `SimpleExecutionContext` per targeted player. |
-| `RunScriptEventFactory.java` | 23–70 | `run_script` | `run_script <interval_ticks> <times> <event...>` — Schedules inner event to fire repeatedly via `Bukkit.getScheduler().runTaskTimer()`. |
+| `ForeachEventFactory.java` | `foreach` | `foreach @all <event>` / `foreach @nearby:<radius> <event>` — Builds a per-target `SimpleExecutionContext` (target player as caster) inheriting the outer context's params and attachment chain (fixed 2026-08-07, was always an empty `YamlConfiguration`). |
+| `RunScriptEventFactory.java` | `run_script` | `run_script <interval_ticks> <times> <event...>` — Schedules inner event to fire repeatedly via `Bukkit.getScheduler().runTaskTimer()`; self-cancels if a player caster goes offline mid-sequence (added 2026-08-07). |
 
 ---
 
@@ -474,127 +474,89 @@ Several GUI event factories cast `ExecutionContext` to
 
 ## Unfinished Things / TODOs
 
-1. **Parser error handling is silent** — `ExpressionParser.parse()`
-   (`ExpressionParser.java:45–51`) catches all exceptions and returns a
-   `LiteralNode(null)` on parse failure. No logging or error reporting. This
-   means malformed expressions silently evaluate to `null`, making debugging
-   difficult. Same pattern in `ConditionParser` which falls back to
-   `ExpressionCondition` with the same silently-failing parser.
-
-2. **EventParser token splitting is naive** — `EventParser.parse()` splits
-   on raw spaces (`EventParser.java:30`). Event arguments containing spaces
-   (e.g., item names with spaces, or quoted strings) are not supported. The
-   `GiveEvent` handles `Material:amount` but cannot handle display names.
-
-3. **VariableEvent path scoping is limited** — `VariableEvent`
-   (`VariableEvent.java:54`) only supports `player.var.*` and `prop.*`
-   paths. Other player-scoped variable namespaces are not writable via the
-   DSL. The `rawValue` interpolation only handles single `$variable$` tokens
-   — no expression evaluation (unlike `resolveDouble` on `ExecutionContext`).
-
-4. **No variable setter for stat-based or other module variables** — The
-   `stat_modify` event can add/set/reset stats but cannot set arbitrary
-   profile variables. There is no generic `variable set player.stat.*` —
-   stat modification goes through `StatManager` directly.
-
-5. **PointCondition is cross-module** — `ConditionParser` imports
+1. **PointCondition is cross-module** — `ConditionParser` imports
    `PointCondition` from `module/quest/points/`
    (`ConditionParser.java:4`), creating a dependency from the script module
    to the quest module. Since quest loads after script
    (`Valmora.java:210`), this works at runtime but creates a fragile
    compile-time coupling in the core module.
 
-6. **`ForeachEventFactory` creates throwaway ExecutionContexts** —
-   `ForeachEventFactory`
-   (`ForeachEventFactory.java:82–84`) creates a new
-   `SimpleExecutionContext` per player with a fresh `YamlConfiguration` as
-   params. This means inner events in a `foreach` cannot access the original
-   params or the original caster's identity (the caster becomes the
-   per-target player).
-
-7. **No caching of parsed expressions in YAML-driven systems** —
+2. **No caching of parsed expressions in YAML-driven systems** —
    `GuiRenderer.java:279` calls `getConditionParser().parse(condStr)`
    **every render tick** for PAGINATED component states. Similarly,
    `GuiDefinitionParser` compiles conditions/actions once at load time
    (correct), but `GuiRenderer` re-parses per-render for dynamic state
    conditions. This is a performance concern for GUIs with update intervals.
 
-8. **`RunScriptEventFactory` captures ExecutionContext in closures** —
-   `RunScriptEventFactory`
-   (`RunScriptEventFactory.java:58–68`) captures the `context` in a
-   repeating `BukkitTask` lambda. If the original player logs out or the
-   context becomes invalid, the task continues to reference stale state. The
-   task is not tracked or cancelled on context loss.
-
-9. **`SimpleExecutionContext` creates a new `TagServiceImpl` per call** —
-   `SimpleExecutionContext.getTagService()`
-   (`SimpleExecutionContext.java:57–59`) returns a new `TagServiceImpl`
-   each time, creating a minor allocation overhead in any mechanic that
-   calls it more than once.
-
-10. **Token pattern regex may mis-tokenize** — `ExpressionParser.TOKEN_PATTERN`
-    (`ExpressionParser.java:21–30`) does not handle negative number literals
-    (e.g., `-5` is tokenized as `-` then `5`). The parser handles this via
-    subtraction, but a standalone negative literal at the start of an
-    expression or after `(` will fail. This is an edge case not covered by
-    tests.
-
-11. **`$player.missing_hp_percent$` returns Integer, not Double** —
-    `PlayerVariableProvider.java:144` returns
-    `100 - (int)(...)` which is an `int`, not a `double`. When used in
-    expressions, `BinaryOpNode` will still handle it (via `Number`
-    interface), but the type inconsistency with `$player.hp$` (which returns
-    `double`) could cause subtle issues with `resolveTemplate()` formatting.
+*(2026-08-07: eight items previously listed here are resolved — silent parser error handling,
+naive `EventParser` token splitting, `VariableEvent`'s limited path scoping and single-token
+`rawValue`, `ForeachEventFactory`'s throwaway contexts, `RunScriptEventFactory`'s unguarded
+captured context, `SimpleExecutionContext`'s per-call `TagServiceImpl` allocation, the tokenizer's
+negative-literal mis-parse, and `$player.missing_hp_percent$`'s `Integer` return type. See
+`docs/IMPLEMENTATION_BACKLOG.md`'s Script module section for what changed in each case.)*
 
 ---
 
 ## Possible Improvements / Changes
 
-1. **Parse-time error reporting** — Add a `ParseException` or result type
-   to `ExpressionParser.parse()` and `EventParser.parse()` so consumers can
-   report malformed strings in YAML configs with file paths and line numbers.
-   At minimum, log warnings (as `EventParser` already does for unknown events
-   at `EventParser.java:66`).
-
-2. **Space-safe event argument parsing** — Use a proper tokenizer for the
-   event DSL that respects quoted strings, or allow multi-argument event
-   factories to receive a pre-split array with quote awareness.
-
-3. **Expression caching layer** — Provide a `CachedEvaluator` or
-   `ExpressionCache` that memoizes `parse()` results by string, keyed by the
-   loading module's lifecycle. This would benefit `GuiRenderer` state
-   conditions without changing call-site code.
-
-4. **Compile-time variable validation** — A `VariableProvider` could expose
+1. **Compile-time variable validation** — A `VariableProvider` could expose
    the set of valid sub-paths it supports, enabling compile-time warnings for
    misspelled variables (e.g., `$player.stt.HEALTH$` instead of
    `$player.stat.HEALTH$`).
 
-5. **Expression-based VariableEvent values** — Allow `variable set
-   player.var.X $player.stat.DAMAGE$ * 2` (full expression evaluation for
-   the value) rather than only `$variable$` interpolation. This would unify
-   the semantics with `ExecutionContext.resolveDouble()`.
-
-6. **PointCondition decoupling** — Move `point` condition parsing into a
+2. **PointCondition decoupling** — Move `point` condition parsing into a
    factory or service-loaded `Condition` parser to avoid the script module
    depending on `module/quest/points`. Alternatively, make
    `ConditionParser` extensible (registry of condition keyword → factory)
    so other modules can register condition keywords without modifying the
    core parser.
 
-7. **ForeachEventFactory context preservation** — Allow `foreach` to
-   optionally inherit the original caster's params or provide a way to
-   reference the original caster (e.g., `@self` within the inner event).
+3. **Expression caching layer** — Provide a `CachedEvaluator` or
+   `ExpressionCache` that memoizes `parse()` results by string, keyed by the
+   loading module's lifecycle. This would benefit `GuiRenderer` state
+   conditions (see Unfinished Things #2) without changing call-site code.
 
-8. **TagService caching** — Cache the `TagServiceImpl` instance on
-   `SimpleExecutionContext` instead of allocating a new one per call.
-
-9. **Unit test coverage for all condition types and event factories** —
+4. **Unit test coverage for all condition types and event factories** —
    Currently only `ExpressionParser` (ExpressionTest),
    `RangeVariableProvider` (RangeVariableProviderTest), and
    `TimeVariableProvider` (TimeVariableProviderTest) have tests. The 11
    condition implementations, the 10 event factories, and
-   `VariableResolverImpl` have zero test coverage.
+   `VariableResolverImpl` have zero test coverage — including the new
+   negative-literal parsing and `foreach`/`variable`/`run_script` behavior
+   changes from the 2026-08-07 pass.
 
-10. **Negative literal support in parser** — Handle unary minus for
-    standalone negative number literals in `parsePrimary()`.
+5. **Generic writable-variable-provider architecture** — `variable set` now
+   handles `player.var.*`, `player.stat.*`, and `prop.*` explicitly (see
+   below), but there's still no general "any `VariableProvider` namespace can
+   opt into being writable" mechanism — each new writable path needs its own
+   `if (path.startsWith(...))` branch in `VariableEvent`.
+
+### Resolved 2026-08-07
+
+- **Parser error handling.** `ExpressionParser.parse()`'s catch block now logs a warning with the
+  offending expression string (via a standalone `java.util.logging.Logger`, since the class has no
+  plugin reference across its ~10 no-arg-constructor call sites) before falling back to
+  `LiteralNode(null)` — the fallback behavior is unchanged, it's no longer silent.
+- **Space-safe event argument parsing.** `EventParser.parse` now tokenizes with quote-awareness
+  (a `"..."` segment becomes one token, spaces preserved inside, quotes stripped) instead of
+  `raw.split(" ")`.
+- **Expression-based `VariableEvent` values.** `rawValue` now goes through full expression
+  evaluation whenever it contains `$` (e.g. `variable add player.var.x $player.stat.DAMAGE$ * 2`),
+  matching `ExecutionContext.resolveDouble()`. Values with no `$` are left untouched exactly as
+  before, to avoid routing plain literal strings through the expression tokenizer.
+- **`player.stat.*` writable path.** `variable set|add|remove player.stat.<id> <value>` now routes
+  into `StatManager.setStat`/`addStat`/`resetStat`, the same mutation methods `stat_modify` uses —
+  `variable` is now one generic entry point for both.
+- **`ForeachEventFactory` context preservation.** Per-target contexts now inherit the outer
+  context's real params (was always empty) via the parent-chain `SimpleExecutionContext`
+  constructor, and the original caster is stashed under a `"foreach:original_caster"` attachment
+  key (`ExecutionContext.get`/`.set`) for Java-level mechanics that need it.
+- **`RunScriptEventFactory` stale-context guard.** The repeating task checks a captured player
+  caster's `isOnline()` every firing and self-cancels if they've left, instead of running its full
+  repeat count against a stale/offline reference.
+- **`TagService` caching.** `SimpleExecutionContext.getTagService()` caches the instance instead of
+  allocating a new `TagServiceImpl` per call.
+- **Negative literal parsing.** `ExpressionParser.parsePrimary()` now handles a standalone leading
+  `-` token (synthesized as `0 - operand`), fixing `-5`, `(-5)`, `max(-5, 0)`, etc.
+- **`$player.missing_hp_percent$`/`$player.health_percent$` type fix.** Both now return `double`
+  instead of an `int`-truncated value, consistent with `$player.hp$`.

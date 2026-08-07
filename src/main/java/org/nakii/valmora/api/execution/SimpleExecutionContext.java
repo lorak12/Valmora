@@ -17,6 +17,7 @@ public class SimpleExecutionContext implements ExecutionContext {
     private final Location location;
     private final ConfigurationSection params;
     private ExecutionContext parent;
+    private TagService cachedTagService;
 
     public SimpleExecutionContext(LivingEntity caster, LivingEntity target, Location location, ConfigurationSection params) {
         this.caster = caster;
@@ -77,6 +78,9 @@ public class SimpleExecutionContext implements ExecutionContext {
 
     @Override
     public TagService getTagService() {
-        return new TagServiceImpl(this);
+        // Cached per context instance (added 2026-08-07) — a context is single-invocation-scoped
+        // (AGENTS.md §7.3), so there's never a reason to allocate a new TagServiceImpl per call.
+        if (cachedTagService == null) cachedTagService = new TagServiceImpl(this);
+        return cachedTagService;
     }
 }

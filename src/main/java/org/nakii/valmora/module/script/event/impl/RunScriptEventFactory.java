@@ -56,10 +56,20 @@ public class RunScriptEventFactory implements EventFactory {
         CompiledEvent inner = module.getEventParser().parse(sb.toString());
 
         return ctx -> {
+            // Captured once at schedule time — a player caster who logs out mid-sequence would
+            // otherwise leave this task referencing a stale/offline Player indefinitely until the
+            // repeat count ran out (fixed 2026-08-07). Non-player casters (mobs, etc.) have no
+            // analogous liveness check here and continue as before.
+            org.bukkit.entity.Player casterPlayer = ctx.getCaster() instanceof org.bukkit.entity.Player p ? p : null;
+
             AtomicInteger remaining = new AtomicInteger(times);
             BukkitTask[] taskHolder = new BukkitTask[1];
             taskHolder[0] = module.getValmora().getServer().getScheduler()
                     .runTaskTimer(module.getValmora(), () -> {
+                        if (casterPlayer != null && !casterPlayer.isOnline()) {
+                            taskHolder[0].cancel();
+                            return;
+                        }
                         inner.execute(ctx);
                         if (remaining.decrementAndGet() <= 0) {
                             taskHolder[0].cancel();

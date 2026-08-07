@@ -9,6 +9,7 @@ import org.nakii.valmora.module.script.expression.nodes.VariableNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +18,11 @@ import java.util.regex.Pattern;
  * Implements recursive descent for precedence and grouping.
  */
 public class ExpressionParser {
+
+    // Decoupled from any plugin instance (this class is constructed with a no-arg constructor
+    // across ~10 call sites, several in tests) — a standalone java.util.logging.Logger, same
+    // pattern as other plugin-instance-free classes in this codebase.
+    private static final Logger LOGGER = Logger.getLogger(ExpressionParser.class.getName());
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile(
             "\\$[A-Za-z0-9._-]+\\$|" + // Variable: $player.health$
@@ -45,7 +51,9 @@ public class ExpressionParser {
         try {
             return parseTernary();
         } catch (Exception e) {
-            // Safe fallback
+            // Safe fallback — still evaluates to null rather than throwing at YAML-load or
+            // execution time, but now at least logged instead of silently swallowed.
+            LOGGER.warning("[Script] Failed to parse expression '" + input + "': " + e);
             return new LiteralNode(null);
         }
     }
@@ -117,6 +125,16 @@ public class ExpressionParser {
             Expression expr = parseTernary();
             consume(")");
             return expr;
+        }
+
+        // Unary minus — a standalone "-" reaches here (not parseAddition's binary "-") only at
+        // the start of an expression, right after "(", ",", "?", ":", or another operator, e.g.
+        // "-5", "(-5)", "max(-5, 0)", "$x$ > -5". Synthesized as 0 - operand so it composes
+        // naturally with the existing BinaryOpNode arithmetic (and binds at primary precedence,
+        // so "-2*3" correctly parses as (-2)*3, not -(2*3)).
+        if (token.equals("-")) {
+            Expression operand = parsePrimary();
+            return new BinaryOpNode(new LiteralNode(0.0), "-", operand);
         }
 
         if (token.startsWith("$")) {
