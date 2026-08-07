@@ -344,6 +344,38 @@ public class ZoneManager {
         return removed;
     }
 
+    /**
+     * Appends an extra sub-box to a zone (in-game editing, added 2026-08-07 — previously
+     * {@code extra-boxes} could only be added by hand-editing YAML, even though the parser and
+     * {@link #saveZoneToFile} both already fully supported them). Corners are normalized
+     * (min/max swapped as needed) the same way {@link #createZone} normalizes the primary box.
+     */
+    public ZoneDefinition addExtraBox(String zoneId, int x1, int y1, int z1, int x2, int y2, int z2) {
+        ZoneDefinition zone = registry.get(zoneId).orElse(null);
+        if (zone == null) return null;
+        int minX = Math.min(x1, x2), minY = Math.min(y1, y2), minZ = Math.min(z1, z2);
+        int maxX = Math.max(x1, x2), maxY = Math.max(y1, y2), maxZ = Math.max(z1, z2);
+        List<int[]> boxes = new ArrayList<>(zone.getExtraBoxes());
+        boxes.add(new int[]{minX, minY, minZ, maxX, maxY, maxZ});
+        ZoneDefinition updated = zone.withExtraBoxes(boxes);
+        registry.register(zoneId, updated);
+        saveZoneToFile(updated);
+        return updated;
+    }
+
+    /** Removes an extra box by its 0-based index (see {@link #addExtraBox}). */
+    public boolean removeExtraBox(String zoneId, int index) {
+        ZoneDefinition zone = registry.get(zoneId).orElse(null);
+        if (zone == null) return false;
+        List<int[]> boxes = new ArrayList<>(zone.getExtraBoxes());
+        if (index < 0 || index >= boxes.size()) return false;
+        boxes.remove(index);
+        ZoneDefinition updated = zone.withExtraBoxes(boxes);
+        registry.register(zoneId, updated);
+        saveZoneToFile(updated);
+        return true;
+    }
+
     public void saveZoneToFile(ZoneDefinition zone) {
         File dir = new File(plugin.getDataFolder(), "zones");
         dir.mkdirs();

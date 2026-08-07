@@ -422,6 +422,8 @@ The file header comment notes the AABB/spawner coords must match a cavern actual
 | `setZoneFlags` | `ZoneDefinition setZoneFlags(String, ZoneFlags)` | Replace flags + persist | `ZoneManager.java:307-314` |
 | `addSpawner` | `ZoneDefinition addSpawner(String, ZoneMobSpawner)` | Append spawner + persist | `ZoneManager.java:316-325` |
 | `removeSpawner` | `boolean removeSpawner(String, String)` | Remove spawner by ID + persist | `ZoneManager.java:327-339` |
+| `addExtraBox` | `ZoneDefinition addExtraBox(String, int,int,int,int,int,int)` | Append a normalized extra sub-box + persist (added 2026-08-07) | `ZoneManager.java` |
+| `removeExtraBox` | `boolean removeExtraBox(String, int index)` | Remove an extra box by 0-based index + persist (added 2026-08-07) | `ZoneManager.java` |
 | `saveZoneToFile` | `void saveZoneToFile(ZoneDefinition)` | Serialize a zone to `zones/<id>.yml` | `ZoneManager.java:341-392` |
 | `toggleVisualization` | `boolean toggleVisualization(Player)` | Toggle particle borders; returns new state | `ZoneManager.java:407-412` |
 | `getVisualizingPlayers` | `Set<UUID>` | Currently visualizing players | `ZoneManager.java:514` |
@@ -472,13 +474,13 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 
 ## Unfinished Things / TODOs
 
-- **`/zone spawner add` radius formula is inconsistent with the YAML default.** The command builds `radius = spawnRadius * 4.0` (`ZoneCommand.java:283`), while the loader default is a flat `20.0` (`ZoneLoader.java:95`); spawner IDs are `mobId_<count+1>` (`ZoneCommand.java:281`) and can collide after removals (no uniqueness check in `addSpawner`).
-- **No `extra-boxes` in-game editing.** The parser supports multiple boxes (`ZoneLoader.java:62-81`) and `saveZoneToFile` writes them, but there is no `/zone` command to add/remove them; `docs/todo.md:20` ("zones to have multiple boxes...") is only half-addressed.
 - **`getZoneAt` is O(n) per call** — streams the whole registry on every flag check, membership check, resource lookup, and mob count. With many zones this is the module's hot path. Deliberately not addressed this pass (see Possible Improvements) — a real spatial index needs invalidation hooks everywhere the registry mutates (every `/zone` edit command), which is more risk than a quick tweak.
 - **No `natural-mob-spawning`/time-of-day/capacity logic** — `docs/todo.md:32` ("flesh out mob spawning in zones"). Spawners are purely interval-based; the plan's "smart spawning at night up to a capacity" is not implemented.
 - **Spawner interval is measured against an internal `tickCount`** incremented by 20 per task tick (`ZoneManager.java:124`), which is fine for a 20-tick timer but makes the timing depend on the task being scheduled exactly every 20 ticks.
 - **Entry push-back only guards `entry()` zones.** `/zone entry` blocks the *destination* box even if the player was already inside via a nested setup; reference-equality comparison `toZone != fromZone` works because `getZoneAt` returns registry instances.
 - **No zone tests beyond `ZoneResourceConfigTest`.** Membership, lookup precedence, spawner tick, and flag logic have no unit coverage (project guidance in AGENTS.md §9).
+
+- **Spawner IDs (`mobId_<count+1>`, `ZoneCommand.spawnerAdd`) can collide after removals** — no uniqueness check in `ZoneManager.addSpawner`. Not addressed this pass (out of scope of the radius-formula fix below); see Possible Improvements.
 
 ### Resolved 2026-08-07
 
@@ -488,15 +490,16 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 - **`tickMobHomes` guarded.** `MOB_HOME_KEY` can only ever be set by `tickSpawners()`, so the full living-entities-in-every-world scan is now skipped entirely when no registered zone has any spawners configured, instead of running every 40 ticks regardless.
 - **`saveZoneToFile` now round-trips the full schema.** `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` are now serialized alongside the fields that already round-tripped — added the missing `getMinAmount()`/`getMaxAmount()` getters on `ZoneResourceDrop` to make the `resource-blocks` stages serializable. Any `/zone flag`/`/zone spawner` command on a hand-edited zone no longer destroys these.
 - **Deleted shipped zones stay deleted.** `Valmora.saveAllResources()` now runs its "copy if missing" pass only once per install (a `.resources_seeded` marker file), instead of every startup — fixed generally, not just for `zones/`, since the same bug affected every seeded resource folder. See `docs/IMPLEMENTATION_BACKLOG.md`'s Core/plugin-wide section for the adjacent dev-environment fix made in the same method.
+- **`/zone spawner add` radius formula reconciled.** It used to derive the counting radius as `spawnRadius * 4.0` (`ZoneCommand.java`), silently disagreeing with the loader's own flat `20.0` default (`ZoneLoader.java`). The command now takes an explicit, independently-settable `[radius=20.0]` arg (`/zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400] [radius=20.0]`) defaulting to that same `20.0`.
+- **In-game `extra-boxes` editing added.** `/zone box add|remove|list <zoneId> [index]` — `add` promotes the player's current wand/pos1-pos2 selection to an extra sub-box (same normalization as `/zone create`'s primary box), `remove` takes a 0-based index, `list` prints all of a zone's extra boxes. New `ZoneManager.addExtraBox`/`removeExtraBox` + `ZoneDefinition.withExtraBoxes`; reuses the existing `saveZoneToFile` round-trip (already wrote `extra-boxes` correctly, only the command surface was missing).
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Add `/zone box` (add/remove extra boxes), `/zone resource` (attach a `resource-blocks` entry to a selected block), and `/zone fishing`** subcommands, mirroring the existing spawner flow and reusing `saveZoneToFile`.
+- **Add `/zone resource` (attach a `resource-blocks` entry to a selected block) and `/zone fishing`** subcommands, mirroring the existing spawner/box flow and reusing `saveZoneToFile`. (`/zone box` itself shipped 2026-08-07 — see Resolved above.)
 - **Spatial index for `getZoneAt`** (e.g. chunk-keyed buckets or an interval tree) to avoid the per-call registry stream; short-circuit on empty registry. Needs invalidation hooks wired into every `/zone` mutation command — not done this pass (see Unfinished Things).
-- **Unify spawner defaults/radius:** use one radius definition (loader default vs `spawnRadius * 4.0`) and a collision-safe spawner ID generator (`spawner_<timestamp>` or first free index).
+- **Collision-safe spawner ID generator** (`spawner_<timestamp>` or first free index) — the radius-formula half of this item is fixed (see Resolved above), the ID-collision half is still open (see Unfinished Things).
 - **Persistence for mid-progress zones** — track spawner tick state and player membership in the database so a `/valmora reload` doesn't reset spawner phase (currently `spawnerLastSpawnTick`/`tickCount` reset on every reload).
-- **Extra-box support in the wand flow** — extend selection to a multi-box list so admins can build non-cuboid shapes entirely in-game.
 - **Config-driven defaults:** hoist the default flag set and the default `"COBBLESTONE"` drop item into `config.yml` or constants so docs and code stay in sync (the 600-tick `regen-delay` default already drifts from `USER_DOCS.md`'s "seconds" language).
 - **Night/day + capacity spawning** for the plan's graveyard-style "smart spawning" (`ZONE_MODULE_PLAN.md`), using the Time module's calendar (`ValmoraAPI.getTimeManager()`).

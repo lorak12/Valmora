@@ -77,13 +77,16 @@ All sub-commands are player-only (console gets *"Only players can use this comma
 /zone info <id>                        → show details (bounds, flags, spawners)
 /zone list                             → list all zones
 /zone flag <id> <flag> <true|false>    → toggle a flag
-/zone spawner add <zoneId> <mobId> [spawnRadius] [maxAlive] [interval]
+/zone spawner add <zoneId> <mobId> [spawnRadius] [maxAlive] [interval] [radius]
 /zone spawner remove <zoneId> <spawnerId>
 /zone spawner list <zoneId>
+/zone box add <zoneId>                 → add your current selection as an extra sub-box
+/zone box remove <zoneId> <index>      → remove an extra box by its 0-based index
+/zone box list <zoneId>                → list a zone's extra boxes
 /zone visualize                        → toggle yellow zone-border particles
 ```
 
-Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `spawner add`), and spawner IDs (on `spawner remove`) (`ZoneCommand.java:329-367`).
+Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `spawner add`), spawner IDs (on `spawner remove`), and box indices (on `box remove`) (`ZoneCommand.java`).
 
 ### Workflow 1 — Defining a zone (in-game)
 
@@ -93,20 +96,29 @@ Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `
 4. Run `/zone create my_area My Area` — the zone is registered and written to `plugins/Valmora/zones/my_area.yml`.
 5. Run `/zone flag my_area pvp true` (or any of the eight flags) to configure it.
 6. Run `/zone visualize` to see the borders as yellow particles.
-7. Add mob spawners (below) or hand-edit the file for resource blocks/fishing/actions, then `/valmora reload`.
+7. Add mob spawners (below), extra boxes (Workflow 3), or hand-edit the file for resource blocks/fishing/actions, then `/valmora reload`.
 
-> **Warning:** `/zone flag` and `/zone spawner` rewrite the zone file. Keys that are only editable by hand — `fishing-loot-table`, `resource-blocks`, `enter-actions`, `exit-actions` — are **not** preserved by these commands (`ZoneManager.saveZoneToFile`). Edit those first, or re-apply them after any command, or keep them in a separate zone file that you don't touch with commands.
+`/zone flag`, `/zone spawner`, and `/zone box` all rewrite the zone file via `saveZoneToFile`, which round-trips the full schema — `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` (hand-edited only, no command surface for them yet) survive these commands and are not clobbered.
 
 ### Workflow 2 — Mob spawners
 
 ```
-/zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400]
+/zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400] [radius=20.0]
 /zone spawner list <zoneId>
 /zone spawner remove <zoneId> <spawnerId>
 ```
 
 - The spawner is anchored at **your current position** (`ZoneCommand.java:275-277`).
 - `mobId` must exist in the mob registry (`ZoneCommand.java:265-269`).
+- `spawnRadius` is the placement scatter around the anchor (and drives the wander radius); `radius` is the separate alive-count radius used for the `maxAlive` cap — matches the YAML schema's `radius:`/`spawn-radius:` keys 1:1 (they used to disagree: the command derived `radius` from `spawnRadius * 4.0` instead of taking it directly, fixed 2026-08-07).
+
+### Workflow 3 — Extra boxes (non-cuboid zones)
+
+A zone can be more than one box — useful for L-shaped or disconnected regions. Membership is "inside the primary box OR any extra box."
+
+1. Make a selection with `/zone wand` (or `/zone pos1`/`/zone pos2`) — same flow as creating a zone, just for the *extra* piece.
+2. Run `/zone box add <zoneId>` — the selection becomes a new extra box on that zone and is cleared.
+3. `/zone box list <zoneId>` to see all extra boxes (0-based index) and their corners; `/zone box remove <zoneId> <index>` to delete one.
 - Every `interval` ticks, the zone tries to spawn the mob near the anchor, but **stops while `maxAlive` mobs of that type are alive within the counting radius**.
 - Spawned mobs get a hidden "home" tag (`valmora:mob_home`); if a mob wanders out of the zone, the plugin orders it back (behavior task every 40 ticks).
 

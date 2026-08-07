@@ -101,4 +101,10 @@ public class ZoneDefinition {
         return new ZoneDefinition(id, displayName, worldName, minX, minY, minZ, maxX, maxY, maxZ,
             extraBoxes, flags, fishingLootTable, newSpawners, resourceBlocks, enterActions, exitActions);
     }
+
+    /** Added 2026-08-07 for in-game extra-box editing — see {@code ZoneManager.addExtraBox}/{@code removeExtraBox}. */
+    public ZoneDefinition withExtraBoxes(List<int[]> newExtraBoxes) {
+        return new ZoneDefinition(id, displayName, worldName, minX, minY, minZ, maxX, maxY, maxZ,
+            newExtraBoxes, flags, fishingLootTable, mobSpawners, resourceBlocks, enterActions, exitActions);
+    }
 }

@@ -26,8 +26,9 @@ public class ZoneCommand implements TabExecutor {
             "hunger", "entry", "teleportation", "leaf-decay");
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "info", "list", "wand", "pos1", "pos2", "clear",
-            "flag", "spawner", "visualize");
+            "flag", "spawner", "box", "visualize");
     private static final List<String> SPAWNER_SUBS = List.of("add", "remove", "list");
+    private static final List<String> BOX_SUBS = List.of("add", "remove", "list");
 
     private final Valmora plugin;
     private final ZoneModule zoneModule;
@@ -66,6 +67,7 @@ public class ZoneCommand implements TabExecutor {
             case "list" -> listZones(player);
             case "flag" -> flag(player, args);
             case "spawner" -> spawner(player, args);
+            case "box" -> box(player, args);
             case "visualize" -> visualize(player);
             default -> sendHelp(player);
         }
@@ -255,7 +257,7 @@ public class ZoneCommand implements TabExecutor {
 
     private void spawnerAdd(Player player, String[] args, String zoneId) {
         if (args.length < 4) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400]"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400] [radius=20.0]"));
             return;
         }
         if (reg().get(zoneId).isEmpty()) {
@@ -272,6 +274,12 @@ public class ZoneCommand implements TabExecutor {
         int spawnRadius = args.length > 4 ? parseInt(args[4], 3) : 3;
         int maxAlive = args.length > 5 ? parseInt(args[5], 5) : 5;
         int interval = args.length > 6 ? parseInt(args[6], 400) : 400;
+        // Reconciled 2026-08-07: this used to derive the counting radius as spawnRadius * 4.0,
+        // silently disagreeing with ZoneLoader's own YAML default of a flat 20.0 (ZoneLoader.java).
+        // Now it's an explicit, independently-settable arg defaulting to that same 20.0, matching
+        // the loader and the documented `radius:` schema key (counting radius, not derived from
+        // the placement scatter).
+        double radius = args.length > 7 ? parseDouble(args[7], 20.0) : 20.0;
 
         int x = player.getLocation().getBlockX();
         int y = player.getLocation().getBlockY();
@@ -281,7 +289,7 @@ public class ZoneCommand implements TabExecutor {
         ZoneDefinition zone = reg().get(zoneId).get();
         String spawnerId = mobId + "_" + (zone.getMobSpawners().size() + 1);
 
-        ZoneMobSpawner s = new ZoneMobSpawner(spawnerId, mobId, x, y, z, interval, maxAlive, spawnRadius * 4.0, spawnRadius);
+        ZoneMobSpawner s = new ZoneMobSpawner(spawnerId, mobId, x, y, z, interval, maxAlive, radius, spawnRadius);
         mgr().addSpawner(zoneId, s);
         player.sendMessage(Formatter.format(PREFIX + "<green>Added spawner '<white>" + spawnerId
                 + "<green>' to zone '<white>" + zoneId + "<green>' at <white>" + x + ", " + y + ", " + z + "."));
@@ -320,6 +328,79 @@ public class ZoneCommand implements TabExecutor {
         }
     }
 
+    // Added 2026-08-07 — in-game editing for extra-boxes (multi-box zones). The parser and
+    // saveZoneToFile already fully supported `extra-boxes`; only the command surface was missing.
+    private void box(Player player, String[] args) {
+        if (args.length < 3) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone box <add|remove|list> <zoneId> [index]"));
+            return;
+        }
+        String sub = args[1].toLowerCase();
+        String zoneId = args[2].toLowerCase();
+
+        switch (sub) {
+            case "add" -> boxAdd(player, zoneId);
+            case "remove" -> boxRemove(player, args, zoneId);
+            case "list" -> boxList(player, zoneId);
+            default -> player.sendMessage(Formatter.format(PREFIX + "<red>Unknown box sub-command. Use add, remove, or list."));
+        }
+    }
+
+    private void boxAdd(Player player, String zoneId) {
+        if (reg().get(zoneId).isEmpty()) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + zoneId + "' not found."));
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        if (!mgr().hasFullSelection(uuid)) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Select a region first (use /zone wand or /zone pos1/pos2)."));
+            return;
+        }
+        String selWorld = mgr().getSelectionWorld(uuid);
+        if (!player.getWorld().getName().equals(selWorld)) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Your selection is in a different world."));
+            return;
+        }
+
+        int[] p1 = mgr().getPos1(uuid);
+        int[] p2 = mgr().getPos2(uuid);
+        mgr().addExtraBox(zoneId, p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+        mgr().clearSelection(player);
+        player.sendMessage(Formatter.format(PREFIX + "<green>Added extra box to zone '<white>" + zoneId + "<green>'."));
+    }
+
+    private void boxRemove(Player player, String[] args, String zoneId) {
+        if (args.length < 4) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone box remove <zoneId> <index>"));
+            return;
+        }
+        int index = parseInt(args[3], -1);
+        if (mgr().removeExtraBox(zoneId, index)) {
+            player.sendMessage(Formatter.format(PREFIX + "<green>Removed extra box <white>#" + index + "<green> from zone '<white>" + zoneId + "<green>'."));
+        } else {
+            player.sendMessage(Formatter.format(PREFIX + "<red>No extra box #" + index + " in zone '" + zoneId + "'."));
+        }
+    }
+
+    private void boxList(Player player, String zoneId) {
+        ZoneDefinition zone = reg().get(zoneId).orElse(null);
+        if (zone == null) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + zoneId + "' not found."));
+            return;
+        }
+        List<int[]> boxes = zone.getExtraBoxes();
+        if (boxes.isEmpty()) {
+            player.sendMessage(Formatter.format(PREFIX + "<gray>No extra boxes in zone '" + zoneId + "'."));
+            return;
+        }
+        player.sendMessage(Formatter.format(" <gold>Extra boxes in <white>" + zoneId + " <gold>(" + boxes.size() + ")"));
+        for (int i = 0; i < boxes.size(); i++) {
+            int[] b = boxes.get(i);
+            player.sendMessage(Formatter.format("  <gray>#" + i + " <white>[" + b[0] + "," + b[1] + "," + b[2]
+                    + "] <gray>-> <white>[" + b[3] + "," + b[4] + "," + b[5] + "]"));
+        }
+    }
+
     private void visualize(Player player) {
         boolean on = mgr().toggleVisualization(player);
         player.sendMessage(Formatter.format(PREFIX + "<gray>Zone border visualization " + (on ? "<green>enabled" : "<red>disabled") + "."));
@@ -341,11 +422,12 @@ public class ZoneCommand implements TabExecutor {
             switch (args[0].toLowerCase()) {
                 case "delete", "info", "flag" -> StringUtil.copyPartialMatches(args[1], zoneIds, completions);
                 case "spawner" -> StringUtil.copyPartialMatches(args[1], SPAWNER_SUBS, completions);
+                case "box" -> StringUtil.copyPartialMatches(args[1], BOX_SUBS, completions);
             }
         } else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("flag")) {
                 StringUtil.copyPartialMatches(args[2], FLAGS, completions);
-            } else if (args[0].equalsIgnoreCase("spawner")) {
+            } else if (args[0].equalsIgnoreCase("spawner") || args[0].equalsIgnoreCase("box")) {
                 StringUtil.copyPartialMatches(args[2], zoneIds, completions);
             }
         } else if (args.length == 4) {
@@ -359,6 +441,13 @@ public class ZoneCommand implements TabExecutor {
                 if (zone != null) {
                     List<String> ids = zone.getMobSpawners().stream().map(ZoneMobSpawner::getId).toList();
                     StringUtil.copyPartialMatches(args[3], ids, completions);
+                }
+            } else if (args[0].equalsIgnoreCase("box") && args[1].equalsIgnoreCase("remove")) {
+                ZoneDefinition zone = reg().get(args[2]).orElse(null);
+                if (zone != null) {
+                    List<String> indices = new ArrayList<>();
+                    for (int i = 0; i < zone.getExtraBoxes().size(); i++) indices.add(String.valueOf(i));
+                    StringUtil.copyPartialMatches(args[3], indices, completions);
                 }
             }
         }
@@ -381,11 +470,16 @@ public class ZoneCommand implements TabExecutor {
         player.sendMessage(Formatter.format(" <gray>/zone list <dark_gray>- List all zones"));
         player.sendMessage(Formatter.format(" <gray>/zone flag <id> <flag> <true|false>"));
         player.sendMessage(Formatter.format(" <gray>/zone spawner add|remove|list ..."));
+        player.sendMessage(Formatter.format(" <gray>/zone box add|remove|list <id> [index] <dark_gray>- Extra sub-boxes (add uses current selection)"));
         player.sendMessage(Formatter.format(" <gray>/zone visualize <dark_gray>- Toggle zone border particles"));
         player.sendMessage(Formatter.format("<dark_gray><st>                                                        </st>"));
     }
 
     private static int parseInt(String s, int def) {
         try { return Integer.parseInt(s); } catch (NumberFormatException e) { return def; }
+    }
+
+    private static double parseDouble(String s, double def) {
+        try { return Double.parseDouble(s); } catch (NumberFormatException e) { return def; }
     }
 }
