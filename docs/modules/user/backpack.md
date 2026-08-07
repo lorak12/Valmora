@@ -1,8 +1,7 @@
 # Backpacks & Accessories — User Documentation
 
 > There is no dedicated "backpack" or "accessory" module or command list — both are implemented as
-> ordinary items + GUIs. See `docs/modules/design/backpack.md` for the implementation. There is
-> currently no quiver feature (the old one was removed with no replacement).
+> ordinary items + GUIs. See `docs/modules/design/backpack.md` for the implementation.
 
 ## Backpacks
 
@@ -64,3 +63,17 @@ never touch the item that opened it.
 Use `condition:` on the `STORAGE` component (with the `$candidate.item.*$` variables) to restrict
 what can be placed in it — e.g. an accessory-only bag, or a quiver-style bag that only accepts
 arrows.
+
+## Quiver
+
+A player-owned, DB-backed 27-slot arrow storage — the shipped `guis/quiver.yml` example referenced
+above, made real (2026-08-07). Replaces the old removed ammo-quiver feature.
+
+- **Open it:** `/quiver`
+- Accepts vanilla `ARROW`, `SPECTRAL_ARROW`, and `TIPPED_ARROW` items only.
+- **Auto-refill:** whenever you fire a bow and end up with zero arrows left in your main inventory,
+  one arrow stack is automatically pulled out of your quiver and into your inventory — you don't
+  have to open the quiver mid-fight to keep shooting. This is a top-up after the fact, not a true
+  "bow reads directly from the quiver" — vanilla still requires arrows physically in your inventory
+  to draw a bow at all, so the first shot of an empty-inventory-but-full-quiver session still needs
+  one manual refill.

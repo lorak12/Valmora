@@ -310,8 +310,8 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Backpack / Accessory (GUI-based, not a module)
 
-- [ ] **Design and build a quiver replacement.** The old ammo-quiver feature was removed with no equivalent shipped. The natural approach (per `docs/modules/design/backpack.md` §6): a `STORAGE` component with a `condition:` gating on arrow-type items.
-- [ ] **Write an admin walkthrough** for authoring a new backpack tier or accessory-bag-style GUI from scratch (currently only the shipped examples exist as reference).
+- [x] **Design and build a quiver replacement.** The old ammo-quiver feature was removed with no equivalent shipped. The natural approach (per `docs/modules/design/backpack.md` §6): a `STORAGE` component with a `condition:` gating on arrow-type items. *(2026-08-07: shipped `guis/quiver.yml` (player-owned `STORAGE`, gated on `ARROW`/`SPECTRAL_ARROW`/`TIPPED_ARROW` via `$candidate.item.material$`, opened via `/quiver`) plus a new `QuiverListener` that tops the player's inventory up from the quiver after a shot leaves them with zero arrows — an approximation of "bows auto-consume from the quiver" rather than intercepting vanilla's own bow-draw check (not hookable — there's no "tried to shoot with none" event). Also fixed a pre-existing, unrelated bug found while editing `ItemManager`: its `LootListener` was never unregistered in `onDisable()`.)*
+- [x] **Write an admin walkthrough** for authoring a new backpack tier or accessory-bag-style GUI from scratch (currently only the shipped examples exist as reference). *(2026-08-07: already existed — docs drift. `docs/modules/user/backpack.md`'s "Authoring a New Backpack Tier / Storage GUI" section already covers this end-to-end; the design doc's "Known Gaps" note claiming otherwise was stale.)*
 
 ---
 

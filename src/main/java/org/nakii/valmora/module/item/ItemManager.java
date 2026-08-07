@@ -13,6 +13,8 @@ public class ItemManager implements ReloadableModule {
     private ItemLoader itemLoader;
     private ItemTranslator itemTranslator;
     private SetBonusRegistry setBonusRegistry;
+    private LootListener lootListener;
+    private QuiverListener quiverListener;
 
     public ItemManager(Valmora plugin){
         this.plugin = plugin;
@@ -30,8 +32,12 @@ public class ItemManager implements ReloadableModule {
         itemLoader.loadItems();
         setBonusRegistry.load();
 
-        LootListener lootListener = new LootListener(plugin);
+        this.lootListener = new LootListener(plugin);
         plugin.getServer().getPluginManager().registerEvents(lootListener, plugin);
+
+        // Quiver auto-refill (added 2026-08-07) — see guis/quiver.yml / QuiverListener's own doc.
+        this.quiverListener = new QuiverListener(plugin);
+        plugin.getServer().getPluginManager().registerEvents(quiverListener, plugin);
     }
 
     @Override
@@ -39,6 +45,10 @@ public class ItemManager implements ReloadableModule {
         plugin.getLogger().info("Stopping Item Module...");
         itemRegistry.clear();
         setBonusRegistry.clear();
+        // Fixed 2026-08-07: lootListener was never unregistered here (a mandatory-per-AGENTS.md
+        // §6.2 cleanup step that got missed), risking duplicate handling after /valmora reload.
+        if (lootListener != null) { org.bukkit.event.HandlerList.unregisterAll(lootListener); lootListener = null; }
+        if (quiverListener != null) { org.bukkit.event.HandlerList.unregisterAll(quiverListener); quiverListener = null; }
     }
 
     public SetBonusRegistry getSetBonusRegistry() {

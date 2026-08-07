@@ -1,0 +1,34 @@
+# =====================================================================
+# Quiver — a replacement for the old removed ammo-quiver feature (see
+# docs/modules/design/backpack.md §6). Player-owned, DB-backed storage
+# (same STORAGE component primitive as the accessory bag), gated on
+# vanilla arrow-family items. Auto-consumption by bows when the main
+# inventory runs out of arrows is handled by QuiverListener
+# (module/item/QuiverListener.java) — this GUI is purely the storage
+# front-end.
+# =====================================================================
+
+quiver:
+  title: "<dark_gray>➵ Quiver"
+  rows: 3
+  command: quiver
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: quiver
+      owner: PLAYER
+      storage-id: quiver
+      condition: "$candidate.item.material$ == ARROW || $candidate.item.material$ == SPECTRAL_ARROW || $candidate.item.material$ == TIPPED_ARROW"
+
+  on-open:
+    actions:
+      - "sound player block.barrel.open"
+  on-close:
+    actions:
+      - "sound player block.barrel.close"
