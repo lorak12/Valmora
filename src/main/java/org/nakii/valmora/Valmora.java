@@ -498,49 +498,82 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     private void saveAllResources() {
+        // Fixed 2026-08-07: previously ran this "copy if missing" pass on every startup, which
+        // meant deleting a shipped default (a zone, a mob, a GUI, ...) never actually stuck — it
+        // came right back on the next restart, since "the file is missing" looked identical
+        // whether it was never seeded or an admin deliberately removed it. Now it only runs once
+        // per install (marked by this file); an intentional deletion after that stays deleted.
+        // The tradeoff: a plugin update that ships a brand-new default file under one of the
+        // seeded folders won't auto-appear on existing installs either — same as most plugins'
+        // one-time config-seeding behavior.
+        File seededMarker = new File(getDataFolder(), ".resources_seeded");
+        if (seededMarker.exists()) return;
+
         try {
-            File jarFile = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
-            if (!jarFile.isFile()) return;
+            File codeSource = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
 
-            try (ZipInputStream zip = new ZipInputStream(new FileInputStream(jarFile))) {
-                ZipEntry entry;
-                while ((entry = zip.getNextEntry()) != null) {
-                    String name = entry.getName();
-                    if (entry.isDirectory() || name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
-                        continue;
-                    }
-
-                    if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
-                            || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
-                            || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
-                            || name.equals("mob_pipeline.yml")) {
-                        if (!new File(getDataFolder(), name).exists()) {
-                            saveResource(name, false);
-                        }
-                        continue;
-                    }
-
-                    if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
-                            name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
-                            name.startsWith("enchant/") ||
-                            name.startsWith("alchemy/") || name.startsWith("stats/") || name.startsWith("damage_types/") ||
-                            name.startsWith("zones/") || name.startsWith("fishing/") ||
-                            name.startsWith("npcs/") || name.startsWith("dialogues/") ||
-                            name.startsWith("warps/") || name.startsWith("quests/") ||
-                            name.startsWith("collections/") || name.startsWith("hud-items/") ||
-                            name.startsWith("calendar/") || name.startsWith("reforges/") ||
-                            name.startsWith("pets/") ||
-                            name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
-                            name.startsWith("quest_boards/")) {
-                        // Only save if the file doesn't already exist — don't overwrite server edits
-                        if (!new File(getDataFolder(), name).exists()) {
-                            saveResource(name, false);
-                        }
+            if (codeSource.isFile()) {
+                try (ZipInputStream zip = new ZipInputStream(new FileInputStream(codeSource))) {
+                    ZipEntry entry;
+                    while ((entry = zip.getNextEntry()) != null) {
+                        if (!entry.isDirectory()) seedResourceIfSeedable(entry.getName());
                     }
                 }
+            } else if (codeSource.isDirectory()) {
+                // Fixed 2026-08-07: dev/exploded-classpath runs (e.g. `./gradlew runServer`, or
+                // any IDE launch where the plugin's classes/resources sit as loose files rather
+                // than a packaged jar) previously hit `!jarFile.isFile() -> return` and silently
+                // seeded nothing at all. A directory code source is a real filesystem directory
+                // in this case, so it can be walked directly instead of zip-scanned.
+                try (var stream = java.nio.file.Files.walk(codeSource.toPath())) {
+                    for (java.nio.file.Path path : (Iterable<java.nio.file.Path>) stream.filter(java.nio.file.Files::isRegularFile)::iterator) {
+                        String name = codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/');
+                        seedResourceIfSeedable(name);
+                    }
+                }
+            } else {
+                return;
             }
+
+            getDataFolder().mkdirs();
+            seededMarker.createNewFile();
         } catch (IOException | URISyntaxException e) {
             getLogger().warning("Failed to auto-save resources: " + e.getMessage());
+        }
+    }
+
+    /** Copies one jar/classpath resource entry into the data folder if it's one of the seedable default-content files and doesn't already exist there. */
+    private void seedResourceIfSeedable(String name) {
+        if (name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
+            return;
+        }
+
+        if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
+                || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
+                || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
+                || name.equals("mob_pipeline.yml")) {
+            if (!new File(getDataFolder(), name).exists()) {
+                saveResource(name, false);
+            }
+            return;
+        }
+
+        if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
+                name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
+                name.startsWith("enchant/") ||
+                name.startsWith("alchemy/") || name.startsWith("stats/") || name.startsWith("damage_types/") ||
+                name.startsWith("zones/") || name.startsWith("fishing/") ||
+                name.startsWith("npcs/") || name.startsWith("dialogues/") ||
+                name.startsWith("warps/") || name.startsWith("quests/") ||
+                name.startsWith("collections/") || name.startsWith("hud-items/") ||
+                name.startsWith("calendar/") || name.startsWith("reforges/") ||
+                name.startsWith("pets/") ||
+                name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
+                name.startsWith("quest_boards/")) {
+            // Only save if the file doesn't already exist — don't overwrite server edits
+            if (!new File(getDataFolder(), name).exists()) {
+                saveResource(name, false);
+            }
         }
     }
 }

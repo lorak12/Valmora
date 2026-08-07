@@ -472,12 +472,13 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 
 ## Unfinished Things / TODOs
 
-- **`saveZoneToFile` drops hand-written keys.** `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` are not serialized (`ZoneManager.java:347-385`). Any `/zone flag` or `/zone spawner` command on a YAML-edited zone rewrites the file and silently loses those keys. A reload after editing `resource-blocks` in YAML followed by an admin command would purge them.
-- **Deleted shipped zones come back.** `deleteZone` removes `zones/<id>.yml` (`ZoneManager.java:302-303`), but `saveAllResources` re-copies `zones/*` from the JAR on the next startup whenever the file is missing (`Valmora.java:472-484`).
 - **`/zone spawner add` radius formula is inconsistent with the YAML default.** The command builds `radius = spawnRadius * 4.0` (`ZoneCommand.java:283`), while the loader default is a flat `20.0` (`ZoneLoader.java:95`); spawner IDs are `mobId_<count+1>` (`ZoneCommand.java:281`) and can collide after removals (no uniqueness check in `addSpawner`).
-- **Planned flags from `ZONE_MODULE_PLAN.md` not implemented** — fall damage, ability use, healing, cold damage, crop growth, block regeneration for farms/trees (the plan's Hub/Forest/Mine feature list). `docs/todo.md:33` ("manage other flags for zones like hunger, teleportation, entry, leaf decay") is now fully done for hunger/entry/leaf-decay/teleportation (see "Resolved 2026-08-07" below).
-- **No `extra-boxes` in-game editing.** The parser supports multiple boxes (`ZoneLoader.java:62-81`) and `saveZoneToFile` writes them (`ZoneManager.java:361-370`), but there is no `/zone` command to add/remove them; `docs/todo.md:20` ("zones to have multiple boxes...") is only half-addressed.
+- **No `extra-boxes` in-game editing.** The parser supports multiple boxes (`ZoneLoader.java:62-81`) and `saveZoneToFile` writes them, but there is no `/zone` command to add/remove them; `docs/todo.md:20` ("zones to have multiple boxes...") is only half-addressed.
 - **`getZoneAt` is O(n) per call** — streams the whole registry on every flag check, membership check, resource lookup, and mob count. With many zones this is the module's hot path. Deliberately not addressed this pass (see Possible Improvements) — a real spatial index needs invalidation hooks everywhere the registry mutates (every `/zone` edit command), which is more risk than a quick tweak.
+- **No `natural-mob-spawning`/time-of-day/capacity logic** — `docs/todo.md:32` ("flesh out mob spawning in zones"). Spawners are purely interval-based; the plan's "smart spawning at night up to a capacity" is not implemented.
+- **Spawner interval is measured against an internal `tickCount`** incremented by 20 per task tick (`ZoneManager.java:124`), which is fine for a 20-tick timer but makes the timing depend on the task being scheduled exactly every 20 ticks.
+- **Entry push-back only guards `entry()` zones.** `/zone entry` blocks the *destination* box even if the player was already inside via a nested setup; reference-equality comparison `toZone != fromZone` works because `getZoneAt` returns registry instances.
+- **No zone tests beyond `ZoneResourceConfigTest`.** Membership, lookup precedence, spawner tick, and flag logic have no unit coverage (project guidance in AGENTS.md §9).
 
 ### Resolved 2026-08-07
 
@@ -485,16 +486,13 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 - **`teleportation` flag now honored globally** — a new `ZoneListener.onTeleportGate` cancels any `PlayerTeleportEvent` (not just the script `teleport` DSL event) whose *origin* zone has `teleportation: false`, so warps and other plugin/vanilla teleports are covered too.
 - **Tab-completion now lists all 8 flags** — `hunger`, `entry`, `teleportation`, `leaf-decay` added to `ZoneCommand.FLAGS`.
 - **`tickMobHomes` guarded.** `MOB_HOME_KEY` can only ever be set by `tickSpawners()`, so the full living-entities-in-every-world scan is now skipped entirely when no registered zone has any spawners configured, instead of running every 40 ticks regardless.
-- **No `natural-mob-spawning`/time-of-day/capacity logic** — `docs/todo.md:32` ("flesh out mob spawning in zones"). Spawners are purely interval-based; the plan's "smart spawning at night up to a capacity" is not implemented.
-- **Spawner interval is measured against an internal `tickCount`** incremented by 20 per task tick (`ZoneManager.java:124`), which is fine for a 20-tick timer but makes the timing depend on the task being scheduled exactly every 20 ticks.
-- **Entry push-back only guards `entry()` zones.** `onMoveEntryCheck` also ignores Y-coordinate-only movement changes? No — it compares block X/Y/Z (`ZoneListener.java:45-47`), so falling into a blocked zone *is* caught. However, `/zone entry` blocks the *destination* box even if the player was already inside via a nested setup; reference-equality comparison `toZone != fromZone` (`ZoneListener.java:50`) works because `getZoneAt` returns registry instances.
-- **No zone tests beyond `ZoneResourceConfigTest`.** Membership, lookup precedence, spawner tick, and flag logic have no unit coverage (project guidance in AGENTS.md §9).
+- **`saveZoneToFile` now round-trips the full schema.** `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` are now serialized alongside the fields that already round-tripped — added the missing `getMinAmount()`/`getMaxAmount()` getters on `ZoneResourceDrop` to make the `resource-blocks` stages serializable. Any `/zone flag`/`/zone spawner` command on a hand-edited zone no longer destroys these.
+- **Deleted shipped zones stay deleted.** `Valmora.saveAllResources()` now runs its "copy if missing" pass only once per install (a `.resources_seeded` marker file), instead of every startup — fixed generally, not just for `zones/`, since the same bug affected every seeded resource folder. See `docs/IMPLEMENTATION_BACKLOG.md`'s Core/plugin-wide section for the adjacent dev-environment fix made in the same method.
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Round-trip the full schema in `saveZoneToFile`:** serialize `fishing-loot-table`, `resource-blocks`, `enter-actions`, and `exit-actions` so admin commands never destroy hand-written config.
 - **Add `/zone box` (add/remove extra boxes), `/zone resource` (attach a `resource-blocks` entry to a selected block), and `/zone fishing`** subcommands, mirroring the existing spawner flow and reusing `saveZoneToFile`.
 - **Spatial index for `getZoneAt`** (e.g. chunk-keyed buckets or an interval tree) to avoid the per-call registry stream; short-circuit on empty registry. Needs invalidation hooks wired into every `/zone` mutation command — not done this pass (see Unfinished Things).
 - **Unify spawner defaults/radius:** use one radius definition (loader default vs `spawnRadius * 4.0`) and a collision-safe spawner ID generator (`spawner_<timestamp>` or first free index).

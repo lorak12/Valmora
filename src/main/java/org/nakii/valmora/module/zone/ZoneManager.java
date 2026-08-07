@@ -390,6 +390,44 @@ public class ZoneManager {
             i++;
         }
 
+        // Round-trip the hand-written keys the parser reads but this method previously never
+        // wrote back out (fixed 2026-08-07) — any /zone flag or /zone spawner command on a
+        // hand-edited zone was silently destroying these on the next save.
+        if (zone.getFishingLootTable() != null) {
+            config.set(sec + ".fishing-loot-table", zone.getFishingLootTable());
+        }
+        if (!zone.getResourceBlocks().isEmpty()) {
+            for (Map.Entry<Material, ZoneResourceConfig> entry : zone.getResourceBlocks().entrySet()) {
+                String rPath = sec + ".resource-blocks." + entry.getKey().name();
+                ZoneResourceConfig rc = entry.getValue();
+                config.set(rPath + ".regen-delay", rc.getRegenDelayTicks());
+                config.set(rPath + ".required-power", rc.getRequiredPower());
+                List<Map<String, Object>> stageEntries = new ArrayList<>();
+                for (ResourceStage stage : rc.getStages()) {
+                    List<Map<String, Object>> dropEntries = new ArrayList<>();
+                    for (ZoneResourceDrop drop : stage.getDrops()) {
+                        Map<String, Object> dropMap = new java.util.LinkedHashMap<>();
+                        dropMap.put("item", drop.getItemId());
+                        dropMap.put("min", drop.getMinAmount());
+                        dropMap.put("max", drop.getMaxAmount());
+                        dropMap.put("chance", drop.getChance());
+                        dropEntries.add(dropMap);
+                    }
+                    Map<String, Object> stageMap = new java.util.LinkedHashMap<>();
+                    stageMap.put("drops", dropEntries);
+                    if (stage.getNextMaterial() != null) stageMap.put("next", stage.getNextMaterial().name());
+                    stageEntries.add(stageMap);
+                }
+                config.set(rPath + ".stages", stageEntries);
+            }
+        }
+        if (!zone.getEnterActions().isEmpty()) {
+            config.set(sec + ".enter-actions", zone.getEnterActions());
+        }
+        if (!zone.getExitActions().isEmpty()) {
+            config.set(sec + ".exit-actions", zone.getExitActions());
+        }
+
         try {
             config.save(file);
         } catch (IOException e) {

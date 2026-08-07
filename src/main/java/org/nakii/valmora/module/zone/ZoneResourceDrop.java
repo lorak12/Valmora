@@ -15,6 +15,8 @@ public class ZoneResourceDrop {
 
     public String getItemId() { return itemId; }
     public double getChance() { return chance; }
+    public int getMinAmount() { return minAmount; }
+    public int getMaxAmount() { return maxAmount; }
     public int rollAmount() {
         if (minAmount >= maxAmount) return minAmount;
         return minAmount + (int) (Math.random() * (maxAmount - minAmount + 1));
