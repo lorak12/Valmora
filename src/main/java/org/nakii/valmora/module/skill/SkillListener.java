@@ -74,10 +74,11 @@ public class SkillListener implements Listener {
         ValmoraProfile profile = getProfile(event.getPlayer());
         if (profile == null) return;
 
-        String caughtId = "COD";
-        if (event.getCaught() instanceof org.bukkit.entity.Item item) {
-            caughtId = item.getItemStack().getType().name();
-        }
+        // Same fix as CollectionListener.onFish (docs/IMPLEMENTATION_BACKLOG.md, Collection module,
+        // 2026-08-07): a non-Item catch is a real fish entity, not always cod.
+        String caughtId = (event.getCaught() instanceof org.bukkit.entity.Item item)
+                ? item.getItemStack().getType().name()
+                : event.getCaught().getType().name();
 
         for (SkillDefinition skill : plugin.getSkillModule().getSkillRegistry().values()) {
             Double xp = skill.getSourceXp("FISHING", caughtId);

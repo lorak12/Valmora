@@ -12,7 +12,6 @@ sources:
     SALMON: 70.0
     PUFFERFISH: 150.0
     TROPICAL_FISH: 150.0
-    TREASURE: 1000.0
 
 rewards:
   per-level:

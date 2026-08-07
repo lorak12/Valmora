@@ -204,7 +204,7 @@ Registers `@EventHandler` methods mapped to YAML source types. Every handler res
 Notes:
 - `onBlockBreak` and `onCropHarvest` both listen to `BlockBreakEvent`, so a single broken block can feed two different source types; shipped configs keep them disjoint (crops vs. mushroom blocks/cactus in `farming.yml`).
 - `onBrew` awards XP to **every player viewer** of the brewing stand (`SkillListener.java:122-127`), and since `BREW_POTION` looks up identifier `"ANY"`, only an exact `ANY` entry or a `DEFAULT` entry will ever match. The shipped `alchemy.yml` defines **no sources**, so brewing grants nothing out of the box.
-- `onFish` can only ever pass material names; the `TREASURE: 1000.0` entry in `fishing.yml` is therefore unreachable as shipped (no material is named `TREASURE`).
+- `onFish` can only ever pass an `EntityType`/material name (fixed 2026-08-07 to use the real caught-entity type instead of a hardcoded `"COD"` fallback for non-`Item` catches — same bug, same fix as `CollectionListener.onFish`); the dead `TREASURE: 1000.0` entry (no material is ever named `TREASURE`) was removed from `fishing.yml` the same pass.
 
 **Notifications** (also in `SkillListener`):
 - `onSkillXpGain` → action bar `<aqua>+<yellow><xp> <aqua><skill-name> XP` for 20 ticks via `UIManager.getActionBar().showTemporary` (`SkillListener.java:31-35`, `ActionBarUI.java:35-38`).
@@ -272,7 +272,7 @@ Identifier resolution (see §3.2) runs **exact → pattern → tag → DEFAULT**
 | `mining.yml` | `BLOCK_BREAK` | STONE 1.0, DEEPSLATE 1.2, ores 10–180, ANCIENT_DEBRIS 500.0 | per-level: `+defense 0.5`, `coins $param.level$*15`; milestones 10 → IRON_PICKAXE, 30 → DIAMOND_PICKAXE |
 | `farming.yml` | `CROP_HARVEST`, `BLOCK_BREAK` | WHEAT/CARROTS/POTATOES/BEETROOTS 3.0, NETHER_WART 5.0, MELON/PUMPKIN/COCOA 4.0, SUGAR_CANE 2.0, BAMBOO 1.0, TORCHFLOWER/PITCHER 10.0; mushroom blocks 3.0, CACTUS 2.0 | per-level: `+farming_fortune 0.5`, `coins $param.level$*10`; milestones 10 → GOLDEN_HOE, 25 → DIAMOND_HOE, 50 → NETHERITE_HOE |
 | `foraging.yml` | `BLOCK_BREAK` | all 8 log + 8 wood types @ 15.0 | per-level: `+strength 0.2`, `coins $param.level$*12`; milestones 10 → IRON_AXE, 30 → DIAMOND_AXE |
-| `fishing.yml` | `FISHING` | COD 50.0, SALMON 70.0, PUFFERFISH/TROPICAL_FISH 150.0, TREASURE 1000.0 *(unreachable — see §3.5)* | per-level: `+mana 0.3`, `coins $param.level$*25`; milestones 15 → tag `master_angler`, 25 → ENCHANTED_BOOK |
+| `fishing.yml` | `FISHING` | COD 50.0, SALMON 70.0, PUFFERFISH/TROPICAL_FISH 150.0 | per-level: `+mana 0.3`, `coins $param.level$*25`; milestones 15 → tag `master_angler`, 25 → ENCHANTED_BOOK |
 | `alchemy.yml` | *(none)* | — | per-level: `coins $param.level$*5`; milestones 10 → BLAZE_POWDER:5, 30 → NETHER_WART:16 |
 | `carpentry.yml` | `CRAFT_ITEM` | CRAFTING_TABLE 2.0, planks 1.0, STICK 0.5, CHEST/BARREL 5.0, BOOKSHELF 8.0, stairs 3.0, doors/trapdoors 5.0, wooden tools 4.0, BOW 10.0, SHIELD 15.0, etc. | per-level: `+ability_damage 0.2`, `coins $param.level$*12`; milestones 10 → OAK_LOG:32, 25 → CHEST:8, 50 → SHULKER_BOX:1 |
 | `enchanting.yml` | `ENCHANT_ITEM` | swords/pickaxes 10–100, armor 8–130, BOW 30, CROSSBOW 35, TRIDENT 80, FISHING_ROD 20, BOOK 5.0 | per-level: `+magic_find 0.3`, `coins $param.level$*20`; milestones 10 → BOOK:3, 25 → EXPERIENCE_BOTTLE:16, 50 → ENCHANTED_BOOK:1 |
@@ -355,26 +355,24 @@ No standalone skill table exists; XP is wholly embedded in the profile row.
 
 ## Unfinished Things / TODOs
 
-1. **`xp-curve` is dead config.** `SkillDefinition.getXpCurve()` is plumbed through but `SkillRegistry` hard-codes `DEFAULT_XP_THRESHOLDS` and ignores the argument (`SkillRegistry.java:28,39,49`). All nine shipped skills say `default`. No custom curves are possible today.
-2. **`Skill` enum is out of sync with the data.** The enum (`Skill.java:3-12`) has 8 values — `CRAFTING` (not `carpentry`) and **no `TAMING`**. `GiveXpEventFactory` does `Skill.valueOf(args[1].toUpperCase())` (`GiveXpEventFactory.java:29`), so `givexp` for `carpentry` or `taming` silently no-ops, while `CRAFTING` references a skill id that doesn't exist in the YAML. The enum's `maxLevel` is also unused (level math lives in the registry).
-3. **XP-threshold table in `docs/VALMORA_DOCUMENTATION.md` §27 (lines 1413-1430) is stale** — it lists 10/50/100/250/… thresholds and a "last defined threshold at level 28" claim that don't match `DEFAULT_XP_THRESHOLDS` (which defines all 60 levels through 10,000,000).
-4. **`/skill` command docs are stale** — §28 documents `info`/`givexp`/`setlevel`; the code implements `list`/`get`/`give`/`set` (`SkillCommand.java:37-42`).
-5. **`/skill` has no tab completer wired** in `Valmora.java:239` (only `setExecutor`), even though `SkillCommand` implements `TabExecutor`.
-6. **Dead XP entries in shipped config:** `fishing.yml` `TREASURE: 1000.0` can never match (listener passes material names only, `SkillListener.java:78-80`); `alchemy.yml` has no `sources`, so `onBrew`/`BREW_POTION` (`SkillListener.java:117-130`) grants nothing out of the box.
-7. **`onDisable()` doesn't clear the registry** — it relies on `loadSkills()` clearing before reload (`SkillLoader.java:20`). Harmless today, but a future `onDisable` that stops at `unregisterAll` would leak definitions if the loader path changes.
-8. **No XP curve editor, no reset/wipe subcommand**, no way to grant XP to an offline player (all `/skill` admin ops require an online target, `SkillCommand.java:63-67,105-109,147-151`).
+1. **XP-threshold table in `docs/VALMORA_DOCUMENTATION.md` §27 (lines 1413-1430) is stale** — it lists 10/50/100/250/… thresholds and a "last defined threshold at level 28" claim that don't match `XpCurveRegistry`'s built-in `"default"` curve (all 59 levels through 10,000,000).
+2. **`/skill` command docs are stale** — §28 documents `info`/`givexp`/`setlevel`; the code implements `list`/`get`/`give`/`set`/`reset`.
+3. **`onDisable()` doesn't clear the registry** — it relies on `loadSkills()` clearing before reload (`SkillLoader.java:20`). Harmless today, but a future `onDisable` that stops at `unregisterAll` would leak definitions if the loader path changes.
+
+*(2026-08-07: several items previously listed here are resolved or were already stale relative to current code — see `docs/IMPLEMENTATION_BACKLOG.md`'s Skill module section for detail. Summary: `xp-curve` is fully wired via `XpCurveRegistry`/`skills/xp_curves.yml` (this was completed by an earlier "Phase 3.2" refactor, not by this pass — docs drift); the `Skill` enum was fixed (`CRAFTING`→`CARPENTRY`, added `TAMING`) in an earlier pass this session; the `/skill` tab completer was confirmed already working and explicitly wired for clarity, also an earlier pass this session; the dead `fishing.yml` `TREASURE` entry was removed and `alchemy.yml` already ships real `sources` (docs drift); and `/skill reset` plus offline-player support for `give`/`set`/`reset` were added.)*
 
 ---
 
 ## Possible Improvements / Changes
 
-1. **Real per-skill XP curves** — store thresholds in YAML (`xp-curve: {1: 10, 2: 20, ...}` or a named-curve registry) and have `SkillRegistry` actually look them up; makes `getLevelFromXp(curveId, …)` meaningful.
-2. **Reconcile or delete the `Skill` enum.** Either generate the `givexp` event factory from registry ids (string-based) or add `TAMING` and rename `CRAFTING`→`CARPENTRY`. Dropping the enum entirely would remove the duplicate-metadata drift (see §8-2).
-3. **Fix the `$param.level$` quirk** in `SkillManager.java:117-130` — give each reward execution its own params copy so per-level rewards see their own level instead of the final one.
-4. **Make the events cancellable/`isCancelled`-aware** so quests or other modules can veto an XP grant before it lands (currently the XP is already written when `SkillXpGainEvent` fires, `SkillManager.java:93-98`).
-5. **Per-source XP multipliers / modifiers** — e.g. a global `xp-multiplier` per skill or per-source-type to allow "2× mining XP weekend" config without editing every entry.
-6. **Offline-safe admin grants** — queue XP grants to a `UUID` target that apply on profile load, or write directly to the DB.
-7. **Attach the tab completer** for `/skill` in `Valmora.java:239`.
-8. **Wire `BREW_POTION` to something meaningful** — pass the brewed potion's base type as the identifier instead of `"ANY"` so brewing XP can be granular like the other sources.
-9. **Add a `SkillManager.clearXp(skillId)`/reset helper** and maybe a `/skill reset` admin subcommand for server admins (and a `$player.skill.<id>.next_level$`-style complement already exists in `ProgressData.nextLevel`).
-10. **Reusable source-matching utilities** — `SkillDefinition.checkTags` (`SkillDefinition.java:121-158`) duplicates material/entity-tag plumbing; a shared "source resolver" could also power quest `EXP_GAIN`/`LEVEL_SKILL` matching consistently.
+1. **Fix the `$param.level$` quirk** in `SkillManager.java:117-130` — give each reward execution its own params copy so per-level rewards see their own level instead of the final one.
+2. **Make the events cancellable/`isCancelled`-aware** so quests or other modules can veto an XP grant before it lands (currently the XP is already written when `SkillXpGainEvent` fires, `SkillManager.java:93-98`).
+3. **Per-source XP multipliers / modifiers** — e.g. a global `xp-multiplier` per skill or per-source-type to allow "2× mining XP weekend" config without editing every entry.
+4. **Wire `BREW_POTION` to something meaningful** — pass the brewed potion's base type as the identifier instead of `"ANY"` so brewing XP can be granular like the other sources.
+5. **Reusable source-matching utilities** — `SkillDefinition.checkTags` (`SkillDefinition.java:121-158`) duplicates material/entity-tag plumbing; a shared "source resolver" could also power quest `EXP_GAIN`/`LEVEL_SKILL` matching consistently.
+6. **In-game XP curve editor** — `xp_curves.yml` is fully data-driven (thresholds or a formula, see `XpCurveRegistry`'s class doc), but there's no in-game GUI/command to author curves — only hand-editing YAML + reload.
+7. **Offline `give` reward parity** — offline `/skill give` grants use a raw XP bump (`SkillManager.setXp`, via the new `PlayerManager.withOfflineProfile`) that skips per-level/milestone reward scripts, since `addXp`'s reward pipeline needs a live `Player` (messages, location, script context). A queued "apply pending rewards on next login" mechanism would close this gap if it turns out to matter in practice.
+
+### Resolved 2026-08-07: offline admin grants
+
+`PlayerManager.withOfflineProfile(uuid, mutator, onComplete)` — a new generic primitive (mirrors `EconomyModule.readOffline`/`writeOffline`) that mutates a player's active profile whether they're online (synchronous, live session) or offline (async DB load → mutate → save, `onComplete` called back on the main thread). `/skill give`/`set`/`reset` now resolve targets the same way `/eco` does (`Bukkit.getOfflinePlayers()`, never a blocking network lookup) and use this for all three subcommands. `/skill reset <player> <skill>` was also added as a friendlier alias for `/skill set <player> <skill> xp 0`.

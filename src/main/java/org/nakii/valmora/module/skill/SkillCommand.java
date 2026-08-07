@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.skill;
 
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -39,6 +40,7 @@ public class SkillCommand implements TabExecutor {
             case "get" -> handleGet(sender, args);
             case "give" -> handleGive(sender, args);
             case "set" -> handleSet(sender, args);
+            case "reset" -> handleReset(sender, args);
             default -> sendUsage(sender);
         }
 
@@ -102,9 +104,9 @@ public class SkillCommand implements TabExecutor {
             return;
         }
 
-        Player target = Bukkit.getPlayer(args[1]);
+        OfflinePlayer target = resolveTarget(args[1]);
         if (target == null) {
-            sender.sendMessage(Formatter.format("<red>Player not found."));
+            sender.sendMessage(Formatter.format("<red>Player <white>" + args[1] + "<red> was not found (must have played on this server before)."));
             return;
         }
 
@@ -123,14 +125,29 @@ public class SkillCommand implements TabExecutor {
             return;
         }
 
-        ValmoraProfile profile = playerManager.getSession(target.getUniqueId()).getActiveProfile();
-        if (profile == null) {
-            sender.sendMessage(Formatter.format("<red>Player profile not loaded."));
-            return;
-        }
-
-        profile.getSkillManager().addXp(skillId, amount, target);
-        sender.sendMessage(Formatter.format("<green>Gave " + amount + " " + skillOpt.get().getName() + " XP to " + target.getName()));
+        String name = target.getName() != null ? target.getName() : args[1];
+        Player onlineTarget = target.getPlayer();
+        playerManager.withOfflineProfile(target.getUniqueId(),
+                profile -> {
+                    if (onlineTarget != null) {
+                        // Online: full pipeline (level-up event, per-level/milestone reward scripts).
+                        profile.getSkillManager().addXp(skillId, amount, onlineTarget);
+                    } else {
+                        // Offline: addXp's level-up path needs a live Player (messages, location,
+                        // reward scripts) — a raw XP bump with no reward side effects is the
+                        // honest offline equivalent, documented in the design doc.
+                        double newXp = profile.getSkillManager().getXp(skillId) + amount;
+                        profile.getSkillManager().setXp(skillId, newXp);
+                    }
+                },
+                ok -> {
+                    if (ok) {
+                        String suffix = onlineTarget == null ? " <gray>(offline — no level-up rewards fired)" : "";
+                        sender.sendMessage(Formatter.format("<green>Gave " + amount + " " + skillOpt.get().getName() + " XP to " + name + suffix));
+                    } else {
+                        sender.sendMessage(Formatter.format("<red>" + name + "'s profile could not be loaded."));
+                    }
+                });
     }
 
     private void handleSet(CommandSender sender, String[] args) {
@@ -144,9 +161,9 @@ public class SkillCommand implements TabExecutor {
             return;
         }
 
-        Player target = Bukkit.getPlayer(args[1]);
+        OfflinePlayer target = resolveTarget(args[1]);
         if (target == null) {
-            sender.sendMessage(Formatter.format("<red>Player not found."));
+            sender.sendMessage(Formatter.format("<red>Player <white>" + args[1] + "<red> was not found (must have played on this server before)."));
             return;
         }
 
@@ -165,23 +182,49 @@ public class SkillCommand implements TabExecutor {
             sender.sendMessage(Formatter.format("<red>Invalid value."));
             return;
         }
-
-        ValmoraProfile profile = playerManager.getSession(target.getUniqueId()).getActiveProfile();
-        if (profile == null) {
-            sender.sendMessage(Formatter.format("<red>Player profile not loaded."));
+        if (!type.equals("level") && !type.equals("xp")) {
+            sender.sendMessage(Formatter.format("<red>Type must be 'xp' or 'level'."));
             return;
         }
 
-        if (type.equals("level")) {
-            double xp = skillModule.getSkillRegistry().getXpForLevel(skillOpt.get().getXpCurve(), (int) value);
-            profile.getSkillManager().setXp(skillId, xp);
-            sender.sendMessage(Formatter.format("<green>Set " + target.getName() + "'s " + skillOpt.get().getName() + " level to " + (int) value));
-        } else if (type.equals("xp")) {
-            profile.getSkillManager().setXp(skillId, value);
-            sender.sendMessage(Formatter.format("<green>Set " + target.getName() + "'s " + skillOpt.get().getName() + " XP to " + value));
-        } else {
-            sender.sendMessage(Formatter.format("<red>Type must be 'xp' or 'level'."));
+        String name = target.getName() != null ? target.getName() : args[1];
+        double xpToSet = type.equals("level")
+                ? skillModule.getSkillRegistry().getXpForLevel(skillOpt.get().getXpCurve(), (int) value)
+                : value;
+        String label = type.equals("level") ? " level to " + (int) value : " XP to " + value;
+
+        playerManager.withOfflineProfile(target.getUniqueId(),
+                profile -> profile.getSkillManager().setXp(skillId, xpToSet),
+                ok -> {
+                    if (ok) {
+                        sender.sendMessage(Formatter.format("<green>Set " + name + "'s " + skillOpt.get().getName() + label));
+                    } else {
+                        sender.sendMessage(Formatter.format("<red>" + name + "'s profile could not be loaded."));
+                    }
+                });
+    }
+
+    /** Reset a player's skill XP back to 0 — a friendlier alias for {@code /skill set <player> <skill> xp 0}. */
+    private void handleReset(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("valmora.admin")) {
+            sender.sendMessage(Formatter.format("<red>No permission."));
+            return;
         }
+        if (args.length < 3) {
+            sender.sendMessage(Formatter.format("<red>Usage: /skill reset <player> <skill>"));
+            return;
+        }
+        handleSet(sender, new String[]{"set", args[1], args[2], "xp", "0"});
+    }
+
+    /** Online players resolve directly; offline targets are matched (case-insensitively) against the server's known-player cache — never a blocking network lookup. Same pattern as {@code EcoCommand}. */
+    private OfflinePlayer resolveTarget(String name) {
+        Player online = Bukkit.getPlayer(name);
+        if (online != null) return online;
+        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+            if (op.hasPlayedBefore() && name.equalsIgnoreCase(op.getName())) return op;
+        }
+        return null;
     }
 
     private void sendUsage(CommandSender sender) {
@@ -191,23 +234,26 @@ public class SkillCommand implements TabExecutor {
         if (sender.hasPermission("valmora.admin")) {
             sender.sendMessage(Formatter.format(" <gray>/skill give <player> <skill> <xp>"));
             sender.sendMessage(Formatter.format(" <gray>/skill set <player> <skill> <xp|level> <value>"));
+            sender.sendMessage(Formatter.format(" <gray>/skill reset <player> <skill>"));
         }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(args[0], List.of("list", "get", "give", "set"));
+            return filter(args[0], List.of("list", "get", "give", "set", "reset"));
         }
 
         if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("set")) {
+            if (args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("give")
+                    || args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("reset")) {
                 return filter(args[1], Bukkit.getOnlinePlayers().stream().map(Player::getName).collect(Collectors.toList()));
             }
         }
 
         if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("set")) {
+            if (args[0].equalsIgnoreCase("get") || args[0].equalsIgnoreCase("give")
+                    || args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("reset")) {
                 return filter(args[2], new ArrayList<>(skillModule.getSkillRegistry().getKeys()));
             }
         }

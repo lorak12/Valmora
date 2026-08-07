@@ -164,6 +164,45 @@ public class PlayerManager implements ReloadableModule {
         return activeSession.get(uuid);
     }
 
+    /**
+     * Applies {@code mutator} to a player's active profile and persists the change, working for
+     * both online and offline players. Online players use the live cached session directly
+     * (mutator runs synchronously, {@code onComplete} fires immediately); offline players are
+     * loaded from the database, mutated, saved back, and {@code onComplete} runs on the main
+     * thread once the save completes. {@code onComplete} receives {@code true} on success,
+     * {@code false} if the player has never played before or has no active profile.
+     *
+     * <p>Used by admin commands that need to act on an offline target (e.g. {@code /skill give}) —
+     * see {@code EconomyModule.readOffline}/{@code writeOffline} for the analogous pattern used by
+     * {@code /eco}.
+     */
+    public void withOfflineProfile(UUID uuid, java.util.function.Consumer<ValmoraProfile> mutator,
+                                    java.util.function.Consumer<Boolean> onComplete) {
+        ValmoraPlayer cached = activeSession.get(uuid);
+        if (cached != null) {
+            ValmoraProfile active = cached.getActiveProfile();
+            if (active == null) { onComplete.accept(false); return; }
+            mutator.accept(active);
+            dataStore.savePlayer(cached);
+            onComplete.accept(true);
+            return;
+        }
+
+        dataStore.loadPlayer(uuid).thenAccept(vp -> {
+            boolean ok = false;
+            if (vp != null) {
+                ValmoraProfile active = vp.getActiveProfile();
+                if (active != null) {
+                    mutator.accept(active);
+                    dataStore.savePlayer(vp);
+                    ok = true;
+                }
+            }
+            boolean finalOk = ok;
+            Bukkit.getScheduler().runTask(plugin, () -> onComplete.accept(finalOk));
+        });
+    }
+
     public boolean isLoaded(UUID uuid) {
         return activeSession.containsKey(uuid);
     }
