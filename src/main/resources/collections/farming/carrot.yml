@@ -9,16 +9,16 @@ carrot:
     1:
       required: 50
       rewards:
-        - "<gray>Carrot Connoisseur title"
+        - "notify <gray>Carrot Connoisseur title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+2% carrot drop rate"
+        - "notify <gray>+2% carrot drop rate io:chat"
     3:
       required: 5000
       rewards:
-        - "<gray>Golden Carrot recipe unlocked"
+        - "notify <gray>Golden Carrot recipe unlocked io:chat"
     4:
       required: 50000
       rewards:
-        - "<gray>Carrot King title"
+        - "notify <gray>Carrot King title io:chat"

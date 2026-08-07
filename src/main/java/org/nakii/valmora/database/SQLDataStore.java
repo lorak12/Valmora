@@ -345,8 +345,19 @@ public class SQLDataStore implements DataStore {
                     try {
                         String collectionsJson = rsProfiles.getString("collections");
                         if (collectionsJson != null) {
-                            Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
-                            if (collections != null) profile.getCollectionManager().loadData(collections);
+                            // Extended (2026-08-07) to also carry the reward-grant ledger; fall
+                            // back to the pre-extension bare counts-map shape for old saves —
+                            // detected by the presence of a top-level "counts" key, since both
+                            // shapes serialize as a JSON object (unlike player_state's array-vs-
+                            // object distinction, a shape check alone can't tell them apart here).
+                            com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(collectionsJson);
+                            if (parsed.isJsonObject() && parsed.getAsJsonObject().has("counts")) {
+                                profile.getCollectionManager().loadData(
+                                        gson.fromJson(collectionsJson, org.nakii.valmora.module.collection.CollectionManager.SaveData.class));
+                            } else {
+                                Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
+                                if (collections != null) profile.getCollectionManager().loadData(collections);
+                            }
                         }
                     } catch (SQLException ignored) {}
 

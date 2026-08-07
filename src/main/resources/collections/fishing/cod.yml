@@ -9,19 +9,19 @@ cod:
     1:
       required: 10
       rewards:
-        - "<gray>Apprentice Fisherman title"
+        - "notify <gray>Apprentice Fisherman title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% cod catch chance"
+        - "notify <gray>+5% cod catch chance io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Seasoned Angler title"
+        - "notify <gray>Seasoned Angler title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>Master Fisherman title"
+        - "notify <gray>Master Fisherman title io:chat"
 
 salmon:
   category: fishing
@@ -34,12 +34,12 @@ salmon:
     1:
       required: 10
       rewards:
-        - "<gray>Salmon Fisher title"
+        - "notify <gray>Salmon Fisher title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% salmon catch chance"
+        - "notify <gray>+5% salmon catch chance io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>River Master title"
+        - "notify <gray>River Master title io:chat"

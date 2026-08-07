@@ -59,10 +59,11 @@ public class CollectionListener implements Listener {
         ValmoraProfile profile = getProfile(event.getPlayer());
         if (profile == null) return;
 
-        String caught = "COD";
-        if (event.getCaught() instanceof Item entityItem) {
-            caught = entityItem.getItemStack().getType().name();
-        }
+        // Fixed 2026-08-07: previously hardcoded "COD" for any non-Item catch, misattributing
+        // every real fish entity (salmon, pufferfish, tropical fish, …) to cod collections.
+        String caught = (event.getCaught() instanceof Item entityItem)
+                ? entityItem.getItemStack().getType().name()
+                : event.getCaught().getType().name();
         trackEvent(event.getPlayer(), profile, "FISHING", caught);
     }
 
@@ -94,23 +95,28 @@ public class CollectionListener implements Listener {
 
     private void trackEvent(Player player, ValmoraProfile profile, String eventType, String identifier) {
         CollectionManager manager = profile.getCollectionManager();
-        for (CollectionDefinition def : registry.getCollections()) {
-            if (!def.matches(eventType, identifier)) continue;
-
-            int oldStage = def.getStageForCount(manager.getCount(def.getId()));
+        // O(matched) via the registry's track-source index, instead of scanning every registered
+        // collection per gameplay event (docs/IMPLEMENTATION_BACKLOG.md, Collection module).
+        for (CollectionDefinition def : registry.getCollectionsFor(eventType, identifier)) {
             manager.addCount(def.getId(), 1);
             int newStage = def.getStageForCount(manager.getCount(def.getId()));
 
-            if (newStage > oldStage) {
+            // Idempotency (added 2026-08-07): gate on the persisted "already granted" floor, not
+            // a re-derived before/after stage comparison — the latter can re-fire a stage's
+            // rewards forever if a config edit or reload ever causes getStageForCount() to
+            // recompute differently. Once granted, a stage never fires again for this profile.
+            int grantedStage = manager.getGrantedStage(def.getId());
+            if (newStage > grantedStage) {
                 var ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
                 for (CollectionStage stage : def.getStages()) {
-                    if (stage.getNumber() > oldStage && stage.getNumber() <= newStage
+                    if (stage.getNumber() > grantedStage && stage.getNumber() <= newStage
                             && !stage.getRewards().isEmpty()) {
                         plugin.getScriptModule().getEventParser()
                                 .parseList(stage.getRewards())
                                 .execute(ctx);
                     }
                 }
+                manager.setGrantedStage(def.getId(), newStage);
             }
         }
     }

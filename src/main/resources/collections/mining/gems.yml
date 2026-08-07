@@ -13,28 +13,28 @@ diamond:
     1:
       required: 10
       rewards:
-        - "<gray>Diamond Miner title"
+        - "notify <gray>Diamond Miner title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% diamond ore yield"
+        - "notify <gray>+5% diamond ore yield io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Gem Seeker title"
+        - "notify <gray>Gem Seeker title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% diamond drop rate"
+        - "notify <gray>+10% diamond drop rate io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Diamond Baron title"
+        - "notify <gray>Diamond Baron title io:chat"
     6:
       required: 25000
       rewards:
-        - "<gray>Diamond God title"
-        - "<gray>Diamond Crown cosmetic"
+        - "notify <gray>Diamond God title io:chat"
+        - "notify <gray>Diamond Crown cosmetic io:chat"
 
 emerald:
   category: mining
@@ -48,23 +48,23 @@ emerald:
     1:
       required: 10
       rewards:
-        - "<gray>Trader title"
+        - "notify <gray>Trader title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% emerald ore yield"
+        - "notify <gray>+5% emerald ore yield io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Village Merchant title"
+        - "notify <gray>Village Merchant title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% emerald drop rate"
+        - "notify <gray>+10% emerald drop rate io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Emerald Tycoon title"
+        - "notify <gray>Emerald Tycoon title io:chat"
 
 lapis_lazuli:
   category: mining
@@ -78,23 +78,23 @@ lapis_lazuli:
     1:
       required: 25
       rewards:
-        - "<gray>Enchanter Apprentice title"
+        - "notify <gray>Enchanter Apprentice title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% lapis yield"
+        - "notify <gray>+5% lapis yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Blue Miner title"
+        - "notify <gray>Blue Miner title io:chat"
     4:
       required: 2000
       rewards:
-        - "<gray>+10% lapis ore drop"
+        - "notify <gray>+10% lapis ore drop io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Lapis Sorcerer title"
+        - "notify <gray>Lapis Sorcerer title io:chat"
 
 redstone:
   category: mining
@@ -108,23 +108,23 @@ redstone:
     1:
       required: 25
       rewards:
-        - "<gray>Redstone Engineer title"
+        - "notify <gray>Redstone Engineer title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% redstone yield"
+        - "notify <gray>+5% redstone yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Circuit Breaker title"
+        - "notify <gray>Circuit Breaker title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% redstone ore drop"
+        - "notify <gray>+10% redstone ore drop io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Redstone Genius title"
+        - "notify <gray>Redstone Genius title io:chat"
 
 quartz:
   category: mining
@@ -137,23 +137,23 @@ quartz:
     1:
       required: 25
       rewards:
-        - "<gray>Nether Explorer title"
+        - "notify <gray>Nether Explorer title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% quartz yield"
+        - "notify <gray>+5% quartz yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Crystal Miner title"
+        - "notify <gray>Crystal Miner title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% quartz ore drop"
+        - "notify <gray>+10% quartz ore drop io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Quartz Artisan title"
+        - "notify <gray>Quartz Artisan title io:chat"
 
 raw_gold:
   category: mining
@@ -169,23 +169,23 @@ raw_gold:
     1:
       required: 25
       rewards:
-        - "<gray>Gold Prospector title"
+        - "notify <gray>Gold Prospector title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% gold ore yield"
+        - "notify <gray>+5% gold ore yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Auric Miner title"
+        - "notify <gray>Auric Miner title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% gold drop rate"
+        - "notify <gray>+10% gold drop rate io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Gold Rush title"
+        - "notify <gray>Gold Rush title io:chat"
 
 raw_copper:
   category: mining
@@ -199,23 +199,23 @@ raw_copper:
     1:
       required: 50
       rewards:
-        - "<gray>Copper Miner title"
+        - "notify <gray>Copper Miner title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% copper yield"
+        - "notify <gray>+5% copper yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Oxidized title"
+        - "notify <gray>Oxidized title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% copper ore drop"
+        - "notify <gray>+10% copper ore drop io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Bronze Age title"
+        - "notify <gray>Bronze Age title io:chat"
 
 ancient_debris:
   category: mining
@@ -228,23 +228,23 @@ ancient_debris:
     1:
       required: 5
       rewards:
-        - "<gray>Netherite Seeker title"
+        - "notify <gray>Netherite Seeker title io:chat"
     2:
       required: 20
       rewards:
-        - "<gray>+5% ancient debris chance"
+        - "notify <gray>+5% ancient debris chance io:chat"
     3:
       required: 100
       rewards:
-        - "<gray>Nether Archaeologist title"
+        - "notify <gray>Nether Archaeologist title io:chat"
     4:
       required: 500
       rewards:
-        - "<gray>+10% debris yield"
+        - "notify <gray>+10% debris yield io:chat"
     5:
       required: 2000
       rewards:
-        - "<gray>Netherite God title"
+        - "notify <gray>Netherite God title io:chat"
 
 amethyst_shard:
   category: mining
@@ -258,20 +258,20 @@ amethyst_shard:
     1:
       required: 25
       rewards:
-        - "<gray>Crystal Hunter title"
+        - "notify <gray>Crystal Hunter title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% amethyst yield"
+        - "notify <gray>+5% amethyst yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Amethyst Keeper title"
+        - "notify <gray>Amethyst Keeper title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% cluster drop rate"
+        - "notify <gray>+10% cluster drop rate io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Geode Lord title"
+        - "notify <gray>Geode Lord title io:chat"

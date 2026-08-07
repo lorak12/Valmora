@@ -11,23 +11,23 @@ feather:
     1:
       required: 50
       rewards:
-        - "<gray>Chicken Farmer title"
+        - "notify <gray>Chicken Farmer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% feather drop rate"
+        - "notify <gray>+5% feather drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Plume Collector title"
+        - "notify <gray>Plume Collector title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% feather yield"
+        - "notify <gray>+10% feather yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Featherweight title"
+        - "notify <gray>Featherweight title io:chat"
 
 raw_chicken:
   category: farming
@@ -40,23 +40,23 @@ raw_chicken:
     1:
       required: 50
       rewards:
-        - "<gray>Poultry Farmer title"
+        - "notify <gray>Poultry Farmer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% chicken drop rate"
+        - "notify <gray>+5% chicken drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Chicken Wrangler title"
+        - "notify <gray>Chicken Wrangler title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% poultry yield"
+        - "notify <gray>+10% poultry yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Roost Master title"
+        - "notify <gray>Roost Master title io:chat"
 
 leather:
   category: farming
@@ -73,23 +73,23 @@ leather:
     1:
       required: 25
       rewards:
-        - "<gray>Tanner Apprentice title"
+        - "notify <gray>Tanner Apprentice title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% leather drop rate"
+        - "notify <gray>+5% leather drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Leather Worker title"
+        - "notify <gray>Leather Worker title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% leather yield"
+        - "notify <gray>+10% leather yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Master Tanner title"
+        - "notify <gray>Master Tanner title io:chat"
 
 raw_beef:
   category: farming
@@ -103,23 +103,23 @@ raw_beef:
     1:
       required: 50
       rewards:
-        - "<gray>Rancher title"
+        - "notify <gray>Rancher title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% beef drop rate"
+        - "notify <gray>+5% beef drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Cattle Farmer title"
+        - "notify <gray>Cattle Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% beef yield"
+        - "notify <gray>+10% beef yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Butcher Supreme title"
+        - "notify <gray>Butcher Supreme title io:chat"
 
 porkchop:
   category: farming
@@ -133,23 +133,23 @@ porkchop:
     1:
       required: 50
       rewards:
-        - "<gray>Pig Farmer title"
+        - "notify <gray>Pig Farmer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% pork drop rate"
+        - "notify <gray>+5% pork drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Pork Chop Champion title"
+        - "notify <gray>Pork Chop Champion title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% pork yield"
+        - "notify <gray>+10% pork yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Swine Maestro title"
+        - "notify <gray>Swine Maestro title io:chat"
 
 mutton:
   category: farming
@@ -162,23 +162,23 @@ mutton:
     1:
       required: 50
       rewards:
-        - "<gray>Shepherd title"
+        - "notify <gray>Shepherd title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% mutton drop rate"
+        - "notify <gray>+5% mutton drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Lamb Farmer title"
+        - "notify <gray>Lamb Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% mutton yield"
+        - "notify <gray>+10% mutton yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Flock Master title"
+        - "notify <gray>Flock Master title io:chat"
 
 wool:
   category: farming
@@ -206,23 +206,23 @@ wool:
     1:
       required: 50
       rewards:
-        - "<gray>Woolly Farmer title"
+        - "notify <gray>Woolly Farmer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% wool drop rate"
+        - "notify <gray>+5% wool drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Sheep Shearer title"
+        - "notify <gray>Sheep Shearer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% wool yield"
+        - "notify <gray>+10% wool yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Wool Baron title"
+        - "notify <gray>Wool Baron title io:chat"
 
 raw_rabbit:
   category: farming
@@ -235,23 +235,23 @@ raw_rabbit:
     1:
       required: 25
       rewards:
-        - "<gray>Rabbit Hunter title"
+        - "notify <gray>Rabbit Hunter title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% rabbit drop rate"
+        - "notify <gray>+5% rabbit drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Bunny Farmer title"
+        - "notify <gray>Bunny Farmer title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% rabbit yield"
+        - "notify <gray>+10% rabbit yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Warren Master title"
+        - "notify <gray>Warren Master title io:chat"
 
 rabbit_hide:
   category: farming
@@ -264,23 +264,23 @@ rabbit_hide:
     1:
       required: 25
       rewards:
-        - "<gray>Trapper title"
+        - "notify <gray>Trapper title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% hide drop rate"
+        - "notify <gray>+5% hide drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Pelt Collector title"
+        - "notify <gray>Pelt Collector title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% hide yield"
+        - "notify <gray>+10% hide yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Fur Trader title"
+        - "notify <gray>Fur Trader title io:chat"
 
 ink_sac:
   category: farming
@@ -295,23 +295,23 @@ ink_sac:
     1:
       required: 25
       rewards:
-        - "<gray>Squid Wrangler title"
+        - "notify <gray>Squid Wrangler title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% ink drop rate"
+        - "notify <gray>+5% ink drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Inkling title"
+        - "notify <gray>Inkling title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% ink yield"
+        - "notify <gray>+10% ink yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Ink Baron title"
+        - "notify <gray>Ink Baron title io:chat"
 
 egg:
   category: farming
@@ -323,20 +323,20 @@ egg:
     1:
       required: 50
       rewards:
-        - "<gray>Egg Collector title"
+        - "notify <gray>Egg Collector title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% egg drop rate"
+        - "notify <gray>+5% egg drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Omelette Chef title"
+        - "notify <gray>Omelette Chef title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% egg yield"
+        - "notify <gray>+10% egg yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Poultry Baron title"
+        - "notify <gray>Poultry Baron title io:chat"

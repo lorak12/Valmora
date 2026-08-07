@@ -12,23 +12,23 @@ string:
     1:
       required: 50
       rewards:
-        - "<gray>Spider Slayer title"
+        - "notify <gray>Spider Slayer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% string drop rate"
+        - "notify <gray>+5% string drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Web Weaver title"
+        - "notify <gray>Web Weaver title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% string yield"
+        - "notify <gray>+10% string yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Arachnid Lord title"
+        - "notify <gray>Arachnid Lord title io:chat"
 
 spider_eye:
   category: combat
@@ -42,23 +42,23 @@ spider_eye:
     1:
       required: 50
       rewards:
-        - "<gray>Venomous Hunter title"
+        - "notify <gray>Venomous Hunter title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% eye drop rate"
+        - "notify <gray>+5% eye drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Poison Brewer title"
+        - "notify <gray>Poison Brewer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% spider eye yield"
+        - "notify <gray>+10% spider eye yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Spider Witch title"
+        - "notify <gray>Spider Witch title io:chat"
 
 gunpowder:
   category: combat
@@ -71,23 +71,23 @@ gunpowder:
     1:
       required: 50
       rewards:
-        - "<gray>Creeper Tamer title"
+        - "notify <gray>Creeper Tamer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% gunpowder drop rate"
+        - "notify <gray>+5% gunpowder drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Demolitions Expert title"
+        - "notify <gray>Demolitions Expert title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% gunpowder yield"
+        - "notify <gray>+10% gunpowder yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Boom Master title"
+        - "notify <gray>Boom Master title io:chat"
 
 ender_pearl:
   category: combat
@@ -100,23 +100,23 @@ ender_pearl:
     1:
       required: 25
       rewards:
-        - "<gray>Void Walker title"
+        - "notify <gray>Void Walker title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% pearl drop rate"
+        - "notify <gray>+5% pearl drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>End Stalker title"
+        - "notify <gray>End Stalker title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% ender pearl yield"
+        - "notify <gray>+10% ender pearl yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Teleporter Supremacy title"
+        - "notify <gray>Teleporter Supremacy title io:chat"
 
 slimeball:
   category: combat
@@ -129,23 +129,23 @@ slimeball:
     1:
       required: 50
       rewards:
-        - "<gray>Slime Hunter title"
+        - "notify <gray>Slime Hunter title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% slimeball drop rate"
+        - "notify <gray>+5% slimeball drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Bouncy Warrior title"
+        - "notify <gray>Bouncy Warrior title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% slime yield"
+        - "notify <gray>+10% slime yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Slime Overlord title"
+        - "notify <gray>Slime Overlord title io:chat"
 
 bone:
   category: combat
@@ -160,23 +160,23 @@ bone:
     1:
       required: 50
       rewards:
-        - "<gray>Skeleton Slayer title"
+        - "notify <gray>Skeleton Slayer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% bone drop rate"
+        - "notify <gray>+5% bone drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Marrow Collector title"
+        - "notify <gray>Marrow Collector title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% bone yield"
+        - "notify <gray>+10% bone yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Bone Baron title"
+        - "notify <gray>Bone Baron title io:chat"
 
 rotten_flesh:
   category: combat
@@ -192,23 +192,23 @@ rotten_flesh:
     1:
       required: 50
       rewards:
-        - "<gray>Undead Slayer title"
+        - "notify <gray>Undead Slayer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% flesh drop rate"
+        - "notify <gray>+5% flesh drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Zombie Hunter title"
+        - "notify <gray>Zombie Hunter title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% rotten flesh yield"
+        - "notify <gray>+10% rotten flesh yield io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Plague Warrior title"
+        - "notify <gray>Plague Warrior title io:chat"
 
 arrow:
   category: combat
@@ -224,20 +224,20 @@ arrow:
     1:
       required: 100
       rewards:
-        - "<gray>Archer title"
+        - "notify <gray>Archer title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+5% arrow drop rate"
+        - "notify <gray>+5% arrow drop rate io:chat"
     3:
       required: 2000
       rewards:
-        - "<gray>Bowmaster title"
+        - "notify <gray>Bowmaster title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+10% arrow yield"
+        - "notify <gray>+10% arrow yield io:chat"
     5:
       required: 50000
       rewards:
-        - "<gray>Arrow Baron title"
+        - "notify <gray>Arrow Baron title io:chat"

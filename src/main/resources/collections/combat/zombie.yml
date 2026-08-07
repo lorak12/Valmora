@@ -10,24 +10,24 @@ zombie:
     1:
       required: 10
       rewards:
-        - "<gray>Zombie Slayer I title"
+        - "notify <gray>Zombie Slayer I title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% zombie rotten flesh drop rate"
+        - "notify <gray>+5% zombie rotten flesh drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Undead Hunter title"
+        - "notify <gray>Undead Hunter title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+1% zombie XP"
+        - "notify <gray>+1% zombie XP io:chat"
     5:
       required: 100000
       rewards:
-        - "<gray>Zombie Lord title"
-        - "<gray>Zombie Pet unlocked"
+        - "notify <gray>Zombie Lord title io:chat"
+        - "notify <gray>Zombie Pet unlocked io:chat"
 
 skeleton:
   category: combat
@@ -41,16 +41,16 @@ skeleton:
     1:
       required: 10
       rewards:
-        - "<gray>Skeleton Slayer title"
+        - "notify <gray>Skeleton Slayer title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% bone drop rate"
+        - "notify <gray>+5% bone drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Bone Knight title"
+        - "notify <gray>Bone Knight title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>Skeleton Hunter title"
+        - "notify <gray>Skeleton Hunter title io:chat"

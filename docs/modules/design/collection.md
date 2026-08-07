@@ -95,17 +95,18 @@ Registry of categories and collections.
   `def.getCategoryId().equalsIgnoreCase(lower)`. Does **not** validate the category exists.
 - `clear()` empties both maps (`CollectionRegistry.java:41-44`).
 
-### `CollectionManager.java` (32 lines)
+### `CollectionManager.java`
 
-Per-profile mutable counter store. **Not thread-safe; use on the main thread.**
+Per-profile mutable counter store, plus (since 2026-08-07) the reward-grant ledger. **Not thread-safe; use on the main thread.**
 
-- `counts`: `Map<String, Long>`, keys lowercased (`CollectionManager.java:7`).
-- `getCount(id)` → `0L` default (`CollectionManager.java:9-11`).
-- `addCount(id, amount)` → `merge(id.toLowerCase(), amount, Long::sum)` (`CollectionManager.java:13-15`).
-- `getCurrentStage(id, def)` → null-safe `def.getStageForCount(getCount(id))`; `def == null` → `0`
-  (`CollectionManager.java:17-20`).
-- `loadData(Map<String, Long>)` clears and reloads, lowercasing keys (`CollectionManager.java:22-27`).
-- `getSaveData()` returns a defensive copy (`CollectionManager.java:29-31`).
+- `counts`: `Map<String, Long>`, keys lowercased.
+- `grantedStages`: `Map<String, Integer>` *(added 2026-08-07)* — highest stage number already rewarded, per collection id.
+- `getCount(id)` → `0L` default. `addCount(id, amount)` → `merge(id.toLowerCase(), amount, Long::sum)`.
+- `getCurrentStage(id, def)` → null-safe `def.getStageForCount(getCount(id))`; `def == null` → `0`.
+- `getGrantedStage(id)` / `setGrantedStage(id, stage)` *(added 2026-08-07)* — the idempotency floor read/written by `CollectionListener.trackEvent`.
+- `getSaveData()` → `SaveData{counts, grantedStages}` (a defensive copy of both maps).
+- `loadData(SaveData)` — clears and reloads both maps.
+- `loadData(Map<String, Long>)` — back-compat path for the pre-extension bare-counts save shape; clears `grantedStages` to empty (see the persistence section's migration note).
 
 ### `CollectionListener.java` (117 lines)
 
@@ -119,22 +120,25 @@ The event-driven incrementer. All handlers are `@EventHandler(priority = EventPr
 - `onEntityDeath` (`CollectionListener.java:47-53`): only when `entity.getKiller() != null`; feeds
   `"MOB_KILL"` + `entityType.name()`.
 - `onFish` (`CollectionListener.java:56-67`): only for `PlayerFishEvent.State.CAUGHT_FISH` with a non-null caught
-  entity. If the caught entity is an `Item`, uses the item stack's material name; **otherwise hardcodes `"COD"`**
-  (`CollectionListener.java:62-64`) — a caught `Fish` entity (salmon, pufferfish…) is misattributed to COD.
-  Feeds `"FISHING"`.
+  entity. If the caught entity is an `Item`, uses the item stack's material name; **otherwise uses the caught
+  entity's `EntityType` name** *(fixed 2026-08-07, was hardcoded `"COD"` — misattributed every real fish entity to
+  cod collections)*. Feeds `"FISHING"`.
 - `onItemPickup` (`CollectionListener.java:70-85`): players only. Feeds `"ITEM_PICKUP"` + item material name, and
   *additionally* feeds `"ITEM_PICKUP:custom:<id>"` when the item's PDC carries `Keys.ITEM_ID_KEY`
   (`CollectionListener.java:78-84`).
 - `onCraft` (`CollectionListener.java:88-93`): feeds `"CRAFT"` + recipe result material name.
-- `trackEvent(...)` (`CollectionListener.java:95-116`):
-  1. Loops **every** collection in the registry (`CollectionListener.java:97`).
-  2. Skips non-matching definitions.
-  3. Captures `oldStage`, increments by 1, captures `newStage`
-     (`CollectionListener.java:100-102`).
-  4. If a boundary was crossed, builds a `SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration())`
-     (empty params!) and executes the reward list of every stage with `number > oldStage && number <= newStage` and a
-     non-empty rewards list via `plugin.getScriptModule().getEventParser().parseList(...).execute(ctx)`
-     (`CollectionListener.java:104-114`).
+- `trackEvent(...)`:
+  1. Looks up only the collections tracking this exact `EVENT_TYPE:IDENTIFIER` via `registry.getCollectionsFor(...)`
+     *(added 2026-08-07 — was a full scan of every registered collection per event; see §"Performance" below)*.
+  2. Increments the counter, derives `newStage` from the new count.
+  3. Compares against `manager.getGrantedStage(id)` — the persisted "already rewarded through this stage" floor
+     *(added 2026-08-07 — was a re-derived before/after stage comparison, which could re-fire a stage forever if
+     `getStageForCount()` ever recomputed differently after a config edit)* — not the old ad-hoc before/after
+     comparison.
+  4. If `newStage > grantedStage`, builds a `SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration())`
+     (empty params!), executes the reward list of every newly-crossed stage via
+     `plugin.getScriptModule().getEventParser().parseList(...).execute(ctx)`, then calls
+     `manager.setGrantedStage(id, newStage)` so those stages never fire again for this profile.
 
 ### `CollectionLoader.java` (79 lines)
 
@@ -215,12 +219,11 @@ Script variable provider, namespace `"collection"` (`CollectionVariableProvider.
 Gameplay event
   └─ CollectionListener (MONITOR, ignoreCancelled)
         └─ trackEvent(player, profile, EVENT_TYPE, IDENTIFIER)
-              └─ for each def in registry:
-                    matches(EVENT_TYPE + ":" + IDENTIFIER)?
-                        ├─ oldStage = def.getStageForCount(count)
-                        ├─ manager.addCount(def.id, 1)      ← profile-local counter
-                        ├─ newStage = def.getStageForCount(count)
-                        └─ if newStage > oldStage → execute reward scripts for crossed stages
+              └─ for each def in registry.getCollectionsFor(EVENT_TYPE, IDENTIFIER):   ← O(matched), indexed (2026-08-07)
+                    ├─ manager.addCount(def.id, 1)              ← profile-local counter
+                    ├─ newStage = def.getStageForCount(count)
+                    ├─ grantedStage = manager.getGrantedStage(def.id)   ← persisted reward-ledger floor (2026-08-07)
+                    └─ if newStage > grantedStage → execute reward scripts for newly-crossed stages, then setGrantedStage(newStage)
 ```
 
 ### Tiers / stages
@@ -230,20 +233,23 @@ Gameplay event
   number).
 - Stage numbers are 1-indexed; `0` means "not started" (`CollectionVariableProvider.java:180-186`, GUI displays
   stage 0 as the "not started" baseline).
-- The current stage is derived, never stored.
+- The current stage is derived, never stored — but the *granted* stage (§"Rewards") now is.
 
 ### Rewards
 
-- Executed via the Script module: `getEventParser().parseList(stage.getRewards()).execute(ctx)`
-  (`CollectionListener.java:109-112`).
-- A single crossing can fire multiple stage rewards (bulk grant when several thresholds are passed at once,
-  `CollectionListener.java:106-108`).
-- The `ExecutionContext` is a bare `SimpleExecutionContext` with **empty params** and no target
-  (`CollectionListener.java:105`). The caster is the player; `getPlayerCaster()` resolves for the reward events that
-  need it.
-- **Important caveat:** the shipped resource YAMLs (`coal.yml` etc.) put *MiniMessage display strings* like
-  `"<gray>Novice Miner title"` in `rewards`, which are passed through the script parser and do not perform gameplay
-  actions. Real executable reward events (e.g. `economy_add 100`) are supported by the engine but not shipped.
+- Executed via the Script module: `getEventParser().parseList(stage.getRewards()).execute(ctx)`.
+- A single crossing can fire multiple stage rewards (bulk grant when several thresholds are passed at once).
+- The `ExecutionContext` is a bare `SimpleExecutionContext` with **empty params** and no target. The caster is the
+  player; `getPlayerCaster()` resolves for the reward events that need it.
+- **Idempotent since 2026-08-07:** `CollectionManager.getGrantedStage`/`setGrantedStage` track the highest stage
+  already rewarded per collection, persisted alongside counts (§"Data Model / Persistence"). A stage's rewards fire
+  exactly once per profile, even across `/valmora reload` or a YAML edit that changes a stage's `required` threshold.
+- **Reward content:** the shipped resource YAMLs (`coal.yml` etc.) originally put bare *MiniMessage display strings*
+  like `"<gray>Novice Miner title"` in `rewards`, which silently no-op'd through the script parser. As of 2026-08-07
+  every shipped line is wrapped as `notify <text> io:chat`, so it actually announces itself — but the *content* is
+  still flavor text describing mechanics the engine doesn't implement yet (recipe unlocks, yield/speed bonuses).
+  Real executable reward events (`economy_add 100`, `give`, `tag add`) are supported by the engine and would be a
+  natural next step, but building out ~80 collections' worth of real rewards is a separate content pass.
 
 ### GUI
 
@@ -377,28 +383,33 @@ same counter. The same `EVENT_TYPE:IDENTIFIER` may appear in more than one colle
 
 - `ValmoraProfile` owns a `final CollectionManager collectionManager = new CollectionManager()`
   (`ValmoraProfile.java:21`) with getter `getCollectionManager()` (`ValmoraProfile.java:66-68`).
-- The `CollectionManager` stores `Map<String, Long> counts` (lowercase keys) entirely **in memory** during the
-  profile's session (`CollectionManager.java:7`). No per-stage granted-state is recorded.
+- The `CollectionManager` stores `Map<String, Long> counts` **and** `Map<String, Integer> grantedStages` *(added
+  2026-08-07)* (both lowercase keys) entirely **in memory** during the profile's session.
 
 ### Database
 
 - Column `collections TEXT` on `valmora_profiles` (`SQLDataStore.java:141`), added for pre-versioning databases via
   `addColumnIfMissing(conn, "valmora_profiles", "collections", "TEXT")` (`SQLDataStore.java:149`).
-- **Save** (`SQLDataStore.java:287-301`): serialized as JSON via
-  `gson.toJson(profile.getCollectionManager().getSaveData())` → `Map<String, Long>`.
-- **Load** (`SQLDataStore.java:233-239`): `gson.fromJson(collectionsJson, collectionsType)` then
-  `profile.getCollectionManager().loadData(collections)`. Wrapped in try/catch so a missing/malformed column does not
-  abort profile loading.
-- Saved on the async DB executor (`SQLDataStore.java:268`), as with all profile data; the module itself never touches
-  the DB directly.
-- On server shutdown, all sessions are saved via `dataStore.savePlayer(player).join()` (`Valmora.java:270-273`).
+- **Save**: serialized as JSON via `gson.toJson(profile.getCollectionManager().getSaveData())` → a
+  `{counts: {...}, grantedStages: {...}}` object *(extended 2026-08-07, was a bare `Map<String, Long>`)*.
+- **Load**: shape-detected — parses the JSON, and if the root object has a top-level `counts` key, deserializes as
+  `CollectionManager.SaveData` (`loadData(SaveData)`); otherwise falls back to the pre-extension bare counts map
+  (`loadData(Map<String, Long>)`), which starts every collection's granted-stage floor at 0 (see the reward-ledger
+  note below). Same technique `PlayerState`'s `player_state` column extension used, adapted since (unlike that
+  column's array-vs-object distinction) both collections shapes serialize as JSON objects. Wrapped in try/catch so a
+  missing/malformed column does not abort profile loading.
+- Saved on the async DB executor, as with all profile data; the module itself never touches the DB directly.
+- On server shutdown, all sessions are saved via `dataStore.savePlayer(player).join()`.
 
 ### Important semantics
 
-- Only the **raw counter** is persisted. The current stage is always recomputed from the definition. If a collection's
-  YAML stages change between restarts, already-crossed stages will fire **again** on the next matching event
-  (because old/new stage are compared live, and rewards are not recorded anywhere).
-- Counts are per-profile; profiles are independent (`CollectionManager` is instantiated per `ValmoraProfile`).
+- Both the raw counter **and** the reward-grant ledger are persisted *(the ledger was added 2026-08-07 — previously
+  only the counter was, so a config edit changing a stage's `required` threshold, or any recompute divergence, could
+  re-fire already-granted rewards on the next matching event; see [Rewards](#rewards))*.
+- **Migration note:** a profile saved before 2026-08-07 has no ledger data. On first load after upgrading, its
+  granted-stage floor starts at 0 for every collection, so the next matching gameplay event re-fires rewards for
+  every stage the player's count has already passed — a one-time catch-up re-grant, not a recurring bug.
+- Counts (and the ledger) are per-profile; profiles are independent (`CollectionManager` is instantiated per `ValmoraProfile`).
 
 ---
 
@@ -458,30 +469,23 @@ before it, all satisfied. (The `VALMORA_DOCUMENTATION.md` load-order list lists 
 There are no `TODO` comments in the module source, but several gaps exist relative to the documentation and the rest
 of the codebase:
 
-1. **Module ID mismatch:** `getId()` returns `"collections"` (`CollectionModule.java:38`) but `MODULE_DEVELOPMENT.md`
-   and `VALMORA_DOCUMENTATION.md` §35 reference `"collection"`.
-2. **Not on `ValmoraAPI`:** external plugins / other modules can only reach it via the concrete `Valmora` class.
-3. **Reward strings vs script events:** shipped YAML `rewards` contain MiniMessage display strings (e.g.
-   `coal.yml:13` `"<gray>Novice Miner title"`), not executable script events (`economy_add`, `give`, …). They are fed
-   through the script parser and effectively no-op. The docs' example (VALMORA_DOCUMENTATION.md §35.5) shows real
-   events, but no shipped file uses them.
-4. **No reward idempotency:** crossed stages are not recorded. Config changes can re-fire rewards; there is no "already
-   rewarded" tracking and no manual claim step.
-5. **Docs/code drift on layout:** docs describe per-folder `category.yml` (§35.1-35.2); the loader only reads a single
+1. **Not on `ValmoraAPI`:** external plugins / other modules can only reach it via the concrete `Valmora` class.
+2. **Docs/code drift on layout:** docs describe per-folder `category.yml` (§35.1-35.2); the loader only reads a single
    `collections/categories.yml` (`CollectionLoader.java:26`).
-6. **Docs/code drift on `detail_next_required`:** docs say `-1` when maxed; code returns the current count
+3. **Docs/code drift on `detail_next_required`:** docs say `-1` when maxed; code returns the current count
    (`CollectionVariableProvider.java:204`).
-7. **Docs/code drift on track types:** docs §35.4 only list `BLOCK_BREAK` and `ITEM_PICKUP`; code also handles
+4. **Docs/code drift on track types:** docs §35.4 only list `BLOCK_BREAK` and `ITEM_PICKUP`; code also handles
    `MOB_KILL`, `FISHING`, `CRAFT`. Custom items must use the `ITEM_PICKUP:custom:<id>` prefix (`CollectionListener.java:82`);
    a bare `ITEM_PICKUP:<item_id>` (as §35.4 implies) will not match custom items.
-8. **FISHING misattribution:** non-`Item` catches (fish entities) are hardcoded to `"COD"` (`CollectionListener.java:62`).
-9. **No admin tooling:** no command to view/reset/force a player's collection counts; no permission nodes defined.
-10. **Unvalidated `category`:** collections referencing a missing category default to `"misc"` silently
+5. **No admin tooling:** no command to view/reset/force a player's collection counts; no permission nodes defined.
+6. **Unvalidated `category`:** collections referencing a missing category default to `"misc"` silently
     (`CollectionDefinitionParser.java:19`); no load-time warning.
-11. **Performance:** `trackEvent` iterates all collections on every event (`CollectionListener.java:97`); with many
-    collections this is O(n) per event. No index by `EVENT_TYPE:IDENTIFIER`.
-12. **No `YamlLoader` usage:** loader hand-rolls `YamlConfiguration` (`CollectionLoader.java:40`, `66`), deviating
+7. **No `YamlLoader` usage:** loader hand-rolls `YamlConfiguration` (`CollectionLoader.java:40`, `66`), deviating
     from the project-wide loader pattern (AGENTS.md §7.1).
+
+*(2026-08-07: the module-id mismatch, reward-string executability, reward idempotency, FISHING misattribution, and
+`trackEvent` performance items previously listed here are resolved — see `docs/IMPLEMENTATION_BACKLOG.md`'s Collection
+module section and the updated sections above/below for detail.)*
 
 ---
 
@@ -489,20 +493,17 @@ of the codebase:
 
 1. **Expose on `ValmoraAPI`:** add `CollectionModule getCollectionModule()` to the interface (mirroring
    `Valmora.java:422`) so sibling modules/plugins can consume it without the concrete class.
-2. **Index track sources:** build a `Map<String /*EVENT_TYPE:ID*/, List<CollectionDefinition>>` at load time so
-   `trackEvent` is O(matched) instead of O(all collections).
-3. **Reward grant ledger:** persist per-stage grant state (e.g. extend the JSON blob to `{counts, grantedStages}` or a
-   second column) so rewards fire exactly once even across config edits/reloads.
-4. **Admin/player commands:** `/collections` subcommands (`view <player> <collection>`, `reset <player> <collection>`,
+2. **Admin/player commands:** `/collections` subcommands (`view <player> <collection>`, `reset <player> <collection>`,
    `set <player> <collection> <count>`) gated by `valmora.admin`.
-5. **Fix `FISHING`:** use `EntityType` for non-item caught entities instead of the `"COD"` fallback.
-6. **Load-time validation:** warn when `category` does not reference a registered category; optionally fail the file.
-7. **Case-insensitive matching:** lowercase both sides in `CollectionDefinition.matches` so YAML casing mistakes are
-   tolerated.
-8. **Align docs and code:** reconcile the module ID, category-file layout, track-source list, and
+3. **Load-time validation:** warn when `category` does not reference a registered category; optionally fail the file.
+4. **Case-insensitive matching:** lowercase both sides in `CollectionDefinition.matches` so YAML casing mistakes are
+   tolerated. (`matches()` is now only used incidentally — the hot path goes through `CollectionRegistry.getCollectionsFor`'s exact-key index, see §"Collection tracking flow" below.)
+5. **Align docs and code:** reconcile the category-file layout, track-source list, and
    `detail_next_required` semantics in `VALMORA_DOCUMENTATION.md`.
-9. **Use `YamlLoader`:** port `CollectionLoader` to the shared loader for consistency and duplicate-key handling.
-10. **Per-category GUI navigation props:** consider persisting `selected_category`/`selected_collection` in the
+6. **Use `YamlLoader`:** port `CollectionLoader` to the shared loader for consistency and duplicate-key handling.
+7. **Per-category GUI navigation props:** consider persisting `selected_category`/`selected_collection` in the
     `GuiSession` when opening, so the detail view can show a back button without re-passing props.
-11. **Sample rewards:** replace shipped MiniMessage reward strings with real script events (or wire them to a Notify
-    event) so stage completion produces visible gameplay feedback.
+8. **Real reward mechanics:** the 2026-08-07 pass made every shipped reward line *fire* (via `notify`), but most still
+   describe mechanics that don't exist yet (recipe unlocks, smelting-speed/yield bonuses). Building those out — or
+   replacing the flavor text with rewards the engine can already grant (`economy_add`, `give`, `tag add`) — is a
+   separate, much larger content pass across ~80 collections.

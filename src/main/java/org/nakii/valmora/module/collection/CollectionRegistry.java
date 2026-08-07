@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 public class CollectionRegistry {
     private final Map<String, CollectionCategory> categories = new LinkedHashMap<>();
     private final Map<String, CollectionDefinition> collections = new LinkedHashMap<>();
+    /** "EVENT_TYPE:IDENTIFIER" -> every collection tracking that exact source, built at register time so {@link CollectionListener} doesn't have to scan every collection per gameplay event. */
+    private final Map<String, List<CollectionDefinition>> trackIndex = new HashMap<>();
 
     public void registerCategory(CollectionCategory cat) {
         categories.put(cat.getId().toLowerCase(), cat);
@@ -13,6 +15,14 @@ public class CollectionRegistry {
 
     public void registerCollection(CollectionDefinition def) {
         collections.put(def.getId().toLowerCase(), def);
+        for (String source : def.getTrackSources()) {
+            trackIndex.computeIfAbsent(source, k -> new ArrayList<>()).add(def);
+        }
+    }
+
+    /** Collections tracking exactly {@code eventType + ":" + identifier}, or an empty list if none. O(1) instead of scanning every registered collection. */
+    public List<CollectionDefinition> getCollectionsFor(String eventType, String identifier) {
+        return trackIndex.getOrDefault(eventType + ":" + identifier, List.of());
     }
 
     public Optional<CollectionCategory> getCategory(String id) {
@@ -41,5 +51,6 @@ public class CollectionRegistry {
     public void clear() {
         categories.clear();
         collections.clear();
+        trackIndex.clear();
     }
 }

@@ -12,23 +12,23 @@ spruce_log:
     1:
       required: 50
       rewards:
-        - "<gray>Spruce Logger title"
+        - "notify <gray>Spruce Logger title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% spruce log yield"
+        - "notify <gray>+5% spruce log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Snow Lumberjack title"
+        - "notify <gray>Snow Lumberjack title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% spruce wood drop"
+        - "notify <gray>+10% spruce wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Taiga Lord title"
+        - "notify <gray>Taiga Lord title io:chat"
 
 birch_log:
   category: foraging
@@ -42,23 +42,23 @@ birch_log:
     1:
       required: 50
       rewards:
-        - "<gray>Birch Cutter title"
+        - "notify <gray>Birch Cutter title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% birch log yield"
+        - "notify <gray>+5% birch log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>White Forest Ranger title"
+        - "notify <gray>White Forest Ranger title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% birch wood drop"
+        - "notify <gray>+10% birch wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Birch Baron title"
+        - "notify <gray>Birch Baron title io:chat"
 
 jungle_log:
   category: foraging
@@ -72,23 +72,23 @@ jungle_log:
     1:
       required: 50
       rewards:
-        - "<gray>Jungle Explorer title"
+        - "notify <gray>Jungle Explorer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% jungle log yield"
+        - "notify <gray>+5% jungle log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Rainforest Logger title"
+        - "notify <gray>Rainforest Logger title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% jungle wood drop"
+        - "notify <gray>+10% jungle wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Jungle Lord title"
+        - "notify <gray>Jungle Lord title io:chat"
 
 acacia_log:
   category: foraging
@@ -102,23 +102,23 @@ acacia_log:
     1:
       required: 50
       rewards:
-        - "<gray>Savanna Cutter title"
+        - "notify <gray>Savanna Cutter title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% acacia log yield"
+        - "notify <gray>+5% acacia log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Acacia Forager title"
+        - "notify <gray>Acacia Forager title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% acacia wood drop"
+        - "notify <gray>+10% acacia wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Acacia Baron title"
+        - "notify <gray>Acacia Baron title io:chat"
 
 dark_oak_log:
   category: foraging
@@ -132,23 +132,23 @@ dark_oak_log:
     1:
       required: 50
       rewards:
-        - "<gray>Dark Forest Wanderer title"
+        - "notify <gray>Dark Forest Wanderer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% dark oak log yield"
+        - "notify <gray>+5% dark oak log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Shadow Logger title"
+        - "notify <gray>Shadow Logger title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% dark oak wood drop"
+        - "notify <gray>+10% dark oak wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Dark Oak Sovereign title"
+        - "notify <gray>Dark Oak Sovereign title io:chat"
 
 mangrove_log:
   category: foraging
@@ -162,23 +162,23 @@ mangrove_log:
     1:
       required: 50
       rewards:
-        - "<gray>Swamp Walker title"
+        - "notify <gray>Swamp Walker title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% mangrove log yield"
+        - "notify <gray>+5% mangrove log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Mangrove Forager title"
+        - "notify <gray>Mangrove Forager title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% mangrove wood drop"
+        - "notify <gray>+10% mangrove wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Mangrove Baron title"
+        - "notify <gray>Mangrove Baron title io:chat"
 
 cherry_log:
   category: foraging
@@ -192,23 +192,23 @@ cherry_log:
     1:
       required: 50
       rewards:
-        - "<gray>Blossom Cutter title"
+        - "notify <gray>Blossom Cutter title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% cherry log yield"
+        - "notify <gray>+5% cherry log yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Sakura Logger title"
+        - "notify <gray>Sakura Logger title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% cherry wood drop"
+        - "notify <gray>+10% cherry wood drop io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Cherry Blossom Lord title"
+        - "notify <gray>Cherry Blossom Lord title io:chat"
 
 bamboo:
   category: foraging
@@ -221,20 +221,20 @@ bamboo:
     1:
       required: 100
       rewards:
-        - "<gray>Panda Friend title"
+        - "notify <gray>Panda Friend title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+5% bamboo yield"
+        - "notify <gray>+5% bamboo yield io:chat"
     3:
       required: 2000
       rewards:
-        - "<gray>Bamboo Harvester title"
+        - "notify <gray>Bamboo Harvester title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+10% bamboo drop"
+        - "notify <gray>+10% bamboo drop io:chat"
     5:
       required: 50000
       rewards:
-        - "<gray>Bamboo Baron title"
+        - "notify <gray>Bamboo Baron title io:chat"

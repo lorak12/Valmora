@@ -10,16 +10,16 @@ oak_log:
     1:
       required: 50
       rewards:
-        - "<gray>Lumberjack Apprentice title"
+        - "notify <gray>Lumberjack Apprentice title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 oak log per tree"
+        - "notify <gray>+1 oak log per tree io:chat"
     3:
       required: 2500
       rewards:
-        - "<gray>Oak Artisan title"
+        - "notify <gray>Oak Artisan title io:chat"
     4:
       required: 25000
       rewards:
-        - "<gray>Master Forager title"
+        - "notify <gray>Master Forager title io:chat"

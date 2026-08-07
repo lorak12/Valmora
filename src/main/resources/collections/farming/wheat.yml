@@ -14,21 +14,21 @@ wheat:
     1:
       required: 50
       rewards:
-        - "<gray>Beginner Farmer title"
+        - "notify <gray>Beginner Farmer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1% crop harvest chance"
+        - "notify <gray>+1% crop harvest chance io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Access to Wheat Merchant"
+        - "notify <gray>Access to Wheat Merchant io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+5% farming speed"
+        - "notify <gray>+5% farming speed io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Master Farmer title"
-        - "<gray>Wheat Crown cosmetic"
+        - "notify <gray>Master Farmer title io:chat"
+        - "notify <gray>Wheat Crown cosmetic io:chat"

@@ -14,23 +14,23 @@ potato:
     1:
       required: 50
       rewards:
-        - "<gray>Potato Peeler title"
+        - "notify <gray>Potato Peeler title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 potato per harvest"
+        - "notify <gray>+1 potato per harvest io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Potato Baker title"
+        - "notify <gray>Potato Baker title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+5% crop yield bonus"
+        - "notify <gray>+5% crop yield bonus io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Spud Lord title"
+        - "notify <gray>Spud Lord title io:chat"
 
 pumpkin:
   category: farming
@@ -44,23 +44,23 @@ pumpkin:
     1:
       required: 50
       rewards:
-        - "<gray>Pumpkin Picker title"
+        - "notify <gray>Pumpkin Picker title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 pumpkin per patch"
+        - "notify <gray>+1 pumpkin per patch io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Pumpkin Carver title"
+        - "notify <gray>Pumpkin Carver title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+5% farming speed"
+        - "notify <gray>+5% farming speed io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Pumpkin King title"
+        - "notify <gray>Pumpkin King title io:chat"
 
 melon_slice:
   category: farming
@@ -73,23 +73,23 @@ melon_slice:
     1:
       required: 50
       rewards:
-        - "<gray>Melon Slicer title"
+        - "notify <gray>Melon Slicer title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+2 slices per melon"
+        - "notify <gray>+2 slices per melon io:chat"
     3:
       required: 1500
       rewards:
-        - "<gray>Melon Farmer title"
+        - "notify <gray>Melon Farmer title io:chat"
     4:
       required: 7500
       rewards:
-        - "<gray>+5% farming speed"
+        - "notify <gray>+5% farming speed io:chat"
     5:
       required: 30000
       rewards:
-        - "<gray>Melon Lord title"
+        - "notify <gray>Melon Lord title io:chat"
 
 red_mushroom:
   category: farming
@@ -103,23 +103,23 @@ red_mushroom:
     1:
       required: 25
       rewards:
-        - "<gray>Fungi Forager title"
+        - "notify <gray>Fungi Forager title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% mushroom drop rate"
+        - "notify <gray>+5% mushroom drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Mushroom Farmer title"
+        - "notify <gray>Mushroom Farmer title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% mushroom yield"
+        - "notify <gray>+10% mushroom yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Mycelium Master title"
+        - "notify <gray>Mycelium Master title io:chat"
 
 brown_mushroom:
   category: farming
@@ -133,23 +133,23 @@ brown_mushroom:
     1:
       required: 25
       rewards:
-        - "<gray>Fungi Collector title"
+        - "notify <gray>Fungi Collector title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% mushroom drop rate"
+        - "notify <gray>+5% mushroom drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Shroomkeeper title"
+        - "notify <gray>Shroomkeeper title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% mushroom yield"
+        - "notify <gray>+10% mushroom yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Mycelium Baron title"
+        - "notify <gray>Mycelium Baron title io:chat"
 
 cocoa_beans:
   category: farming
@@ -162,23 +162,23 @@ cocoa_beans:
     1:
       required: 50
       rewards:
-        - "<gray>Chocolate Lover title"
+        - "notify <gray>Chocolate Lover title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 bean per plant"
+        - "notify <gray>+1 bean per plant io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Cocoa Farmer title"
+        - "notify <gray>Cocoa Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% bean yield"
+        - "notify <gray>+10% bean yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Chocolatier title"
+        - "notify <gray>Chocolatier title io:chat"
 
 cactus:
   category: farming
@@ -191,23 +191,23 @@ cactus:
     1:
       required: 50
       rewards:
-        - "<gray>Prickly Picker title"
+        - "notify <gray>Prickly Picker title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% cactus drop rate"
+        - "notify <gray>+5% cactus drop rate io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Desert Farmer title"
+        - "notify <gray>Desert Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% cactus yield"
+        - "notify <gray>+10% cactus yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Cactus King title"
+        - "notify <gray>Cactus King title io:chat"
 
 sugar_cane:
   category: farming
@@ -220,23 +220,23 @@ sugar_cane:
     1:
       required: 50
       rewards:
-        - "<gray>Sugar Rusher title"
+        - "notify <gray>Sugar Rusher title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 cane per harvest"
+        - "notify <gray>+1 cane per harvest io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Sugarcane Farmer title"
+        - "notify <gray>Sugarcane Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+5% sugar cane yield"
+        - "notify <gray>+5% sugar cane yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Sugar Baron title"
+        - "notify <gray>Sugar Baron title io:chat"
 
 nether_wart:
   category: farming
@@ -249,23 +249,23 @@ nether_wart:
     1:
       required: 25
       rewards:
-        - "<gray>Nether Farmer title"
+        - "notify <gray>Nether Farmer title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% wart drop rate"
+        - "notify <gray>+5% wart drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Potion Cultivator title"
+        - "notify <gray>Potion Cultivator title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% wart yield"
+        - "notify <gray>+10% wart yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Wart Warlock title"
+        - "notify <gray>Wart Warlock title io:chat"
 
 beetroot:
   category: farming
@@ -278,20 +278,20 @@ beetroot:
     1:
       required: 50
       rewards:
-        - "<gray>Beet Picker title"
+        - "notify <gray>Beet Picker title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+1 beetroot per harvest"
+        - "notify <gray>+1 beetroot per harvest io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Beetroot Farmer title"
+        - "notify <gray>Beetroot Farmer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+5% crop yield"
+        - "notify <gray>+5% crop yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>Root Master title"
+        - "notify <gray>Root Master title io:chat"

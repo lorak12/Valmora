@@ -11,23 +11,23 @@ tropical_fish:
     1:
       required: 10
       rewards:
-        - "<gray>Reef Angler title"
+        - "notify <gray>Reef Angler title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% tropical fish bite rate"
+        - "notify <gray>+5% tropical fish bite rate io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Tropical Fisherman title"
+        - "notify <gray>Tropical Fisherman title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% tropical fish yield"
+        - "notify <gray>+10% tropical fish yield io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Coral Diver title"
+        - "notify <gray>Coral Diver title io:chat"
 
 pufferfish:
   category: fishing
@@ -40,23 +40,23 @@ pufferfish:
     1:
       required: 10
       rewards:
-        - "<gray>Puffer Poacher title"
+        - "notify <gray>Puffer Poacher title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% pufferfish bite rate"
+        - "notify <gray>+5% pufferfish bite rate io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Toxicologist title"
+        - "notify <gray>Toxicologist title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% pufferfish yield"
+        - "notify <gray>+10% pufferfish yield io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Blowfish Baron title"
+        - "notify <gray>Blowfish Baron title io:chat"
 
 lily_pad:
   category: fishing
@@ -69,23 +69,23 @@ lily_pad:
     1:
       required: 25
       rewards:
-        - "<gray>Junk Fisher title"
+        - "notify <gray>Junk Fisher title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% treasure catch rate"
+        - "notify <gray>+5% treasure catch rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Pond Farmer title"
+        - "notify <gray>Pond Farmer title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+5% fishing luck"
+        - "notify <gray>+5% fishing luck io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Water Lily Master title"
+        - "notify <gray>Water Lily Master title io:chat"
 
 ink_sac_fishing:
   category: fishing
@@ -98,20 +98,20 @@ ink_sac_fishing:
     1:
       required: 25
       rewards:
-        - "<gray>Junk Collector title"
+        - "notify <gray>Junk Collector title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% junk drop rate"
+        - "notify <gray>+5% junk drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Dye Fisher title"
+        - "notify <gray>Dye Fisher title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% fishing yield"
+        - "notify <gray>+10% fishing yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Ink Baron title"
+        - "notify <gray>Ink Baron title io:chat"

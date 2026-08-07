@@ -12,23 +12,23 @@ cobblestone:
     1:
       required: 250
       rewards:
-        - "<gray>Stonecutter Apprentice title"
+        - "notify <gray>Stonecutter Apprentice title io:chat"
     2:
       required: 2500
       rewards:
-        - "<gray>+5% stone break speed"
+        - "notify <gray>+5% stone break speed io:chat"
     3:
       required: 10000
       rewards:
-        - "<gray>Stone Mason title"
+        - "notify <gray>Stone Mason title io:chat"
     4:
       required: 50000
       rewards:
-        - "<gray>+10% cobblestone yield"
+        - "notify <gray>+10% cobblestone yield io:chat"
     5:
       required: 250000
       rewards:
-        - "<gray>Lord of Stone title"
+        - "notify <gray>Lord of Stone title io:chat"
 
 obsidian:
   category: mining
@@ -42,23 +42,23 @@ obsidian:
     1:
       required: 10
       rewards:
-        - "<gray>Portal Builder title"
+        - "notify <gray>Portal Builder title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% obsidian mine speed"
+        - "notify <gray>+5% obsidian mine speed io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Nether Architect title"
+        - "notify <gray>Nether Architect title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% obsidian drop rate"
+        - "notify <gray>+10% obsidian drop rate io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Obsidian Lord title"
+        - "notify <gray>Obsidian Lord title io:chat"
 
 glowstone_dust:
   category: mining
@@ -71,23 +71,23 @@ glowstone_dust:
     1:
       required: 25
       rewards:
-        - "<gray>Light Seeker title"
+        - "notify <gray>Light Seeker title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% glowstone dust yield"
+        - "notify <gray>+5% glowstone dust yield io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Illuminator title"
+        - "notify <gray>Illuminator title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% dust drop rate"
+        - "notify <gray>+10% dust drop rate io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Glow Lord title"
+        - "notify <gray>Glow Lord title io:chat"
 
 gravel:
   category: mining
@@ -101,23 +101,23 @@ gravel:
     1:
       required: 100
       rewards:
-        - "<gray>Gravel Digger title"
+        - "notify <gray>Gravel Digger title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+5% flint drop rate"
+        - "notify <gray>+5% flint drop rate io:chat"
     3:
       required: 2000
       rewards:
-        - "<gray>Flint & Steel Forger title"
+        - "notify <gray>Flint & Steel Forger title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+15% flint from gravel"
+        - "notify <gray>+15% flint from gravel io:chat"
     5:
       required: 50000
       rewards:
-        - "<gray>Gravel Baron title"
+        - "notify <gray>Gravel Baron title io:chat"
 
 flint:
   category: mining
@@ -130,23 +130,23 @@ flint:
     1:
       required: 50
       rewards:
-        - "<gray>Flint Knapper title"
+        - "notify <gray>Flint Knapper title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+10% flint from gravel"
+        - "notify <gray>+10% flint from gravel io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Arrowsmith title"
+        - "notify <gray>Arrowsmith title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+20% flint drop rate"
+        - "notify <gray>+20% flint drop rate io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Flint Master title"
+        - "notify <gray>Flint Master title io:chat"
 
 sand:
   category: mining
@@ -161,23 +161,23 @@ sand:
     1:
       required: 100
       rewards:
-        - "<gray>Desert Drifter title"
+        - "notify <gray>Desert Drifter title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+5% sand drop rate"
+        - "notify <gray>+5% sand drop rate io:chat"
     3:
       required: 2000
       rewards:
-        - "<gray>Glass Maker title"
+        - "notify <gray>Glass Maker title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+10% sand yield"
+        - "notify <gray>+10% sand yield io:chat"
     5:
       required: 50000
       rewards:
-        - "<gray>Sand Baron title"
+        - "notify <gray>Sand Baron title io:chat"
 
 netherrack:
   category: mining
@@ -190,23 +190,23 @@ netherrack:
     1:
       required: 100
       rewards:
-        - "<gray>Nether Diver title"
+        - "notify <gray>Nether Diver title io:chat"
     2:
       required: 500
       rewards:
-        - "<gray>+5% netherrack break speed"
+        - "notify <gray>+5% netherrack break speed io:chat"
     3:
       required: 2500
       rewards:
-        - "<gray>Hellfire Miner title"
+        - "notify <gray>Hellfire Miner title io:chat"
     4:
       required: 10000
       rewards:
-        - "<gray>+10% netherrack yield"
+        - "notify <gray>+10% netherrack yield io:chat"
     5:
       required: 50000
       rewards:
-        - "<gray>Nether Lord title"
+        - "notify <gray>Nether Lord title io:chat"
 
 end_stone:
   category: mining
@@ -219,23 +219,23 @@ end_stone:
     1:
       required: 50
       rewards:
-        - "<gray>Void Walker title"
+        - "notify <gray>Void Walker title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% end stone break speed"
+        - "notify <gray>+5% end stone break speed io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>End Explorer title"
+        - "notify <gray>End Explorer title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% end stone yield"
+        - "notify <gray>+10% end stone yield io:chat"
     5:
       required: 25000
       rewards:
-        - "<gray>End Sovereign title"
+        - "notify <gray>End Sovereign title io:chat"
 
 ice:
   category: mining
@@ -252,23 +252,23 @@ ice:
     1:
       required: 25
       rewards:
-        - "<gray>Ice Harvester title"
+        - "notify <gray>Ice Harvester title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% ice break speed"
+        - "notify <gray>+5% ice break speed io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Glacier Miner title"
+        - "notify <gray>Glacier Miner title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% ice yield"
+        - "notify <gray>+10% ice yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Permafrost Overlord title"
+        - "notify <gray>Permafrost Overlord title io:chat"
 
 clay_ball:
   category: mining
@@ -281,20 +281,20 @@ clay_ball:
     1:
       required: 50
       rewards:
-        - "<gray>Potter Apprentice title"
+        - "notify <gray>Potter Apprentice title io:chat"
     2:
       required: 250
       rewards:
-        - "<gray>+5% clay yield"
+        - "notify <gray>+5% clay yield io:chat"
     3:
       required: 1000
       rewards:
-        - "<gray>Terracotta Artisan title"
+        - "notify <gray>Terracotta Artisan title io:chat"
     4:
       required: 5000
       rewards:
-        - "<gray>+10% clay drop rate"
+        - "notify <gray>+10% clay drop rate io:chat"
     5:
       required: 20000
       rewards:
-        - "<gray>Master Potter title"
+        - "notify <gray>Master Potter title io:chat"

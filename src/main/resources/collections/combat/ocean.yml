@@ -12,23 +12,23 @@ prismarine_shard:
     1:
       required: 25
       rewards:
-        - "<gray>Deep Sea Diver title"
+        - "notify <gray>Deep Sea Diver title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% shard drop rate"
+        - "notify <gray>+5% shard drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Guardian Slayer title"
+        - "notify <gray>Guardian Slayer title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% shard yield"
+        - "notify <gray>+10% shard yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Ocean Monument Raider title"
+        - "notify <gray>Ocean Monument Raider title io:chat"
 
 prismarine_crystals:
   category: combat
@@ -42,23 +42,23 @@ prismarine_crystals:
     1:
       required: 25
       rewards:
-        - "<gray>Crystal Collector title"
+        - "notify <gray>Crystal Collector title io:chat"
     2:
       required: 100
       rewards:
-        - "<gray>+5% crystal drop rate"
+        - "notify <gray>+5% crystal drop rate io:chat"
     3:
       required: 500
       rewards:
-        - "<gray>Sea Lantern Crafter title"
+        - "notify <gray>Sea Lantern Crafter title io:chat"
     4:
       required: 2500
       rewards:
-        - "<gray>+10% crystal yield"
+        - "notify <gray>+10% crystal yield io:chat"
     5:
       required: 10000
       rewards:
-        - "<gray>Abyssal Warden title"
+        - "notify <gray>Abyssal Warden title io:chat"
 
 nautilus_shell:
   category: combat
@@ -71,23 +71,23 @@ nautilus_shell:
     1:
       required: 10
       rewards:
-        - "<gray>Shell Seeker title"
+        - "notify <gray>Shell Seeker title io:chat"
     2:
       required: 50
       rewards:
-        - "<gray>+5% shell drop rate"
+        - "notify <gray>+5% shell drop rate io:chat"
     3:
       required: 250
       rewards:
-        - "<gray>Conduit Caller title"
+        - "notify <gray>Conduit Caller title io:chat"
     4:
       required: 1000
       rewards:
-        - "<gray>+10% shell yield"
+        - "notify <gray>+10% shell yield io:chat"
     5:
       required: 5000
       rewards:
-        - "<gray>Drowned Overlord title"
+        - "notify <gray>Drowned Overlord title io:chat"
 
 trident:
   category: combat
@@ -100,20 +100,20 @@ trident:
     1:
       required: 5
       rewards:
-        - "<gray>Tidal Hunter title"
+        - "notify <gray>Tidal Hunter title io:chat"
     2:
       required: 25
       rewards:
-        - "<gray>+5% trident drop chance"
+        - "notify <gray>+5% trident drop chance io:chat"
     3:
       required: 100
       rewards:
-        - "<gray>Poseidon's Apprentice title"
+        - "notify <gray>Poseidon's Apprentice title io:chat"
     4:
       required: 500
       rewards:
-        - "<gray>+10% trident drop rate"
+        - "notify <gray>+10% trident drop rate io:chat"
     5:
       required: 2000
       rewards:
-        - "<gray>Trident God title"
+        - "notify <gray>Trident God title io:chat"
