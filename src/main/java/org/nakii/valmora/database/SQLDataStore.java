@@ -45,7 +45,7 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 5;
+    static final int LATEST_SCHEMA_VERSION = 6;
 
     @Override
     public void init() {
@@ -122,6 +122,20 @@ public class SQLDataStore implements DataStore {
             migrateToV5(conn);
             setSchemaVersion(conn, 5);
         }
+        if (from < 6) {
+            migrateToV6(conn);
+            setSchemaVersion(conn, 6);
+        }
+    }
+
+    /**
+     * v6 — adds the `cooldowns` column so item/ability cooldowns survive a save/load cycle
+     * (previously reset on every reload/restart — see docs/IMPLEMENTATION_BACKLOG.md, Profile
+     * module). `player_state`'s existing JSON blob format was also extended in place (no schema
+     * change needed there) to carry the combat timer and current zone id alongside health/mana.
+     */
+    private void migrateToV6(Connection conn) throws SQLException {
+        addColumnIfMissing(conn, "valmora_profiles", "cooldowns", "TEXT");
     }
 
     /**
@@ -243,6 +257,7 @@ public class SQLDataStore implements DataStore {
                 Type tagsType = new TypeToken<Set<String>>() {}.getType();
                 Type variablesType = new TypeToken<Map<String, Object>>() {}.getType();
                 Type collectionsType = new TypeToken<Map<String, Long>>() {}.getType();
+                Type cooldownsType = new TypeToken<Map<String, Long>>() {}.getType();
 
                 while (rsProfiles.next()) {
                     long createdAt = rsProfiles.getLong("created_at");
@@ -267,9 +282,22 @@ public class SQLDataStore implements DataStore {
 
                     String stateJson = rsProfiles.getString("player_state");
                     if (stateJson != null) {
-                        double[] stateData = gson.fromJson(stateJson, double[].class);
-                        profile.getPlayerState().loadData(stateData);
+                        // Extended (2026-08-07) to an object shape carrying combat timer + zone id;
+                        // fall back to the pre-extension bare [health, mana] array for old saves.
+                        if (stateJson.trim().startsWith("[")) {
+                            profile.getPlayerState().loadData(gson.fromJson(stateJson, double[].class));
+                        } else {
+                            profile.getPlayerState().loadData(gson.fromJson(stateJson, org.nakii.valmora.module.profile.PlayerState.SaveData.class));
+                        }
                     }
+
+                    try {
+                        String cooldownsJson = rsProfiles.getString("cooldowns");
+                        if (cooldownsJson != null) {
+                            Map<String, Long> cooldowns = gson.fromJson(cooldownsJson, cooldownsType);
+                            if (cooldowns != null) profile.getCooldownManager().loadData(cooldowns);
+                        }
+                    } catch (SQLException ignored) {}
 
                     String tagsJson = rsProfiles.getString("tags");
                     if (tagsJson != null) {
@@ -346,8 +374,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, last_used = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ValmoraProfile profile : player.getProfiles().values()) {
@@ -366,6 +394,7 @@ public class SQLDataStore implements DataStore {
                         String variablesJson = gson.toJson(profile.getVariables());
                         String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
                         String inventoryJson = serializeInventory(profile);
+                        String cooldownsJson = gson.toJson(profile.getCooldownManager().getSaveData());
 
                         ps.setString(4, statsJson);
                         ps.setString(5, skillsJson);
@@ -374,19 +403,21 @@ public class SQLDataStore implements DataStore {
                         ps.setString(8, variablesJson);
                         ps.setString(9, collectionsJson);
                         ps.setString(10, inventoryJson);
-                        ps.setLong(11, profile.getCreatedAt());
-                        ps.setLong(12, profile.getLastUsed());
+                        ps.setString(11, cooldownsJson);
+                        ps.setLong(12, profile.getCreatedAt());
+                        ps.setLong(13, profile.getLastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(13, profile.getName());
-                        ps.setString(14, statsJson);
-                        ps.setString(15, skillsJson);
-                        ps.setString(16, stateJson);
-                        ps.setString(17, tagsJson);
-                        ps.setString(18, variablesJson);
-                        ps.setString(19, collectionsJson);
-                        ps.setString(20, inventoryJson);
-                        ps.setLong(21, profile.getLastUsed());
+                        ps.setString(14, profile.getName());
+                        ps.setString(15, statsJson);
+                        ps.setString(16, skillsJson);
+                        ps.setString(17, stateJson);
+                        ps.setString(18, tagsJson);
+                        ps.setString(19, variablesJson);
+                        ps.setString(20, collectionsJson);
+                        ps.setString(21, inventoryJson);
+                        ps.setString(22, cooldownsJson);
+                        ps.setLong(23, profile.getLastUsed());
 
                         ps.addBatch();
                     }

@@ -7,8 +7,8 @@ import org.nakii.valmora.module.stat.SystemStats;
 public class PlayerState {
     private double currentHealth;
     private double currentMana;
-    private transient long lastCombatTime = 0;
-    private transient String currentZoneId = null;
+    private long lastCombatTime = 0;
+    private String currentZoneId = null;
 
     public PlayerState() {
         // Use defaults from StatRegistry; fall back to 100 if registry not yet loaded
@@ -76,10 +76,37 @@ public class PlayerState {
         if (this.currentMana > maxMana) this.currentMana = maxMana;
     }
 
-    public double[] getSaveData() {
-        return new double[]{currentHealth, currentMana};
+    /**
+     * Serialized shape for the {@code player_state} DB column. Was a bare {@code double[]}
+     * (health, mana only) — extended to also persist the combat timer and current zone, which
+     * were previously silently reset on every {@code /valmora reload}/restart despite not being
+     * marked {@code transient} for any principled reason (see docs/IMPLEMENTATION_BACKLOG.md).
+     */
+    public static class SaveData {
+        public double health;
+        public double mana;
+        public long lastCombatTime;
+        public String zoneId;
     }
 
+    public SaveData getSaveData() {
+        SaveData data = new SaveData();
+        data.health = currentHealth;
+        data.mana = currentMana;
+        data.lastCombatTime = lastCombatTime;
+        data.zoneId = currentZoneId;
+        return data;
+    }
+
+    public void loadData(SaveData data) {
+        if (data == null) return;
+        this.currentHealth = data.health;
+        this.currentMana = data.mana;
+        this.lastCombatTime = data.lastCombatTime;
+        this.currentZoneId = data.zoneId;
+    }
+
+    /** Back-compat for the pre-extension save format (a bare [health, mana] array). */
     public void loadData(double[] data) {
         if (data != null && data.length >= 2) {
             this.currentHealth = data[0];
