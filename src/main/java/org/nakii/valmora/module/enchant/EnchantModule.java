@@ -12,6 +12,12 @@ import org.bukkit.configuration.MemoryConfiguration;
 import org.nakii.valmora.module.enchant.logic.StatBonusLogic;
 import org.nakii.valmora.module.enchant.logic.DamageMultiplierLogic;
 import org.nakii.valmora.module.enchant.logic.DefenseReductionLogic;
+import org.nakii.valmora.module.enchant.logic.ExecuteLogic;
+import org.nakii.valmora.module.enchant.logic.FirstStrikeLogic;
+import org.nakii.valmora.module.enchant.logic.LethalityLogic;
+import org.nakii.valmora.module.enchant.logic.LifeStealLogic;
+import org.nakii.valmora.module.enchant.logic.RespiteLogic;
+import org.nakii.valmora.module.enchant.logic.ThornsLogic;
 import org.nakii.valmora.module.item.ItemType;
 
 import java.util.ArrayList;
@@ -82,6 +88,27 @@ public class EnchantModule implements ReloadableModule {
             new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0)));
         logicFactories.put("valmora:defense_reduction", params ->
             new DefenseReductionLogic(params.getDouble("percent-per-level", 3.0)));
+
+        // The 7 enchants shipped in enchants/example_enchantments.yml with a `logic:` id that
+        // nothing registered (added 2026-08-07 — docs/IMPLEMENTATION_BACKLOG.md, Enchant module).
+        // "protection" is a plain per-level defense stat bonus — an exact fit for the existing
+        // generic valmora:stat_bonus shape, same as growth/fortune/efficiency above; the other 6
+        // needed real per-hit/conditional logic and got their own classes (module/enchant/logic/).
+        logicFactories.put("valmora:protection", params ->
+            new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getDefense()),
+                    params.getDouble("per-level", 4.0)));
+        logicFactories.put("valmora:execute", params ->
+            new ExecuteLogic(params.getDouble("percent-per-missing-percent", 0.2)));
+        logicFactories.put("valmora:first_strike", params ->
+            new FirstStrikeLogic(params.getDouble("percent-per-level", 25.0)));
+        logicFactories.put("valmora:life_steal", params ->
+            new LifeStealLogic(params.getDouble("percent-per-level", 0.5)));
+        logicFactories.put("valmora:lethality", params ->
+            new LethalityLogic(params.getDouble("percent-per-level-per-stack", 0.2)));
+        logicFactories.put("valmora:respite", params ->
+            new RespiteLogic(params.getDouble("per-level", 0.5)));
+        logicFactories.put("valmora:thorns", params ->
+            new ThornsLogic(params.getDouble("chance-percent", 15.0), params.getDouble("reflect-damage", 1.0)));
     }
 
     @Override
@@ -151,6 +178,13 @@ public class EnchantModule implements ReloadableModule {
                     logic = factory.apply(logicParams);
                 } else {
                     logic = logicMap.get(logicId.toLowerCase());
+                }
+                // Warn instead of silently resolving to null (added 2026-08-07) — a typo'd
+                // `logic:` id previously produced an enchant that loads fine but does nothing at
+                // all, with no indication anything was wrong.
+                if (logic == null && !logicId.isEmpty()) {
+                    plugin.getLogger().warning("[Enchants] '" + id + "' references unknown logic id '"
+                            + logicId + "' — it will have no gameplay effect.");
                 }
 
                 EnchantmentDefinition definition = new EnchantmentDefinition(

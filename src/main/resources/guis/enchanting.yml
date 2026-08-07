@@ -3,6 +3,10 @@ enchanting_table:
   rows: 6
   machine: enchanting_table
   update-interval: 0
+  # Ships a way to open this in a stock install (added 2026-08-07 — previously no command key and
+  # no default enchanting_table DynamicMachineHandler, so there was no way to reach this GUI at
+  # all without an admin binding it to an NPC/item themselves).
+  command: enchanting
 
   layout:
     - "BBBBBBBBB"

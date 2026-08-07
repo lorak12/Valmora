@@ -390,28 +390,22 @@ There is no dedicated enchant command; admin/player entry points are `/item ench
 
 ## Unfinished Things / TODOs
 
-- **Seven shipped enchants are inert.** `example_enchantments.yml` references `valmora:execute`, `valmora:first_strike`, `valmora:life_steal`, `valmora:lethality`, `valmora:protection`, `valmora:respite`, and `valmora:thorns`, none of which are registered in `EnchantModule.registerBuiltinLogics()` (`EnchantModule.java:47-60`). They load with `logic == null` and silently do nothing. Tracked by `docs/todo.md:5` ("enchant: add all of the enchantments").
-- **No level-cap enforcement.** `etable-max-level`/`absolute-max-level` are display/anvil data only. `applyEnchantment` (`EnchantmentHelper.java:61-79`) and `createEnchantedBook` accept any level (e.g. `/item enchant sharpness 999`).
-- **No conflict enforcement on direct apply.** `conflictsWith` is only consulted by `AnvilMachineHandler` (`AnvilMachineHandler.java:49-58`); the GUI and `/item` paths can stack conflicting enchants.
-- **Vanilla items can't be enchanted via the type-checked paths.** `canApplyEnchantment` requires the `ITEM_TYPE_KEY` PDC tag (`EnchantmentHelper.java:31-34`), which only Valmora items carry. The enchanting GUI *lists* enchants for vanilla items (material-name fallback, `GuiVariableProvider.java:225-243`), but `enchant_apply` then silently no-ops because `applyEnchantment` re-checks `canApplyEnchantment`. The anvil (`applyEnchantmentMap`) is the only path that touches generic items — the exact scenario `docs/UNFINISHED_FEATURES.md` §12 fixed.
-- **The enchanting table GUI has no cost.** The `GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2 goal ("costing XP/Mana") is not implemented — `EnchantApplyEventFactory` only applies the enchant (`EnchantApplyEventFactory.java:50`). The bookshelf "power level" display is hardcoded to `0 / 15` (`guis/enchanting.yml:59-60`) with no bookshelf detection.
-- **No way to open the enchanting GUI in stock installs.** `guis/enchanting.yml` has no `command` key and no `enchanting_table` `DynamicMachineHandler` is registered (the only dynamic handlers are `anvil`, `alchemy`, `reforge_anvil`, `forge_random` — `RecipeModule.java:27`, `AlchemyModule.java:52`, `ReforgeModule.java:55/63`). It can only be opened via an `open_gui` action from another GUI.
-- **Unused logic hooks.** No shipped logic implements `modifyDefend`, `onPostAttack`, or `onPostDefend` — those pipeline hooks exist but only `modifyAttack` and `applyStats` are exercised.
-- **Unknown logic IDs are silent.** `EnchantModule.java:120-126` yields `logic = null` with no warning, so config typos are hard to spot (only visible as inert enchants).
-- **External logics are reload-fragile.** `onDisable()` clears `logicMap`/`logicFactories` (`EnchantModule.java:64-66`), so `registerLogic()` consumers must re-register after every `/valmora reload`.
-- **Docs drift.** `docs/VALMORA_DOCUMENTATION.md:1294` documents `$enchant.NAME.prop$` as the list-iteration variable, but the enchanting GUI actually uses `$entry.*$` loop items (`guis/enchanting.yml:76-138`).
+- **The enchanting table GUI has no cost.** The `GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2 goal ("costing XP/Mana") is still not implemented — `EnchantApplyEventFactory` only applies the enchant. Deliberately deferred (2026-08-07): a mana-cost gate needs a cost-consumption event this GUI has no natural place to hook (mana isn't a `player.var.*` path the generic `variable` event can touch, unlike coins in the NPC-shop pattern), and real bookshelf-power detection needs a right-click-on-a-physical-enchanting-table interaction hook this GUI doesn't have (it's opened by command/machine only, no physical-block context to scan around). The bookshelf "power level" display is still hardcoded to `0 / 15`.
+- **External logics are reload-fragile.** `onDisable()` clears `logicMap`/`logicFactories`, so `registerLogic()` consumers must re-register after every `/valmora reload`.
+
+*(2026-08-07: the seven inert shipped enchants, level-cap enforcement, conflict enforcement,
+vanilla-item enchant blocking, the missing GUI `command:` key, the unused `modifyDefend`/
+`onPostAttack`/`onPostDefend` hooks, unknown-`logic:`-id silence, and the `$enchant.NAME.prop$` vs
+`$entry.*$` docs drift are all resolved — see `docs/IMPLEMENTATION_BACKLOG.md`'s Enchant module
+section for what changed in each case.)*
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Render the display name in lore.** `formatEnchants` prints the raw ID (`EnchantmentHelper.java:230`); switching to `def.getName()` (plus roman numerals, mirroring `GuiVariableProvider.toRoman`) would match the GUI presentation.
-- **Enforce caps centrally.** Have `applyEnchantment`/`applyEnchantmentMap`/`createEnchantedBook` clamp to `absolute-max-level`, and let the GUI clamp to `etable-max-level`, so all paths agree.
-- **Enforce conflicts in apply paths** (not just the anvil) so the GUI and `/item` respect `conflicts`.
-- **Write `ITEM_TYPE_KEY` fallback.** Either write an inferred `ItemType` tag onto generic items at first enchant (material inference already exists in `GuiVariableProvider.getItemType`, `GuiVariableProvider.java:225-243`) or relax `canApplyEnchantment` to infer from material — would make the GUI actually apply to vanilla items.
-- **Add costs to the enchanting table.** The plan's XP/mana/coin deduction (`GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2) and real bookshelf-power calculation would complete the machine.
-- **Register an `enchanting_table` dynamic handler or a GUI `command`** so the GUI is reachable without an `open_gui` chain.
-- **Implement the missing logic handlers** listed in §8 (execute, first strike, life steal, etc.) — mostly `onPostAttack`/`onPostDefend`-shaped hooks that currently have no implementors.
-- **Validate `logic` at parse time** — warn on unknown IDs instead of loading a null-logic definition.
-- **Cache enchant-map parsing.** The GUI plan itself flags aggressive PDC string parsing on 0-tick slot updates (`GUI_MODULE_ENHANCEMENT_PLAN.md:117`); `getEnchantments` could be cached per item version.
+- **Render the display name in lore.** `formatEnchants` prints the raw ID; switching to `def.getName()` (plus roman numerals, mirroring `GuiVariableProvider.toRoman`) would match the GUI presentation.
+- **Add costs to the enchanting table.** The plan's XP/mana/coin deduction (`GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2) and real bookshelf-power calculation would complete the machine — see the "Unfinished Things" note above for why this is nontrivial as-is.
+- **`modifyDefend` still has no real implementer.** The 7 newly-wired logic classes cover `applyStats`/`modifyAttack`/`onPostAttack`/`onPostDefend`, but none naturally fit a "modify the defense calculation live, from the defender's side" shape beyond what `protection`'s flat stat bonus already covers.
+- **Cache enchant-map parsing.** The GUI plan itself flags aggressive PDC string parsing on 0-tick slot updates; `getEnchantments` could be cached per item version.
 - **Deduplicate lore rendering.** The generic-item base-lore snapshot and `ItemFactory`'s full rebuild are two parallel lore pipelines; a single enchant-lore module consumed by both would prevent future drift.
+- **Persist reload-registered external logics.** A `registerLogic` consumer currently has to listen for its own re-enable and re-register; a small "pending external logics" registry surviving `EnchantModule`'s own clear could remove that burden.
