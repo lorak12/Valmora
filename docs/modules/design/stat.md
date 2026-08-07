@@ -397,18 +397,31 @@ Because `StatModule.onEnable()` only loads definitions and `SystemStats`, it has
 
 ## 8. Unfinished Things / TODOs
 
-- **`combat` `temporary-stat`** config is parsed (`SystemStats.java:63`) but **not exposed** via a getter and **not consumed** anywhere — `TemporaryStatService` hardcodes its key instead of using a SystemStat id. (`SystemStats.java:5-63`, `TemporaryStatService.java`.) This looks like a half-wired intent to make the temp-stat configurable; as-is, renaming the temp stat in config has no effect.
 - **Health/Mana "pool" flag** is only a display hint. `pool` is read at load (`StatLoader.java:61`) and surfaced via `isPool()` (`StatDefinition.java:37`), but the only in-code consumer is `ProfileGui`/GUI presentation. There is no engine-side health-pool or mana-pool abstraction keyed on the flag.
 - **`health_regen`/`mana_regen` aren't capped** — the default definitions omit `max-value` (uncapped), which is fine, but there is no server-wide hard cap guard beyond the per-definition `max-value`.
-- **No stat-modification event** (`StatModifyEvent`) — `StatModifyEventFactory` exists but a direct `EventManager.callEvent(...)` from the stat module is **not** wired in this module's sources (see §9). Other systems listen for a stat-modify event, but the trigger must originate from the services that mutate stats.
 - **`breakStatEnchants` / reforge-only flow** — untouched; `ReforgeModule` is the only reforge consumer today.
+
+*(2026-08-07: two items previously listed here are resolved. The `combat.temporary-stat` item was stale relative to
+current code — that config key doesn't exist anywhere (superseded by the `StatRoleRegistry`/`SystemStats` generic-role
+refactor; `TemporaryStatService` was already fully generic, taking an arbitrary stat id per call, not a single
+hardcoded key). The stat-modify event item was real: `StatModifyEventFactory` turned out to be a script-DSL event
+factory, not an actual Bukkit `Event` class — see §9.)*
 
 ## 9. Possible Improvements / Changes
 
-1. **Wire the stat-modify event.** `StatModifyEventFactory` (`StatModifyEventFactory.java`) creates a `StatModifyEvent` carrying the player, stat id, old and new values. Emitting it from `StatManager`'s mutation methods (`addStat`/`reduceStat`/`setStat`) and from `ModifyStatMechanic` would let quest/audit systems react to stat changes without polling. Care: firing Bukkit events from within the pipeline is main-thread-safe (the pipeline already runs on the main thread), but must not recurse into recalc.
-2. **Consume `temporary-stat`.** Expose `SystemStats.getTemporaryStat()` and teach `TemporaryStatService` to read the configured id, making the temp-stat renameable like every other core stat.
-3. **Add `pool` semantics.** Use the `pool` flag to drive max-health/max-mana capping (`ResourceManager`) instead of the hardcoded `health`/`mana` `SystemStats` keys, so pool behavior follows config.
-4. **Clamp attributes, not just effective values.** `recalculateAttributes` clamps nothing — a server that raises `speed` above the definition cap will see vanilla attribute behavior change anyway. Consider clamping `speed`/`mining_speed` in the attribute mapping to the same `max-value`.
-5. **Skip empty-attribute fast-path.** `StatModule.recalculateAttributes` overwrites the attribute base value on every recalc even when the stat is unchanged; comparing the previous effective value and skipping would avoid attribute-changed noise for other listeners.
-6. **Unit-test the pipeline.** Only `StatDefinitionTest` and the `YamlConfigLoadTest` stat assertions exist. `StatManager.recalculateStats` has no test coverage; a `DummyExecutionContext`-style stub player + mocked `ValmoraAPI` consumers (per `ExpressionTest` pattern) would protect the §3.6 ordering from regressions.
+1. **Add `pool` semantics.** Use the `pool` flag to drive max-health/max-mana capping (`ResourceManager`) instead of the hardcoded `health`/`mana` `SystemStats` keys, so pool behavior follows config.
+2. **Clamp attributes, not just effective values.** `recalculateAttributes` clamps nothing — a server that raises `speed` above the definition cap will see vanilla attribute behavior change anyway. Consider clamping `speed`/`mining_speed` in the attribute mapping to the same `max-value`.
+3. **Skip empty-attribute fast-path.** `StatModule.recalculateAttributes` overwrites the attribute base value on every recalc even when the stat is unchanged; comparing the previous effective value and skipping would avoid attribute-changed noise for other listeners.
+4. **Unit-test the pipeline.** Only `StatDefinitionTest` and the `YamlConfigLoadTest` stat assertions exist. `StatManager.recalculateStats` has no test coverage; a `DummyExecutionContext`-style stub player + mocked `ValmoraAPI` consumers (per `ExpressionTest` pattern) would protect the §3.6 ordering from regressions.
+
+### Resolved 2026-08-07: real `StatModifyEvent` wired
+
+`StatModifyEventFactory` (`module/script/event/impl/StatModifyEventFactory.java`) is the `stat_modify` **script DSL**
+action — it directly calls `StatManager.addStat`/`setStat`/`resetStat` itself; it was never a Bukkit `Event` class, so
+there was nothing to "wire up" on that side. What was actually missing was a genuine Bukkit event other systems could
+*listen* for. Added `org.nakii.valmora.module.stat.event.StatModifyEvent` (player, statId, oldValue, newValue) and
+fired it from `StatManager.addStat`/`reduceStat`/`setStat` (and transitively `resetStat`, which calls `setStat`)
+whenever the base value actually changes (`oldValue != newValue`) — **not** from `addModifier`/`recalculateStats`,
+which run on every recalculation and would fire constantly for no real change. Guarded on `Bukkit.getServer() != null`
+so `StatManager`'s plain-Java unit tests (no live server bootstrapped, per `AGENTS.md` §12) don't NPE.
 

@@ -251,8 +251,8 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Stat module
 
-- [ ] **Expose `combat.temporary-stat` config properly** — currently parsed but not surfaced via a getter; `TemporaryStatService` hardcodes its own key instead of reading the config.
-- [ ] **Fire a stat-modification event from `StatManager`'s own mutation methods** — `StatModifyEventFactory` exists but nothing calls it from the actual mutation path.
+- [x] **Expose `combat.temporary-stat` config properly** — currently parsed but not surfaced via a getter; `TemporaryStatService` hardcodes its own key instead of reading the config. *(2026-08-07: checked — stale relative to current code, docs drift. There is no `combat.temporary-stat` key anywhere in `config.yml` or Java, and `TemporaryStatService` doesn't hardcode a stat id at all — it's already fully generic (`add(uuid, statId, amount, duration)`, called per-ability with whatever stat id `ModifyStatMechanic` was configured for). This was superseded by the `StatRoleRegistry`/`SystemStats` generic-role refactor (Phase 3.1) mentioned in `SystemStats.java`'s class doc — no code change needed.)*
+- [x] **Fire a stat-modification event from `StatManager`'s own mutation methods** — `StatModifyEventFactory` exists but nothing calls it from the actual mutation path. *(2026-08-07: `StatModifyEventFactory` turned out to be a script-DSL event factory (the `stat_modify` YAML action), not a Bukkit `Event` — there was no real event class to wire up. Added a new `org.nakii.valmora.module.stat.event.StatModifyEvent` (player, statId, oldValue, newValue) and fire it from `StatManager.addStat`/`reduceStat`/`setStat` (and transitively `resetStat`, which calls `setStat`) whenever the value actually changes — not from `addModifier`/`recalculateStats`, which would fire constantly. Guarded on `Bukkit.getServer() != null` so `StatManager`'s plain-Java unit tests (no live server) don't NPE.)*
 
 ---
 

@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.stat;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
@@ -9,6 +10,7 @@ import org.nakii.valmora.module.item.AbilityTrigger;
 import org.nakii.valmora.module.item.ConfiguredMechanic;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
+import org.nakii.valmora.module.stat.event.StatModifyEvent;
 import org.nakii.valmora.util.Keys;
 
 import java.util.HashMap;
@@ -72,19 +74,41 @@ public class StatManager {
 
     public void addStat(Player player, String statId, double value) {
         String key = statId.toLowerCase();
-        baseStats.put(key, baseStats.getOrDefault(key, 0.0) + value);
+        double oldValue = baseStats.getOrDefault(key, 0.0);
+        double newValue = oldValue + value;
+        baseStats.put(key, newValue);
         recalculateStats(player);
+        fireStatModify(player, key, oldValue, newValue);
     }
 
     public void reduceStat(Player player, String statId, double value) {
         String key = statId.toLowerCase();
-        baseStats.put(key, baseStats.getOrDefault(key, 0.0) - value);
+        double oldValue = baseStats.getOrDefault(key, 0.0);
+        double newValue = oldValue - value;
+        baseStats.put(key, newValue);
         recalculateStats(player);
+        fireStatModify(player, key, oldValue, newValue);
     }
 
     public void setStat(Player player, String statId, double value) {
-        baseStats.put(statId.toLowerCase(), value);
+        String key = statId.toLowerCase();
+        double oldValue = baseStats.getOrDefault(key, 0.0);
+        baseStats.put(key, value);
         recalculateStats(player);
+        fireStatModify(player, key, oldValue, value);
+    }
+
+    /**
+     * Fires a {@link StatModifyEvent} for a genuine base-stat change (not the internal
+     * modifier-only path used every recalculation). Informational only — the mutation has
+     * already happened by the time this fires.
+     */
+    private void fireStatModify(Player player, String statId, double oldValue, double newValue) {
+        if (oldValue == newValue) return;
+        // Bukkit.getServer() is null in unit tests (no live server bootstrapped, per AGENTS.md
+        // §12) — guard rather than let StatManager's plain unit tests crash on this side effect.
+        if (Bukkit.getServer() == null) return;
+        Bukkit.getPluginManager().callEvent(new StatModifyEvent(player, statId, oldValue, newValue));
     }
 
     public void resetStat(Player player, String statId) {
