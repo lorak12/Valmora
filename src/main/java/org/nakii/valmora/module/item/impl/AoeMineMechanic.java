@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.item.impl;
 
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.execution.ExecutionContext;
@@ -59,8 +60,16 @@ public class AoeMineMechanic implements AbilityMechanic {
                     ZoneResourceConfig candidateConfig = resourceManager.getResourceConfigAt(candidate.getLocation());
                     if (candidateConfig == null) continue;
 
+                    Material candidateMaterial = candidate.getType();
                     ResourceManager.BreakResult result = resourceManager.handleBlockBreak(player, candidate);
-                    if (result == ResourceManager.BreakResult.HANDLED) mined++;
+                    if (result == ResourceManager.BreakResult.HANDLED) {
+                        mined++;
+                        // Unlike the origin block, these neighbors are mined directly (not via a
+                        // real BlockBreakEvent), so no vanilla break sound/particle fires for them.
+                        resourceManager.playMineFeedback(candidate.getLocation(), candidateMaterial);
+                    } else if (result == ResourceManager.BreakResult.INSUFFICIENT_POWER) {
+                        resourceManager.playDeniedFeedback(candidate.getLocation());
+                    }
                 }
             }
         }

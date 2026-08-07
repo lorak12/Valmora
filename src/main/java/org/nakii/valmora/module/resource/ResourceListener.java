@@ -33,8 +33,13 @@ public class ResourceListener implements Listener {
                 // responsible for messaging the player itself (e.g. via the `notify` event).
                 event.setCancelled(true);
             }
+            case DEPLETED -> {
+                // Fully mined, awaiting regen — block the free-break of the depleted material.
+                event.setCancelled(true);
+            }
             case HANDLED -> {
                 event.setDropItems(false);
+                event.setExpToDrop(0);
                 double spread = getPlayerMiningSpread(player);
                 int radius = (int) Math.floor(spread);
                 if (radius > 0) {

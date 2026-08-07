@@ -216,13 +216,13 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 ## Resource module
 
 - [ ] **Build the Draven Mines demo zone** (todo.md — custom drop support is done, the demo content isn't).
-- [ ] **Expose `ResourceModule` via `ValmoraAPI`.**
+- [x] **Expose `ResourceModule` via `ValmoraAPI`.** *(2026-08-07: already done — docs drift. `ValmoraAPI.getResourceModule()`/`ValmoraAPIImpl` already exist.)*
 - [ ] **Add a `/zone resource` (or similar) in-game editing subcommand.**
-- [ ] **Zero `expToDrop` on HANDLED resource breaks** — XP orbs still drop from vanilla on top of custom drops.
-- [ ] **Cancel the break event for depleted blocks** — currently still breakable.
-- [ ] **Add crash-safe persistence for mid-progress block state** — currently lost on unclean shutdown.
-- [ ] **Hook environmental triggers** (explosions/pistons) into tracking/regen.
-- [ ] **Add AOE feedback** for Mining Spread (currently silently skips neighbors lacking power — no sound/particle indication).
+- [x] **Zero `expToDrop` on HANDLED resource breaks** — XP orbs still drop from vanilla on top of custom drops. *(2026-08-07: `ResourceListener`'s `HANDLED` branch now calls `event.setExpToDrop(0)`.)*
+- [x] **Cancel the break event for depleted blocks** — currently still breakable. *(2026-08-07: added a `BreakResult.DEPLETED` outcome — `handleBlockBreak` returns it instead of `HANDLED` for an already-depleted/awaiting-regen tracker, and `ResourceListener` cancels the event for it.)*
+- [x] **Add crash-safe persistence for mid-progress block state** — currently lost on unclean shutdown. *(2026-08-07: new `ResourceManager.saveState()`/`loadState()`/`clearStateFile()` backed by a `resource_state.yml` snapshot (world/x/y/z/original material/stage/regen-at-millis), autosaved every 30s by `ResourceModule` and loaded once on `onEnable()`; a clean `onDisable()` deletes the file since `cancelAll()` already restored the world. On load, regen timers are rescheduled for their remaining duration — the block's actual intermediate material is assumed already present in the chunk data.)*
+- [x] **Hook environmental triggers** (explosions/pistons) into tracking/regen. *(2026-08-07: new `ResourceEnvironmentListener` — removes tracked/configured resource blocks from `BlockExplodeEvent`/`EntityExplodeEvent` block lists, and cancels `BlockPistonExtendEvent`/`BlockPistonRetractEvent` outright if any moved block is one. Policy chosen: protect, don't auto-mine — only the normal break pipeline grants drops/progresses a node.)*
+- [x] **Add AOE feedback** for Mining Spread (currently silently skips neighbors lacking power — no sound/particle indication). *(2026-08-07: added `ResourceManager.playMineFeedback`/`playDeniedFeedback`/regen feedback (sound + `Particle.BLOCK`); `AoeMineMechanic.mineRadius` now plays mine feedback per successfully-mined neighbor and a denial cue per power-gated skip, and the regen task plays a chime+particle on restore.)*
 
 ---
 

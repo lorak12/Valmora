@@ -235,16 +235,17 @@ The mining stats consumed by this module are declared in the stat system:
 - **Key:** `"<world>:<blockX>:<blockY>:<blockZ>"` (`ResourceManager.java:171-174`).
 - **No database involvement.** The module never touches `DataStore`, DAOs, or the async executor. There is no block PDC tagging — a block is "tracked" purely because it is present in the map.
 - **Regeneration** is implemented as vanilla block state changes on the main thread (`block.setType(...)`) with scheduled `BukkitTask`s (`ResourceManager.java:94-99`).
-- **Disable semantics:** `cancelAll()` (`ResourceManager.java:131-140`) restores every tracked block immediately and clears the map, so a hot reload or plugin disable leaves the world in its original state. On a hard crash (no clean disable), mid-progress blocks would be left in their intermediate material and, since the tracker is lost, would simply behave as plain blocks afterwards.
+- **Disable semantics:** `cancelAll()` (`ResourceManager.java:131-140`) restores every tracked block immediately and clears the map, so a hot reload or plugin disable leaves the world in its original state. `ResourceModule.onDisable()` also deletes the crash-recovery file below since a clean disable already restored the world.
+- **Crash-safe recovery file** *(added 2026-08-07)*: `ResourceManager` autosaves `trackedBlocks` to `plugins/Valmora/resource_state.yml` every 30s (`ResourceModule`'s autosave task) as `(world, x, y, z, originalMaterial, stageIndex, regenAtMillis)` entries. On the next `onEnable()`, `loadState()` reads the file, re-resolves each entry's `ZoneResourceConfig` from the live zone at that location, and reschedules a regen task for the remaining duration — then deletes the file (it only bridges a single unclean restart). This does **not** touch the block's actual material; on an unclean shutdown the world chunk itself already holds the intermediate material as last saved by the server.
 
 ---
 
 ## 6. API Exposed
 
-The module exposes a **concrete-class-only** API. It is **not** part of the `ValmoraAPI` interface (`ValmoraAPI.java:9-70` has no `getResourceModule()`), which is a notable gap — consumers must go through the concrete plugin instance.
+The module is exposed via `ValmoraAPI.getResourceModule()` (in addition to the concrete `Valmora.getResourceModule()`), so consumers don't need to depend on the concrete plugin class.
 
 **Accessor chain:**
-- `Valmora.getResourceModule()` → `ResourceModule` (`Valmora.java:391-393`).
+- `ValmoraAPI.getInstance().getResourceModule()` → `ResourceModule` (preferred), or `Valmora.getResourceModule()` (`Valmora.java:391-393`) from within the plugin itself.
 - `ResourceModule.getResourceManager()` → `ResourceManager` (`ResourceModule.java:35`).
 
 **`ResourceManager` public surface:**
@@ -291,27 +292,18 @@ Registered after the Zone module (`Valmora.java:205` zone → `:206` resource �
 ## 8. Unfinished Things / TODOs
 
 - **TODO (todo.md:14):** *"resource: add custom drops support and create a draven mines demo."* Custom drop support (item ids + vanilla materials) is now implemented in `createItem` (`ResourceManager.java:156-169`), but the **Draven Mines demo** zone has not been built.
-- **No `ValmoraAPI` exposure:** `getResourceModule()` lives only on the concrete `Valmora` class (`Valmora.java:391-393`), forcing consumers to depend on the plugin class rather than the API interface.
 - **No in-game editing commands:** `ZoneCommand` (`ZoneCommand.java:28`) exposes `create|delete|info|list|wand|pos1|pos2|clear|flag|spawner|visualize` but no `resource` subcommand. Resource blocks can only be defined by hand-editing `zones/*.yml` + reload.
 - **Doc mismatch:** `docs/USER_DOCS.md` documents `regen-delay` in seconds, but the code uses ticks (`ZoneLoader.java:109`).
-- **XP orbs still drop:** on a `HANDLED` break only `setDropItems(false)` is called (`ResourceListener.java:32`); vanilla block XP (`expToDrop`) is not zeroed, so XP orbs can spawn from a "mined" node.
-- **Depleted blocks are still breakable:** a block whose tracker has `stageIndex >= stageCount` (`ResourceManager.java:58`) returns `HANDLED` with no drops; the event is not cancelled, so the player can keep breaking the depleted intermediate block (it then becomes air and the pending regen task restores the original).
-- **No crash persistence:** mid-progress state is lost on an unclean shutdown; blocks are left as intermediate materials (see §5).
-- **No environmental triggers:** the module only reacts to player `BlockBreakEvent`. Explosions, pistons, and other block changes do not interact with the tracking or regeneration logic.
-- **No AOE feedback:** Mining Spread silently skips neighbors the player lacks power for (`AoeMineMechanic.java:59-63`) and there are no sounds/particles on AOE or regen.
+
+*(2026-08-07: the following items from this list are resolved — see `docs/IMPLEMENTATION_BACKLOG.md`'s Resource module section for details: `ValmoraAPI` exposure (already done, docs drift), zeroing `expToDrop` on `HANDLED` breaks, cancelling the break event for depleted blocks (new `BreakResult.DEPLETED`), crash-safe persistence via `resource_state.yml` autosave/restore, environmental-trigger protection via `ResourceEnvironmentListener` (explosions/pistons), and AOE mine/deny/regen sound+particle feedback.)*
 
 ---
 
 ## 9. Possible Improvements / Changes
 
-- **Expose through `ValmoraAPI`:** add `ResourceModule getResourceModule()` to `ValmoraAPI.java` (following `getZoneManager()` pattern, `ValmoraAPI.java:53`) so `AoeMineMechanic` and other modules don't reach into the concrete class.
-- **Persist tracker state:** save `(world, x, y, z, stageIndex, originalMaterial, regenAt)` to the existing database/DAO layer so mid-progress blocks survive restarts and chunks can unload safely.
-- **Handle chunk/world unload:** persist or restore tracked blocks on `ChunkUnloadEvent`/world unload to avoid relying on a live world in regen tasks.
 - **Add `/zone resource` commands:** in-zone block selection to add/remove resource configs (like the existing spawner subcommands) and write them back via `ZoneManager.saveZoneToFile` (`ZoneManager.java:341-392`).
-- **Zero out block XP** in the `HANDLED` branch (`event.setExpToDrop(0)`) for consistent loot-only mining.
-- **Cancel depleted-block breaks** (or keep them breakable but purely cosmetic) so the "awaiting regen" visual isn't destructible for free.
 - **Per-player yields:** allow `drops` entries to respect the Looting/Magic Find style stats, and support a `global-chance`/`rolls` field per stage.
 - **Block-hit stages:** add a "hit points" per stage so nodes take multiple hits before progressing (paired with the `mining_speed` stat, which is currently unused by this module).
-- **Environment integration:** listen for explosions/pistons and treat affected tracked blocks as mined (or cancel their destruction).
-- **Feedback polish:** play break/regenerate sounds and spawn `Particle` effects, and use `TextDisplay` entities for node names/health (per AGENTS.md §11.17, never ArmorStands).
 - **Extract config constants:** hoist the `"COBBLESTONE"` default item (`ZoneLoader.java:124`) and 600-tick default into documented constants to keep `ZoneLoader` and this doc in sync.
+- **DB-backed persistence:** the 2026-08-07 pass added a lightweight `resource_state.yml` file for crash recovery (§5); moving it to the existing database/DAO layer would be more consistent with other modules but wasn't necessary to close the correctness gap.
+- **`TextDisplay` node feedback:** use `TextDisplay` entities for node names/health on top of the new sound/particle feedback (per AGENTS.md §11.17, never ArmorStands).

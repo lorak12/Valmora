@@ -1,15 +1,21 @@
 package org.nakii.valmora.module.resource;
 
 import org.bukkit.event.HandlerList;
+import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 
 public class ResourceModule implements ReloadableModule {
 
+    /** Autosave interval for crash-recovery state — 30s (600 ticks). Cheap: usually a handful of tracked blocks. */
+    private static final long AUTOSAVE_INTERVAL_TICKS = 600L;
+
     private final Valmora plugin;
     private ResourceManager resourceManager;
     private ResourceListener listener;
+    private ResourceEnvironmentListener environmentListener;
     private ResourcePipelineLoader pipelineLoader;
+    private BukkitTask autosaveTask;
 
     public ResourceModule(Valmora plugin) {
         this.plugin = plugin;
@@ -19,8 +25,17 @@ public class ResourceModule implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Enabling Resource Module...");
         this.resourceManager = new ResourceManager(plugin);
+        // Restore any mid-progress blocks left over from an unclean shutdown before anything else touches them.
+        resourceManager.loadState();
+
         this.listener = new ResourceListener(resourceManager);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+
+        this.environmentListener = new ResourceEnvironmentListener(resourceManager);
+        plugin.getServer().getPluginManager().registerEvents(environmentListener, plugin);
+
+        this.autosaveTask = plugin.getServer().getScheduler().runTaskTimer(
+                plugin, resourceManager::saveState, AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_INTERVAL_TICKS);
 
         // Resource pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — depends on scriptModule, which
         // registers/enables before this module (see module order in Valmora.onEnable()).
@@ -31,7 +46,14 @@ public class ResourceModule implements ReloadableModule {
     @Override
     public void onDisable() {
         plugin.getLogger().info("Disabling Resource Module...");
-        if (resourceManager != null) { resourceManager.cancelAll(); resourceManager = null; }
+        if (autosaveTask != null) { autosaveTask.cancel(); autosaveTask = null; }
+        if (resourceManager != null) {
+            resourceManager.cancelAll();
+            // A clean disable already restored the world, so there's nothing to recover next boot.
+            resourceManager.clearStateFile();
+            resourceManager = null;
+        }
+        if (environmentListener != null) { HandlerList.unregisterAll(environmentListener); environmentListener = null; }
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
         if (plugin.getScriptModule() != null) {
             plugin.getScriptModule().getHookBus().clearYamlStages(ResourcePipelineLoader.POINT_PREFIX);

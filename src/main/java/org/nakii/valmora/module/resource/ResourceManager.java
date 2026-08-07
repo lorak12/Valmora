@@ -2,7 +2,11 @@ package org.nakii.valmora.module.resource;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -17,7 +21,12 @@ import org.nakii.valmora.module.zone.ZoneDefinition;
 import org.nakii.valmora.module.zone.ZoneResourceConfig;
 import org.nakii.valmora.module.zone.ZoneResourceDrop;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -31,6 +40,8 @@ public class ResourceManager {
         INSUFFICIENT_POWER,
         /** A {@code resource:pre_break} pipeline stage called {@code interrupt} — the break is cancelled. */
         INTERRUPTED,
+        /** Tracked, but already fully depleted and mid-regen — the break attempt is cancelled. */
+        DEPLETED,
         /** Successfully mined; drops were generated and the block progressed/regenerated. */
         HANDLED
     }
@@ -60,7 +71,7 @@ public class ResourceManager {
         Material originalMaterial;
 
         if (tracker != null) {
-            if (tracker.stageIndex >= tracker.config.getStageCount()) return BreakResult.HANDLED; // depleted, awaiting regen
+            if (tracker.stageIndex >= tracker.config.getStageCount()) return BreakResult.DEPLETED; // awaiting regen
             config = tracker.config;
             stageIndex = tracker.stageIndex;
             originalMaterial = tracker.originalMaterial;
@@ -118,22 +129,49 @@ public class ResourceManager {
         final Material finalOriginal = originalMaterial;
         plugin.getServer().getScheduler().runTask(plugin, () -> block.setType(nextMat, false));
 
+        long regenAtMillis = System.currentTimeMillis() + config.getRegenDelayTicks() * 50L;
         BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             block.setType(finalOriginal, false);
             trackedBlocks.remove(key);
+            playRegenFeedback(block.getLocation(), finalOriginal);
         }, config.getRegenDelayTicks());
 
         int depletedIndex = config.getStageCount(); // past end = depleted sentinel
         int nextStageIndex = isLastStage ? depletedIndex : stageIndex + 1;
 
         if (tracker == null) {
-            trackedBlocks.put(key, new ResourceTracker(originalMaterial, config, block.getLocation(), nextStageIndex, regenTask));
+            ResourceTracker newTracker = new ResourceTracker(originalMaterial, config, block.getLocation(), nextStageIndex, regenTask);
+            newTracker.regenAtMillis = regenAtMillis;
+            trackedBlocks.put(key, newTracker);
         } else {
             tracker.stageIndex = nextStageIndex;
             tracker.regenTask = regenTask;
+            tracker.regenAtMillis = regenAtMillis;
         }
 
         return BreakResult.HANDLED;
+    }
+
+    /** Plays break feedback for a resource block mined via Mining Spread AOE (no real {@code BlockBreakEvent}, so no vanilla sound/particle fires on its own). */
+    public void playMineFeedback(Location loc, Material material) {
+        World world = loc.getWorld();
+        if (world == null) return;
+        world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1.0f, 1.0f);
+        world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 12, 0.25, 0.25, 0.25, material.createBlockData());
+    }
+
+    /** Plays a denial cue when Mining Spread skips a neighbor the player lacks Breaking Power for. */
+    public void playDeniedFeedback(Location loc) {
+        World world = loc.getWorld();
+        if (world == null) return;
+        world.playSound(loc, Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
+    }
+
+    private void playRegenFeedback(Location loc, Material restoredMaterial) {
+        World world = loc.getWorld();
+        if (world == null) return;
+        world.playSound(loc, Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.6f, 1.4f);
+        world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 16, 0.3, 0.3, 0.3, restoredMaterial.createBlockData());
     }
 
     private double getPlayerBreakingPower(Player player) {
@@ -162,6 +200,99 @@ public class ResourceManager {
             }
         }
         trackedBlocks.clear();
+    }
+
+    // --- Crash-safe persistence ------------------------------------------------------------
+    // trackedBlocks is otherwise purely in-memory (§5 of docs/modules/design/resource.md). A
+    // clean disable/reload always restores blocks via cancelAll() above, so the state file only
+    // matters after an unclean shutdown (crash, kill -9) where onDisable never runs — in that
+    // case the world chunk itself already holds the intermediate block material; this file only
+    // needs to carry enough to re-derive the tracker + reschedule the regen timer on next start.
+
+    private File stateFile() {
+        return new File(plugin.getDataFolder(), "resource_state.yml");
+    }
+
+    /** Snapshots {@link #trackedBlocks} to disk. Called on a periodic autosave timer by {@link ResourceModule}. */
+    public void saveState() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (ResourceTracker tracker : trackedBlocks.values()) {
+            if (tracker.location.getWorld() == null) continue;
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("world", tracker.location.getWorld().getName());
+            entry.put("x", tracker.location.getBlockX());
+            entry.put("y", tracker.location.getBlockY());
+            entry.put("z", tracker.location.getBlockZ());
+            entry.put("original", tracker.originalMaterial.name());
+            entry.put("stage", tracker.stageIndex);
+            entry.put("regen-at", tracker.regenAtMillis);
+            entries.add(entry);
+        }
+        yaml.set("tracked", entries);
+        try {
+            yaml.save(stateFile());
+        } catch (IOException ex) {
+            plugin.getLogger().warning("[Resource] Failed to save resource_state.yml: " + ex.getMessage());
+        }
+    }
+
+    /** Restores trackers (and reschedules their regen timers) from a prior unclean shutdown. Called once from {@code onEnable()}. */
+    public void loadState() {
+        File file = stateFile();
+        if (!file.exists()) return;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        List<?> list = yaml.getList("tracked");
+        long now = System.currentTimeMillis();
+        int restored = 0;
+        if (list != null) {
+            for (Object raw : list) {
+                if (!(raw instanceof Map<?, ?> map)) continue;
+                try {
+                    World world = plugin.getServer().getWorld(String.valueOf(map.get("world")));
+                    if (world == null) continue;
+                    int x = ((Number) map.get("x")).intValue();
+                    int y = ((Number) map.get("y")).intValue();
+                    int z = ((Number) map.get("z")).intValue();
+                    Material original = Material.matchMaterial(String.valueOf(map.get("original")));
+                    if (original == null) continue;
+                    int stageIndex = ((Number) map.get("stage")).intValue();
+                    long regenAt = ((Number) map.get("regen-at")).longValue();
+
+                    Location loc = new Location(world, x, y, z);
+                    ZoneDefinition zone = plugin.getZoneManager().getZoneAt(loc).orElse(null);
+                    if (zone == null) continue;
+                    ZoneResourceConfig config = zone.getResourceBlocks().get(original);
+                    if (config == null) continue;
+
+                    String key = locationKey(loc);
+                    long remainingTicks = Math.max(1L, (regenAt - now) / 50L);
+                    BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                        loc.getBlock().setType(original, false);
+                        trackedBlocks.remove(key);
+                        playRegenFeedback(loc, original);
+                    }, remainingTicks);
+
+                    ResourceTracker tracker = new ResourceTracker(original, config, loc, stageIndex, regenTask);
+                    tracker.regenAtMillis = regenAt;
+                    trackedBlocks.put(key, tracker);
+                    restored++;
+                } catch (Exception ex) {
+                    plugin.getLogger().warning("[Resource] Skipped a malformed resource_state.yml entry: " + ex.getMessage());
+                }
+            }
+        }
+        if (restored > 0) {
+            plugin.getLogger().info("[Resource] Restored " + restored + " mid-progress resource block(s) after an unclean shutdown.");
+        }
+        // Consume the file — it's only meant to bridge a single unclean restart.
+        file.delete();
+    }
+
+    /** Deletes the persisted state file. Called on a clean {@code onDisable()} since {@link #cancelAll()} already restores the world. */
+    public void clearStateFile() {
+        File file = stateFile();
+        if (file.exists()) file.delete();
     }
 
     private double getPlayerMiningFortune(Player player) {
@@ -204,6 +335,7 @@ public class ResourceManager {
         final Location location;
         int stageIndex;
         BukkitTask regenTask;
+        long regenAtMillis;
 
         ResourceTracker(Material originalMaterial, ZoneResourceConfig config, Location location, int stageIndex, BukkitTask regenTask) {
             this.originalMaterial = originalMaterial;
