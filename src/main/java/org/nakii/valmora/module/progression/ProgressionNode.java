@@ -15,10 +15,21 @@ public class ProgressionNode {
     private final List<String> prerequisiteNodeIds;
     private final StatBonus statBonus;
     private final DailyBonus dailyBonus;
+    // Raw DSL event lines run every time this node levels up (via `on-level:` in the tree YAML),
+    // compiled at execution time — same lazy-compile pattern as pet milestones.
+    private final List<String> onLevelEvents;
 
     public ProgressionNode(String id, String displayName, String description, Material icon,
                            int tierIndex, int maxLevel, String costCurve,
                            List<String> prerequisiteNodeIds, StatBonus statBonus, DailyBonus dailyBonus) {
+        this(id, displayName, description, icon, tierIndex, maxLevel, costCurve,
+                prerequisiteNodeIds, statBonus, dailyBonus, List.of());
+    }
+
+    public ProgressionNode(String id, String displayName, String description, Material icon,
+                           int tierIndex, int maxLevel, String costCurve,
+                           List<String> prerequisiteNodeIds, StatBonus statBonus, DailyBonus dailyBonus,
+                           List<String> onLevelEvents) {
         this.id = id;
         this.displayName = displayName;
         this.description = description;
@@ -29,6 +40,7 @@ public class ProgressionNode {
         this.prerequisiteNodeIds = prerequisiteNodeIds != null ? prerequisiteNodeIds : List.of();
         this.statBonus = statBonus;
         this.dailyBonus = dailyBonus;
+        this.onLevelEvents = onLevelEvents != null ? onLevelEvents : List.of();
     }
 
     public String getId() { return id; }
@@ -41,6 +53,7 @@ public class ProgressionNode {
     public List<String> getPrerequisiteNodeIds() { return prerequisiteNodeIds; }
     public StatBonus getStatBonus() { return statBonus; }
     public DailyBonus getDailyBonus() { return dailyBonus; }
+    public List<String> getOnLevelEvents() { return onLevelEvents; }
 
     public record StatBonus(String stat, double perLevel) {}
     public record DailyBonus(String category, double perLevel) {}

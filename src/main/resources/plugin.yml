@@ -25,6 +25,9 @@ commands:
   pet:
     usage: /pet help
     description: Master command for pet interactions.
+  progression:
+    usage: /progression help
+    description: Master command for progression tree interactions.
   gui:
     usage: /gui help
     permission: valmora.admin.gui

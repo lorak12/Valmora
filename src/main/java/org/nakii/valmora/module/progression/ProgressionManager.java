@@ -116,6 +116,15 @@ public class ProgressionManager {
         int newLevel = currentLevel + 1;
         profile.getVariables().put(varKey(treeId, nodeId, "level"), newLevel);
 
+        player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                "<green>✦ <white>" + node.getDisplayName() + " <green>leveled up to <yellow>" + newLevel + "<green>!"));
+
+        if (!node.getOnLevelEvents().isEmpty()) {
+            var ctx = new SimpleExecutionContext(player, player.getLocation(), new MemoryConfiguration());
+            ctx.set("progression:level", (double) newLevel);
+            plugin.getScriptModule().getEventParser().parseList(node.getOnLevelEvents()).execute(ctx);
+        }
+
         new ProgressionNodeLevelUpEvent(player, treeId, nodeId, newLevel).callEvent();
     }
 
@@ -137,6 +146,9 @@ public class ProgressionManager {
 
         profile.getVariables().put("progression." + treeId + ".tier", nextTierIndex);
 
+        player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                "<gold>✦ <white>Tier " + nextTierIndex + " <gold>unlocked in <white>" + treeId + "<gold>!"));
+
         new ProgressionTierUnlockedEvent(player, treeId, nextTierIndex).callEvent();
     }
 
@@ -150,10 +162,14 @@ public class ProgressionManager {
         Map<String, Object> vars = profile.getVariables();
         PointsManager pm = ValmoraAPI.getInstance().getPointsManager();
 
+        double refundPercent = plugin.getConfig() != null
+                ? plugin.getConfig().getDouble("progression.refund-percent", 100.0) : 100.0;
         int spentLevel = getSpent(profile, treeId, tree.getLevelCurrencyCategory());
         int spentTier = getSpent(profile, treeId, tree.getTierCurrencyCategory());
-        if (spentLevel > 0) pm.addPoints(player.getUniqueId(), tree.getLevelCurrencyCategory(), spentLevel);
-        if (spentTier > 0) pm.addPoints(player.getUniqueId(), tree.getTierCurrencyCategory(), spentTier);
+        int refundLevel = (int) Math.round(spentLevel * (refundPercent / 100.0));
+        int refundTier = (int) Math.round(spentTier * (refundPercent / 100.0));
+        if (refundLevel > 0) pm.addPoints(player.getUniqueId(), tree.getLevelCurrencyCategory(), refundLevel);
+        if (refundTier > 0) pm.addPoints(player.getUniqueId(), tree.getTierCurrencyCategory(), refundTier);
 
         vars.remove(spentKey(treeId, tree.getLevelCurrencyCategory()));
         vars.remove(spentKey(treeId, tree.getTierCurrencyCategory()));
@@ -161,6 +177,10 @@ public class ProgressionManager {
         for (String nodeId : tree.getNodes().keySet()) {
             vars.remove(varKey(treeId, nodeId, "level"));
         }
+
+        player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                "<yellow>✦ <white>" + treeId + " <yellow>progression reset. <white>"
+                        + (refundLevel + refundTier) + " <yellow>points refunded."));
 
         new ProgressionTreeResetEvent(player, treeId).callEvent();
     }
@@ -189,11 +209,19 @@ public class ProgressionManager {
     }
 
     private int evaluateCostCurve(String costCurve, int level) {
-        String substituted = costCurve.replace("$level$", String.valueOf(level));
-        Expression expr = plugin.getScriptModule().getExpressionParser().parse(substituted);
-        Object result = expr.evaluate(new SimpleExecutionContext(null, null, null, new MemoryConfiguration()));
-        if (result instanceof Number n) return Math.max(0, n.intValue());
-        return 0;
+        try {
+            String substituted = costCurve.replace("$level$", String.valueOf(level));
+            Expression expr = plugin.getScriptModule().getExpressionParser().parse(substituted);
+            Object result = expr.evaluate(new SimpleExecutionContext(null, null, null, new MemoryConfiguration()));
+            if (result instanceof Number n) return Math.max(0, n.intValue());
+            return 0;
+        } catch (Exception e) {
+            // A malformed cost-curve expression previously threw uncaught out of levelUp/canLevelUp.
+            // Fail safe to "unaffordable" (Integer.MAX_VALUE) instead of crashing the caller.
+            plugin.getLogger().warning("Progression: malformed cost-curve expression '" + costCurve
+                    + "' at level " + level + ": " + e.getMessage());
+            return Integer.MAX_VALUE;
+        }
     }
 
     private ValmoraProfile getProfile(UUID uuid) {

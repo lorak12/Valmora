@@ -85,9 +85,11 @@ public class ProgressionLoader {
                                 dailyBonusSec.getDouble("per-level", 0.0));
                     }
 
+                    List<String> onLevelEvents = nodeSec.getStringList("on-level");
+
                     nodes.put(nodeKey.toLowerCase(), new ProgressionNode(
                             nodeKey, nodeName, nodeDesc, icon, tierIndex, maxLevel, costCurve,
-                            prereqs, statBonus, dailyBonus));
+                            prereqs, statBonus, dailyBonus, onLevelEvents));
                 }
             }
 

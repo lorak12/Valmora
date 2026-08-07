@@ -86,6 +86,13 @@ time:
 #               Combat / Engine Stat Mapping                 #
 # ========================================================== #
 # Maps the engine's internal roles to stat IDs defined in stats/*.yml
+# ========================================================== #
+#                   Progression Settings                     #
+# ========================================================== #
+progression:
+  # Percentage of every point ever spent on a tree that's refunded on /progression reset.
+  refund-percent: 100.0
+
 # Change these if you rename or replace a core stat.
 combat:
   health-stat: health

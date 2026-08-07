@@ -166,12 +166,12 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Progression module
 
-- [ ] **Add a dedicated `/progression` command** (currently only reachable via the `/geomancy` GUI command).
-- [ ] **Add a join-triggered catch-up for the daily bonus** (currently relies solely on a 5-minute poll).
-- [ ] **Guard `cost-curve` expression evaluation** — malformed expressions currently throw uncaught.
-- [ ] **Add player-facing feedback** on level-up/tier-unlock/reset (no chat/actionbar/title/notify integration currently).
-- [ ] **Add per-node scripting callbacks** (`on-level` actions).
-- [ ] **Make refund percentage configurable** (currently always 100%).
+- [x] **Add a dedicated `/progression` command** (currently only reachable via the `/geomancy` GUI command). *(2026-08-07: new tree-agnostic `ProgressionCommand` — `/progression list`, `/progression info <treeId>`, `/progression reset <treeId>` — registered in `plugin.yml`/`Valmora.java`.)*
+- [x] **Add a join-triggered catch-up for the daily bonus** (currently relies solely on a 5-minute poll). *(2026-08-07: extracted a per-player `processDailyBonusFor`, called both by the periodic poll and a new `ProgressionJoinListener` on `PlayerProfileLoadedEvent`.)*
+- [x] **Guard `cost-curve` expression evaluation** — malformed expressions currently throw uncaught. *(2026-08-07: `evaluateCostCurve` now catches and logs, failing safe to "unaffordable" (`Integer.MAX_VALUE`) instead of propagating.)*
+- [x] **Add player-facing feedback** on level-up/tier-unlock/reset (no chat/actionbar/title/notify integration currently). *(2026-08-07: added chat messages to `levelUp`/`unlockTier`/`resetTree`, plus the daily-bonus grant.)*
+- [x] **Add per-node scripting callbacks** (`on-level` actions). *(2026-08-07: added `on-level:` DSL event list to `ProgressionNode`/the YAML loader, executed in `levelUp` with a `$progression.level$`-style context variable.)*
+- [x] **Make refund percentage configurable** (currently always 100%). *(2026-08-07: added `progression.refund-percent` (default 100.0) to `config.yml`, applied in `resetTree`.)*
 
 ---
 
