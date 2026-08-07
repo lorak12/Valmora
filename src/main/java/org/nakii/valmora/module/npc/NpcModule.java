@@ -30,9 +30,16 @@ public class NpcModule implements ReloadableModule {
         plugin.getScriptModule().registerEvent(new DialogueEventFactory(plugin));
         plugin.getScriptModule().registerEvent(new GuiOpenEventFactory(plugin));
         this.dialogueManager = new DialogueManager(plugin);
-        this.packetManager = new ConversationPacketManager(dialogueManager);
-        packetManager.register();
-        dialogueManager.setPacketManager(packetManager);
+        // Guarded (added 2026-08-07) — DialogueManager already null-checks packetManager
+        // throughout (dialogue interception is a nice-to-have, not core to NPC functionality),
+        // so skip construction entirely when PacketEvents didn't load rather than crash here.
+        if (plugin.isPacketEventsLoaded()) {
+            this.packetManager = new ConversationPacketManager(dialogueManager);
+            packetManager.register();
+            dialogueManager.setPacketManager(packetManager);
+        } else {
+            plugin.getLogger().warning("[NPC] PacketEvents unavailable — dialogue interception (chat-locking during conversations) is disabled.");
+        }
         this.npcManager = new NpcManager(plugin, npcRegistry, dialogueManager);
 
         new NpcLoader(plugin, npcRegistry, dialogueManager.getDialogueRegistry()).load();

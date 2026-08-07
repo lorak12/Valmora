@@ -100,9 +100,16 @@ public class PlayerManager implements ReloadableModule {
             org.bukkit.event.HandlerList.unregisterAll(connectionListener);
         }
         
+        // Concurrent (fixed 2026-08-07, was a synchronous per-player .join() loop) — each save is
+        // already a CompletableFuture backed by the DB executor's own thread pool, so dispatching
+        // them all up front and joining once on the aggregate lets the DB layer's own concurrency
+        // do the work, instead of serializing N round-trips one at a time (a real stall at scale:
+        // thousands of cached players × per-save latency, all blocking plugin shutdown/reload).
+        java.util.List<java.util.concurrent.CompletableFuture<Void>> saves = new java.util.ArrayList<>();
         for (ValmoraPlayer player : activeSession.values()) {
-            dataStore.savePlayer(player).join(); 
+            saves.add(dataStore.savePlayer(player));
         }
+        java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
         activeSession.clear();
     }
 

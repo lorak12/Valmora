@@ -514,8 +514,12 @@ public class NpcCommand implements TabExecutor {
 
     private void cmdReload(CommandSender sender) {
         sender.sendMessage(Formatter.format(PREFIX + "<aqua>Reloading NPC module..."));
-        plugin.getModuleManager().reloadModules();
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Modules reloaded."));
+        // Fixed 2026-08-07 — was plugin.getModuleManager().reloadModules(), which reloads every
+        // module in the plugin (disabling/re-enabling all of them) for a command whose usage line
+        // says "Reload all modules" but whose name and intent is npc-scoped. ModuleManager already
+        // had a single-module reload primitive that nothing used.
+        plugin.getModuleManager().reloadModule("npc");
+        sender.sendMessage(Formatter.format(PREFIX + "<green>NPC module reloaded."));
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
@@ -700,7 +704,7 @@ public class NpcCommand implements TabExecutor {
         sender.sendMessage(Formatter.format(" <gray>/npc near [radius] <dark_gray>- List nearby NPCs"));
         sender.sendMessage(Formatter.format(" <gray>/npc look <id> <dark_gray>- Toggle look-at-player on/off"));
         sender.sendMessage(Formatter.format(" <gray>/npc showname <id> <dark_gray>- Toggle floating name tag on/off"));
-        sender.sendMessage(Formatter.format(" <gray>/npc reload <dark_gray>- Reload all modules"));
+        sender.sendMessage(Formatter.format(" <gray>/npc reload <dark_gray>- Reload the NPC module"));
         sender.sendMessage(Formatter.format("<dark_gray><st>                                                        </st>"));
     }
 

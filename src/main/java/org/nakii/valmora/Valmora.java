@@ -71,11 +71,23 @@ import java.util.zip.ZipInputStream;
 public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
     private static Valmora instance;
+    private boolean packetEventsLoaded = false;
 
     @Override
     public void onLoad() {
-        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
-        PacketEvents.getAPI().load();
+        // Guarded (added 2026-08-07, was unguarded) — PacketEvents.setAPI/.load() previously threw
+        // straight out of onLoad() on any failure (a version mismatch, a corrupted install, ...),
+        // which Bukkit surfaces as an unhandled-exception stack trace rather than a clean disable.
+        // Only the NPC dialogue-interception feature (ConversationPacketManager) actually needs
+        // PacketEvents — everything else in the plugin works without it — so a failure here now
+        // degrades to "dialogue interception unavailable" instead of a hard crash.
+        try {
+            PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
+            PacketEvents.getAPI().load();
+            packetEventsLoaded = true;
+        } catch (Throwable t) {
+            getLogger().severe("Failed to load PacketEvents — NPC dialogue interception will be unavailable: " + t.getMessage());
+        }
     }
 
     private DataStore dataStore;
@@ -119,7 +131,14 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     public void onEnable() {
         instance = this;
         ValmoraAPI.setProvider(this);
-        PacketEvents.getAPI().init();
+        if (packetEventsLoaded) {
+            try {
+                PacketEvents.getAPI().init();
+            } catch (Throwable t) {
+                packetEventsLoaded = false;
+                getLogger().severe("Failed to initialize PacketEvents — NPC dialogue interception will be unavailable: " + t.getMessage());
+            }
+        }
 
         this.moduleManager = new ModuleManager(this);
         // Decoupled API implementation (Phase 1 — see docs/REFACTOR/PROGRESS.md). Resolves modules
@@ -269,18 +288,35 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             moduleManager.disableModules();
         }
 
-        PacketEvents.getAPI().terminate();
+        if (packetEventsLoaded) {
+            try {
+                PacketEvents.getAPI().terminate();
+            } catch (Throwable t) {
+                getLogger().warning("Failed to terminate PacketEvents cleanly: " + t.getMessage());
+            }
+        }
 
         if (playerManager != null && dataStore != null) {
+            // Concurrent (fixed 2026-08-07, was a synchronous per-player .join() loop) — same fix
+            // as PlayerManager.onDisable()'s own save loop, which normally already saved and
+            // cleared every session by the time moduleManager.disableModules() (above) finishes;
+            // this is the defensive fallback for any session that somehow wasn't covered by that.
+            java.util.List<java.util.concurrent.CompletableFuture<Void>> saves = new java.util.ArrayList<>();
             for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
-                dataStore.savePlayer(player).join(); 
+                saves.add(dataStore.savePlayer(player));
             }
+            java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
             dataStore.close();
         }
     }
 
     public static Valmora getInstance() {
         return instance;
+    }
+
+    /** Whether PacketEvents loaded and initialized successfully — gates NPC dialogue interception (added 2026-08-07). */
+    public boolean isPacketEventsLoaded() {
+        return packetEventsLoaded;
     }
 
     @Override
