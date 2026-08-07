@@ -31,7 +31,7 @@ public class SkillListener implements Listener {
     @EventHandler
     public void onSkillXpGain(SkillXpGainEvent event) {
         String message = "<aqua>+<yellow>" + event.getXp() + " <aqua>" + event.getSkill().getName() + " XP";
-        plugin.getUIManager().getActionBar().showTemporary(event.getPlayer(), message, 20);
+        plugin.getUIManager().getActionBar().showTemporary(event.getPlayer(), message, 20, 1);
     }
 
     @EventHandler

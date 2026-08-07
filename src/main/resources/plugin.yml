@@ -7,6 +7,9 @@ depend: [packetevents]
 description: A MMORPG engine for creating anything one can imagine.
 
 commands:
+  ui:
+    usage: /ui toggle
+    description: Toggle the sidebar scoreboard on/off.
   profile:
     usage: /profile help
   stat:

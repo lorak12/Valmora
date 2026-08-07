@@ -46,7 +46,7 @@ public final class AbilityExecutor {
             if (resolvedTarget == null && ability.getTargetRange() > 0) {
                 resolvedTarget = (LivingEntity) player.getTargetEntity((int) ability.getTargetRange(), false);
                 if (resolvedTarget == null) {
-                    if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<red>No target in range!", 10);
+                    if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<red>No target in range!", 10, 2);
                     continue;
                 }
             }
@@ -59,14 +59,14 @@ public final class AbilityExecutor {
             if (profile.getCooldownManager().isOnCooldown(ability.getId())) {
                 if (!silent) {
                     double remaining = profile.getCooldownManager().getRemainingCooldown(ability.getId());
-                    api.getUIManager().getActionBar().showTemporary(player, "<red>Ability on cooldown: " + remaining + "s", 10);
+                    api.getUIManager().getActionBar().showTemporary(player, "<red>Ability on cooldown: " + remaining + "s", 10, 2);
                 }
                 continue;
             }
 
             if (ability.getManaCost() > 0) {
                 if (state.getCurrentMana() < ability.getManaCost()) {
-                    if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<aqua>Not enough Mana!", 10);
+                    if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<aqua>Not enough Mana!", 10, 2);
                     continue;
                 }
                 state.reduceMana(ability.getManaCost());

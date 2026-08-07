@@ -80,25 +80,36 @@ public class UIManager implements ReloadableModule {
         }, 0L, 2L);
     }
 
+    private static final String DEFAULT_TITLE = "<gold><bold>VALMORA RPG";
+    private static final String DEFAULT_ACTION_BAR =
+            "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana";
+
     private UIConfig loadUIConfig() {
         File file = new File(plugin.getDataFolder(), "ui.yml");
         if (!file.exists()) {
             plugin.saveResource("ui.yml", false);
         }
 
-        FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        // Guarded (added 2026-08-07, was unguarded) — a corrupt ui.yml previously threw straight
+        // out of onEnable(); now it logs a warning and falls back to hardcoded defaults, matching
+        // the same fix already applied to time.yml. Not switched to the generic YamlLoader<T> —
+        // that loader's contract is "one folder of files, each contributing named registry
+        // entries"; ui.yml is a single fixed-shape config file, not a fit for that shape.
+        try {
+            FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
 
-        String title = cfg.getString("scoreboard.title", "<gold><bold>VALMORA RPG");
-        List<String> lines = cfg.getStringList("scoreboard.lines");
+            String title = cfg.getString("scoreboard.title", DEFAULT_TITLE);
+            List<String> lines = cfg.getStringList("scoreboard.lines");
+            String actionBarDefault = cfg.getString("action-bar.default", DEFAULT_ACTION_BAR);
+            String tabHeader = cfg.getString("tab.header", "");
+            String tabFooter = cfg.getString("tab.footer", "");
 
-        String actionBarDefault = cfg.getString("action-bar.default",
-                "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana");
-
-        String tabHeader = cfg.getString("tab.header", "");
-        String tabFooter = cfg.getString("tab.footer", "");
-
-        plugin.getLogger().info("[UI] Loaded ui.yml: " + lines.size() + " scoreboard line(s).");
-        return new UIConfig(title, lines, actionBarDefault, tabHeader, tabFooter);
+            plugin.getLogger().info("[UI] Loaded ui.yml: " + lines.size() + " scoreboard line(s).");
+            return new UIConfig(title, lines, actionBarDefault, tabHeader, tabFooter);
+        } catch (Exception e) {
+            plugin.getLogger().warning("[UI] Failed to load ui.yml (" + e.getMessage() + ") — falling back to defaults.");
+            return new UIConfig(DEFAULT_TITLE, List.of(), DEFAULT_ACTION_BAR, "", "");
+        }
     }
 
     public ChatUI getChat()           { return chat; }

@@ -411,31 +411,29 @@ All of these are wrapped in try/catch (`ScoreboardUI.java:184`, `:199`, `:206`, 
 
 ## 8. Unfinished Things / TODOs
 
-- **`setDynamicSection` has zero callers.** The entire dynamic-section machinery (`ScoreboardUI.java:52-76`, splice logic at `:149-155`, fallback at `:186-190`) and the `"$dynamic$"` placeholder documented in `ui.yml:13` ("combat lock, dialogue, etc.") are currently dead code — no module injects lines. Either wire up the first consumer (quest tracker, combat lock, dialogue bubble) or it will remain unexercised.
 - **The `miniMessage` boolean in `setDynamicSection(Player, List<String>, boolean, boolean)` is ignored** (`ScoreboardUI.java:74-76`) — raw lines are always formatted as MiniMessage regardless of the flag. The parameter is misleading and should be removed or honored.
-- **`time.scoreboard-enabled` (`config.yml:83`) is dead config.** No Java reads it; the time rows on the sidebar are controlled entirely by `ui.yml` `scoreboard.lines`. Same finding as in `docs/modules/design/time.md` §8. Wire it into `ScoreboardUI` or delete it.
 - **Doc drift in the central docs.** `docs/VALMORA_DOCUMENTATION.md:877` states "the scoreboard rendering loop is currently commented out in the UI clock" — **stale**. `UIManager.java:75-80` currently ticks both the action bar and the scoreboard every 2 ticks. It also documents only `sendLevelUp` for `ChatUI` (`VALMORA_DOCUMENTATION.md:860-861`) and only the two action-bar modes at a high level; this design doc supersedes it.
 - **No tests.** `src/test/java/org/nakii/valmora/module/ui/` does not exist. The render loops depend on live `Player`/`Scoreboard` objects and are hard to unit-test with the current structure (state is buried in per-player maps; `legacyLines` touches six modules).
-- **Hard-coded fallbacks.** When `ui.yml` is absent/empty, the scoreboard (`ScoreboardUI.java:167-216`) and action bar (`ActionBarUI.java:71-89`) fall back to compile-time literals including `"pay.valmora.net"` — a server-specific string that will show up in the fallback layout regardless of config.
-- **`ui.yml` is loaded with raw Bukkit YAML, not `YamlLoader`** (`UIManager.java:89`) — inconsistent with `AGENTS.md` §7.1. No error handling: a corrupt `ui.yml` throws during `YamlConfiguration.loadConfiguration` and fails `onEnable()`; defaults from `cfg.getString(...)` only cover a *missing key*, not a malformed file.
+- **Hard-coded fallbacks.** When `ui.yml` is absent/empty, the scoreboard (`ScoreboardUI.java:167-216`) and action bar (`ActionBarUI.java:71-89`) fall back to compile-time literals — no longer including `"pay.valmora.net"` (removed in an earlier pass), but the rest of the fallback content is still hardcoded, not config-driven.
 - **Tab header/footer are silently dropped** whenever the script `VariableResolver` is unavailable (`ScoreboardUI.java:127-128`) and only sent when a player ticks (i.e. they are online during a 2-tick pass). There is no event-driven resend on script-module enable.
-- **No per-player or per-world control.** Every player on every world gets the same sidebar/action-bar/tab content. There is no toggle (e.g. `/ui toggle`), no per-player line filtering, no condition support in `scoreboard.lines`.
-- **Action-bar override semantics are "last write wins".** A second `showTemporary` call silently replaces an active message (even a longer one) — there is no queue/stack, so two systems firing in the same tick clobber each other (e.g. XP-gain 20 ticks vs ability error 10 ticks). The expiry is wall-clock (`System.currentTimeMillis()`, `ActionBarUI.java:36`), so a server-side lag spike can expire messages early relative to game ticks.
-- **`legacyBar` scales current health by a ratio of Valmora max to vanilla max** (`ActionBarUI.java:80-81`) and reads modules through `plugin.getPlayerManager()`/`plugin.getStatModule()` directly rather than the `ValmoraAPI` — inconsistent with the scoreboard's API-based fallback and only safe because it runs before config is loaded (and in an uncontrolled early-tick window).
 - **ChatUI messages are not localizable/configurable.** All strings (`ChatUI.java:10-31`) are compile-time literals; there is no way to rebrand the prefix or reword the level-up block.
+
+*(2026-08-07: several items previously listed here are resolved — `setDynamicSection` now has a real caller
+(combat-lock indicator), `time.scoreboard-enabled` is wired (see `docs/modules/design/time.md`), `ui.yml`
+loading is guarded, per-player scoreboard toggling exists (`/ui toggle`), action-bar overrides now respect
+priority, and `legacyBar` reads through `ValmoraAPI`. See `docs/IMPLEMENTATION_BACKLOG.md`'s UI module
+section for what changed in each case.)*
 
 ---
 
 ## 9. Possible Improvements / Changes
 
-- **Wire the first dynamic-section consumer.** E.g. quests (`QuestManager`) could push the active objective via `setDynamicSection(player, lines, locked=true)` into the `"$dynamic$"` placeholder, and combat could use a non-locked section. This would also let the `"$dynamic$"` comment in `ui.yml:13` become true.
 - **Fix the `setDynamicSection` overload.** Remove the unused `miniMessage` parameter (`ScoreboardUI.java:74`) or make it actually switch between raw and MiniMessage handling.
-- **Honor or remove `scoreboard-enabled`.** Pass `config.yml → time.scoreboard-enabled` down to `ScoreboardUI` so admins can drop the time rows without editing templates, or delete the key (see `docs/modules/design/time.md` §9 for the cross-module angle).
 - **Event-driven tab header/footer.** Re-send the tab header/footer once on join and on `UIManager` enable instead of relying on the 2-tick loop's condition, and re-send when the script module becomes available.
-- **Robust config loading.** Move `ui.yml` to `YamlLoader` (`AGENTS.md` §7.1) with try/catch fallback to the hard-coded defaults, so a corrupt file degrades instead of failing the module.
-- **Richer action-bar queue.** Give `showTemporary` a priority or stackable behavior so cooldown/XP/zone messages don't clobber each other; or track durations in game ticks instead of wall-clock millis.
-- **Per-player control.** Add a `/ui toggle` (scoreboard off/on, stored per player in the existing profile/PDC) and optional per-line conditions (e.g. `when: "$player.stat.defense$ > 0"`) in `scoreboard.lines`.
-- **Make fallback content config-driven.** Move the `pay.valmora.net` (`ScoreboardUI.java:170`) and action-bar literal (`ActionBarUI.java:85-87`) into `ui.yml` fallback defaults so a misconfigured install never shows stale branding.
-- **Add unit tests.** Extract the pure line-building (`buildLines` against a mocked `VariableResolver` + `DynamicSection`) and the override-expiry logic (`ActionBarUI`) into testable seams, following the `ExpressionTest`/`TimeVariableProviderTest` Mockito pattern (`AGENTS.md` §9). The `SimpleExecutionContext` and `VariableResolver.resolveTemplate` behavior is already unit-testable in isolation.
+- **Persist the `/ui toggle` preference.** The 2026-08-07 implementation is session-only (an in-memory `Set<UUID>` on `ScoreboardUI`); a profile variable or PDC-backed flag would survive reconnects.
+- **Per-line conditions.** `scoreboard.lines` entries could support a `when: "<condition>"` gate (reusing `ConditionParser`) so admins can hide/show individual lines per player without a full toggle.
+- **Per-world control.** Only a global toggle exists; nothing lets an admin configure different scoreboard/action-bar content per world.
+- **More dynamic-section consumers.** Combat-lock is the first (2026-08-07); quests (`QuestManager` pushing the active objective, `locked=true`) and dialogue state are the natural next ones, sharing the same `setDynamicSection` call.
+- **Make fallback content config-driven.** Move the action-bar literal (`ActionBarUI.java:85-87`) into `ui.yml` fallback defaults so a misconfigured install never shows stale branding.
+- **Add unit tests.** Extract the pure line-building (`buildLines` against a mocked `VariableResolver` + `DynamicSection`) and the override-expiry/priority logic (`ActionBarUI`) into testable seams, following the `ExpressionTest`/`TimeVariableProviderTest` Mockito pattern (`AGENTS.md` §9). The `SimpleExecutionContext` and `VariableResolver.resolveTemplate` behavior is already unit-testable in isolation.
 - **Evaluate a library swap.** The manual team-prefix/§-entry technique (`ScoreboardUI.java:28-35`, `:93-96`) is standard and dependency-free, but if the module grows more complex (per-line animations, hover events), a maintained scoreboard library could replace ~60 lines of plumbing.
-- **Unify fallback access patterns.** Make `legacyBar` (`ActionBarUI.java:71-89`) use `ValmoraAPI.getInstance()` like `legacyLines` does, removing the direct `plugin.getPlayerManager()`/`getStatModule()` coupling.

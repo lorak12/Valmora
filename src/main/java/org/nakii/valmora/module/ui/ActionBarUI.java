@@ -30,11 +30,29 @@ public class ActionBarUI {
         this.config = config;
     }
 
-    private record QueuedMessage(String message, long expirationTimeMillis) {}
+    private record QueuedMessage(String message, long expirationTimeMillis, int priority) {}
 
+    /** Same as {@link #showTemporary(Player, String, int, int)} with priority 0 (the default before priorities existed). */
     public void showTemporary(Player player, String message, int durationTicks) {
+        showTemporary(player, message, durationTicks, 0);
+    }
+
+    /**
+     * Queues a temporary action-bar override. Fixed 2026-08-07 — was strict last-write-wins,
+     * so e.g. a low-priority ambient message (a zone name on entry) could clobber a
+     * higher-priority one already displaying (an ability-fail reason) with time still left on it.
+     * A new message only replaces the currently active one if its priority is {@code >=} the
+     * active message's priority, or the active message has already expired. Equal priority still
+     * replaces (matches the pre-fix behavior for same-priority callers).
+     */
+    public void showTemporary(Player player, String message, int durationTicks, int priority) {
+        UUID uuid = player.getUniqueId();
+        QueuedMessage current = activeOverrides.get(uuid);
+        if (current != null && current.priority() > priority && System.currentTimeMillis() <= current.expirationTimeMillis()) {
+            return; // a still-active, higher-priority message wins
+        }
         long expireTime = System.currentTimeMillis() + (durationTicks * 50L);
-        activeOverrides.put(player.getUniqueId(), new QueuedMessage(message, expireTime));
+        activeOverrides.put(uuid, new QueuedMessage(message, expireTime, priority));
     }
 
     public void tick(Player player) {
@@ -69,11 +87,14 @@ public class ActionBarUI {
     }
 
     private void legacyBar(Player player) {
-        ValmoraPlayer vp = plugin.getPlayerManager().getSession(player.getUniqueId());
+        // Routed through ValmoraAPI (fixed 2026-08-07, was the concrete plugin class directly)
+        // for consistency with the rest of the codebase's module-access convention.
+        ValmoraAPI api = ValmoraAPI.getInstance();
+        ValmoraPlayer vp = api.getPlayerManager().getSession(player.getUniqueId());
         if (vp == null || vp.getActiveProfile() == null) return;
 
         StatManager stats = vp.getActiveProfile().getStatManager();
-        SystemStats sys = plugin.getStatModule().getSystemStats();
+        SystemStats sys = api.getStatModule().getSystemStats();
 
         double maxHealth = stats.getStat(sys.getHealth());
         double defense = stats.getStat(sys.getDefense());

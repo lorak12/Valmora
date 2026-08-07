@@ -180,7 +180,7 @@ public class TimeManager {
                 + snap.phaseName() + " " + snap.seasonName() + " ✦</bold></gold>";
         var ui = ValmoraAPI.getInstance().getUIManager();
         for (Player p : Bukkit.getOnlinePlayers()) {
-            ui.getActionBar().showTemporary(p, msg, 120);
+            ui.getActionBar().showTemporary(p, msg, 120, 1);
         }
     }
 
