@@ -49,7 +49,15 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
 
         // Reforge anvil: item + specific stone → apply exact reforge, cost by item rarity
         plugin.getRecipeModule().getRecipeEngine().registerHandler("reforge_anvil", new DynamicMachineHandler() {
-            @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return Optional.empty(); }
+            // Live output preview (added 2026-08-07): GuiListener.updateRecipeOutput and
+            // output-click handling call match(inputs) WITHOUT a player to populate the OUTPUT
+            // slot preview before a craft happens. This used to hardcode Optional.empty(), so the
+            // Anvil GUI showed nothing until the actual craft click. checkAndNotifyCoins(null, ...)
+            // already treats a null player as "always affordable" (no notification target to
+            // charge/warn), so delegating here is safe — it never deducts coins or consumes items,
+            // it only builds and previews the would-be output. The real craft still goes through
+            // the player overload below, which performs the real balance check before consuming.
+            @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return matchReforgeAnvil(inputs, null); }
             @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs, Player player) {
                 return matchReforgeAnvil(inputs, player);
             }
@@ -57,7 +65,11 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
 
         // Forge (random): single item input → random reforge excluding current, cost by item rarity
         plugin.getRecipeModule().getRecipeEngine().registerHandler("forge_random", new DynamicMachineHandler() {
-            @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return Optional.empty(); }
+            // Live preview (see reforge_anvil above) — note the *result* is still randomized per
+            // call, so the previewed reforge won't necessarily be the one actually applied on
+            // craft; this matches the module's existing "random every roll" semantics, just now
+            // shown ahead of time instead of appearing only after the click.
+            @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs) { return matchForgeRandom(inputs, null); }
             @Override public Optional<RecipeDefinition> match(Map<String, ItemStack> inputs, Player player) {
                 return matchForgeRandom(inputs, player);
             }
