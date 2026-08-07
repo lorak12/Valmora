@@ -57,6 +57,10 @@ public class CalendarEventListener implements Listener {
             CalendarEventDefinition def = getDefinition(id);
             if (def != null) def.getRecurringDaily().execute(ctx);
         }
+
+        // Keep the offline/skip catch-up marker current so a future onEnable() only ever needs
+        // to reconcile a genuine gap, not every normal day-change.
+        module.saveLastProcessedDay(snapshot.totalDays());
     }
 
     private CalendarEventDefinition getDefinition(String id) {

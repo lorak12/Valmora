@@ -81,7 +81,7 @@ The module is registered after `hudItemModule` and before `reforgeModule` (`Valm
 1. Clears `definitions` and `activeEventIds` (idempotency for hot reload, `CalendarEventModule.java:32-33`).
 2. `loadDefinitions()` — loads & parses every `calendar/*.yml` file (`CalendarEventModule.java:34`).
 3. Creates and registers `CalendarEventListener` (`CalendarEventModule.java:36-37`).
-4. **Seeds the active set without firing events** (`CalendarEventModule.java:39-48`): reads `plugin.getTimeManager().getSnapshot()` and adds every definition whose `isActive(snapshot)` is `true` to `activeEventIds`. This is a deliberate design decision — on plugin load / hot reload, events already in progress do **not** replay `on-start`; only `recurring-daily` (and eventually `on-end`) will fire going forward.
+4. **Reconciles any offline/skip gap, then seeds the active set** *(reconciliation added 2026-08-07)*: reads `plugin.getTimeManager().getSnapshot()`. If a `calendar_state.yml` marker from a prior session exists and records an earlier day than the current snapshot, `reconcileMissedTransitions` fires the *net* `on-end`/`on-start` for every definition whose active state differs between the last-recorded day and now (not a day-by-day replay — see §9). It then adds every definition whose `isActive(snapshot)` is `true` to `activeEventIds` (unchanged from before — an event already active either just had its catch-up `on-start` fired, or was already active last session and correctly does **not** re-fire it) and persists the current day as the new marker. On a fresh install (no marker file yet) this is a no-op — identical to the pre-2026-08-07 seed-only behavior.
 
 **`onDisable()`** (`CalendarEventModule.java:52-59`):
 1. `HandlerList.unregisterAll(listener)` and nulls it (`CalendarEventModule.java:53-56`) — mandatory cleanup per `AGENTS.md` §6.2 to prevent duplicate handlers after reload.
@@ -89,7 +89,7 @@ The module is registered after `hudItemModule` and before `reforgeModule` (`Valm
 
 **Definition accessors:**
 - `getDefinitions()` → `Collection<CalendarEventDefinition>` (`CalendarEventModule.java:67-69`)
-- `getDefinition(String id)` → direct `definitions.get(id)`, **case-sensitive** (`CalendarEventModule.java:71-73`)
+- `getDefinition(String id)` → `definitions.get(id.toLowerCase())` — case-**insensitive** (fixed 2026-08-07, docs previously described this as case-sensitive; keys are stored/looked-up lowercased, matching the `Registry<T>` convention in `AGENTS.md` §7.2) (`CalendarEventModule.java:71-73`)
 - `getActiveEventIds()` → live mutable `Set<String>` (`CalendarEventModule.java:75-77`) — listeners/consumers may read it but should not mutate it.
 
 **Loading — `loadDefinitions()`** (`CalendarEventModule.java:79-82`):
@@ -196,8 +196,8 @@ The **only shipped file** is `seasonal.yml` (46 lines) defining three events. Fu
 | `trigger` | section | — | Optional. Entire trigger block may be omitted → event active every day (`day-start`…`day-end` of every phase). |
 | `trigger.season` | string | *(none = any season)* | One of `SPRING`, `SUMMER`, `AUTUMN`, `WINTER` (case-insensitive in config; `toUpperCase()` at parse). Anything else fails the event with `invalid season.` |
 | `trigger.phase` | string | *(none = any phase)* | One of `EARLY`, `MID`, `LATE` (case-insensitive). Anything else fails with `invalid phase.` |
-| `trigger.day-start` | int | `1` | First active day-of-phase (inclusive). No range clamping. |
-| `trigger.day-end` | int | `30` | Last active day-of-phase (inclusive). No range clamping; `dayStart <= dayEnd` is not enforced. |
+| `trigger.day-start` | int | `1` | First active day-of-phase (inclusive). Clamped to `[1, 30]` at parse time *(added 2026-08-07)*. |
+| `trigger.day-end` | int | `30` | Last active day-of-phase (inclusive). Clamped to `[1, 30]`; the event fails to load with a clear error if `dayStart > dayEnd` after clamping *(added 2026-08-07 — was previously silently accepted as a permanently-inactive event)*. |
 | `on-start` | list of strings | *(empty / no-op)* | Script DSL lines executed once, on the first day-change where the event becomes active. |
 | `on-end` | list of strings | *(empty / no-op)* | Script DSL lines executed once, on the day-change where the event ceases to be active. |
 | `recurring-daily` | list of strings | *(empty / no-op)* | Script DSL lines executed on **every** day-change while the event is active. |
@@ -236,22 +236,23 @@ Other events registered by the Script engine (`ScriptModule.java:62-70`) and by 
 ## 5. Data Model / Persistence
 
 - **No database involvement.** The Calendar module never touches `DataStore`/DAO layer; `activeEventIds` and `definitions` are purely in-memory (`CalendarEventModule.java:22-23`).
-- **Only persistent state is YAML on disk** — `plugins/Valmora/calendar/*.yml`, loaded on every `onEnable()` (server start and `/valmora reload`).
-- **State reconstruction semantics:** the active set is rebuilt from the *current* snapshot at enable time (`CalendarEventModule.java:39-48`) without firing `on-start`. Consequences:
-  - If the server was offline for part of an event window, the event is silently "in progress" on load — players see `recurring-daily` (and later `on-end`) but **not** `on-start`.
-  - `on-end` is **not** fired for events whose window passed entirely while the server was offline — there is no catch-up / history replay.
-  - Events that started before load but are still active on load **do not** double-fire `on-start` — this is the intended protection against reload double-firing.
-- The Time module's `time.yml` (`day-offset`, `TimeManager.java:44-51`, `:150-159`) is the calendar's own persistence and is what ultimately drives these windows.
+- **Definitions are YAML on disk** — `plugins/Valmora/calendar/*.yml`, loaded on every `onEnable()` (server start and `/valmora reload`).
+- **Catch-up marker** *(added 2026-08-07)* — `plugins/Valmora/calendar_state.yml`, a single `last-processed-day: <totalDays>` key. Written after every real day-change (`CalendarEventListener.onDayChange`, at the end) and again after `onEnable()`'s catch-up pass. This is the only durable calendar-specific state; it exists purely to detect a gap, not to store anything about individual events.
+- **State reconstruction semantics:**
+  - **Normal reload** (`/valmora reload`, or a restart with no elapsed world-time gap): the marker equals the current snapshot's day, so `reconcileMissedTransitions` is a no-op — the active set is rebuilt from the current snapshot without re-firing `on-start`, exactly as before 2026-08-07.
+  - **A genuine gap** (the current day is later than the marker — e.g. an external plugin/command fast-forwarded time, since normal server downtime doesn't advance `world.getFullTime()`): the *net* `on-start`/`on-end` transition is reconciled for every definition (§3.1, §9) before the active set is rebuilt.
+  - **A fresh install** (no marker file yet): identical to the old seed-only behavior — no catch-up fires.
+- The Time module's `time.yml` (`day-offset`, `TimeManager.java:44-51`, `:150-159`) is the calendar's own upstream clock and is what ultimately drives these windows; `calendar_state.yml` only remembers where the Calendar module itself last looked.
 
 ---
 
 ## 6. API Exposed
 
-**Not exposed through the `ValmoraAPI` interface** (`api/ValmoraAPI.java:9-70` has no calendar getter). It is reachable only via the concrete plugin class:
+Exposed via `ValmoraAPI.getCalendarEventModule()` (in addition to the concrete `Valmora.getCalendarEventModule()`):
 
 ```java
-Valmora plugin = Valmora.getInstance();                       // Valmora.java:278-280
-CalendarEventModule cal = plugin.getCalendarEventModule();    // Valmora.java:424
+CalendarEventModule cal = ValmoraAPI.getInstance().getCalendarEventModule(); // preferred
+CalendarEventModule cal2 = Valmora.getInstance().getCalendarEventModule();   // Valmora.java:457, from within the plugin
 ```
 
 Public surface of the module (`CalendarEventModule.java`):
@@ -290,26 +291,20 @@ The hard (Java-level) dependencies are only `script` and `time`; `notify` and `s
 ## 8. Unfinished Things / TODOs
 
 - **No admin tooling.** Events can only be created/edited by hand-editing YAML and running `/valmora reload`. There is no `/calendar` command to list active events, force-start/force-end, or preview windows.
-- **Not in `ValmoraAPI`.** Unlike most sibling modules, the module is only reachable via the concrete `Valmora` class (`Valmora.java:424`); `api/ValmoraAPI.java` has no `getCalendarEventModule()`. External plugins cannot reach it through the API.
-- **No catch-up / offline handling.** Events that start or end while the server is offline never fire `on-start`/`on-end` (active set is seeded from the live snapshot without firing, `CalendarEventModule.java:39-48`). No last-fired-day persistence exists to reconcile missed transitions.
 - **`recurring-daily` + `on-start` fire on the same day.** Because the recurring loop runs after the start loop (`CalendarEventListener.java:49-59`), a starting event executes both blocks on day `day-start`. Not documented as intentional.
-- **No validation of the day window.** `day-start`/`day-end` are not clamped to 1–30 and `dayStart <= dayEnd` is not enforced (`CalendarEventModule.java:107-108`); invalid values silently produce an event that never activates.
-- **Case-sensitive id lookup.** `getDefinition(id)` (`CalendarEventModule.java:71-73`) bypasses the `Registry` case-insensitivity convention (`AGENTS.md` §7.2).
 - **No unit tests** for the module (no test source under `src/test/...` covers it; no calendar entry in the test tree).
 - **TODO in project roadmap** (`docs/todo.md:65-66`): richer event content ("events like a schematic that appears based on time of year or some drops that are added when the event is active") — none of that exists yet; the module today only runs script blocks.
 - **`docs/MODULE_DEVELOPMENT.md` §9 load-order list** (`MODULE_DEVELOPMENT.md:495-517`) is stale — it omits `calendar` (and other late modules). The comment block in `Valmora.java:186-222` is the live source of truth.
+
+*(2026-08-07: `ValmoraAPI` exposure (already done, docs drift), case-sensitive id lookup (already fixed, docs drift), day-window validation, and offline/skip catch-up — all previously listed here — are resolved. See §3.1/§5/§9 below and `docs/IMPLEMENTATION_BACKLOG.md`'s Calendar module section.)*
 
 ---
 
 ## 9. Possible Improvements / Changes
 
-- **Expose via `ValmoraAPI`** — add `getCalendarEventModule()` to the interface (`api/ValmoraAPI.java`) so external code can query definitions/active events, matching the pattern in `MODULE_DEVELOPMENT.md` §8.
 - **Add a `/calendar` admin command** (registered in `Valmora.onEnable()` per `AGENTS.md` §6.3) for listing events, showing current active set, and forcing `on-start`/`on-end` for testing.
-- **Offline catch-up / last-fired tracking** — persist (in `time.yml` or the DB layer) the last day-change each event's blocks ran, then replay missed `on-start`/`on-end` transitions on enable. Requires keeping the "no double-fire on reload" guarantee.
 - **Extend the trigger model** for whole-season or multi-phase windows (e.g. an optional `season-window` that spans all 30-day phases, or an offset-based `day-start` that can exceed 30), so admins don't need to duplicate definitions per phase.
-- **Validate windows at parse time** — clamp or reject `day-start`/`day-end` outside 1–30 and reject `dayStart > dayEnd` with a clear `LoadResult.failure` message (`CalendarEventModule.java:107-108`).
-- **Normalize id lookup** — store/retrieve definition ids lowercased (like `Registry`) or make `getDefinition` case-insensitive, per `AGENTS.md` §7.2.
 - **Pass event metadata into the script context** — currently params are an empty `YamlConfiguration` (`CalendarEventListener.java:25`); exposing `event_id`, `season`, `dayInPhase` as params would let event scripts branch on their own trigger window.
-- **Console/server logging on transitions** — log when events start/end (the shipped events already chat-announce, but no plugin logger output exists).
 - **Per-event `on-join` block** — many RPG events grant a buff on start; players joining mid-event currently get the buff only if the event uses `recurring-daily` with a `foreach @all stat_modify` line. A dedicated `on-join` block (wired via `PlayerJoinEvent`) would be cleaner than abusing `recurring-daily`.
 - **Unit tests** following the `ExpressionTest` pattern (`AGENTS.md` §9): mock `ValmoraAPI`, use `DummyExecutionContext`-style stubs, and assert transition detection logic in `CalendarEventListener`.
+- **Full day-by-day catch-up replay** — the 2026-08-07 offline catch-up (§5) only reconciles the *net* start/end transition across a gap, not every intermediate cycle for windows that recur multiple times within it. A true day-by-day walk (evaluating `isActive` for every day between the last-processed and current snapshot) would be needed for full fidelity, at the cost of potentially replaying `recurring-daily` many times — a design tradeoff deliberately left for a future pass.

@@ -1,15 +1,19 @@
 package org.nakii.valmora.module.calendar;
 
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.HandlerList;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.config.LoadResult;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.nakii.valmora.module.time.Phase;
 import org.nakii.valmora.module.time.Season;
+import org.nakii.valmora.module.time.TimeSnapshot;
 
+import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,11 +44,78 @@ public class CalendarEventModule implements ReloadableModule {
         var tm = plugin.getTimeManager();
         if (tm != null) {
             var snapshot = tm.getSnapshot();
+
+            // Offline/skip catch-up: reconcile against whatever day this module last saw. Under
+            // normal operation totalDays only advances while the server ticks, so a gap here
+            // means either the server was down across a day boundary an external time-modifying
+            // plugin/command fast-forwarded time, or this is the very first run — in the latter
+            // case lastProcessedDay is simply absent and nothing fires, matching the previous
+            // (silent) seeding-only behavior. Only the *net* start/end transition is reconciled
+            // (not a full day-by-day replay of recurring-daily) — see docs/modules/design/calendar.md §5.
+            Long lastProcessedDay = loadLastProcessedDay();
+            if (lastProcessedDay != null && lastProcessedDay < snapshot.totalDays()) {
+                reconcileMissedTransitions(lastProcessedDay, snapshot);
+            }
+
             for (CalendarEventDefinition def : definitions.values()) {
                 if (def.isActive(snapshot)) {
                     activeEventIds.add(def.getId());
                 }
             }
+            saveLastProcessedDay(snapshot.totalDays());
+        }
+    }
+
+    /**
+     * Fires on-end/on-start for events whose active state differs between the last day this
+     * module observed and the current snapshot, without replaying `recurring-daily` or requiring
+     * a day-by-day walk. An event whose window recurs more than once inside the gap only gets
+     * reconciled for its *net* change — a known, documented simplification (see design doc).
+     */
+    private void reconcileMissedTransitions(long lastTotalDays, TimeSnapshot currentSnapshot) {
+        TimeSnapshot lastSnapshot = snapshotForTotalDays(lastTotalDays);
+        var ctx = new SimpleExecutionContext(null, (org.bukkit.Location) null, new YamlConfiguration());
+        for (CalendarEventDefinition def : definitions.values()) {
+            boolean wasActive = def.isActive(lastSnapshot);
+            boolean isActive = def.isActive(currentSnapshot);
+            if (wasActive && !isActive) {
+                plugin.getLogger().info("[Calendar] Catch-up: firing on-end for '" + def.getId() + "' (missed while offline).");
+                def.getOnEnd().execute(ctx);
+            } else if (!wasActive && isActive) {
+                plugin.getLogger().info("[Calendar] Catch-up: firing on-start for '" + def.getId() + "' (missed while offline).");
+                def.getOnStart().execute(ctx);
+            }
+        }
+    }
+
+    /** Reconstructs just enough of a {@link TimeSnapshot} (season/phase/dayInPhase) to evaluate {@code isActive} for an arbitrary past day — mirrors {@code TimeManager.getSnapshot()}'s math. */
+    private static TimeSnapshot snapshotForTotalDays(long totalDays) {
+        int dayInPhase = (int) Math.floorMod(totalDays, 30) + 1;
+        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / 30, 3)];
+        Season season = Season.values()[(int) Math.floorMod(totalDays / 90, 4)];
+        int year = Math.max(1, (int) (totalDays / 360) + 1);
+        return new TimeSnapshot(6, 0, dayInPhase, phase, season, year, totalDays, phase.name(), season.name());
+    }
+
+    private File stateFile() {
+        return new File(plugin.getDataFolder(), "calendar_state.yml");
+    }
+
+    private Long loadLastProcessedDay() {
+        File file = stateFile();
+        if (!file.exists()) return null;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        return yaml.contains("last-processed-day") ? yaml.getLong("last-processed-day") : null;
+    }
+
+    /** Records the last day this module observed, so a future {@code onEnable()} can detect (and reconcile) any gap. Called on enable and after every real day-change. */
+    void saveLastProcessedDay(long totalDays) {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("last-processed-day", totalDays);
+        try {
+            yaml.save(stateFile());
+        } catch (java.io.IOException e) {
+            plugin.getLogger().warning("[Calendar] Failed to save calendar_state.yml: " + e.getMessage());
         }
     }
 
@@ -104,8 +175,15 @@ public class CalendarEventModule implements ReloadableModule {
                         return LoadResult.failure("[" + filePath + "] Calendar event '" + id + "': invalid phase.");
                     }
                 }
-                dayStart = triggerSec.getInt("day-start", 1);
-                dayEnd = triggerSec.getInt("day-end", 30);
+                // Clamped to the valid 1-30 day-of-phase range rather than silently accepting an
+                // out-of-range value that would just never match (see docs/IMPLEMENTATION_BACKLOG.md,
+                // Calendar module).
+                dayStart = Math.max(1, Math.min(30, triggerSec.getInt("day-start", 1)));
+                dayEnd = Math.max(1, Math.min(30, triggerSec.getInt("day-end", 30)));
+                if (dayStart > dayEnd) {
+                    return LoadResult.failure("[" + filePath + "] Calendar event '" + id
+                            + "': day-start (" + dayStart + ") must be <= day-end (" + dayEnd + ").");
+                }
             }
 
             var parser = plugin.getScriptModule().getEventParser();

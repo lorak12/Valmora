@@ -365,9 +365,9 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Calendar module
 
-- [ ] **Add offline catch-up** for events starting/ending while the server (or a player) was offline.
-- [ ] **Validate the day window** (`day-start`/`day-end` should be clamped 1-30 with `dayStart <= dayEnd` enforced).
-- [ ] **Expose `CalendarModule` via `ValmoraAPI`.**
+- [x] **Add offline catch-up** for events starting/ending while the server (or a player) was offline. *(2026-08-07: added a `calendar_state.yml` marker (`last-processed-day`), updated after every real day-change and read back on `onEnable()`. If the current day has moved past the last-recorded one, `reconcileMissedTransitions` fires the *net* on-start/on-end for every definition whose active state differs between the two snapshots — not a full day-by-day replay of `recurring-daily`. Documented limitation: an event window that would have recurred more than once inside the gap only reconciles its net change, not each individual cycle.)*
+- [x] **Validate the day window** (`day-start`/`day-end` should be clamped 1-30 with `dayStart <= dayEnd` enforced). *(2026-08-07: `parseDefinition` now clamps both to `[1,30]` and fails the event with a clear `LoadResult.failure` if `dayStart > dayEnd` after clamping.)*
+- [x] **Expose `CalendarModule` via `ValmoraAPI`.** *(2026-08-07: already done — docs drift. `ValmoraAPI.getCalendarEventModule()`/`ValmoraAPIImpl` already exist.)*
 - [ ] **Build richer event content** (seasonal schematics/drops appearing based on time of year — todo.md).
 
 ---
