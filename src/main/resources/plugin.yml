@@ -28,6 +28,10 @@ commands:
   progression:
     usage: /progression help
     description: Master command for progression tree interactions.
+  recipe:
+    usage: /recipe help
+    description: Admin command for inspecting the recipe engine.
+    permission: valmora.admin
   gui:
     usage: /gui help
     permission: valmora.admin.gui

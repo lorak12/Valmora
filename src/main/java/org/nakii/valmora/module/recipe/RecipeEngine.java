@@ -30,6 +30,15 @@ public class RecipeEngine {
     }
 
     /**
+     * Unregisters a dynamic handler — call this from a dependent module's {@code onDisable()}
+     * (e.g. Reforge, Alchemy) so a single-module reload doesn't leave a handler referencing a
+     * disabled module's stale state registered on this engine.
+     */
+    public void unregisterHandler(String machineId) {
+        dynamicHandlers.remove(machineId.toLowerCase());
+    }
+
+    /**
      * Unified craft operation: matches, determines output, consumes ingredients.
      * Returns empty if no recipe matched or output could not be built.
      * All three steps happen atomically on the calling thread.
@@ -43,34 +52,38 @@ public class RecipeEngine {
         if (matched.isEmpty()) return Optional.empty();
 
         RecipeDefinition recipe = matched.get();
-        ItemStack output = buildOutput(recipe);
-        if (output == null || output.getType() == org.bukkit.Material.AIR) return Optional.empty();
+        List<ItemStack> outputs = buildOutputs(recipe);
+        if (outputs.isEmpty()) return Optional.empty();
+        ItemStack output = outputs.get(0);
+        List<ItemStack> extras = outputs.size() > 1 ? outputs.subList(1, outputs.size()) : List.of();
 
         consume(recipe, inputs);
-        return Optional.of(new CraftResult(output, recipe, recipe.getOnCraft()));
+        return Optional.of(new CraftResult(output, extras, recipe, recipe.getOnCraft()));
     }
 
-    private ItemStack buildOutput(RecipeDefinition recipe) {
-        ItemStack output;
+    /** Builds every {@code outputs:} entry, not just the first — see {@link CraftResult}. */
+    private List<ItemStack> buildOutputs(RecipeDefinition recipe) {
         if (recipe.isVanilla()) {
-            output = recipe.getVanillaResult().clone();
-        } else if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) {
-            return null;
-        } else {
-            RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
-            org.bukkit.Material mat = org.bukkit.Material.matchMaterial(firstOutput.item());
-            if (mat == null) {
-                output = plugin.getItemManager().createItemStack(firstOutput.item());
-                if (output != null) output.setAmount(firstOutput.amount());
-            } else {
-                output = new ItemStack(mat, firstOutput.amount());
-            }
+            ItemStack output = recipe.getVanillaResult().clone();
+            return output.getType() == org.bukkit.Material.AIR ? List.of() : List.of(output);
         }
+        if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) return List.of();
 
-        if (output == null || output.getType() == org.bukkit.Material.AIR) return null;
-
-        // Ensure every item coming out of a machine is a Valmora-formatted item
-        return plugin.getItemManager().getItemTranslator().translate(output);
+        List<ItemStack> built = new ArrayList<>();
+        for (RecipeIngredient outputIngredient : recipe.getOutputs().values()) {
+            ItemStack output;
+            org.bukkit.Material mat = org.bukkit.Material.matchMaterial(outputIngredient.item());
+            if (mat == null) {
+                output = plugin.getItemManager().createItemStack(outputIngredient.item());
+                if (output != null) output.setAmount(outputIngredient.amount());
+            } else {
+                output = new ItemStack(mat, outputIngredient.amount());
+            }
+            if (output == null || output.getType() == org.bukkit.Material.AIR) continue;
+            // Ensure every item coming out of a machine is a Valmora-formatted item
+            built.add(plugin.getItemManager().getItemTranslator().translate(output));
+        }
+        return built;
     }
 
     public Optional<RecipeDefinition> match(String machineId, Map<String, ItemStack> inputs) {
@@ -94,14 +107,21 @@ public class RecipeEngine {
             }
         }
 
-        // 3. Check Vanilla Recipes (if machine is default or crafting)
-        Optional<RecipeDefinition> vanillaMatch = matchVanillaRecipe(inputs);
-        if (vanillaMatch.isPresent()) {
-            return vanillaMatch;
+        // 3. Check Vanilla Recipes — scoped to the crafting-table passthrough machine only.
+        // Previously machine-agnostic, so e.g. an anvil/forge/alchemy GUI would silently also
+        // match a vanilla crafting recipe if the same items happened to sit in numbered slots.
+        if (VANILLA_FALLBACK_MACHINES.contains(machineId.toLowerCase())) {
+            Optional<RecipeDefinition> vanillaMatch = matchVanillaRecipe(inputs);
+            if (vanillaMatch.isPresent()) {
+                return vanillaMatch;
+            }
         }
 
         return Optional.empty();
     }
+
+    /** Machine ids that fall through to vanilla crafting-table recipes when nothing else matches. */
+    private static final java.util.Set<String> VANILLA_FALLBACK_MACHINES = java.util.Set.of("crafting_table");
 
     private boolean matches(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
         return switch (recipe.getType()) {

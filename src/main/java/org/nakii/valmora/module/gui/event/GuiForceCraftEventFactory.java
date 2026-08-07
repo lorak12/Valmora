@@ -67,6 +67,15 @@ public class GuiForceCraftEventFactory implements EventFactory {
                     session.getInventory().setItem(outputSlot, craft.output());
                 }
 
+                // Give any additional outputs beyond the primary one directly to the player —
+                // the GUI only has one OUTPUT slot to place items into (see CraftResult).
+                if (!craft.extraOutputs().isEmpty()) {
+                    for (ItemStack extra : craft.extraOutputs()) {
+                        var leftover = player.getInventory().addItem(extra);
+                        leftover.values().forEach(item -> player.getWorld().dropItem(player.getLocation(), item));
+                    }
+                }
+
                 // Execute on-craft script
                 if (craft.onCraft() != null) craft.onCraft().execute(guiContext);
 

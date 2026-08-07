@@ -187,14 +187,14 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Recipe module
 
-- [ ] **Add a `/recipe` command** and expose `RecipeModule` via `ValmoraAPI`.
-- [ ] **Add a dynamic handler for the `enchanting_table` machine** (currently only vanilla fallback).
-- [ ] **Scope the vanilla-recipe fallback per machine** — currently machine-agnostic, leaking unintended vanilla results into custom machine GUIs.
-- [ ] **Unregister dynamic handlers in `onDisable()`.**
-- [ ] **Route the anvil coin cost through `EconomyService`** instead of the `player.var.coins` script variable, for consistency with Reforge.
-- [ ] **Support multiple recipe outputs** — currently only the first output in a definition is honored.
-- [ ] **Fix SHAPELESS recipes**: make `amount` optional (currently a missing value fails the whole file) and support duplicate ingredients needing distinct slots.
-- [ ] **Add smithing-recipe support** (3-slot Template+Base+Addition, per CLAUDE.md §14.16 — not yet wired into the recipe engine).
+- [x] **Add a `/recipe` command** and expose `RecipeModule` via `ValmoraAPI`. *(2026-08-07: `getRecipeModule()` was already exposed (docs drift). Added `/recipe list <machineId>` (new `RecipeCommand`, `valmora.admin`-gated), registered in `plugin.yml`/`Valmora.java`.)*
+- [x] **Add a dynamic handler for the `enchanting_table` machine** (currently only vanilla fallback). *(2026-08-07: new `EnchantingTableMachineHandler`, registered by `EnchantModule` — picks a random eligible enchantment for the item's `ItemType` at a random level up to `etable-max-level`, gated by a `lapis` input. Note: the shipped `guis/enchanting.yml` doesn't use this — it has its own fully custom `enchant_select`/`enchant_apply`/`enchant_remove` interaction; this is for GUI authors who'd rather build a plain `gui_force_craft` enchanting GUI instead.)*
+- [x] **Scope the vanilla-recipe fallback per machine** — currently machine-agnostic, leaking unintended vanilla results into custom machine GUIs. *(2026-08-07: `RecipeEngine.match()` now only falls through to `matchVanillaRecipe` for machine ids in a new `VANILLA_FALLBACK_MACHINES` set (just `crafting_table`).)*
+- [x] **Unregister dynamic handlers in `onDisable()`.** *(2026-08-07: added `RecipeEngine.unregisterHandler`/`RecipeModule.unregisterHandler`, called from `AlchemyModule`, `ReforgeModule`, and the new `EnchantModule` registration's `onDisable()`.)*
+- [x] **Route the anvil coin cost through `EconomyService`** instead of the `player.var.coins` script variable, for consistency with Reforge. *(2026-08-07: `AnvilMachineHandler`'s `on-craft` is now a direct `EconomyService.removeCoins(player, cost)` call (resolving the caster from the execution context) instead of a `variable add player.var.coins -N` DSL string.)*
+- [x] **Support multiple recipe outputs** — currently only the first output in a definition is honored. *(2026-08-07: `CraftResult` now carries `extraOutputs` alongside the primary `output`; `RecipeEngine.buildOutputs` builds every `outputs:` entry, and `GuiForceCraftEventFactory` gives the extras directly to the player's inventory (dropping on overflow) since the GUI only has one OUTPUT slot.)*
+- [x] **Fix SHAPELESS recipes**: make `amount` optional (currently a missing value fails the whole file) and support duplicate ingredients needing distinct slots. *(2026-08-07: fixed the missing-`amount` NPE (defaults to 1). Traced through `matchShapeless`'s distinct-slot handling — it already correctly requires occupied-slot-count to equal required-ingredient-count with a per-slot "matched" flag, so 2 duplicate ingredient entries already can't be satisfied by a single combined stack; no change needed there.)*
+- [x] **Add smithing-recipe support** (3-slot Template+Base+Addition, per CLAUDE.md §14.16 — not yet wired into the recipe engine). *(2026-08-07: `type: SMITHING` recipes now register a real vanilla `SmithingTransformRecipe` (bypassing the GUI-based match/consume engine, since the vanilla smithing table isn't GUI-driven) via `RecipeDefinitionParser.parseSmithing`. Slot materials are vanilla-only — matching a custom Valmora item's exact PDC state via `RecipeChoice` wasn't practical to add in this pass — but the `result:` can be a Valmora item id.)*
 
 ---
 

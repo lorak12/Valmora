@@ -41,6 +41,12 @@ public class RecipeModule implements ReloadableModule {
         }
     }
 
+    public void unregisterHandler(String machineId) {
+        if (recipeEngine != null) {
+            recipeEngine.unregisterHandler(machineId);
+        }
+    }
+
     @Override
     public void onDisable() {
         machineRecipes.clear();

@@ -69,6 +69,10 @@ public class AlchemyModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Alchemy System...");
 
+        if (plugin.getRecipeModule() != null) {
+            plugin.getRecipeModule().unregisterHandler("alchemy");
+        }
+
         if (tickTaskId != -1) {
             plugin.getServer().getScheduler().cancelTask(tickTaskId);
             tickTaskId = -1;

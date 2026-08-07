@@ -39,6 +39,11 @@ public class EnchantModule implements ReloadableModule {
     public void onEnable() {
         registerBuiltinLogics();
         loadEnchants();
+
+        if (plugin.getRecipeModule() != null) {
+            plugin.getRecipeModule().registerHandler("enchanting_table",
+                    new org.nakii.valmora.module.recipe.EnchantingTableMachineHandler(plugin));
+        }
     }
 
     private void registerBuiltinLogics() {
@@ -81,6 +86,9 @@ public class EnchantModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        if (plugin.getRecipeModule() != null) {
+            plugin.getRecipeModule().unregisterHandler("enchanting_table");
+        }
         registry.clear();
         logicMap.clear();
         logicFactories.clear();

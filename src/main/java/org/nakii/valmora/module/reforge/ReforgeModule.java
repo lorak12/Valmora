@@ -62,6 +62,10 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
 
     @Override
     public void onDisable() {
+        if (plugin.getRecipeModule() != null) {
+            plugin.getRecipeModule().unregisterHandler("reforge_anvil");
+            plugin.getRecipeModule().unregisterHandler("forge_random");
+        }
         definitions.clear();
         forgeCostRegistry.clear();
     }
