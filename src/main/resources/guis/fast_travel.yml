@@ -1,0 +1,87 @@
+# The fast-travel menu opened by `/warp` with no arguments (WarpCommand.java). Previously
+# referenced but never shipped, so `/warp` silently no-op'd (docs/IMPLEMENTATION_BACKLOG.md,
+# GUI/Warp module sections). One button per shipped warp (warps/hub.yml) — add a button here
+# whenever a new warp is added to keep the menu in sync.
+fast_travel:
+  title: "<gold>⚜ Fast Travel"
+  rows: 3
+
+  #  B B B B B B B B B
+  #  B H B C B F B G B   H=hub  C=coal mine  F=forest  G=graveyard
+  #  B B B B V B B B B   V=fishing village
+  layout:
+    - "BBBBBBBBB"
+    - "BHBCBFBGB"
+    - "BBBBVBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+
+    H:
+      type: DISPLAY
+      display-item:
+        material: BEACON
+        name: "<gold>Hub Spawn"
+        lore:
+          - "<gray>Click to travel."
+      actions:
+        left:
+          actions:
+            - "warp_to hub_spawn"
+            - "close"
+
+    C:
+      type: DISPLAY
+      display-item:
+        material: COAL_ORE
+        name: "<gray>Coal Mine"
+        lore:
+          - "<gray>Click to travel."
+      actions:
+        left:
+          actions:
+            - "warp_to coal_mine_warp"
+            - "close"
+
+    F:
+      type: DISPLAY
+      display-item:
+        material: OAK_SAPLING
+        name: "<green>Whispering Forest"
+        lore:
+          - "<gray>Click to travel."
+      actions:
+        left:
+          actions:
+            - "warp_to forest_warp"
+            - "close"
+
+    G:
+      type: DISPLAY
+      display-item:
+        material: SOUL_LANTERN
+        name: "<dark_gray>Graveyard"
+        lore:
+          - "<gray>Click to travel."
+      actions:
+        left:
+          actions:
+            - "warp_to graveyard_warp"
+            - "close"
+
+    V:
+      type: DISPLAY
+      display-item:
+        material: TROPICAL_FISH
+        name: "<aqua>Fishing Village"
+        lore:
+          - "<gray>Click to travel."
+      actions:
+        left:
+          actions:
+            - "warp_to fishing_village_warp"
+            - "close"

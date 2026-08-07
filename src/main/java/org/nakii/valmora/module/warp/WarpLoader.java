@@ -22,7 +22,13 @@ public class WarpLoader {
     public void load() {
         registry.clear();
         new YamlLoader<WarpDefinition>(plugin, "warps", "Warps")
-                .load(this::parse, def -> registry.register(def.getId(), def));
+                .load(this::parse, def -> {
+                    if (registry.get(def.getId()).isPresent()) {
+                        plugin.getLogger().warning("[Warps] Duplicate warp id '" + def.getId()
+                                + "' — overwriting the previous definition.");
+                    }
+                    registry.register(def.getId(), def);
+                });
     }
 
     private LoadResult<WarpDefinition, String> parse(String id, ConfigurationSection sec, String path) {
@@ -41,7 +47,11 @@ public class WarpLoader {
                     sec.getDouble("x", 0), sec.getDouble("y", 64), sec.getDouble("z", 0),
                     (float) sec.getDouble("yaw", 0), (float) sec.getDouble("pitch", 0),
                     sec.getString("unlock-condition", "always"),
-                    pads
+                    pads,
+                    sec.getDouble("cost", 0.0),
+                    sec.getInt("cooldown-seconds", 0),
+                    sec.getInt("warmup-seconds", 0),
+                    sec.contains("permission") ? sec.getString("permission") : null
             ));
         } catch (Exception e) {
             return LoadResult.failure("[" + path + "] Error parsing warp '" + id + "': " + e.getMessage());

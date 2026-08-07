@@ -9,6 +9,7 @@ public class WarpModule implements ReloadableModule {
     private final Valmora plugin;
     private WarpManager warpManager;
     private WarpListener listener;
+    private WarpSignListener signListener;
 
     public WarpModule(Valmora plugin) {
         this.plugin = plugin;
@@ -21,14 +22,17 @@ public class WarpModule implements ReloadableModule {
         new WarpLoader(plugin, warpManager.getRegistry()).load();
         plugin.getScriptModule().registerEvent(new WarpEventFactory());
         plugin.getScriptModule().registerProvider(new WarpVariableProvider());
-        this.listener = new WarpListener(warpManager);
+        this.listener = new WarpListener(plugin, warpManager);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+        this.signListener = new WarpSignListener(plugin, warpManager);
+        plugin.getServer().getPluginManager().registerEvents(signListener, plugin);
     }
 
     @Override
     public void onDisable() {
         plugin.getLogger().info("Disabling Warp Module...");
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
+        if (signListener != null) { HandlerList.unregisterAll(signListener); signListener = null; }
         if (warpManager != null) { warpManager.getRegistry().clear(); warpManager = null; }
     }
 

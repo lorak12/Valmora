@@ -73,7 +73,7 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 - [ ] **GUI navigation "back" button.** `GuiSession.parent` is defined but never assigned — no `BACK` navigation despite being documented.
 - [ ] **Virtual sign input dead code.** `OpenSignInputEventFactory`/`SignInputManager`/`SignInputListener` exist but are never registered in `GuiModule.onEnable()`.
 - [ ] **Fix repeating-task leak on `open_gui`.** Previous GUI's repeating update task isn't cancelled when navigating to another GUI.
-- [ ] **Ship `fast_travel.yml`.** `/warp` (no args) references it (`WarpCommand.java:28`) but the file doesn't exist — command silently does nothing.
+- [x] **Ship `fast_travel.yml`.** `/warp` (no args) references it (`WarpCommand.java:28`) but the file doesn't exist — command silently does nothing. *(2026-08-07: done as part of the Warp module pass — see that section below.)*
 - [ ] **Fix `collections_categories` GUI's `command:` key collision** with the `/collections` command already registered in `plugin.yml` — the GUI's own command binding never runs.
 - [x] **Remove or wire the dead `rows:` YAML key** (parser currently ignores it). *(2026-08-07: wired. `GuiDefinitionParser` now honors `rows:` as a minimum inventory height — `rows = max(rows: value, layout.size())`, padding blank rows if `rows:` is larger; it can never shrink below the layout. Updated `docs/modules/design/gui.md` and `docs/modules/user/gui.md` accordingly. Verified with `./gradlew compileJava`.)*
 - [ ] **GUI_MODULE_ENHANCEMENT_PLAN.md Phase 5** (docs/optimization, marked ⬜): pagination caching, dupe-protection hardening for `AnvilMachineHandler` under mass-shift-click.
@@ -280,14 +280,14 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 
 ## Warp module
 
-- [ ] **Build the sign-warp subsystem** — `Keys.WARP_ID_KEY` is defined but has zero usages anywhere.
-- [ ] **Ship the `fast_travel` GUI** (see GUI module section above — `/warp` with no args currently no-ops).
+- [x] **Build the sign-warp subsystem** — `Keys.WARP_ID_KEY` is defined but has zero usages anywhere. *(2026-08-07: new `WarpSignListener` — the EssentialsX/CMI-style `[warp]` / `<warp id>` two-line sign convention. Creating one requires `valmora.admin`; the warp id is stored in the sign block's PDC (`Keys.WARP_ID_KEY`), never re-parsed from the display text at trigger time. Right-clicking a valid warp sign calls `WarpManager.teleport` (so it gets all the same permission/cooldown/cost/warmup gating as `/warp`).)*
+- [x] **Ship the `fast_travel` GUI** (see GUI module section above — `/warp` with no args currently no-ops). *(2026-08-07: added `guis/fast_travel.yml` — one button per shipped warp (`warps/hub.yml`), each firing `warp_to <id>`. Static content, not a dynamic paginated list — matches the existing static-button GUI pattern (`guis/general_store.yml`) rather than adding new list-variable engine plumbing for a 5-warp menu.)*
 - [x] **Wire a tab completer for `/warp`.** *(2026-08-07: `WarpCommand` already had a full `onTabComplete` implementation; added the explicit `getCommand("warp").setTabCompleter(...)` call in `Valmora.java`.)*
 - [x] **Enforce the zone `teleportation` flag from the warp module itself** (currently only the script `teleport` event checks it). *(2026-08-07: resolved generically rather than warp-specifically — see the Zone module's `PlayerTeleportEvent` listener item below, which enforces the flag for every teleport (warps included), not just the script `teleport` event.)*
-- [ ] **Add fees/cooldowns/warmup/per-warp permissions** — `/warp` currently has no permission node at all.
-- [ ] **Trigger warp pads for players already standing on one** (or teleported/portaled onto one), not just move events.
-- [ ] **Harden `pad-locations` parsing** — non-numeric input currently throws `ClassCastException` and fails the entire warp file.
-- [ ] **Warn on duplicate warp ids** instead of silently overwriting.
+- [x] **Add fees/cooldowns/warmup/per-warp permissions** — `/warp` currently has no permission node at all. *(2026-08-07: `WarpDefinition` gained `cost`/`cooldown-seconds`/`warmup-seconds`/`permission` fields (all optional, default off/free/instant/none — no behavior change for existing warp YAML). `WarpManager.teleport` now checks permission → cooldown (via the existing per-profile `CooldownManager`, key `"warp:<id>"`, so it persists across reconnects) → cost (deducted through `EconomyService` only after a successful teleport) → warmup (cancels if the player moves before it completes). Left `/warp` itself without a blanket command permission — the codebase's existing convention (`valmora.admin` etc.) never declares nodes in `plugin.yml`, and an undeclared node defaults to **OP-only** per Bukkit's `PermissionDefault`, which would have silently locked `/warp` away from every non-op player by default; per-warp `permission:` is the intended opt-in gate instead.)*
+- [x] **Trigger warp pads for players already standing on one** (or teleported/portaled onto one), not just move events. *(2026-08-07: `WarpListener` now also checks pad membership on `PlayerJoinEvent` (immediately) and `PlayerTeleportEvent` (one tick after, once the destination location has settled).)*
+- [x] **Harden `pad-locations` parsing** — non-numeric input currently throws `ClassCastException` and fails the entire warp file. *(2026-08-07: checked — already correctly handled, docs drift. `WarpLoader.parse()`'s entire body (including pad-location parsing) is already wrapped in try/catch returning `LoadResult.failure(...)`, and `YamlLoader` isolates failures per top-level key — a malformed `pad-locations` entry fails only that one warp, not the whole file. No code change needed.)*
+- [x] **Warn on duplicate warp ids** instead of silently overwriting. *(2026-08-07: `WarpLoader.load()` now logs a warning when a warp id being registered already exists in the registry.)*
 
 ---
 

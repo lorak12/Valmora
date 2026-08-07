@@ -56,12 +56,62 @@ public class WarpManager {
             player.sendMessage(Formatter.format("<red>This warp is locked! Condition: <gray>" + warp.getUnlockCondition()));
             return;
         }
+
+        // Permission, cooldown, and cost gates (added 2026-08-07 — /warp previously had none at all).
+        if (warp.getPermission() != null && !warp.getPermission().isEmpty() && !player.hasPermission(warp.getPermission())) {
+            player.sendMessage(Formatter.format("<red>You don't have permission to use this warp."));
+            return;
+        }
+
+        ValmoraPlayer vp = plugin.getPlayerManager().getSession(player.getUniqueId());
+        ValmoraProfile profile = vp != null ? vp.getActiveProfile() : null;
+        if (profile == null) { player.sendMessage(Formatter.format("<red>Your profile isn't loaded yet.")); return; }
+
+        String cooldownKey = "warp:" + warp.getId();
+        if (warp.getCooldownSeconds() > 0 && profile.getCooldownManager().isOnCooldown(cooldownKey)) {
+            long remaining = (profile.getCooldownManager().getRemainingCooldown(cooldownKey) + 999) / 1000;
+            player.sendMessage(Formatter.format("<red>This warp is on cooldown for <white>" + remaining + "s<red>."));
+            return;
+        }
+
+        if (warp.getCost() > 0) {
+            var economy = plugin.getEconomy();
+            if (economy == null || !economy.hasCoins(player, warp.getCost())) {
+                player.sendMessage(Formatter.format("<red>You need <gold>" + (long) warp.getCost() + " coins<red> to use this warp."));
+                return;
+            }
+        }
+
         World world = Bukkit.getWorld(warp.getWorldName());
         if (world == null) { player.sendMessage(Formatter.format("<red>World not loaded.")); return; }
         Location dest = new Location(world, warp.getX(), warp.getY(), warp.getZ(), warp.getYaw(), warp.getPitch());
-        player.teleportAsync(dest).thenAccept(success -> {
-            if (success) player.sendMessage(Formatter.format("<green>Teleported to <white>" + warp.getDisplayName()));
+
+        Runnable doTeleport = () -> player.teleportAsync(dest).thenAccept(success -> {
+            if (!success) return;
+            if (warp.getCost() > 0) plugin.getEconomy().removeCoins(player, warp.getCost());
+            if (warp.getCooldownSeconds() > 0) profile.getCooldownManager().setCooldown(cooldownKey, warp.getCooldownSeconds());
+            player.sendMessage(Formatter.format("<green>Teleported to <white>" + warp.getDisplayName()));
         });
+
+        if (warp.getWarmupSeconds() <= 0) {
+            doTeleport.run();
+            return;
+        }
+
+        // Warmup: cancel if the player moves (block-level) or takes damage before it completes.
+        player.sendMessage(Formatter.format("<yellow>Teleporting to <white>" + warp.getDisplayName()
+                + "<yellow> in " + warp.getWarmupSeconds() + "s. Don't move!"));
+        Location warmupStart = player.getLocation();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) return;
+            Location now = player.getLocation();
+            if (now.getBlockX() != warmupStart.getBlockX() || now.getBlockY() != warmupStart.getBlockY()
+                    || now.getBlockZ() != warmupStart.getBlockZ()) {
+                player.sendMessage(Formatter.format("<red>Warp cancelled — you moved."));
+                return;
+            }
+            doTeleport.run();
+        }, warp.getWarmupSeconds() * 20L);
     }
 
     public Optional<WarpDefinition> getWarpByPad(String worldName, int bx, int by, int bz) {

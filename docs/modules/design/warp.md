@@ -322,28 +322,22 @@ The `docs/MODULE_DEVELOPMENT.md:515` note "depends on zone, gui" is **only half 
 
 ## Unfinished Things / TODOs
 
-1. **No `sign/` subpackage; sign warps are not implemented.** The task brief for this doc assumed a sign-warp subsystem, but none exists in `module/warp/`. There is no right-click-sign teleport logic anywhere; `Keys.WARP_ID_KEY` (`Keys.java:24,60`) is defined but has zero usages — the reserved hook for warp-tagged entities/items/signs. `docs/todo.md:19` ("warp: finish the ui for the warp") is the only roadmap item.
-2. **The `fast_travel` GUI is not shipped.** `/warp` with no arguments calls `openGui(player, "fast_travel", ...)` (`WarpCommand.java:28`), but there is no `fast_travel.yml` in `src/main/resources/guis/` (only the 17 GUIs listed by the glob), and `GuiModule.openGui` silently returns when the id is missing (`GuiModule.java:72-73`). Players pressing plain `/warp` see nothing happen.
-3. **No tab completion wired.** `WarpCommand` implements `TabExecutor` (`WarpCommand.java:13`) but `Valmora.java:245` only calls `setExecutor`, so `/warp` never auto-completes warp names (same wart as `/skill`, see `docs/modules/design/skill.md` §8-5).
-4. **Zone `teleportation` flag is not enforced by the warp module.** `WarpManager.teleport` (`WarpManager.java:54-65`) never consults `ZoneManager`; only the script `teleport` event does (`TeleportEventFactory.java:36-48`). Warp pads, `/warp`, and `warp_to` teleport even inside zones flagged `teleportation: false`.
-5. **No fees, cooldowns, warmup, or per-warp permissions.** `docs/TESTING_GUIDE.md:164-166` (TC-WARP, rows WARP-01/02/03) describes a warmup-and-move-cancel behaviour and a permission-denied case that do not exist in the code; the docs are aspirational. `plugin.yml:43-45` declares `/warp` without a permission node, and there is no `valmora.warp.<id>`-style permission anywhere.
-6. **`WARP_ID_KEY` is dead code** (`Keys.java:24,60`) — see §5.
-7. **Pad detection is move-only.** Players already occupying a pad at load time, or teleported/portaled onto one, never trigger (`WarpListener.java:17-20`). No `PlayerInteractEvent`/`EntityChangeBlockEvent` alternative exists.
-8. **`pad-locations` parsing is brittle.** `((Number) padSec.get("x")).intValue()` (`WarpLoader.java:32-34`) throws `ClassCastException` on non-numeric input; a typo'd pad entry fails the *entire warp* rather than just that pad.
-9. **Registry build is not idempotent-safe by key collision.** Duplicate ids across files silently overwrite (`SimpleRegistry.java:20-22`) with no warning.
-10. **`docs/USER_DOCS.md` §16 (lines 1066-1118)** documents warp pads as triggered by *"pressing the interact key"* — the code triggers on *walking onto* the pad block (`WarpListener.java:16-24`); the user doc is stale on the activation method.
+1. **`docs/USER_DOCS.md` §16 (lines 1066-1118)** documents warp pads as triggered by *"pressing the interact key"* — the code triggers on *walking onto* the pad block (still true — pad activation is move/join/post-teleport-based, not interact-based, see §9's "Resolved" note for what *did* change).
+
+*(2026-08-07: every other item previously listed here is resolved — sign warps, the `fast_travel` GUI,
+`/warp` tab completion, zone `teleportation` enforcement, fees/cooldowns/warmup/permissions, dead
+`WARP_ID_KEY`, join/teleport pad triggering, and duplicate-id warnings. The `pad-locations` brittle-parsing
+item turned out to already be handled correctly — `WarpLoader.parse()`'s try/catch + `YamlLoader`'s
+per-key isolation already confine a bad pad entry to just that one warp, not the whole file — docs drift.
+See `docs/IMPLEMENTATION_BACKLOG.md`'s Warp module section for what changed in each case.)*
 
 ---
 
 ## Possible Improvements / Changes
 
-1. **Ship a `fast_travel` GUI** (`plugins/Valmora/guis/fast_travel.yml`) rendering `$warp.*$` data, or fall back to a chat list (`/warp` + names) when the GUI is absent, so bare `/warp` is useful. `docs/todo.md:19` names this as the pending warp work.
-2. **Implement sign warps** using the reserved `WARP_ID_KEY` (or sign-line lookup): right-click a sign whose PDC/line holds a warp id → `WarpManager.teleport`. This would give the "sign/ subpackage" the codebase is missing and put the dead key to use.
-3. **Add fees/cooldowns/warmup** — e.g. an `economy` fee per warp (`ValmoraAPI.getEconomy()`, `ValmoraAPI.java:47`), a per-player cooldown via `CooldownManager` (`ValmoraProfile.java:23`), and an optional charge-time cancelled by movement (matching the aspirational `docs/TESTING_GUIDE.md` TC-WARP). The module currently has zero anti-abuse mechanics.
-4. **Enforce `ZoneFlags.teleportation` inside `WarpManager.teleport`** so every entry path (pads, command, `warp_to`) is consistent with the script `teleport` event (`TeleportEventFactory.java:36-48`), rather than only that one path.
-5. **Per-warp permissions** — a `valmora.warp.<id>` node checked in `WarpCommand`/`WarpListener`, or a `permission:` key on the definition, plus a `valmora.admin`-gated admin command (`/warp create|delete|list|set` with a selection wand) so pads can be authored in-game.
-6. **Loop protection** — a short per-player teleport cooldown inside `WarpManager.teleport` (or a "recently teleported" timestamp) so an admin who places a destination on a pad cannot create an infinite bounce.
-7. **More trigger surfaces** — trigger pads on `PlayerInteractEvent`/pressure plates, and/or also check the *from* block so already-standing players fire on first interaction; plus activation feedback (sound/particles via `TextDisplay` or `Player.spawnParticle`).
-8. **Safe destination handling** — verify the destination block is safe (air/water) or use a "spawn above the pad" offset, since `teleportAsync` blindly drops players at raw coordinates (`WarpManager.java:61`).
-9. **Tighter parsing** — validate pad entries defensively (skip bad entries with a warning instead of `ClassCastException`), and log a warning on duplicate warp ids instead of silent overwrite.
-10. **Richer conditions** — support `quest:<id>`/`points:<min>`/`money:<min>` and compound expressions in `unlock-condition`, all evaluated inside `WarpManager.isUnlocked` alongside the existing `tag:`/`skill:` grammar.
+1. **Loop protection** — a short per-player teleport cooldown inside `WarpManager.teleport` (or a "recently teleported" timestamp) so an admin who places a destination on a pad cannot create an infinite bounce. The per-warp `cooldown-seconds` field (2026-08-07) covers the common case but not a true 0-cooldown loop.
+2. **More trigger surfaces** — trigger pads on pressure plates too, and/or also check the *from* block so already-standing players fire on first interaction (join/teleport now cover most of this — see "Resolved" above); plus activation feedback (sound/particles via `TextDisplay` or `Player.spawnParticle`).
+3. **Safe destination handling** — verify the destination block is safe (air/water) or use a "spawn above the pad" offset, since `teleportAsync` blindly drops players at raw coordinates.
+4. **Richer conditions** — support `quest:<id>`/`points:<min>`/`money:<min>` and compound expressions in `unlock-condition`, all evaluated inside `WarpManager.isUnlocked` alongside the existing `tag:`/`skill:` grammar.
+5. **Dynamic `fast_travel` GUI** — the 2026-08-07 GUI ships one static button per shipped warp; a `$warp.list$`-style list variable (mirroring `$collection.category_list$`) would let it grow with the warp registry instead of needing a manual button per new warp.
+6. **In-game warp authoring** — a `valmora.admin`-gated `/warp create|delete|list|set` (with a selection wand for pad locations), so warps can be authored without hand-editing YAML + reload.
