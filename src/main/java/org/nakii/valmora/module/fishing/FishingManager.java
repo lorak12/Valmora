@@ -1,6 +1,9 @@
 package org.nakii.valmora.module.fishing;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
@@ -23,7 +26,12 @@ public class FishingManager {
 
     public Registry<FishingLootTable> getRegistry() { return registry; }
 
-    public boolean handleCatch(Player player) {
+    /**
+     * Resolves a completed catch. {@code hookLocation} (per TESTING_GUIDE.md's FISH-03
+     * expectation) is where any rolled sea creature spawns — the bobber's location, not the
+     * player's.
+     */
+    public boolean handleCatch(Player player, Location hookLocation) {
         FishingLootTable table = getTableForPlayer(player);
         if (table == null) return false;
 
@@ -44,7 +52,7 @@ public class FishingManager {
         boolean caught;
         if (table.getSeaCreatureMobId() != null && Math.random() < table.getSeaCreatureChance()) {
             var def = plugin.getMobManager().getMobDefinition(table.getSeaCreatureMobId());
-            if (def != null) plugin.getMobManager().spawnMob(def, player.getLocation());
+            if (def != null) plugin.getMobManager().spawnMob(def, hookLocation);
             if (pipelineActive) pipelineCtx.set("fishing:sea_creature", table.getSeaCreatureMobId());
             caught = def != null;
         } else {
@@ -66,6 +74,14 @@ public class FishingManager {
             bus.runPoint(FishingPipelineLoader.POST_CATCH, pipelineCtx);
         }
         return caught;
+    }
+
+    /** Plays a bite-indicator sound/particle at the bobber when a fish bites (per TESTING_GUIDE.md's FISH-01 expectation). */
+    public void playBiteFeedback(Location hookLocation) {
+        var world = hookLocation.getWorld();
+        if (world == null) return;
+        world.playSound(hookLocation, Sound.ENTITY_FISHING_BOBBER_SPLASH, 0.6f, 1.2f);
+        world.spawnParticle(Particle.FISHING, hookLocation, 10, 0.2, 0.1, 0.2, 0.02);
     }
 
     private FishingLootTable getTableForPlayer(Player player) {

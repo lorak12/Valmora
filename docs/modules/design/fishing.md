@@ -101,7 +101,7 @@ handleCatch(player)
 
 Important behavioral details:
 
-- **Sea creatures spawn at the player, not the bobber** — `spawnMob(def, player.getLocation())` (`FishingManager.java:28`). If the configured mob ID does not exist in the mob registry, the catch is still consumed (`return true`) but nothing spawns and no loot is granted.
+- **Sea creatures spawn at the bobber** *(fixed 2026-08-07, was the player's location)* — `handleCatch(Player, Location hookLocation)` spawns via `spawnMob(def, hookLocation)`, where `hookLocation` is `FishingListener`'s `event.getHook().getLocation()` at the moment of catch. If the configured mob ID does not exist in the mob registry, the catch is still consumed (`return true`) but nothing spawns and no loot is granted.
 - **Item resolution is best-effort** (`createItem`, `FishingManager.java:47-55`):
   1. Try the custom item registry first: `plugin.getItemManager().getItemRegistry().createItemStack(itemId.toLowerCase())` — wrapped in `try/catch` (any exception is ignored).
   2. If present, `stack.setAmount(amount)` is applied and returned.
@@ -147,20 +147,26 @@ Rarity is expressed purely through relative `weight` (higher = more common); the
 - If `minAmount >= maxAmount` → returns `minAmount` (fixed amount).
 - Otherwise returns a uniform integer in `[min, max]` inclusive: `min + (int)(Math.random() * (max - min + 1))`.
 
-### 3.7 Event Handling — `FishingListener.onFish(PlayerFishEvent)` (`FishingListener.java:15-21`)
+### 3.7 Event Handling — `FishingListener.onFish(PlayerFishEvent)`
 
 ```java
 @EventHandler
 public void onFish(PlayerFishEvent event) {
+    if (event.getState() == PlayerFishEvent.State.BITE) {
+        if (event.getHook() != null) fishingManager.playBiteFeedback(event.getHook().getLocation());
+        return;
+    }
     if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
+    var hookLocation = event.getHook() != null ? event.getHook().getLocation() : event.getPlayer().getLocation();
     if (event.getCaught() != null) event.getCaught().remove();
     event.setCancelled(true);
-    fishingManager.handleCatch(event.getPlayer());
+    fishingManager.handleCatch(event.getPlayer(), hookLocation);
 }
 ```
 
-- Only reacts to the `CAUGHT_FISH` state; every other state is ignored.
-- The vanilla caught entity is **removed** and the event **cancelled**, so the player never picks up vanilla loot — the module's loot table output is the only reward.
+- **`BITE`** *(added 2026-08-07)*: plays `FishingManager.playBiteFeedback` (a sound + `Particle.FISHING` burst) at the bobber's location — the bite-indicator feedback `TESTING_GUIDE.md`'s FISH-01 expects.
+- **`CAUGHT_FISH`**: the vanilla caught entity is **removed** and the event **cancelled**, so the player never picks up vanilla loot — the module's loot table output is the only reward. The hook's location is captured *before* removal and passed to `handleCatch(Player, Location)` so any rolled sea creature spawns at the bobber, not the player (FISH-03).
+- Every other state is ignored.
 - **Interaction with the Skill module (important):** the Skill module also listens to `PlayerFishEvent` in `SkillListener.onFish` (`SkillListener.java:70-88`). Because Bukkit delivers cancelled events to listeners that do not declare `ignoreCancelled = true`, both listeners run. The Skill listener reads the *vanilla caught item's material* from `event.getCaught().getItemStack().getType()` for XP lookup — not the loot-table-rolled item. The two systems are fully decoupled (see [Dependencies & Consumers](#dependencies--consumers)).
 - **`handleCatch` returning `false` is silent:** the event has already been cancelled and the caught entity removed, so an unresolvable table or empty roll leaves the player with nothing and no notification.
 
@@ -239,7 +245,7 @@ hub_fishing:
 
 Relative probabilities for this table: COD ≈ 41.7%, SALMON ≈ 26.0%, TROPICAL_FISH ≈ 15.6%, PUFFERFISH ≈ 10.4%, NAUTILUS_SHELL ≈ 5.2%, HEART_OF_THE_SEA ≈ 1.0%.
 
-> **Note:** the shipped table references `sea-creature-mob: squid`, but no `squid` mob definition exists in the shipped `mobs/*.yml` files (verified via grep over `src/main/resources/mobs/`). With the default config, sea creatures never actually spawn.
+> **Note:** the shipped table references `sea-creature-mob: squid`, which resolves to `mobs/fishing_mobs.yml`'s `squid` definition (added 2026-08-07 — an AQUATIC `SQUID`-type mob dropping `INK_SAC`).
 
 ### Zone linkage — `zones/*.yml`
 
@@ -267,9 +273,9 @@ There is no DAO, no database table, no SQLite/MySQL usage, and nothing is writte
 - `FishingManager.getRegistry()` → `Registry<FishingLootTable>` — `FishingManager.java:20`.
 - `FishingManager.handleCatch(Player)` → `boolean` — `FishingManager.java:22` (main entry point).
 
-### Not in `ValmoraAPI`
+### `ValmoraAPI` exposure
 
-`getFishingModule()` is **not** declared on the `ValmoraAPI` interface (`src/main/java/org/nakii/valmora/api/ValmoraAPI.java`). External consumers holding only a `ValmoraAPI` reference cannot reach the fishing registry; they would need a cast to the concrete `Valmora` class. The `MODULE_DEVELOPMENT.md` §8 "expose via API" step has **not** been done for this module.
+`ValmoraAPI.getFishingModule()` is declared and implemented (`ValmoraAPIImpl.java`), in addition to the concrete `Valmora.getFishingModule()`. External consumers can reach the fishing registry through either.
 
 ---
 
@@ -309,18 +315,15 @@ Consequences:
 
 | Item | Source | Notes |
 |---|---|---|
-| "Proper fishing" (sea creatures, hot spots, treasures, drops, rod parts) is listed as unfinished | `docs/todo.md:6` | The current module implements only zone-scoped weighted loot + a single sea-creature spawn roll. No hot spots, bite indicator, treasures pool, or rod parts exist in code. |
+| "Proper fishing" (sea creatures, hot spots, treasures, drops, rod parts) is listed as unfinished | `docs/todo.md:6` | The current module implements only zone-scoped weighted loot + a single sea-creature spawn roll. No hot spots, treasures pool, or rod parts exist in code. |
 | Fishing bag / bait | `docs/todo.md:71` | Not implemented anywhere. |
-| Sea-creature mob missing for default config | `src/main/resources/fishing/hub_fishing.yml:3` vs `src/main/resources/mobs/` | `sea-creature-mob: squid` has no matching mob definition; default config silently never spawns sea creatures. |
-| `ValmoraAPI` exposure missing | `src/main/java/org/nakii/valmora/api/ValmoraAPI.java` | `getFishingModule()` exists only on the concrete `Valmora` class. |
-| `TESTING_GUIDE.md` expectations partially unmet | `docs/TESTING_GUIDE.md:170-177` | TC-FISH expects bite indicator particles/sound (FISH-01) and sea-creature spawning near the **bobber** (FISH-03) — no particle/sound or bobber targeting exists in code. |
+
+*(2026-08-07: resolved — the sea-creature mob (`squid`, `mobs/fishing_mobs.yml`), bite-indicator sound/particle on `PlayerFishEvent.State.BITE`, bobber-location sea-creature spawning, and `ValmoraAPI` exposure (already done, docs drift) items that used to be listed here. See `docs/IMPLEMENTATION_BACKLOG.md`'s Fishing module section for detail.)*
 
 ---
 
 ## Possible Improvements / Changes
 
-- **Expose via `ValmoraAPI`** — add `getFishingModule()` (or `FishingManager`) to `ValmoraAPI` following `MODULE_DEVELOPMENT.md` §8, so other modules/plugins can access tables without casting to `Valmora`.
-- **Spawn sea creatures at the bobber** — `handleCatch` currently spawns at `player.getLocation()` (`FishingManager.java:28`); the event provides `getHook()` (`PlayerFishEvent.getHook()`) for a natural spawn point.
 - **Graceful failure instead of silent consumption** — when `createItem` returns `null` or a sea-creature mob ID is unresolvable, log a warning (and optionally notify the player) rather than consuming the catch (`FishingManager.java:26-37`).
 - **Decouple skill XP from vanilla catch** — award `FISHING` XP based on the rolled loot entry's item (or a per-table XP value) so custom loot and treasures grant meaningful XP. The current XP path (`SkillListener.java:83`) cannot see the rolled item.
 - **Make the `default` fallback explicit** — `FishingManager.java:43-44` silently falls back to a table named `default`; consider a config flag to toggle or log the fallback.

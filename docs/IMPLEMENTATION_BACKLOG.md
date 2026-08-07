@@ -345,10 +345,10 @@ mechanic type once, then re-check the affected items (each YAML file has inline
 ## Fishing module
 
 - [ ] **Build real fishing content**: sea creatures, hot spots, treasures, rod parts (todo.md — currently zone-scoped weighted loot + a single sea-creature roll only).
-- [ ] **Fix the default config's missing sea-creature mob** — `hub_fishing.yml:3` references `sea-creature-mob: squid` with no matching mob definition, so it silently never spawns.
-- [ ] **Add bite-indicator particles/sound** and spawn sea creatures at the bobber location instead of the player's location (per `TESTING_GUIDE.md` expectations).
+- [x] **Fix the default config's missing sea-creature mob** — `hub_fishing.yml:3` references `sea-creature-mob: squid` with no matching mob definition, so it silently never spawns. *(2026-08-07: added `mobs/fishing_mobs.yml` with a real `squid` (AQUATIC, `type: SQUID`, drops `INK_SAC`) definition.)*
+- [x] **Add bite-indicator particles/sound** and spawn sea creatures at the bobber location instead of the player's location (per `TESTING_GUIDE.md` expectations). *(2026-08-07: `FishingListener` now reacts to `PlayerFishEvent.State.BITE` and plays a new `FishingManager.playBiteFeedback` (sound + `Particle.FISHING`) at the hook location; `handleCatch` now takes a `hookLocation` param — sourced from `event.getHook().getLocation()` — used as the sea-creature spawn point instead of `player.getLocation()`.)*
 - [ ] **Add a fishing bait bag** (todo.md).
-- [ ] **Expose `FishingModule` via `ValmoraAPI`.**
+- [x] **Expose `FishingModule` via `ValmoraAPI`.** *(2026-08-07: already done — docs drift. `ValmoraAPI.getFishingModule()`/`ValmoraAPIImpl` already exist.)*
 
 ---
 

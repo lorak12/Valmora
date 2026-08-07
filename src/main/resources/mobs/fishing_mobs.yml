@@ -1,0 +1,21 @@
+# Sea creatures spawned by the Fishing module's sea-creature roll (see fishing/*.yml
+# `sea-creature-mob:` and docs/modules/design/fishing.md §4). Kept deliberately simple —
+# reskinned vanilla types with modest stats/loot, not a full sea-creature content pass.
+squid:
+  category: AQUATIC
+  name: "<aqua>Wild Squid</aqua>"
+  type: SQUID
+  level: 1
+  base-damage: 1
+  health: 10.0
+  damage-type: MELEE
+  base-xp: 1
+  gold-reward: 1
+  speed: 0.2
+  loot-table:
+    drops:
+      - item: INK_SAC
+        min-amount: 1
+        max-amount: 3
+        chance: 1.0
+        luck-affected: false
