@@ -376,6 +376,39 @@ public class ZoneManager {
         return true;
     }
 
+    /**
+     * Adds (or overwrites) a resource block config on a zone (in-game editing, added 2026-08-08 —
+     * previously {@code resource-blocks} could only be authored by hand-editing YAML, even though
+     * the parser and {@link #saveZoneToFile} both already fully round-trip them). Builds a single
+     * stage with a single drop — good enough for the common case; multi-stage/multi-drop configs
+     * still need hand-editing, same as the shipped examples.
+     */
+    public ZoneDefinition addResourceBlock(String zoneId, Material material, int regenDelayTicks,
+                                            double requiredPower, String itemId, int minAmount, int maxAmount, double chance) {
+        ZoneDefinition zone = registry.get(zoneId).orElse(null);
+        if (zone == null) return null;
+        Map<Material, ZoneResourceConfig> blocks = new HashMap<>(zone.getResourceBlocks());
+        List<ResourceStage> stages = List.of(new ResourceStage(
+                List.of(new ZoneResourceDrop(itemId, minAmount, maxAmount, chance)), null));
+        blocks.put(material, new ZoneResourceConfig(regenDelayTicks, stages, requiredPower));
+        ZoneDefinition updated = zone.withResourceBlocks(blocks);
+        registry.register(zoneId, updated);
+        saveZoneToFile(updated);
+        return updated;
+    }
+
+    /** Removes a resource block config by material (see {@link #addResourceBlock}). */
+    public boolean removeResourceBlock(String zoneId, Material material) {
+        ZoneDefinition zone = registry.get(zoneId).orElse(null);
+        if (zone == null) return false;
+        Map<Material, ZoneResourceConfig> blocks = new HashMap<>(zone.getResourceBlocks());
+        if (blocks.remove(material) == null) return false;
+        ZoneDefinition updated = zone.withResourceBlocks(blocks);
+        registry.register(zoneId, updated);
+        saveZoneToFile(updated);
+        return true;
+    }
+
     public void saveZoneToFile(ZoneDefinition zone) {
         File dir = new File(plugin.getDataFolder(), "zones");
         dir.mkdirs();

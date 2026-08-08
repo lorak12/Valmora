@@ -26,9 +26,10 @@ public class ZoneCommand implements TabExecutor {
             "hunger", "entry", "teleportation", "leaf-decay");
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "info", "list", "wand", "pos1", "pos2", "clear",
-            "flag", "spawner", "box", "visualize");
+            "flag", "spawner", "box", "resource", "visualize");
     private static final List<String> SPAWNER_SUBS = List.of("add", "remove", "list");
     private static final List<String> BOX_SUBS = List.of("add", "remove", "list");
+    private static final List<String> RESOURCE_SUBS = List.of("add", "remove", "list");
 
     private final Valmora plugin;
     private final ZoneModule zoneModule;
@@ -68,6 +69,7 @@ public class ZoneCommand implements TabExecutor {
             case "flag" -> flag(player, args);
             case "spawner" -> spawner(player, args);
             case "box" -> box(player, args);
+            case "resource" -> resource(player, args);
             case "visualize" -> visualize(player);
             default -> sendHelp(player);
         }
@@ -401,6 +403,94 @@ public class ZoneCommand implements TabExecutor {
         }
     }
 
+    // Added 2026-08-08 — in-game editing for resource-blocks. The parser and saveZoneToFile
+    // already fully round-trip them; only the command surface was missing. `add` builds a
+    // single-stage, single-drop config (the common case) — multi-stage/multi-drop still needs
+    // hand-editing the YAML, same as the shipped zone examples.
+    private void resource(Player player, String[] args) {
+        if (args.length < 3) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone resource <add|remove|list> <zoneId> ..."));
+            return;
+        }
+        String sub = args[1].toLowerCase();
+        String zoneId = args[2].toLowerCase();
+
+        switch (sub) {
+            case "add" -> resourceAdd(player, args, zoneId);
+            case "remove" -> resourceRemove(player, args, zoneId);
+            case "list" -> resourceList(player, zoneId);
+            default -> player.sendMessage(Formatter.format(PREFIX + "<red>Unknown resource sub-command. Use add, remove, or list."));
+        }
+    }
+
+    private void resourceAdd(Player player, String[] args, String zoneId) {
+        if (args.length < 7) {
+            player.sendMessage(Formatter.format(PREFIX
+                    + "<red>Usage: /zone resource add <zoneId> <blockMaterial> <dropItem> <minAmt> <maxAmt> <chance> [regenTicks=200] [requiredPower=0]"));
+            return;
+        }
+        if (reg().get(zoneId).isEmpty()) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + zoneId + "' not found."));
+            return;
+        }
+        Material material;
+        try {
+            material = Material.valueOf(args[3].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown material: " + args[3]));
+            return;
+        }
+        String itemId = args[4];
+        int minAmount = parseInt(args[5], 1);
+        int maxAmount = parseInt(args[6], minAmount);
+        double chance = args.length > 7 ? parseDouble(args[7], 1.0) : 1.0;
+        int regenTicks = args.length > 8 ? parseInt(args[8], 200) : 200;
+        double requiredPower = args.length > 9 ? parseDouble(args[9], 0.0) : 0.0;
+
+        mgr().addResourceBlock(zoneId, material, regenTicks, requiredPower, itemId, minAmount, maxAmount, chance);
+        player.sendMessage(Formatter.format(PREFIX + "<green>Added resource block '<white>" + material
+                + "<green>' to zone '<white>" + zoneId + "<green>' (drops <white>" + itemId + "<green>)."));
+    }
+
+    private void resourceRemove(Player player, String[] args, String zoneId) {
+        if (args.length < 4) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone resource remove <zoneId> <blockMaterial>"));
+            return;
+        }
+        Material material;
+        try {
+            material = Material.valueOf(args[3].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown material: " + args[3]));
+            return;
+        }
+        if (mgr().removeResourceBlock(zoneId, material)) {
+            player.sendMessage(Formatter.format(PREFIX + "<green>Removed resource block '<white>" + material + "<green>' from zone '<white>" + zoneId + "<green>'."));
+        } else {
+            player.sendMessage(Formatter.format(PREFIX + "<red>No resource block '" + material + "' in zone '" + zoneId + "'."));
+        }
+    }
+
+    private void resourceList(Player player, String zoneId) {
+        ZoneDefinition zone = reg().get(zoneId).orElse(null);
+        if (zone == null) {
+            player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + zoneId + "' not found."));
+            return;
+        }
+        if (zone.getResourceBlocks().isEmpty()) {
+            player.sendMessage(Formatter.format(PREFIX + "<gray>No resource blocks in zone '" + zoneId + "'."));
+            return;
+        }
+        player.sendMessage(Formatter.format(" <gold>Resource blocks in <white>" + zoneId + " <gold>(" + zone.getResourceBlocks().size() + ")"));
+        for (var entry : zone.getResourceBlocks().entrySet()) {
+            ZoneResourceConfig cfg = entry.getValue();
+            player.sendMessage(Formatter.format("  <gray>- <white>" + entry.getKey()
+                    + " <gray>stages=<white>" + cfg.getStageCount()
+                    + " <gray>regen=<white>" + cfg.getRegenDelayTicks() + "t"
+                    + " <gray>power=<white>" + cfg.getRequiredPower()));
+        }
+    }
+
     private void visualize(Player player) {
         boolean on = mgr().toggleVisualization(player);
         player.sendMessage(Formatter.format(PREFIX + "<gray>Zone border visualization " + (on ? "<green>enabled" : "<red>disabled") + "."));
@@ -423,11 +513,12 @@ public class ZoneCommand implements TabExecutor {
                 case "delete", "info", "flag" -> StringUtil.copyPartialMatches(args[1], zoneIds, completions);
                 case "spawner" -> StringUtil.copyPartialMatches(args[1], SPAWNER_SUBS, completions);
                 case "box" -> StringUtil.copyPartialMatches(args[1], BOX_SUBS, completions);
+                case "resource" -> StringUtil.copyPartialMatches(args[1], RESOURCE_SUBS, completions);
             }
         } else if (args.length == 3) {
             if (args[0].equalsIgnoreCase("flag")) {
                 StringUtil.copyPartialMatches(args[2], FLAGS, completions);
-            } else if (args[0].equalsIgnoreCase("spawner") || args[0].equalsIgnoreCase("box")) {
+            } else if (args[0].equalsIgnoreCase("spawner") || args[0].equalsIgnoreCase("box") || args[0].equalsIgnoreCase("resource")) {
                 StringUtil.copyPartialMatches(args[2], zoneIds, completions);
             }
         } else if (args.length == 4) {
@@ -449,6 +540,9 @@ public class ZoneCommand implements TabExecutor {
                     for (int i = 0; i < zone.getExtraBoxes().size(); i++) indices.add(String.valueOf(i));
                     StringUtil.copyPartialMatches(args[3], indices, completions);
                 }
+            } else if (args[0].equalsIgnoreCase("resource") && (args[1].equalsIgnoreCase("add") || args[1].equalsIgnoreCase("remove"))) {
+                List<String> materials = Arrays.stream(Material.values()).filter(Material::isBlock).map(Enum::name).toList();
+                StringUtil.copyPartialMatches(args[3], materials, completions);
             }
         }
 
@@ -471,6 +565,7 @@ public class ZoneCommand implements TabExecutor {
         player.sendMessage(Formatter.format(" <gray>/zone flag <id> <flag> <true|false>"));
         player.sendMessage(Formatter.format(" <gray>/zone spawner add|remove|list ..."));
         player.sendMessage(Formatter.format(" <gray>/zone box add|remove|list <id> [index] <dark_gray>- Extra sub-boxes (add uses current selection)"));
+        player.sendMessage(Formatter.format(" <gray>/zone resource add|remove|list <id> ... <dark_gray>- Resource blocks (see /zone resource for full add syntax)"));
         player.sendMessage(Formatter.format(" <gray>/zone visualize <dark_gray>- Toggle zone border particles"));
         player.sendMessage(Formatter.format("<dark_gray><st>                                                        </st>"));
     }

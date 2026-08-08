@@ -107,4 +107,10 @@ public class ZoneDefinition {
         return new ZoneDefinition(id, displayName, worldName, minX, minY, minZ, maxX, maxY, maxZ,
             newExtraBoxes, flags, fishingLootTable, mobSpawners, resourceBlocks, enterActions, exitActions);
     }
+
+    /** Added 2026-08-08 for in-game resource-block editing — see {@code ZoneManager.addResourceBlock}/{@code removeResourceBlock}. */
+    public ZoneDefinition withResourceBlocks(Map<Material, ZoneResourceConfig> newResourceBlocks) {
+        return new ZoneDefinition(id, displayName, worldName, minX, minY, minZ, maxX, maxY, maxZ,
+            extraBoxes, flags, fishingLootTable, mobSpawners, newResourceBlocks, enterActions, exitActions);
+    }
 }

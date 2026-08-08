@@ -65,7 +65,7 @@ commands:
     usage: /warp [id]
     description: Teleport to a warp point or open the fast travel menu.
   zone:
-    usage: /zone <create|delete|info|list|wand|pos1|pos2|clear|flag|spawner|visualize>
+    usage: /zone <create|delete|info|list|wand|pos1|pos2|clear|flag|spawner|box|resource|visualize>
     permission: valmora.admin
     description: Zone management command.
   quest:
