@@ -164,7 +164,7 @@ The `/item` command is registered in `Valmora.onEnable()` after all modules — 
 
 ### 3.8 The ability system
 
-- **`AbilityTrigger`** (`AbilityTrigger.java:3-16`): `RIGHT_CLICK`, `LEFT_CLICK`, `PASSIVE`, `EQUIP`, `UNEQUIP`, `ON_HIT`, `ON_KILL`, `SNEAK`, `ON_SHOOT`, `ON_DAMAGE_TAKEN`, `ON_TELEPORT`. `ON_DAMAGE_TAKEN`/`ON_TELEPORT` are enumerated but commented as "wired in a later phase" (`AbilityTrigger.java:13-15`).
+- **`AbilityTrigger`** (`AbilityTrigger.java:3-16`): `RIGHT_CLICK`, `LEFT_CLICK`, `PASSIVE`, `EQUIP`, `UNEQUIP`, `ON_HIT`, `ON_KILL`, `SNEAK`, `ON_SHOOT`, `ON_DAMAGE_TAKEN`, `ON_TELEPORT` — all wired. `EQUIP`/`UNEQUIP`/`ON_TELEPORT` dispatch from `AbilityTriggerListener` (`PlayerArmorChangeEvent`/`PlayerTeleportEvent`); `ON_DAMAGE_TAKEN` dispatches directly from `CombatListener` (both the PvP/PvE and environmental-damage paths), since the combat pipeline applies damage via `PlayerState.reduceHealth()` rather than `Entity.damage()`.
 - **`AbilityDefinition`** (`AbilityDefinition.java`): id, name, trigger, targetRange, cooldown, manaCost, description, conditions (list of script expressions), mechanics (list of `ConfiguredMechanic`).
 - **`AbilityMechanic`** interface (`AbilityMechanic.java:9,16`): `String getId()` and `void execute(ExecutionContext)`.
 - **`ConfiguredMechanic`** (`ConfiguredMechanic.java:18-27`): binds a `MechanicRegistry` mechanic to its parsed params; `execute(ctx)` centers on `ctx.getLocation()` while `executeAt(loc, ctx)` supports impact-point origin for projectiles.
@@ -368,8 +368,6 @@ Registered at `Valmora.java:237`, permission `valmora.admin` (`plugin.yml:16`). 
 
 ## 8. Unfinished Things / TODOs
 
-- `ON_DAMAGE_TAKEN` and `ON_TELEPORT` triggers exist in the enum but are **not wired** — commented "wired in a later phase" (`AbilityTrigger.java:13-15`).
-- `EQUIP`/`UNEQUIP` triggers are enumerated but have **no listener** — no armor-equip event hook currently dispatches them.
 - `MechanicRegistry` is uppercase-keyed while item/mob registry keys are lowercase — a consistency trap for new mechanics (`MechanicRegistry.java:10-21`).
 - `docs/UNFINISHED_FEATURES.md` flags several item/ability areas as unfinished (referenced set bonus auras, stacking rules, etc.).
 - `AGENTS.md` §11.1 (packets) / §11.2 (pathfinding) TODOs remain unfilled — not item-module work but related to the broader engine.
@@ -379,7 +377,6 @@ Registered at `Valmora.java:237`, permission `valmora.admin` (`plugin.yml:16`). 
 ## 9. Possible Improvements / Changes
 
 - **Unify registry key case** — make `MechanicRegistry` lowercase-keyed (or case-insensitive) to match `SimpleRegistry` conventions (`AGENTS.md` §7.2).
-- **Wire `EQUIP`/`UNEQUIP`/`ON_DAMAGE_TAKEN`/`ON_TELEPORT`** — add an armor-equip listener and a damage-taken hook in the combat pipeline.
 - **Move mechanics out of the item module** — `MechanicRegistry` + `MechanicParser` are shared with mobs/bosses yet live under `module.item`; extracting them into the api/infrastructure layer would formalize the cross-module contract.
 - **LootListener telekinesis** — the `onFish` handler notes telekinesis is "applied globally" (`LootListener.java:90`); scope it to an actual telekinesis stat/enchantment.
 - **Conditional set-bonus auras / stacking** — currently intentionally flat-stats-only (`set_bonuses/sets.yml:1-13`); mechanics-backed set bonuses would be a natural extension of `SetBonusService`.

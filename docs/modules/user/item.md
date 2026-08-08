@@ -107,9 +107,9 @@ Each ability on an item has a **trigger** that determines when it fires:
 | `SNEAK` | Press sneak (fires on held item **and** worn armor pieces) |
 | `ON_SHOOT` | Shoot a bow/crossbow |
 | `PASSIVE` | Constantly active while equipped (re-applied on every stat recalculation) |
-| `EQUIP` / `UNEQUIP` | — enumerated but **not yet wired** to a listener |
-| `ON_DAMAGE_TAKEN` | — enumerated but **not yet wired** |
-| `ON_TELEPORT` | — enumerated but **not yet wired** |
+| `EQUIP` / `UNEQUIP` | Put on / take off an armor piece (any cause — click, shift-click, dispenser, command) |
+| `ON_DAMAGE_TAKEN` | You take non-immune damage (fires on held item **and** worn armor pieces) |
+| `ON_TELEPORT` | Any completed teleport (warp, ender pearl, `/tp`, plugin teleport) |
 
 **Ability gating rules** (enforced by `AbilityExecutor`):
 
@@ -364,10 +364,10 @@ Unrecognized values fall back to `arrow`.
 | `ON_KILL` | `AbilityTriggerListener.onKill` — fires held item ability | Yes |
 | `SNEAK` | `AbilityTriggerListener.onSneak` — fires held **and** armor piece abilities | Yes |
 | `ON_SHOOT` | `AbilityTriggerListener.onShoot` — `EntityShootBowEvent`, held only | Yes |
-| `EQUIP` | — no listener currently dispatches this | **No** (enumerated, pending) |
-| `UNEQUIP` | — no listener currently dispatches this | **No** (enumerated, pending) |
-| `ON_DAMAGE_TAKEN` | — not wired; commented "wired in a later phase" in `AbilityTrigger.java:13-15` | **No** |
-| `ON_TELEPORT` | — not wired | **No** |
+| `EQUIP` | `AbilityTriggerListener.onArmorChange` — Paper's `PlayerArmorChangeEvent`, fires for the new item | Yes |
+| `UNEQUIP` | `AbilityTriggerListener.onArmorChange` — fires for the old item | Yes |
+| `ON_DAMAGE_TAKEN` | `CombatListener` — dispatched right after `damageResult.apply()` in both the PvP/PvE and environmental-damage paths, skipped when immune | Yes |
+| `ON_TELEPORT` | `AbilityTriggerListener.onTeleport` — `PlayerTeleportEvent`, held **and** armor piece abilities | Yes |
 
 **Armor-piece ability firing:** `SNEAK` (and any future armor triggers) iterate
 the player's armor slots via `AbilityTriggerListener.fireArmor(...)` and fire any

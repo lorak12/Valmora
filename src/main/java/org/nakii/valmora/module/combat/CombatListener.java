@@ -104,6 +104,15 @@ public class CombatListener implements Listener {
                         victim, true);
             }
 
+            // Fire ON_DAMAGE_TAKEN on the victim's held item + armor (docs/IMPLEMENTATION_BACKLOG.md
+            // — previously enumerated but never dispatched). Skipped when immune, same as the
+            // damage indicator, since nothing actually landed.
+            if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
+                org.nakii.valmora.module.item.AbilityExecutor.fireHeld(
+                        victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true);
+                fireArmorOnDamageTaken(victimPlayer, attacker);
+            }
+
             // Boss ability triggers
             var bossController = ValmoraAPI.getInstance().getMobManager().getBossController();
             if (bossController.isTracked(attacker.getUniqueId())) {
@@ -146,6 +155,25 @@ public class CombatListener implements Listener {
             }
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
+
+            if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
+                org.nakii.valmora.module.item.AbilityExecutor.fireHeld(
+                        victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, null, true);
+                fireArmorOnDamageTaken(victimPlayer, null);
+            }
+        }
+    }
+
+    /** Fires ON_DAMAGE_TAKEN on every armor piece — mirrors {@code AbilityTriggerListener.fireArmor}, duplicated here since it's a different listener class with no shared base. */
+    private void fireArmorOnDamageTaken(org.bukkit.entity.Player player, LivingEntity attacker) {
+        for (org.bukkit.inventory.ItemStack armor : player.getInventory().getArmorContents()) {
+            if (armor == null || !armor.hasItemMeta()) continue;
+            String itemId = armor.getItemMeta().getPersistentDataContainer()
+                    .get(org.nakii.valmora.util.Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+            if (itemId == null) continue;
+            ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
+                    .ifPresent(def -> org.nakii.valmora.module.item.AbilityExecutor.fire(
+                            player, def, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true));
         }
     }
 

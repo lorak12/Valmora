@@ -10,7 +10,7 @@ public enum AbilityTrigger {
     ON_KILL,
     SNEAK,
     ON_SHOOT,
-    // Present for schema completeness; wired in a later phase (set-bonus consumers).
+    // Wired in AbilityTriggerListener (2026-08-08) — see docs/IMPLEMENTATION_BACKLOG.md.
     ON_DAMAGE_TAKEN,
     ON_TELEPORT
 }

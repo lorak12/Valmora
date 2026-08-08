@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.item;
 
+import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -9,17 +10,23 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.module.combat.DamageCalculator;
 import org.nakii.valmora.module.combat.DamageResult;
 import org.nakii.valmora.module.combat.DamageType;
+import org.nakii.valmora.util.Keys;
 
 import java.util.List;
 import java.util.Map;
 
 /**
  * Handles the non-click item ability triggers: {@link AbilityTrigger#ON_KILL},
- * {@link AbilityTrigger#SNEAK} and {@link AbilityTrigger#ON_SHOOT}. ON_HIT is dispatched from
+ * {@link AbilityTrigger#SNEAK}, {@link AbilityTrigger#ON_SHOOT},
+ * {@link AbilityTrigger#ON_DAMAGE_TAKEN}, {@link AbilityTrigger#ON_TELEPORT},
+ * {@link AbilityTrigger#EQUIP} and {@link AbilityTrigger#UNEQUIP}. ON_HIT is dispatched from
  * the combat pipeline ({@code CombatListener}) where damage is already resolved.
  */
 public class AbilityTriggerListener implements Listener {
@@ -44,6 +51,34 @@ public class AbilityTriggerListener implements Listener {
     public void onShoot(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         AbilityExecutor.fireHeld(player, AbilityTrigger.ON_SHOOT, null, true);
+    }
+
+    /** Fires on any completed teleport (warps, ender pearls, /tp, plugin teleports) — non-gating, always after the fact. */
+    @EventHandler
+    public void onTeleport(PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        AbilityExecutor.fireHeld(player, AbilityTrigger.ON_TELEPORT, null, true);
+        fireArmor(player, AbilityTrigger.ON_TELEPORT);
+    }
+
+    /**
+     * Fires EQUIP/UNEQUIP on any armor-slot change (any cause — click, shift-click, dispenser,
+     * command, etc.) via Paper's {@link PlayerArmorChangeEvent}, rather than trying to catch every
+     * individual inventory-click case ourselves.
+     */
+    @EventHandler
+    public void onArmorChange(PlayerArmorChangeEvent event) {
+        Player player = event.getPlayer();
+        fireItem(player, event.getOldItem(), AbilityTrigger.UNEQUIP);
+        fireItem(player, event.getNewItem(), AbilityTrigger.EQUIP);
+    }
+
+    private void fireItem(Player player, ItemStack item, AbilityTrigger trigger) {
+        if (item == null || !item.hasItemMeta()) return;
+        String itemId = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+        if (itemId == null) return;
+        org.nakii.valmora.api.ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
+                .ifPresent(def -> AbilityExecutor.fire(player, def, trigger, null, true));
     }
 
     @EventHandler
@@ -89,13 +124,8 @@ public class AbilityTriggerListener implements Listener {
     }
 
     private void fireArmor(Player player, AbilityTrigger trigger) {
-        for (org.bukkit.inventory.ItemStack armor : player.getInventory().getArmorContents()) {
-            if (armor == null || !armor.hasItemMeta()) continue;
-            String itemId = armor.getItemMeta().getPersistentDataContainer()
-                    .get(org.nakii.valmora.util.Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-            if (itemId == null) continue;
-            org.nakii.valmora.api.ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
-                    .ifPresent(def -> AbilityExecutor.fire(player, def, trigger, (LivingEntity) null, true));
+        for (ItemStack armor : player.getInventory().getArmorContents()) {
+            fireItem(player, armor, trigger);
         }
     }
 }
