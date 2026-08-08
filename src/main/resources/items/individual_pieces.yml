@@ -1342,3 +1342,9 @@ spring_boots:
       description:
         - "<gray>Charge your jump by sneaking. The longer"
         - "<gray>you sneak, the higher you will jump!"
+      mechanics:
+        - type: "CHARGE_JUMP"
+          params:
+            max-charge-ms: 2000
+            min-y-force: 0.4
+            max-y-force: 2.2

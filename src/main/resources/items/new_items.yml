@@ -19,14 +19,14 @@
 # Since implemented (2026-08-08 verification/wiring passes — docs/IMPLEMENTATION_BACKLOG.md,
 # Item/Ability mechanic engine): LAUNCH_PROJECTILE (LaunchProjectileMechanic), LAUNCH_PLAYER
 # (LaunchPlayerMechanic), GIVE_COINS / TAKE_COINS (GiveCoinsMechanic/TakeCoinsMechanic),
-# CANCEL_TRAMPLE (CancelTrampleMechanic + TrampleListener), and the set-bonuses parser
-# (item.set.SetBonusParser/SetBonusService) — items using only these no longer need to stay
-# commented out.
+# CANCEL_TRAMPLE (CancelTrampleMechanic + TrampleListener), CHARGE_JUMP (ChargeJumpMechanic +
+# ChargeJumpListener), and the set-bonuses parser (item.set.SetBonusParser/SetBonusService) —
+# items using only these no longer need to stay commented out.
 #
 # Still DEFERRED (do NOT use as active YAML — the loader rejects unknown mechanic types): BEAM,
-# returning Bonemerang (RETURNING_PROJECTILE), EXPLODE, ADD_STACK, CHARGE_JUMP — see the
-# corresponding still-open items in docs/IMPLEMENTATION_BACKLOG.md. Items relying solely on those
-# are kept below as commented stubs. Damage/heal "ticks"/"interval" (damage-over-time) are
+# returning Bonemerang (RETURNING_PROJECTILE), EXPLODE, ADD_STACK — see the corresponding
+# still-open items in docs/IMPLEMENTATION_BACKLOG.md. Items relying solely on those are kept below
+# as commented stubs. Damage/heal "ticks"/"interval" (damage-over-time) are
 # accepted but currently apply a single burst.
 # =====================================================================
 
@@ -765,7 +765,9 @@ rancher_boots:
       mechanics:
         - type: "CANCEL_TRAMPLE"
 
-# spring_boots: DEFERRED (CHARGE_JUMP mechanic).
+# spring_boots: CHARGE_JUMP itself is now live (ChargeJumpMechanic + ChargeJumpListener) — the
+# real spring_boots item (with its "To the Moon!" ability) lives in individual_pieces.yml, not
+# this file, and has already been activated there.
 
 
 # =====================================================================

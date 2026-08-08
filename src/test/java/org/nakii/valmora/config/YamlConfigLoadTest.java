@@ -30,6 +30,7 @@ class YamlConfigLoadTest {
                 "/items/alchemy_ingredients.yml",
                 "/items/new_items.yml",
                 "/items/fishing_bait.yml",
+                "/items/individual_pieces.yml",
                 "/mobs/test_mobs.yml",
                 "/skills/combat.yml",
                 "/skills/mining.yml",
@@ -196,30 +197,35 @@ class YamlConfigLoadTest {
     @Test
     void testNewItemsFile_abilityMechanicTypesAreAllKnownActive() {
         // new_items.yml's header comment tracks which mechanic types are "live" vs. still
-        // DEFERRED — this is a cheap regression guard that every ability's mechanic `type:` in the
-        // file is one that's actually registered, catching a future typo/premature-use before it
-        // silently fails to load at runtime. See docs/IMPLEMENTATION_BACKLOG.md's item-mechanic-
-        // engine verification note (GIVE_COINS/TAKE_COINS/LAUNCH_PROJECTILE/LAUNCH_PLAYER/set-bonus
-        // parser all confirmed live; BEAM/EXPLODE/ADD_STACK/etc. still not).
+        // DEFERRED — this is a cheap regression guard that every ability's mechanic `type:` in
+        // these files is one that's actually registered, catching a future typo/premature-use
+        // before it silently fails to load at runtime. See docs/IMPLEMENTATION_BACKLOG.md's
+        // item-mechanic-engine verification note (GIVE_COINS/TAKE_COINS/LAUNCH_PROJECTILE/
+        // LAUNCH_PLAYER/CANCEL_TRAMPLE/CHARGE_JUMP/set-bonus parser all confirmed live;
+        // BEAM/EXPLODE/ADD_STACK/etc. still not). Also covers individual_pieces.yml since
+        // spring_boots' CHARGE_JUMP ability was activated there, not in new_items.yml.
         Set<String> knownActiveMechanics = Set.of(
                 "DAMAGE", "HEAL", "APPLY_EFFECT", "MODIFY_STAT", "TELEPORT",
                 "PUSH_ENTITIES", "PULL_ENTITIES", "SCRIPT",
-                "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS", "CANCEL_TRAMPLE");
+                "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS",
+                "CANCEL_TRAMPLE", "CHARGE_JUMP");
 
-        YamlConfiguration cfg = load("/items/new_items.yml");
-        for (String itemKey : cfg.getKeys(false)) {
-            ConfigurationSection abilities = cfg.getConfigurationSection(itemKey + ".abilities");
-            if (abilities == null) continue;
-            for (String abilityKey : abilities.getKeys(false)) {
-                List<?> mechanics = abilities.getList(abilityKey + ".mechanics");
-                if (mechanics == null) continue;
-                for (Object raw : mechanics) {
-                    if (!(raw instanceof Map<?, ?> map)) continue;
-                    Object type = map.get("type");
-                    if (type != null) {
-                        assertTrue(knownActiveMechanics.contains(type.toString()),
-                                "items/new_items.yml → " + itemKey + "." + abilityKey
-                                        + " uses mechanic type '" + type + "' not in the known-active set");
+        for (String path : List.of("/items/new_items.yml", "/items/individual_pieces.yml")) {
+            YamlConfiguration cfg = load(path);
+            for (String itemKey : cfg.getKeys(false)) {
+                ConfigurationSection abilities = cfg.getConfigurationSection(itemKey + ".abilities");
+                if (abilities == null) continue;
+                for (String abilityKey : abilities.getKeys(false)) {
+                    List<?> mechanics = abilities.getList(abilityKey + ".mechanics");
+                    if (mechanics == null) continue;
+                    for (Object raw : mechanics) {
+                        if (!(raw instanceof Map<?, ?> map)) continue;
+                        Object type = map.get("type");
+                        if (type != null) {
+                            assertTrue(knownActiveMechanics.contains(type.toString()),
+                                    path + " → " + itemKey + "." + abilityKey
+                                            + " uses mechanic type '" + type + "' not in the known-active set");
+                        }
                     }
                 }
             }
