@@ -15,6 +15,7 @@ public class AbilityManager implements ReloadableModule {
 
     private AbilityListener abilityListener;
     private AbilityTriggerListener abilityTriggerListener;
+    private TrampleListener trampleListener;
     private ItemPipelineLoader pipelineLoader;
 
     @Override
@@ -25,6 +26,8 @@ public class AbilityManager implements ReloadableModule {
         plugin.getServer().getPluginManager().registerEvents(abilityListener, plugin);
         this.abilityTriggerListener = new AbilityTriggerListener();
         plugin.getServer().getPluginManager().registerEvents(abilityTriggerListener, plugin);
+        this.trampleListener = new TrampleListener();
+        plugin.getServer().getPluginManager().registerEvents(trampleListener, plugin);
 
         // Item ability pipeline (docs/VALMORA_DOCUMENTATION.md §39) — depends on scriptModule,
         // which registers/enables before this module (see module order in Valmora.onEnable()).
@@ -43,6 +46,9 @@ public class AbilityManager implements ReloadableModule {
         }
         if (abilityTriggerListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(abilityTriggerListener);
+        }
+        if (trampleListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(trampleListener);
         }
         if (plugin.getScriptModule() != null) {
             plugin.getScriptModule().getHookBus().clearYamlStages(ItemPipelineLoader.POINT_PREFIX);
@@ -74,6 +80,7 @@ public class AbilityManager implements ReloadableModule {
         mechanicRegistry.registerMechanic(new LaunchPlayerMechanic());
         mechanicRegistry.registerMechanic(new LaunchProjectileMechanic());
         mechanicRegistry.registerMechanic(new AoeMineMechanic());
+        mechanicRegistry.registerMechanic(new CancelTrampleMechanic());
     }
     
     public MechanicRegistry getMechanicRegistry() {

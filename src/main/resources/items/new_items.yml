@@ -16,16 +16,17 @@
 #   DAMAGE, HEAL, APPLY_EFFECT, MODIFY_STAT, TELEPORT,
 #   PUSH_ENTITIES, PULL_ENTITIES, SCRIPT
 #
-# Since implemented (2026-08-08 verification pass — docs/IMPLEMENTATION_BACKLOG.md, Item/Ability
-# mechanic engine): LAUNCH_PROJECTILE (LaunchProjectileMechanic), LAUNCH_PLAYER
-# (LaunchPlayerMechanic), GIVE_COINS / TAKE_COINS (GiveCoinsMechanic/TakeCoinsMechanic), and the
-# set-bonuses parser (item.set.SetBonusParser/SetBonusService) — items using only these no longer
-# need to stay commented out.
+# Since implemented (2026-08-08 verification/wiring passes — docs/IMPLEMENTATION_BACKLOG.md,
+# Item/Ability mechanic engine): LAUNCH_PROJECTILE (LaunchProjectileMechanic), LAUNCH_PLAYER
+# (LaunchPlayerMechanic), GIVE_COINS / TAKE_COINS (GiveCoinsMechanic/TakeCoinsMechanic),
+# CANCEL_TRAMPLE (CancelTrampleMechanic + TrampleListener), and the set-bonuses parser
+# (item.set.SetBonusParser/SetBonusService) — items using only these no longer need to stay
+# commented out.
 #
 # Still DEFERRED (do NOT use as active YAML — the loader rejects unknown mechanic types): BEAM,
-# returning Bonemerang (RETURNING_PROJECTILE), EXPLODE, ADD_STACK, CANCEL_TRAMPLE, CHARGE_JUMP —
-# see the corresponding still-open items in docs/IMPLEMENTATION_BACKLOG.md. Items relying solely on
-# those are kept below as commented stubs. Damage/heal "ticks"/"interval" (damage-over-time) are
+# returning Bonemerang (RETURNING_PROJECTILE), EXPLODE, ADD_STACK, CHARGE_JUMP — see the
+# corresponding still-open items in docs/IMPLEMENTATION_BACKLOG.md. Items relying solely on those
+# are kept below as commented stubs. Damage/heal "ticks"/"interval" (damage-over-time) are
 # accepted but currently apply a single burst.
 # =====================================================================
 
@@ -752,8 +753,17 @@ rancher_boots:
     HEALTH: 100
     DEFENSE: 70
     SPEED: 50
-  # DEFERRED abilities: Farmer Speed (custom max-speed cycling) and
-  # Farmer's Grace (CANCEL_TRAMPLE).
+  # DEFERRED ability: Farmer Speed (custom max-speed cycling) — needs a modifier primitive this
+  # engine doesn't have yet. Farmer's Grace (CANCEL_TRAMPLE) is now active — see
+  # docs/IMPLEMENTATION_BACKLOG.md's item-mechanic-engine notes.
+  abilities:
+    farmers_grace:
+      name: "Farmer's Grace"
+      trigger: "PASSIVE"
+      description:
+        - "<gray>You never trample crops."
+      mechanics:
+        - type: "CANCEL_TRAMPLE"
 
 # spring_boots: DEFERRED (CHARGE_JUMP mechanic).
 

@@ -15,6 +15,11 @@ public class ConfiguredMechanic {
         this.params = params;
     }
 
+    /** The underlying mechanic implementation — used by callers that need to inspect a mechanic's
+     *  identity/presence without executing it (e.g. {@code TrampleListener} checking for
+     *  {@code CANCEL_TRAMPLE}). */
+    public AbilityMechanic getMechanic() { return mechanic; }
+
     public void execute(LivingEntity caster, LivingEntity target){
         executeAt(caster, target, caster.getLocation());
     }

@@ -204,7 +204,7 @@ class YamlConfigLoadTest {
         Set<String> knownActiveMechanics = Set.of(
                 "DAMAGE", "HEAL", "APPLY_EFFECT", "MODIFY_STAT", "TELEPORT",
                 "PUSH_ENTITIES", "PULL_ENTITIES", "SCRIPT",
-                "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS");
+                "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS", "CANCEL_TRAMPLE");
 
         YamlConfiguration cfg = load("/items/new_items.yml");
         for (String itemKey : cfg.getKeys(false)) {
