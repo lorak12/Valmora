@@ -705,7 +705,21 @@ daedalus_blade:
         - "<gray>Copies the Stats from your active Pet."
         - "<gray>Earn <gold>+35 Coins <gray>from monster kills."
         - "<gray>Deals <green>+200% damage <gray>against Mythological Creatures."
-      # DESCRIPTION-ONLY: pet-stat copy, taming scaling & coin reward not modelled.
+      # DESCRIPTION-ONLY (partial): pet-stat copy and taming-level damage scaling still need a
+      # design decision (this engine has no "copy stats from active pet" or "scale by skill level"
+      # modifier primitive yet — see docs/IMPLEMENTATION_BACKLOG.md's Sword-specific deferred
+      # mechanics item). "Deals +200% vs Mythological Creatures" also needs a Mythological
+      # EntityCategory that doesn't exist in entity_categories.yml yet. The coin-reward line is
+      # now real — see the bounty_hunter ability below (GIVE_COINS landed in an earlier pass).
+    bounty_hunter:
+      name: "Bounty Hunter"
+      trigger: "ON_KILL"
+      description:
+        - "<gray>Earn <gold>+35 Coins <gray>from monster kills."
+      mechanics:
+        - type: "GIVE_COINS"
+          params:
+            amount: 35
 
 enrager:
   name: "Enrager"

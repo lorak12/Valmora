@@ -31,6 +31,7 @@ class YamlConfigLoadTest {
                 "/items/new_items.yml",
                 "/items/fishing_bait.yml",
                 "/items/individual_pieces.yml",
+                "/items/swords.yml",
                 "/mobs/test_mobs.yml",
                 "/skills/combat.yml",
                 "/skills/mining.yml",
@@ -202,15 +203,16 @@ class YamlConfigLoadTest {
         // before it silently fails to load at runtime. See docs/IMPLEMENTATION_BACKLOG.md's
         // item-mechanic-engine verification note (GIVE_COINS/TAKE_COINS/LAUNCH_PROJECTILE/
         // LAUNCH_PLAYER/CANCEL_TRAMPLE/CHARGE_JUMP/set-bonus parser all confirmed live;
-        // BEAM/EXPLODE/ADD_STACK/etc. still not). Also covers individual_pieces.yml since
-        // spring_boots' CHARGE_JUMP ability was activated there, not in new_items.yml.
+        // BEAM/EXPLODE/ADD_STACK/etc. still not). Also covers individual_pieces.yml (spring_boots'
+        // CHARGE_JUMP ability) and swords.yml (Daedalus Blade's bounty_hunter ability) — the known-
+        // active set includes every mechanic AbilityManager.registerMechanics() actually registers.
         Set<String> knownActiveMechanics = Set.of(
                 "DAMAGE", "HEAL", "APPLY_EFFECT", "MODIFY_STAT", "TELEPORT",
                 "PUSH_ENTITIES", "PULL_ENTITIES", "SCRIPT",
                 "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS",
-                "CANCEL_TRAMPLE", "CHARGE_JUMP");
+                "CANCEL_TRAMPLE", "CHARGE_JUMP", "IGNITE", "AOE_MINE");
 
-        for (String path : List.of("/items/new_items.yml", "/items/individual_pieces.yml")) {
+        for (String path : List.of("/items/new_items.yml", "/items/individual_pieces.yml", "/items/swords.yml")) {
             YamlConfiguration cfg = load(path);
             for (String itemKey : cfg.getKeys(false)) {
                 ConfigurationSection abilities = cfg.getConfigurationSection(itemKey + ".abilities");
