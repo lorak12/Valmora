@@ -3,4 +3,7 @@
 # SHEARS, SHIELD, ELYTRA, HELMET, CHESTPLATE, LEGGINGS, BOOTS, HORSE_ARMOR, PET, ACCESSORY,
 # BACKPACK, ALL, NONE) are always available even with an empty list here — add new ones below
 # without a plugin recompile. Used by item-type/targets fields across items, enchants, and reforges.
-item_types: []
+item_types:
+  # Used by items/fishing_bait.yml + guis/bait_bag.yml (see docs/IMPLEMENTATION_BACKLOG.md, Fishing
+  # module — "Add a fishing bait bag").
+  - FISHING_BAIT

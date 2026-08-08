@@ -1,0 +1,37 @@
+# =====================================================================
+# Fishing Bait — storable via /baitbag (guis/bait_bag.yml, a STORAGE
+# component gated on item-type: FISHING_BAIT, same pattern as the
+# Quiver — see docs/IMPLEMENTATION_BACKLOG.md, Fishing module).
+#
+# Purely a storage/inventory feature for now: no fishing-roll mechanic
+# consumes these yet (that's part of the separately-deferred "Build real
+# fishing content" backlog item — rod parts, hot spots, bait-driven
+# odds). These are still real, usable items (given via /item give).
+# =====================================================================
+
+worm_bait:
+  name: "<gold>Worm"
+  material: STRING
+  item-type: FISHING_BAIT
+  rarity: COMMON
+  lore:
+    - "<gray>A wriggling worm on a hook."
+    - "<gray>Store in your Bait Bag (<white>/baitbag<gray>)."
+
+glow_bait:
+  name: "<aqua>Glowing Lure"
+  material: GLOW_INK_SAC
+  item-type: FISHING_BAIT
+  rarity: UNCOMMON
+  lore:
+    - "<gray>A faintly luminous lure that draws fish from afar."
+    - "<gray>Store in your Bait Bag (<white>/baitbag<gray>)."
+
+enchanted_bait:
+  name: "<light_purple>Enchanted Bait"
+  material: PRISMARINE_CRYSTALS
+  item-type: FISHING_BAIT
+  rarity: RARE
+  lore:
+    - "<gray>Bait infused with arcane energy."
+    - "<gray>Store in your Bait Bag (<white>/baitbag<gray>)."

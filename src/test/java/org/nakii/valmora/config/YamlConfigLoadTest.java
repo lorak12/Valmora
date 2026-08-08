@@ -24,9 +24,11 @@ class YamlConfigLoadTest {
     static Stream<String> allYamlFiles() {
         return Stream.of(
                 "/config.yml",
+                "/item_types.yml",
                 "/items/example.yml",
                 "/items/alchemy_ingredients.yml",
                 "/items/new_items.yml",
+                "/items/fishing_bait.yml",
                 "/mobs/test_mobs.yml",
                 "/skills/combat.yml",
                 "/skills/mining.yml",
@@ -50,6 +52,7 @@ class YamlConfigLoadTest {
                 "/guis/active_effects.yml",
                 "/guis/bank.yml",
                 "/guis/alchemy.yml",
+                "/guis/bait_bag.yml",
                 "/warps/hub.yml",
                 "/zones/test_zones.yml",
                 "/stats/core.yml",
@@ -79,7 +82,7 @@ class YamlConfigLoadTest {
     @Test
     void testItemFiles_haveMaterialField() {
         for (String path : List.of("/items/example.yml", "/items/alchemy_ingredients.yml",
-                "/items/new_items.yml")) {
+                "/items/new_items.yml", "/items/fishing_bait.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);
@@ -187,6 +190,39 @@ class YamlConfigLoadTest {
                         path + " → " + key + " missing 'tiers' or 'duration'");
             }
         }
+    }
+
+    @Test
+    void testFishingBaitItems_declareTheirCustomItemType() {
+        // FISHING_BAIT isn't one of the 21 built-in types — it must be registered via
+        // item_types.yml or these items would fail to parse at runtime (ItemType.valueOf throws
+        // on an unregistered id). See docs/IMPLEMENTATION_BACKLOG.md, Fishing module.
+        YamlConfiguration typesConfig = load("/item_types.yml");
+        assertTrue(typesConfig.getStringList("item_types").contains("FISHING_BAIT"),
+                "item_types.yml must register FISHING_BAIT for items/fishing_bait.yml to load");
+
+        YamlConfiguration itemsConfig = load("/items/fishing_bait.yml");
+        assertFalse(itemsConfig.getKeys(false).isEmpty(), "items/fishing_bait.yml has no bait items");
+        for (String key : itemsConfig.getKeys(false)) {
+            ConfigurationSection section = itemsConfig.getConfigurationSection(key);
+            assertNotNull(section, "items/fishing_bait.yml / " + key + " is not a section");
+            assertEquals("FISHING_BAIT", section.getString("item-type"),
+                    "items/fishing_bait.yml → " + key + " should be item-type: FISHING_BAIT");
+        }
+    }
+
+    @Test
+    void testBaitBagGui_gatesStorageOnFishingBaitType() {
+        YamlConfiguration cfg = load("/guis/bait_bag.yml");
+        ConfigurationSection root = cfg.getConfigurationSection("bait_bag");
+        assertNotNull(root, "guis/bait_bag.yml is missing its root 'bait_bag' section");
+        assertEquals("baitbag", root.getString("command"), "bait_bag GUI should bind to /baitbag");
+        ConfigurationSection storageComponent = root.getConfigurationSection("components.S");
+        assertNotNull(storageComponent, "bait_bag GUI is missing its 'S' component");
+        assertEquals("STORAGE", storageComponent.getString("type"));
+        String condition = storageComponent.getString("condition", "");
+        assertTrue(condition.contains("FISHING_BAIT"),
+                "bait_bag GUI's STORAGE condition should gate on FISHING_BAIT, was: " + condition);
     }
 
     @Test

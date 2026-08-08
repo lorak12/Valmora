@@ -1,0 +1,32 @@
+# =====================================================================
+# Bait Bag — dedicated storage for fishing bait (see
+# docs/IMPLEMENTATION_BACKLOG.md, Fishing module — "Add a fishing bait
+# bag"). Player-owned, DB-backed storage (same STORAGE component
+# primitive as the Quiver — see guis/quiver.yml), gated on the
+# FISHING_BAIT item type (items/fishing_bait.yml).
+# =====================================================================
+
+bait_bag:
+  title: "<dark_gray>➵ Bait Bag"
+  rows: 3
+  command: baitbag
+
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+
+  components:
+    S:
+      type: STORAGE
+      id: bait_bag
+      owner: PLAYER
+      storage-id: bait_bag
+      condition: "$candidate.item.type$ == FISHING_BAIT"
+
+  on-open:
+    actions:
+      - "sound player block.barrel.open"
+  on-close:
+    actions:
+      - "sound player block.barrel.close"
