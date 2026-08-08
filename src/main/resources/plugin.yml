@@ -80,5 +80,5 @@ commands:
     permission: valmora.admin
     description: Master engine administrative command.
   collections:
-    usage: /collections
-    description: Open the collections menu.
+    usage: /collections [view|force|reset <player> <collectionId> [count]]
+    description: Open the collections menu, or (valmora.admin) view/force/reset a player's collection.

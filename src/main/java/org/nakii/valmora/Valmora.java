@@ -285,7 +285,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         ZoneCommand zoneCommand = new ZoneCommand(this, zoneModule);
         getCommand("zone").setExecutor(zoneCommand);
         getCommand("zone").setTabCompleter(zoneCommand);
-        getCommand("collections").setExecutor(new CollectionCommand(this));
+        CollectionCommand collectionCommand = new CollectionCommand(this);
+        getCommand("collections").setExecutor(collectionCommand);
+        getCommand("collections").setTabCompleter(collectionCommand);
     }
 
      @Override
