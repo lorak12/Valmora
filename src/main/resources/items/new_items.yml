@@ -16,13 +16,17 @@
 #   DAMAGE, HEAL, APPLY_EFFECT, MODIFY_STAT, TELEPORT,
 #   PUSH_ENTITIES, PULL_ENTITIES, SCRIPT
 #
-# DEFERRED to a later phase (do NOT use as active YAML — the loader rejects
-# unknown mechanic types): LAUNCH_PROJECTILE / projectile on-land/on-impact
-# callbacks, LAUNCH_PLAYER, BEAM, returning Bonemerang, EXPLODE, ADD_STACK,
-# GIVE_COINS / TAKE_COINS, CANCEL_TRAMPLE, CHARGE_JUMP, and the whole
-# set-bonuses parser. Items relying solely on those are kept below as commented
-# stubs. Damage/heal "ticks"/"interval" (damage-over-time) are accepted but
-# currently apply a single burst.
+# Since implemented (2026-08-08 verification pass — docs/IMPLEMENTATION_BACKLOG.md, Item/Ability
+# mechanic engine): LAUNCH_PROJECTILE (LaunchProjectileMechanic), LAUNCH_PLAYER
+# (LaunchPlayerMechanic), GIVE_COINS / TAKE_COINS (GiveCoinsMechanic/TakeCoinsMechanic), and the
+# set-bonuses parser (item.set.SetBonusParser/SetBonusService) — items using only these no longer
+# need to stay commented out.
+#
+# Still DEFERRED (do NOT use as active YAML — the loader rejects unknown mechanic types): BEAM,
+# returning Bonemerang (RETURNING_PROJECTILE), EXPLODE, ADD_STACK, CANCEL_TRAMPLE, CHARGE_JUMP —
+# see the corresponding still-open items in docs/IMPLEMENTATION_BACKLOG.md. Items relying solely on
+# those are kept below as commented stubs. Damage/heal "ticks"/"interval" (damage-over-time) are
+# accepted but currently apply a single burst.
 # =====================================================================
 
 
@@ -130,10 +134,22 @@ raider_axe:
   item-type: "SWORD"
   # NOTE: original scales DAMAGE/STRENGTH off $player.kills$ and
   # $player.wood_collection$ — those variables don't exist yet, so flat values
-  # are used. The ON_KILL "20 coins" ability is DEFERRED (needs GIVE_COINS).
+  # are used instead. The ON_KILL "20 coins" ability is now active — GIVE_COINS
+  # (GiveCoinsMechanic) landed in an earlier pass; see
+  # docs/IMPLEMENTATION_BACKLOG.md's item-mechanic-engine verification note.
   stats:
     DAMAGE: 80
     STRENGTH: 50
+  abilities:
+    raider_bounty:
+      name: "Raider's Bounty"
+      trigger: "ON_KILL"
+      description:
+        - "<gray>Earn <gold>20 Coins <gray>for every kill."
+      mechanics:
+        - type: "GIVE_COINS"
+          params:
+            amount: 20
 
 golem_sword:
   name: "Golem Sword"
@@ -278,10 +294,15 @@ leaping_sword:
       cooldown: 1.0
       mana-cost: 50.0
       description:
-        - "<gray>Deal <red>350 damage <gray>to nearby enemies"
-        - "<gray>and freeze them. (Leap motion deferred.)"
-      # DEFERRED: LAUNCH_PLAYER (the upward leap). Damage + freeze are active.
+        - "<gray>Leap forward, dealing <red>350 damage"
+        - "<gray>to nearby enemies and freezing them."
+      # LAUNCH_PLAYER (the upward leap) landed in an earlier pass — see
+      # docs/IMPLEMENTATION_BACKLOG.md's item-mechanic-engine verification note.
       mechanics:
+        - type: "LAUNCH_PLAYER"
+          params:
+            y-force: 1.2
+            forward-force: 1.5
         - type: "DAMAGE"
           params:
             damage: 350.0
@@ -355,16 +376,20 @@ aurora_staff:
             damage-type: "MAGIC"
             target: "@target"
 
-# midas_staff: DEFERRED (LAUNCH_PROJECTILE + dark-auction bid variable).
+# midas_staff: still DEFERRED — LAUNCH_PROJECTILE itself landed in an earlier pass, but this item
+# also needs a dark-auction bid variable (no provider exists), so it stays blocked.
 
 
 # =====================================================================
 # BOWS & SHORTBOWS  —  DEFERRED
 # =====================================================================
-# Every bow in the source relies on LAUNCH_PROJECTILE and/or projectile
-# on-land/on-impact callbacks, homing BEAM, or the returning Bonemerang —
-# all scheduled for the next phase. They are intentionally omitted here so the
-# item loader doesn't reject unknown mechanic types.
+# LAUNCH_PROJECTILE itself landed in an earlier pass (plain projectile launch is usable now), but
+# every bow drafted in this source relies on the
+# *compound* features still missing: projectile on-land/on-impact callbacks, homing BEAM, or the
+# returning Bonemerang (RETURNING_PROJECTILE) — see docs/IMPLEMENTATION_BACKLOG.md's still-open
+# "Bow-specific deferred mechanics"/"Ricochet/bounce projectile behavior"/"Homing/guided projectile
+# flight" items. They are intentionally omitted here so the item loader doesn't reject unknown
+# mechanic types.
 
 
 # =====================================================================
@@ -437,8 +462,11 @@ fire_veil_wand:
 # =====================================================================
 # ARMOR PIECES & FULL SETS  (stat-only; set bonuses DEFERRED)
 # =====================================================================
-# The 'set:' field is parsed once the set-bonus engine lands; it's harmless to
-# leave in place now (unknown fields are ignored by the item parser).
+# The set-bonus engine itself (item.set.SetBonusParser/SetBonusService, driven by
+# set_bonuses/sets.yml) landed in an earlier pass and is live — the 'set:' field on these pieces is
+# parsed. What's still missing is the actual per-set bonus content for the sets referenced below
+# (farm_suit, etc.) in set_bonuses/sets.yml — see docs/IMPLEMENTATION_BACKLOG.md's still-open
+# "Conditional/stacking set-bonus auras" item, a large separate content epic.
 
 # --- FARM SUIT SET ---
 farm_suit_helmet:
@@ -710,7 +738,10 @@ precursor_eye:
     MANA: 220
   # DEFERRED ability: Eye Beam (SNEAK + $ticks_sneaking$ + BEAM projectile).
 
-# crown_of_greed: DEFERRED (TAKE_COINS mechanic).
+# crown_of_greed: still not shipped — TAKE_COINS (TakeCoinsMechanic) itself landed in an earlier
+# pass, but this item was never fleshed out beyond this one-liner in the source content (no stats/
+# trigger/amount specified), so there's nothing concrete to activate. A real design pass (what
+# triggers the coin cost, how much, what it actually grants) is still needed before shipping it.
 
 rancher_boots:
   name: "Rancher's Boots"
@@ -728,9 +759,11 @@ rancher_boots:
 
 
 # =====================================================================
-# GLOBAL SET BONUSES  —  DEFERRED
+# GLOBAL SET BONUSES  —  content still DEFERRED, engine is live
 # =====================================================================
-# The set-bonus parser (linking armor 'set:' ids to shared stats/abilities at
-# 2/3/4 pieces) is scheduled for a later phase. The original 'set-bonuses:'
-# block is intentionally NOT included here: it is not a valid item entry and
-# would be rejected by the item loader.
+# The set-bonus parser/service (linking armor 'set:' ids to shared stats/abilities at 2/3/4
+# pieces) landed in an earlier pass — see set_bonuses/sets.yml for the real, currently-shipped
+# format. The original 'set-bonuses:' block from this source draft is intentionally NOT included
+# here: it's not a valid item entry (would be rejected by the item loader) and its content hasn't
+# been ported to set_bonuses/sets.yml's format yet — see docs/IMPLEMENTATION_BACKLOG.md's
+# "Conditional/stacking set-bonus auras" item.

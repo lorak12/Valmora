@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -188,6 +189,39 @@ class YamlConfigLoadTest {
                 if (section == null) continue;
                 assertTrue(section.contains("tiers") || section.contains("duration"),
                         path + " → " + key + " missing 'tiers' or 'duration'");
+            }
+        }
+    }
+
+    @Test
+    void testNewItemsFile_abilityMechanicTypesAreAllKnownActive() {
+        // new_items.yml's header comment tracks which mechanic types are "live" vs. still
+        // DEFERRED — this is a cheap regression guard that every ability's mechanic `type:` in the
+        // file is one that's actually registered, catching a future typo/premature-use before it
+        // silently fails to load at runtime. See docs/IMPLEMENTATION_BACKLOG.md's item-mechanic-
+        // engine verification note (GIVE_COINS/TAKE_COINS/LAUNCH_PROJECTILE/LAUNCH_PLAYER/set-bonus
+        // parser all confirmed live; BEAM/EXPLODE/ADD_STACK/etc. still not).
+        Set<String> knownActiveMechanics = Set.of(
+                "DAMAGE", "HEAL", "APPLY_EFFECT", "MODIFY_STAT", "TELEPORT",
+                "PUSH_ENTITIES", "PULL_ENTITIES", "SCRIPT",
+                "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS");
+
+        YamlConfiguration cfg = load("/items/new_items.yml");
+        for (String itemKey : cfg.getKeys(false)) {
+            ConfigurationSection abilities = cfg.getConfigurationSection(itemKey + ".abilities");
+            if (abilities == null) continue;
+            for (String abilityKey : abilities.getKeys(false)) {
+                List<?> mechanics = abilities.getList(abilityKey + ".mechanics");
+                if (mechanics == null) continue;
+                for (Object raw : mechanics) {
+                    if (!(raw instanceof Map<?, ?> map)) continue;
+                    Object type = map.get("type");
+                    if (type != null) {
+                        assertTrue(knownActiveMechanics.contains(type.toString()),
+                                "items/new_items.yml → " + itemKey + "." + abilityKey
+                                        + " uses mechanic type '" + type + "' not in the known-active set");
+                    }
+                }
             }
         }
     }
