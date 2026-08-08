@@ -32,7 +32,7 @@ commands:
     usage: /progression help
     description: Master command for progression tree interactions.
   recipe:
-    usage: /recipe help
+    usage: /recipe [list <machineId>|preview <machineId> <recipeId>]
     description: Admin command for inspecting the recipe engine.
     permission: valmora.admin
   gui:
