@@ -46,6 +46,10 @@ commands:
     usage: /calendar [list|preview|force-start|force-end <eventId>]
     description: Admin command for inspecting and forcing calendar events.
     permission: valmora.admin
+  reforge:
+    usage: /reforge [list|preview <reforgeId> [rarity]|force <reforgeId>|reset]
+    description: Admin command for inspecting and force-applying reforges.
+    permission: valmora.admin
   potion:
     usage: /potion give <effect_id> <level> [player]
     permission: valmora.admin

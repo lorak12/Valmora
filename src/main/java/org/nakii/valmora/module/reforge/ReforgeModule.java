@@ -101,6 +101,56 @@ public class ReforgeModule implements ReloadableModule, DynamicMachineHandler {
     /** Public wrapper so a script/GUI variable provider can format a cost the same way the stone lore does. */
     public String formatCoinsPublic(int amount) { return formatCoins(amount); }
 
+    /**
+     * Applies the given reforge id to an item directly, bypassing the anvil/coin gating — used by
+     * {@code /reforge force} (admin tooling, see docs/IMPLEMENTATION_BACKLOG.md, Reforge module).
+     * Returns {@code null} if the reforge id is unknown or doesn't apply to the item's type.
+     */
+    @Nullable
+    public ItemStack forceApplyReforge(ItemStack baseItem, String reforgeId) {
+        ReforgeDefinition def = getDefinition(reforgeId);
+        if (def == null) return null;
+        ItemType itemType = readItemType(baseItem);
+        if (!def.appliesTo(itemType)) return null;
+        return buildReforgedItem(baseItem, def, readRarity(baseItem));
+    }
+
+    /**
+     * Strips any reforge from an item, restoring its clean base stats — used by {@code /reforge reset}.
+     * A no-op (returns the item unchanged) if it carries no reforge.
+     */
+    public ItemStack resetReforge(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+        String currentReforgeId = meta.getPersistentDataContainer().get(Keys.REFORGE_ID_KEY, PersistentDataType.STRING);
+        if (currentReforgeId == null) return item;
+
+        ItemStack output = item.clone();
+        ItemMeta outMeta = output.getItemMeta();
+        String itemId = outMeta.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+        Map<String, Double> baseStats = new HashMap<>();
+        if (itemId != null) {
+            plugin.getItemManager().getItemRegistry().getItem(itemId)
+                    .map(ItemDefinition::getStats)
+                    .ifPresent(baseStats::putAll);
+        } else {
+            baseStats.putAll(plugin.getStatModule().loadStats(outMeta));
+            ReforgeDefinition previous = definitions.get(currentReforgeId.toLowerCase(Locale.ROOT));
+            if (previous != null) {
+                Rarity rarity = readRarity(output);
+                for (Map.Entry<String, Double> entry : previous.getStatBonusesForRarity(rarity).entrySet()) {
+                    baseStats.merge(entry.getKey(), -entry.getValue(), Double::sum);
+                }
+            }
+        }
+        plugin.getStatModule().saveStats(outMeta, baseStats);
+        outMeta.getPersistentDataContainer().remove(Keys.REFORGE_ID_KEY);
+        outMeta.getPersistentDataContainer().remove(Keys.REFORGE_DISPLAY_KEY);
+        output.setItemMeta(outMeta);
+        plugin.getItemManager().getItemFactory().updateLore(output);
+        return output;
+    }
+
     // ─── DynamicMachineHandler: "reforge" machine (reforge.yml — stone-based) ───
 
     @Override
