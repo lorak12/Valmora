@@ -42,6 +42,10 @@ commands:
   time:
     usage: /time [info|reset|set <year> <season> <phase> <day>]
     description: Display, reset, or set the Valmora RPG calendar clock.
+  calendar:
+    usage: /calendar [list|preview|force-start|force-end <eventId>]
+    description: Admin command for inspecting and forcing calendar events.
+    permission: valmora.admin
   potion:
     usage: /potion give <effect_id> <level> [player]
     permission: valmora.admin

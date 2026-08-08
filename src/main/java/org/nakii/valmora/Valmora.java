@@ -265,6 +265,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("recipe").setTabCompleter(recipeCommand);
         getCommand("gui").setExecutor(new GuiCommand(this));
         getCommand("time").setExecutor(new TimeCommand(timeModule.getTimeManager()));
+        org.nakii.valmora.module.calendar.CalendarCommand calendarCommand = new org.nakii.valmora.module.calendar.CalendarCommand(this);
+        getCommand("calendar").setExecutor(calendarCommand);
+        getCommand("calendar").setTabCompleter(calendarCommand);
         getCommand("ui").setExecutor(new org.nakii.valmora.module.ui.UICommand(this));
         EcoCommand ecoCommand = new EcoCommand(economyModule);
         getCommand("eco").setExecutor(ecoCommand);
