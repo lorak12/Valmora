@@ -43,12 +43,6 @@ public class ItemFactory {
                 meta.setCustomModelData(definition.getCustomModelData());
             }
 
-            // Reforge stone pool
-            List<String> reforgePool = definition.getReforgePool();
-            if (!reforgePool.isEmpty()) {
-                meta.getPersistentDataContainer().set(Keys.REFORGE_POOL_KEY, PersistentDataType.STRING, String.join(",", reforgePool));
-            }
-
             // Container GUI (e.g. a backpack opens its own storage GUI instead of stacking)
             if (definition.getContainerGui() != null) {
                 meta.getPersistentDataContainer().set(Keys.CONTAINER_GUI_KEY, PersistentDataType.STRING, definition.getContainerGui());
@@ -102,10 +96,19 @@ public class ItemFactory {
             name = (itemId != null && itemId.startsWith("vanilla_")) ? Formatter.capitalize(item.getType().name().replace("_", " ")) : null;
         }
 
-        // Prepend reforge prefix if item has been reforged
-        String reforgeDisplay = meta.getPersistentDataContainer().get(Keys.REFORGE_DISPLAY_KEY, PersistentDataType.STRING);
-        if (reforgeDisplay != null && name != null) {
-            name = reforgeDisplay + " " + name;
+        // Prepend/append modifier display text (docs/Valmora_Modifier_Framework_Design.docx §19) —
+        // e.g. a reforge's "Fierce " prefix. Generic: works for ANY PREFIX/SUFFIX-format group, not
+        // just the migrated "reforges" group.
+        var modifierModule = plugin.getModifierModule();
+        String prefixText = null;
+        String suffixText = null;
+        if (modifierModule != null && modifierModule.getEngine() != null && item.hasItemMeta()) {
+            prefixText = modifierModule.getEngine().getDisplayText(item, org.nakii.valmora.module.modifier.DisplayFormat.PREFIX).orElse(null);
+            suffixText = modifierModule.getEngine().getDisplayText(item, org.nakii.valmora.module.modifier.DisplayFormat.SUFFIX).orElse(null);
+        }
+        if (name != null) {
+            if (prefixText != null) name = prefixText + name;
+            if (suffixText != null) name = name + suffixText;
         }
 
         // Set Display Name
@@ -148,8 +151,14 @@ public class ItemFactory {
             }
         }
 
-        // 2. Stats Section
-        Map<String, Double> stats = plugin.getStatModule().loadStats(meta);
+        // 2. Stats Section — merges baked item stats with dynamically-resolved modifier STAT
+        // effects (reforges/gemstones/traits — docs/Valmora_Modifier_Framework_Design.docx), so a
+        // reforge/gemstone's bonus shows in the same list rather than needing its own lore block.
+        Map<String, Double> stats = new java.util.LinkedHashMap<>(plugin.getStatModule().loadStats(meta));
+        if (modifierModule != null && modifierModule.getEngine() != null && item.hasItemMeta()) {
+            modifierModule.getEngine().contributeStats(item, null, (statId, value) ->
+                    stats.merge(statId, value, Double::sum));
+        }
         if (!stats.isEmpty()) {
             if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
             StatRegistry statRegistry = plugin.getStatModule().getStatRegistry();
@@ -159,6 +168,22 @@ public class ItemFactory {
                         ? "<gray> ◈ " + def.format(entry.getValue())
                         : "<gray> ◈ <white>" + entry.getKey() + ": +" + entry.getValue().intValue();
                 finalLore.add(Formatter.format(formatted));
+            }
+        }
+
+        // 2b. Attached LORE-format modifiers (e.g. gemstones) — one line per instance naming the
+        // modifier and its effective tier; the stat numbers themselves are already folded into the
+        // Stats Section above rather than repeated here.
+        if (modifierModule != null && modifierModule.getEngine() != null && item.hasItemMeta()) {
+            var loreEntries = modifierModule.getEngine().getLoreEntries(item);
+            if (!loreEntries.isEmpty()) {
+                if (!finalLore.isEmpty()) finalLore.add(Component.empty());
+                for (var entry : loreEntries) {
+                    var def = entry.getKey();
+                    int tier = entry.getValue();
+                    String label = def.getDisplayName(tier) != null ? def.getDisplayName(tier) : def.getId();
+                    finalLore.add(Formatter.format("<gray> ◆ " + label));
+                }
             }
         }
 

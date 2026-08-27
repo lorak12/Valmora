@@ -48,6 +48,7 @@ Before implementing any feature, open and read:
 - **`docs/MODULE_DEVELOPMENT.md`** — complete lifecycle guide for creating, registering, enabling, and hot-reloading modules.
 - **`docs/modules/design/<module>.md`** and **`docs/modules/user/<module>.md`** for the module(s) you're touching — these are the current, per-module, verified-against-code reference (architecture/internals in `design/`, admin/player-facing YAML + commands in `user/`). Start from `docs/modules/design/INTEGRATION.md` / `docs/modules/user/INTEGRATION.md` for the cross-module map, and `docs/modules/modules.md` for the full module list.
 - **`docs/VALMORA_DOCUMENTATION.md`** — an older, broader single-file reference. Prefer the per-module docs above where they overlap (they're more current); this file is kept for content not yet migrated (e.g. §1–20 general engine architecture) and is being corrected in place as drift is found, not as a replacement for the per-module docs.
+- **`docs/Valmora_Modifier_Framework_Design.docx`** — if you're touching reforges, gemstones, or anything that grants stats/abilities from an attachable item component, read this first, then `docs/modules/design/modifier.md`/`docs/modules/user/modifier.md`. It's a hard rule, not a suggestion: **no new group-specific Java** (no `if group == "my_new_group"` in the engine, no dedicated `MyGroupModule`) — express new content as a modifier group + modifiers in `modifiers/groups/*.yml` / `modifiers/definitions/*.yml` instead. `docs/MODIFIER_FRAMEWORK_BACKLOG.md` tracks what's implemented vs. still deferred (non-passive ability trigger dispatch for modifier-granted abilities, full `$item.*$` variables, etc.) — check it before assuming a described behavior already works.
 
 These are ground truth. If this CLAUDE.md ever conflicts with them, the specific doc wins.
 
@@ -137,16 +138,17 @@ Valmora.onEnable()
     └── 5. Commands registered   ← NEVER register commands inside a module
 ```
 
-**Module registration order** (must be preserved — verified against `Valmora.java` 2026-08-26; the
-previous version of this table only listed the first 13 modules and had drifted 16 modules behind):
+**Module registration order** (must be preserved — verified against `Valmora.java`, post
+modifier-framework refactor: the legacy `reforge` module was removed and replaced by `rarity` +
+`modifier`, see §Generic Modifier Framework below):
 
 ```
-script → time → stat → player → economy → ui → ability → item → mob → skill → combat → gui →
-recipe → alchemy → enchant → zone → resource → fishing → npc → warp → points → notify → quest →
-collection → hud → calendar → reforge → pet → progression
+script → time → rarity → stat → player → economy → ui → ability → item → mob → skill → combat →
+gui → recipe → modifier → alchemy → enchant → zone → resource → fishing → npc → warp → points →
+notify → quest → collection → hud → calendar → pet → progression
 ```
 
-Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `reforge` after `recipe`).
+Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).
 
 **Accessing modules at runtime:**
 

@@ -96,8 +96,6 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.calendar.CalendarEventModule getCalendarEventModule();
 
-    org.nakii.valmora.module.reforge.ReforgeModule getReforgeModule();
-
     org.nakii.valmora.module.pet.PetModule getPetModule();
 
     org.nakii.valmora.module.alchemy.AlchemyModule getAlchemyModule();

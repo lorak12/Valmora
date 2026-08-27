@@ -11,10 +11,10 @@
 Module registration order (see `Valmora.java`) enforces a strict layering. Lower modules are available to higher ones; no upward references are permitted:
 
 ```
-script → time → stat → player → economy
-       → ui → ability → item → mob → skill → combat → gui → recipe
+script → time → rarity → stat → player → economy
+       → ui → ability → item → mob → skill → combat → gui → recipe → modifier
        → alchemy → enchant → zone → resource → fishing → npc → warp → quest
-       → points → notify → collection → hud → calendar → reforge → pet → progression
+       → points → notify → collection → hud → calendar → pet → progression
 ```
 
 > **Note:** `accessory`, `backpack`, `quiver`, and `slayer` are **no longer modules** — they were
@@ -32,7 +32,7 @@ The tables below list **Uses** (modules this module depends on) and **Consumers*
 | Module  | Uses                                  | Consumers                              |
 |---------|---------------------------------------|----------------------------------------|
 | script  | (none)                                | stat, profile, combat, item, mob, skill, alchemy, enchant, quest, npc |
-| stat    | script                                | profile, combat, item, mob, skill, economy, reforge |
+| stat    | script                                | profile, combat, item, mob, skill, economy, modifier |
 | profile | stat, script                          | combat, item, mob, npc, economy, skill |
 | combat  | stat, profile, script, mob            | item, skill, enchant, progression (slayer content consumes combat indirectly via quest KILL objectives, not as a module) |
 
@@ -42,7 +42,7 @@ The tables below list **Uses** (modules this module depends on) and **Consumers*
 |------------|-----------------------------------|---------------------------------------|
 | item       | stat, profile, script, mob        | combat, enchant, skill, npc, quest, gui |
 | enchant    | item, stat, script                | combat, skill                         |
-| reforge    | item, stat, script                | (none — reforge stones apply directly to items) |
+| modifier   | item, stat, script, rarity, recipe | item (lore rendering), stat (STAT effect contributions) — generic modifier framework replacing the old reforge module, docs/Valmora_Modifier_Framework_Design.docx |
 
 Accessories/backpacks are `item-type` tags + a GUI `STORAGE` component, not modules — see §2.1.1
 and `docs/modules/design/backpack.md`. Quiver has no current implementation.
@@ -224,7 +224,7 @@ YAML-defined or Java-registered logic at named points in their otherwise-hardcod
 1. **Disable phase** — All modules' `onDisable()` called in **reverse registration order**:
    ```
    progression → calendar → hud
-   → reforge → pet → notify → collection → time → ui → gui
+   → modifier → pet → notify → collection → time → ui → gui
    → recipe → enchant → alchemy → fishing → resource → zone
    → economy → skill → quest → npc → mob → item → combat
    → profile → stat → script
@@ -258,7 +258,7 @@ Each module must:
 | `EntityDamageEvent`             | combat           | stat, skill, notify            |
 | `EntityDeathEvent`              | mob              | combat, quest, stat, progression       |
 | `PlayerInteractEvent`           | item             | skill, gui, quest, npc                 |
-| `InventoryClickEvent`           | gui              | item, enchant, reforge, storage components (accessory/backpack) |
+| `InventoryClickEvent`           | gui              | item, enchant, modifier, storage components (accessory/backpack) |
 | `PlayerJoinEvent` / `QuitEvent` | profile          | hud, pet, quest, progression           |
 | `ChunkLoadEvent`                | zone             | resource, mob, npc                     |
 

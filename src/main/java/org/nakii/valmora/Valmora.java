@@ -53,7 +53,6 @@ import org.nakii.valmora.module.collection.CollectionModule;
 import org.nakii.valmora.module.collection.CollectionCommand;
 import org.nakii.valmora.module.hud.HudItemModule;
 import org.nakii.valmora.module.calendar.CalendarEventModule;
-import org.nakii.valmora.module.reforge.ReforgeModule;
 import org.nakii.valmora.module.pet.PetModule;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.module.economy.EcoCommand;
@@ -123,7 +122,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private CollectionModule collectionModule;
     private HudItemModule hudItemModule;
     private CalendarEventModule calendarEventModule;
-    private ReforgeModule reforgeModule;
     private PetModule petModule;
     private org.nakii.valmora.module.progression.ProgressionModule progressionModule;
     private org.nakii.valmora.module.rarity.RarityModule rarityModule;
@@ -198,7 +196,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.collectionModule = new CollectionModule(this);
         this.hudItemModule = new HudItemModule(this);
         this.calendarEventModule = new CalendarEventModule(this);
-        this.reforgeModule = new ReforgeModule(this);
         this.petModule = new PetModule(this);
         this.progressionModule = new org.nakii.valmora.module.progression.ProgressionModule(this);
 
@@ -236,7 +233,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(collectionModule);
         moduleManager.registerModule(hudItemModule);       // Depends on scriptModule for click DSL
         moduleManager.registerModule(calendarEventModule); // Depends on scriptModule + timeModule
-        moduleManager.registerModule(reforgeModule);      // Depends on recipeModule (registers handler)
         moduleManager.registerModule(petModule);          // Depends on scriptModule + statModule
         moduleManager.registerModule(progressionModule);  // Depends on scriptModule + pointsModule (generic tree/skill-point engine)
 
@@ -282,9 +278,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         org.nakii.valmora.module.calendar.CalendarCommand calendarCommand = new org.nakii.valmora.module.calendar.CalendarCommand(this);
         getCommand("calendar").setExecutor(calendarCommand);
         getCommand("calendar").setTabCompleter(calendarCommand);
-        org.nakii.valmora.module.reforge.ReforgeCommand reforgeCommand = new org.nakii.valmora.module.reforge.ReforgeCommand(this);
-        getCommand("reforge").setExecutor(reforgeCommand);
-        getCommand("reforge").setTabCompleter(reforgeCommand);
+        org.nakii.valmora.module.modifier.ModifierCommand modifierCommand = new org.nakii.valmora.module.modifier.ModifierCommand(this);
+        getCommand("modifier").setExecutor(modifierCommand);
+        getCommand("modifier").setTabCompleter(modifierCommand);
         getCommand("ui").setExecutor(new org.nakii.valmora.module.ui.UICommand(this));
         EcoCommand ecoCommand = new EcoCommand(economyModule);
         getCommand("eco").setExecutor(ecoCommand);
@@ -515,8 +511,6 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public CalendarEventModule getCalendarEventModule() { return calendarEventModule; }
     @Override
-    public ReforgeModule getReforgeModule() { return reforgeModule; }
-    @Override
     public org.nakii.valmora.module.rarity.RarityModule getRarityModule() { return rarityModule; }
     @Override
     public org.nakii.valmora.module.modifier.ModifierModule getModifierModule() { return modifierModule; }
@@ -628,7 +622,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 name.startsWith("npcs/") || name.startsWith("dialogues/") ||
                 name.startsWith("warps/") || name.startsWith("quests/") ||
                 name.startsWith("collections/") || name.startsWith("hud-items/") ||
-                name.startsWith("calendar/") || name.startsWith("reforges/") ||
+                name.startsWith("calendar/") ||
                 name.startsWith("modifiers/") ||
                 name.startsWith("pets/") ||
                 name.startsWith("set_bonuses/") || name.startsWith("progression/") ||

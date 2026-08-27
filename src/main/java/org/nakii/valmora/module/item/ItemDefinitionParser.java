@@ -66,11 +66,6 @@ public class ItemDefinitionParser {
             builder.customModelData(section.getInt("custom-model-data", 0));
         }
 
-        // Reforge pool (for reforge stones: lists which reforge IDs this stone can apply)
-        if (section.contains("reforge-pool")) {
-            builder.reforgePool(section.getStringList("reforge-pool"));
-        }
-
         // Armor set id (links this piece to a set bonus defined under set_bonuses/)
         if (section.contains("set")) {
             builder.set(section.getString("set"));

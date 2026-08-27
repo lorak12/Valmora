@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.modifier.recipe;
 
 import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.module.modifier.value.ValueResolver;
 
 import java.util.Set;
 
@@ -18,17 +19,20 @@ public class ModifierRecipeDefinition {
     private final String machine;
     private final Operation operation;
     private final Set<ItemType> baseItemTypes; // empty = any
-    private final String additionItemId; // null for REMOVE_MODIFIER
+    private final String additionItemId; // null = no addition item required (e.g. a random reroll)
     private final int additionAmount;
     private final String modifierGroup;
-    private final String modifierId; // null = "any modifier in the group" (REMOVE_MODIFIER wildcard)
+    private final String modifierId; // "RANDOM" = weighted random pick; null = REMOVE_MODIFIER wildcard (whole group)
     private final int modifierTier;
-    private final int costXpLevels;
-    private final int costCoins;
+    // Cost is a generic value provider (docs §5/§18) — the same rarity-scale/expression/literal
+    // pipeline modifier effects use — resolved against the base item's rarity, so e.g. a reforge
+    // reroll can cost more for a higher-rarity item without a hardcoded by-rarity cost map.
+    private final ValueResolver costXpLevels;
+    private final ValueResolver costCoins;
 
     public ModifierRecipeDefinition(String id, String machine, Operation operation, Set<ItemType> baseItemTypes,
                                      String additionItemId, int additionAmount, String modifierGroup,
-                                     String modifierId, int modifierTier, int costXpLevels, int costCoins) {
+                                     String modifierId, int modifierTier, ValueResolver costXpLevels, ValueResolver costCoins) {
         this.id = id;
         this.machine = machine;
         this.operation = operation;
@@ -51,8 +55,8 @@ public class ModifierRecipeDefinition {
     public String getModifierGroup() { return modifierGroup; }
     public String getModifierId() { return modifierId; }
     public int getModifierTier() { return modifierTier; }
-    public int getCostXpLevels() { return costXpLevels; }
-    public int getCostCoins() { return costCoins; }
+    public ValueResolver getCostXpLevels() { return costXpLevels; }
+    public ValueResolver getCostCoins() { return costCoins; }
 
     public boolean appliesToBase(ItemType type) {
         return baseItemTypes.isEmpty() || baseItemTypes.contains(type);

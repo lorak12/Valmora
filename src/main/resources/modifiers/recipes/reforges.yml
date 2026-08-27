@@ -1,0 +1,151 @@
+# APPLY_MODIFIER/REMOVE_MODIFIER recipes for the migrated "reforges" group
+# (docs/Valmora_Modifier_Framework_Design.docx §16), replacing the legacy reforge_anvil/
+# forge_random DynamicMachineHandlers. Cost is rarity-scaled generically via each rarity's
+# `forge_cost` property (rarities.yml) — see docs/MODIFIER_FRAMEWORK_BACKLOG.md.
+
+fierce_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE]
+  addition:
+    item: fierce_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: fierce
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+sharp_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW]
+  addition:
+    item: sharp_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: sharp
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+fabled_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE]
+  addition:
+    item: fabled_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: fabled
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+heroic_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, CROSSBOW]
+  addition:
+    item: heroic_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: heroic
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+rapid_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [BOW, CROSSBOW]
+  addition:
+    item: rapid_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: rapid
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+fortified_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: fortified_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: fortified
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+reinforced_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: reinforced_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: reinforced
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+titanic_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: titanic_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: titanic
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+random_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [AXE, BOOTS, BOW, CHESTPLATE, CROSSBOW, HELMET, LEGGINGS, SWORD]
+  # No `addition:` — matches with the base item alone, like the legacy forge_random.
+  modifier:
+    group: reforges
+    id: RANDOM
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+
+# No REMOVE_MODIFIER recipe here on purpose: with `random_reforge` matching on the base item alone
+# (no addition needed) and appearing first in iteration order, a removal recipe would never be
+# reachable through the anvil for an already-reforged item — matching the legacy system, which also
+# had no in-GUI removal (only the admin `/reforge reset`, now `/modifier remove reforges`).

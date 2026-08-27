@@ -17,7 +17,6 @@ public class ItemDefinition {
     private final int customModelData;
     private final Map<String, Double> stats;
     private final Map<String, AbilityDefinition> abilities;
-    private final List<String> reforgePool;
     private final String set;
     private final String containerGui;
 
@@ -32,7 +31,6 @@ public class ItemDefinition {
         this.customModelData = builder.customModelData;
         this.stats = builder.stats;
         this.abilities = builder.abilities;
-        this.reforgePool = builder.reforgePool;
         this.set = builder.set;
         this.containerGui = builder.containerGui;
     }
@@ -47,7 +45,6 @@ public class ItemDefinition {
     public int getCustomModelData() { return customModelData; }
     public Map<String, Double> getStats() { return stats; }
     public Map<String, AbilityDefinition> getAbilities() { return abilities; }
-    public List<String> getReforgePool() { return reforgePool; }
     public String getSet() { return set; }
     /** GUI id opened when this item is used as a storage-slot container (e.g. a backpack). */
     public String getContainerGui() { return containerGui; }
@@ -63,7 +60,6 @@ public class ItemDefinition {
         private int customModelData = 0;
         private Map<String, Double> stats = new HashMap<>();
         private Map<String, AbilityDefinition> abilities = new HashMap<>();
-        private List<String> reforgePool = List.of();
         private String set = null;
         private String containerGui = null;
 
@@ -80,7 +76,6 @@ public class ItemDefinition {
         public Builder customModelData(int cmd) { this.customModelData = cmd; return this; }
         public Builder stat(String statId, double value) { this.stats.put(statId.toLowerCase(), value); return this; }
         public Builder ability(String id, AbilityDefinition ability) { this.abilities.put(id, ability); return this; }
-        public Builder reforgePool(List<String> pool) { this.reforgePool = pool; return this; }
         public Builder set(String set) { this.set = set; return this; }
         public Builder containerGui(String containerGui) { this.containerGui = containerGui; return this; }
 

@@ -17,7 +17,7 @@ Modules group into logical families:
 | Family            | Modules                                  |
 |-------------------|------------------------------------------|
 | **Core Engine**   | script, stat, profile, combat            |
-| **Items**         | item, enchant, reforge |
+| **Items**         | item, enchant, modifier |
 | **Entities**      | mob, npc, quest                          |
 | **Skills**        | skill, alchemy                   |
 | **World**         | zone, resource, fishing, time, calendar  |
@@ -62,7 +62,7 @@ Every player has a **profile** — an in-memory data container that tracks their
 - Base player stats (in `config.yml`)
 - Equipped items (`item` module)
 - Enchants (`enchant` module)
-- Reforges (`reforge` module)
+- Reforges/gemstones/traits (`modifier` module — a generic engine over data-driven content, see `docs/modules/user/modifier.md`)
 - Accessories (item + GUI storage, see `docs/modules/user/backpack.md`)
 - Skills (`skill` module)
 - Zone effects (`zone` module)
@@ -88,7 +88,7 @@ The **item** module defines all custom items — weapons, armor, consumables, ma
 - Base stats (damage, defense, health)
 - Scripted effects (on-use, on-hit, passive)
 - Enchant slots (`enchant` module)
-- Reforge slots (`reforge` module)
+- Reforge/gemstone/trait slots (`modifier` module)
 - Special NBT data (tier, rarity, custom model data)
 
 ### 2.5 Zones
@@ -229,7 +229,7 @@ When an admin runs `/valmora reload`:
 |--------------|-------------------------------------|----------------------------|
 | **Profiles** | Player character data (stats, inventory, progress) | profile, stat, item, quest, skill, progression |
 | **Combat**   | Damage calculation, hit/miss, crits | combat, stat, skill |
-| **Items**    | Custom weapons, armor, consumables   | item, enchant, reforge |
+| **Items**    | Custom weapons, armor, consumables   | item, enchant, modifier |
 | **Mobs**     | Custom enemy/NPC entities            | mob, npc, combat, quest     |
 | **Skills**   | Active and passive abilities         | skill, alchemy, combat      |
 | **World**    | Zones, events, environment           | zone, resource, time, fishing |
@@ -249,7 +249,7 @@ A typical gear upgrade path involves:
 1. **Fishing/Resource** — gather raw materials
 2. **Item** — craft/upgrade base gear
 3. **Enchant** — add enchantments (requires skill level + materials)
-4. **Reforge** — apply reforges for stat bonuses (requires currency + special anvil)
+4. **Modifier** — apply reforges/gemstones for stat bonuses via the Modifier Anvil (requires currency + a reforge stone/gemstone item)
 5. **Accessory** — equip accessories in the accessory bag (`/accessories`)
 6. **Stat** — all gear contributes to final stats
 7. **Combat** — improved stats = stronger in combat

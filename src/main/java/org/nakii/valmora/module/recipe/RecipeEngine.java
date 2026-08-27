@@ -31,7 +31,7 @@ public class RecipeEngine {
 
     /**
      * Unregisters a dynamic handler — call this from a dependent module's {@code onDisable()}
-     * (e.g. Reforge, Alchemy) so a single-module reload doesn't leave a handler referencing a
+     * (e.g. Modifier, Alchemy) so a single-module reload doesn't leave a handler referencing a
      * disabled module's stale state registered on this engine.
      */
     public void unregisterHandler(String machineId) {

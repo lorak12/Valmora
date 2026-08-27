@@ -19,7 +19,7 @@ class ModifierDefinitionTest {
     void untieredModifierAlwaysReturnsBaseEffectsRegardlessOfRequestedTier() {
         ModifierEffect e = fakeEffect("STAT");
         ModifierDefinition def = new ModifierDefinition("fierce", "traits", "Fierce", null, null,
-                List.of(), NO_CONDITIONS, Set.of(), Set.of(), Set.of(), Map.of(), Map.of(), List.of(e));
+                List.of(), NO_CONDITIONS, Set.of(), Set.of(), Set.of(), Map.of(), Map.of(), List.of(e), 1.0, Set.of());
 
         assertFalse(def.isTiered());
         assertEquals(List.of(e), def.getEffects(1));
@@ -35,7 +35,7 @@ class ModifierDefinitionTest {
                 3, new ModifierTier(3, "Flawless Ruby", List.of(tier3Effect))
         );
         ModifierDefinition def = new ModifierDefinition("ruby", "gemstones", "Ruby", null, null,
-                List.of(), NO_CONDITIONS, Set.of(), Set.of(), Set.of(), Map.of(), tiers, List.of());
+                List.of(), NO_CONDITIONS, Set.of(), Set.of(), Set.of(), Map.of(), tiers, List.of(), 1.0, Set.of());
 
         assertTrue(def.isTiered());
         assertEquals(3, def.getMaxTier());

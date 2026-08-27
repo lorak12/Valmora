@@ -31,39 +31,46 @@ rarities:
     color: "<white>"
     rank: 0
     power: 1.0
+    forge_cost: 250
   UNCOMMON:
     id: uncommon
     name: "Uncommon"
     color: "<green>"
     rank: 1
     power: 1.15
+    forge_cost: 500
   RARE:
     id: rare
     name: "Rare"
     color: "<blue>"
     rank: 2
     power: 1.35
+    forge_cost: 1000
   EPIC:
     id: epic
     name: "Epic"
     color: "<dark_purple>"
     rank: 3
     power: 1.65
+    forge_cost: 2500
   LEGENDARY:
     id: legendary
     name: "Legendary"
     color: "<gold>"
     rank: 4
     power: 2.0
+    forge_cost: 5000
   MYTHIC:
     id: mythic
     name: "Mythic"
     color: "<light_purple>"
     rank: 5
     power: 2.5
+    forge_cost: 10000
   DIVINE:
     id: divine
     name: "Divine"
     color: "<aqua>"
     rank: 6
     power: 3.0
+    forge_cost: 15000

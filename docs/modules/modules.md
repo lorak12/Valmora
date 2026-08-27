@@ -12,6 +12,7 @@
 [] hud
 [] item
 [] mob
+[] modifier - generic modifier framework (docs/Valmora_Modifier_Framework_Design.docx); replaced the reforge module (see below)
 [] notify
 [] npc
 [*] pipeline (cross-cutting, docs/modules/design/pipeline.md — no user doc, admin-facing surface is YAML `*_pipeline.yml` files + `/valmora pipeline list`, documented inline)
@@ -20,8 +21,9 @@
 [] progression
 [] quest
 [*] quiver - removed, no replacement shipped; docs deleted (see docs/modules/design/backpack.md §6 for a note)
+[*] rarity - data-driven rarity metadata (rarities.yml); documented in docs/modules/design/modifier.md rather than its own file, since it exists to serve the modifier framework
 [] recipe
-[] reforge
+[*] reforge - removed; migrated onto the generic modifier framework as shipped content (modifiers/groups/reforges.yml, modifiers/definitions/reforges.yml) — see docs/modules/design/modifier.md and docs/MODIFIER_FRAMEWORK_BACKLOG.md
 [] resource
 [] script
 [] skill

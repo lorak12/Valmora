@@ -51,8 +51,10 @@ public final class ModifierGroupParser {
                 storageMode = StorageMode.valueOf(storageSec.getString("mode", "STACKED").toUpperCase(Locale.ROOT));
             }
 
+            TierSource tierSource = TierSource.valueOf(section.getString("tier-source", "INSTANCE").toUpperCase(Locale.ROOT));
+
             return LoadResult.success(new ModifierGroupDefinition(id, displayFormat, displayOrder,
-                    applicationMode, max, replacement, removal, targetTypes, storageMode));
+                    applicationMode, max, replacement, removal, targetTypes, storageMode, tierSource));
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Failed to parse modifier group '" + id + "': " + e.getMessage());
         }

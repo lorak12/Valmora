@@ -41,7 +41,7 @@ An item can be:
 - An **armor piece** (helmet, chestplate, leggings, boots) with stats and set
   links.
 - A **consumable / material** (e.g. alchemy ingredients, ingots, raw ores).
-- A **reforge stone** (auto-generated via the `/item give` command).
+- A **reforge stone / gemstone** (a plain static item — see `items/reforge_stones.yml`, `items/gemstones.yml` — applied via the Modifier Anvil, `docs/modules/user/modifier.md`).
 
 All custom items carry their identity, rarity, type, stats, and abilities as
 **PDC (PersistentDataContainer) data** on the `ItemStack` (`AGENTS.md` §11.5).
@@ -58,8 +58,7 @@ Vanilla items are automatically translated into Valmora items with a
 /item give <id> [amount] [player]
 ```
 
-This command requires the `valmora.admin` permission. Some item IDs ending in
-`_reforge_stone` are auto-generated as reforge stones.
+This command requires the `valmora.admin` permission.
 
 **Examples:**
 ```
@@ -173,9 +172,6 @@ flame_wave:
     - "Damage: <green>$item.stat.damage$</green>"
   custom-model-data: 1001
   set: "young_dragon"
-  reforge-pool:
-    - fierce
-    - sharp
   stats:
     damage: 30.0
     strength: 5.0
@@ -235,7 +231,6 @@ Listeners are unregistered and re-registered to prevent duplicate event handling
 | `lore` | List of Strings | No | — | Custom lore lines shown before stats. Supports MiniMessage. |
 | `lore-template` | List of Strings | No | — | Same as `lore`, but `$item.stat.<id>$` tokens are resolved at item creation time. |
 | `custom-model-data` | Integer | No | — | Custom model data for resource packs. |
-| `reforge-pool` | List of Strings | No | — | Reforge-stone candidate list (comma-joined in PDC). |
 | `set` | String | No | — | Links to a set ID in `set_bonuses/`. Used for armor sets. |
 | `stats` | Map | No | — | Stat bonuses. Keys are case-insensitive stat IDs; values are numbers. |
 | `abilities` | Map | No | — | Map of ability definitions. See [Ability Schema](#5-ability-schema-reference). |
@@ -464,7 +459,7 @@ material name, used by the vanilla-item translator.
 | `DIVINE` | Aqua (`<aqua>`) | Divine items (highest tier) |
 
 The rarity color is prepended automatically to the item's display name and is
-also stored in PDC for reforge cost calculation and lore generation.
+also read by the modifier framework (rarity-scaled reforge cost, gemstone/reforge value scaling) and used for lore generation — see `docs/modules/user/modifier.md`.
 
 ---
 
@@ -486,7 +481,7 @@ builder). Unknown stat keys will cause the item to fail loading.
 | `speed` | Movement speed bonus |
 | `health_regen` | Health regeneration rate |
 | `mana_regen` | Mana regeneration rate |
-| `luck` | Luck (affects drops, reforges) |
+| `luck` | Luck (affects drops, gemstones) |
 | `mining_fortune` | Extra drops from mining |
 | `mining_speed` | Mining speed bonus |
 | `intelligence` | Intelligence (mana pool / ability power scaling) |
@@ -616,7 +611,7 @@ Permission: `valmora.admin`. Registered at `Valmora.java:237`.
 
 | Command | Description |
 |---|---|
-| `/item give <id> [amount] [player]` | Gives a custom item. If `<id>` ends in `_reforge_stone`, auto-generates the matching reforge stone. |
+| `/item give <id> [amount] [player]` | Gives a custom item (reforge stones and gemstones are just ordinary items, e.g. `fierce_reforge_stone`, `ruby_gem_1`). |
 | `/item info <id>` | Shows full definition info (name, material, rarity, type, stats, abilities). |
 | `/item info` (held) | Shows info for the item in your main hand — includes vanilla material, display name, lore, stats, enchantments, and a raw PDC key dump. |
 | `/item list` | Prints all registered item IDs. |

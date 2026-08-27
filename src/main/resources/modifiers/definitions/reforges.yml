@@ -1,0 +1,669 @@
+# Migrated from the legacy resources/reforges/combat.yml (org.nakii.valmora.module.reforge,
+# now removed) onto the generic modifier framework
+# (docs/Valmora_Modifier_Framework_Design.docx). The "reforges" group uses
+# tier-source: RARITY_RANK (modifiers/groups/reforges.yml) so tiers 1-7 below map 1:1 to
+# the item's rarity rank (COMMON=1 .. DIVINE=7) at effect-resolution time — this reproduces
+# the old stat-bonuses-by-rarity tables losslessly without a banned by-rarity map keyed by
+# rarity NAME (see ModifierGroupDefinition/TierSource javadoc and the framework backlog doc).
+# Each reforge's own `targets.item_types` narrows the group-level restriction further, exactly
+# reproducing the old per-reforge `applicable-types:` list.
+
+fierce:
+  group: reforges
+  display:
+    name: "<red>Fierce"
+    prefix: "<red>Fierce "
+  targets:
+    item_types: [SWORD, AXE]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 5
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 3
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 12
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 6
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 20
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 10
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 32
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 15
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 48
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 22
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 65
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 30
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 85
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 40
+
+sharp:
+  group: reforges
+  display:
+    name: "<red>Sharp"
+    prefix: "<red>Sharp "
+  targets:
+    item_types: [SWORD, AXE, BOW]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 5
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 2
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 10
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 3
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 18
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 5
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 28
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 7
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 42
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 10
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 58
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 14
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 75
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 18
+
+fabled:
+  group: reforges
+  display:
+    name: "<red>Fabled"
+    prefix: "<red>Fabled "
+  targets:
+    item_types: [SWORD, AXE]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 3
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 4
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 1
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 7
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 8
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 2
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 12
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 14
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 4
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 18
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 22
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 6
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 28
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 33
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 9
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 40
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 46
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 13
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 55
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 62
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 18
+
+heroic:
+  group: reforges
+  display:
+    name: "<red>Heroic"
+    prefix: "<red>Heroic "
+  targets:
+    item_types: [SWORD, AXE, BOW, CROSSBOW]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 3
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 6
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 5
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 12
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 8
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 20
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 11
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 30
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 15
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 45
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 20
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 62
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: crit_chance
+          operation: ADD
+          value: 26
+        - type: STAT
+          stat: crit_damage
+          operation: ADD
+          value: 82
+
+rapid:
+  group: reforges
+  display:
+    name: "<red>Rapid"
+    prefix: "<red>Rapid "
+  targets:
+    item_types: [BOW, CROSSBOW]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 8
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 4
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 16
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 8
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 26
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 14
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 38
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 22
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 55
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 33
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 75
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 46
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: bonus_attack_speed
+          operation: ADD
+          value: 100
+        - type: STAT
+          stat: damage
+          operation: ADD
+          value: 62
+
+fortified:
+  group: reforges
+  display:
+    name: "<red>Fortified"
+    prefix: "<red>Fortified "
+  targets:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 8
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 10
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 18
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 20
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 30
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 35
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 45
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 55
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 65
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 80
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 90
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 110
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 120
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 150
+
+reinforced:
+  group: reforges
+  display:
+    name: "<red>Reinforced"
+    prefix: "<red>Reinforced "
+  targets:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 3
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 6
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 6
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 14
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 10
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 24
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 15
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 37
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 22
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 54
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 30
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 74
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: true_defense
+          operation: ADD
+          value: 40
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 100
+
+titanic:
+  group: reforges
+  display:
+    name: "<red>Titanic"
+    prefix: "<red>Titanic "
+  targets:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  tiers:
+    1: # COMMON
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 20
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 4
+    2: # UNCOMMON
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 40
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 8
+    3: # RARE
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 70
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 14
+    4: # EPIC
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 110
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 20
+    5: # LEGENDARY
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 160
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 30
+    6: # MYTHIC
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 220
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 42
+    7: # DIVINE
+      effects:
+        - type: STAT
+          stat: health
+          operation: ADD
+          value: 300
+        - type: STAT
+          stat: defense
+          operation: ADD
+          value: 56

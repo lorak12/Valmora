@@ -3,6 +3,9 @@ package org.nakii.valmora.module.modifier.recipe;
 import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.module.modifier.value.LiteralValue;
+import org.nakii.valmora.module.modifier.value.ValueParser;
+import org.nakii.valmora.module.modifier.value.ValueResolver;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -47,12 +50,12 @@ public final class ModifierRecipeParser {
                 return LoadResult.failure("[" + filePath + "] APPLY_MODIFIER recipe '" + id + "' requires 'modifier.id'");
             }
 
-            int xpLevels = 0;
-            int coins = 0;
+            ValueResolver xpLevels = new LiteralValue(0);
+            ValueResolver coins = new LiteralValue(0);
             ConfigurationSection costSec = section.getConfigurationSection("cost");
             if (costSec != null) {
-                xpLevels = costSec.getInt("xp_levels", 0);
-                coins = costSec.getInt("coins", 0);
+                if (costSec.contains("xp_levels")) xpLevels = ValueParser.parse(costSec.get("xp_levels"));
+                if (costSec.contains("coins")) coins = ValueParser.parse(costSec.get("coins"));
             }
 
             return LoadResult.success(new ModifierRecipeDefinition(id, machine, operation, baseTypes,

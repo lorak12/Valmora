@@ -93,7 +93,7 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
         int totalLevel = newEnchants.values().stream().mapToInt(Integer::intValue).sum();
         int cost = totalLevel * templateRegistry.getMergeCostPerLevel();
 
-        // Routed through EconomyService (like Reforge) instead of the player.var.coins script
+        // Routed through EconomyService (like the modifier framework) instead of the player.var.coins script
         // variable — resolves the caster from the real execution context at craft time.
         org.nakii.valmora.api.scripting.CompiledEvent onCraft = context ->
                 context.getPlayerCaster().ifPresent(p -> {

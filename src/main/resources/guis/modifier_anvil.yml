@@ -1,9 +1,12 @@
 # =====================================================================
 # Valmora Modifier Anvil GUI — 36 slots (4×9)
 #
-# Generic front-end for the custom_anvil machine (docs/Valmora_Modifier_Framework_Design.docx §16):
-# APPLY_MODIFIER when a gemstone/trait item is placed in the addition slot, REMOVE_MODIFIER when
-# only the base item is present and it already carries a modifier from the requested group.
+# Generic front-end for the custom_anvil machine (docs/Valmora_Modifier_Framework_Design.docx §16) —
+# replaces the legacy reforge_anvil/forge_random GUIs as well as the gemstone STAT_MODIFIER path.
+# Whichever modifiers/recipes/*.yml entry matches the two input slots wins: an exact reforge/
+# gemstone/trait application (addition item present), a random reroll (addition slot left empty,
+# e.g. reforges' `random_reforge`), or a removal (only for groups that ship a REMOVE_MODIFIER
+# recipe, e.g. gemstones' `remove_gemstone`).
 #
 # Layout:
 #  B = Black glass border
@@ -11,7 +14,7 @@
 #  I = Input slot 1 (item to modify)
 #  A = Arrow display
 #  O = Output slot (result)
-#  M = Input slot 2 (gemstone/trait item — optional for removal)
+#  M = Input slot 2 (reforge stone / gemstone / trait item — optional, recipe-dependent)
 #  C = Apply button (triggers custom_anvil machine)
 # =====================================================================
 
@@ -67,10 +70,10 @@ modifier_anvil:
         name: "<green><bold>⚒ Apply!"
         lore:
           - "<gray>Place your item in the <white>left slot</gray>."
-          - "<gray>Place a gemstone/trait item in the"
-          - "<gray><white>right slot</gray> to attach it."
-          - "<gray>Leave the right slot empty to remove"
-          - "<gray>an existing modifier of that kind instead."
+          - "<gray>Place a reforge stone / gemstone / trait item"
+          - "<gray>in the <white>right slot</gray> to attach it."
+          - "<gray>Some recipes work with the right slot"
+          - "<gray>empty instead (e.g. a random reforge reroll)."
         amount: 1
       actions:
         LEFT:

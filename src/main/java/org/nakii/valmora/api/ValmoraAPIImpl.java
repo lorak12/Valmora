@@ -31,7 +31,6 @@ import org.nakii.valmora.module.quest.pkg.QuestPackageManager;
 import org.nakii.valmora.module.quest.points.PointsManager;
 import org.nakii.valmora.module.quest.points.PointsModule;
 import org.nakii.valmora.module.recipe.RecipeModule;
-import org.nakii.valmora.module.reforge.ReforgeModule;
 import org.nakii.valmora.module.resource.ResourceModule;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.module.skill.SkillManager;
@@ -300,11 +299,6 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     @Override
     public CalendarEventModule getCalendarEventModule() {
         return module("calendar", CalendarEventModule.class);
-    }
-
-    @Override
-    public ReforgeModule getReforgeModule() {
-        return module("reforge", ReforgeModule.class);
     }
 
     @Override

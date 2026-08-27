@@ -30,9 +30,6 @@ public class Keys {
     public static NamespacedKey ZONE_WAND_KEY;
 
     public static NamespacedKey HUD_ITEM_KEY;
-    public static NamespacedKey REFORGE_ID_KEY;
-    public static NamespacedKey REFORGE_POOL_KEY;
-    public static NamespacedKey REFORGE_DISPLAY_KEY;
 
     public static NamespacedKey PET_ID_KEY;
     public static NamespacedKey PET_XP_KEY;
@@ -71,9 +68,6 @@ public class Keys {
         ZONE_WAND_KEY = new NamespacedKey(plugin, "zone_wand");
 
         HUD_ITEM_KEY = new NamespacedKey(plugin, "hud_item_id");
-        REFORGE_ID_KEY = new NamespacedKey(plugin, "reforge_id");
-        REFORGE_POOL_KEY = new NamespacedKey(plugin, "reforge_pool");
-        REFORGE_DISPLAY_KEY = new NamespacedKey(plugin, "reforge_display");
 
         PET_ID_KEY = new NamespacedKey(plugin, "pet_id");
         PET_XP_KEY = new NamespacedKey(plugin, "pet_xp");

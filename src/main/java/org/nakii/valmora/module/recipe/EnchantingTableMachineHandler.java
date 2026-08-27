@@ -26,7 +26,7 @@ import java.util.Random;
  * fully custom interaction (`enchant_select`/`enchant_apply`/`enchant_remove` script events,
  * see {@code EnchantSelectEventFactory} and friends) that acts on the input item directly rather
  * than going through a craft button. This handler is for GUI authors who'd rather build an
- * enchanting GUI the same data-driven way as the anvil/reforge GUIs (a plain
+ * enchanting GUI the same data-driven way as the anvil/modifier-anvil GUIs (a plain
  * {@code gui_force_craft} button), with input slot ids {@code item} (required) and {@code lapis}
  * (optional, consumed 1-per-level as a cost) — it picks one random eligible enchantment for the
  * item's {@link ItemType} at a random level up to that enchantment's {@code etable-max-level}.

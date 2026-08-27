@@ -68,7 +68,9 @@ public class ModifierEngine {
         if (!def.getGroupId().equalsIgnoreCase(groupId)) return new ApplyOutcome(ApplyResult.WRONG_GROUP, baseItem);
 
         ItemType itemType = readItemType(baseItem);
-        if (!group.appliesTo(itemType)) return new ApplyOutcome(ApplyResult.TARGET_NOT_ALLOWED, baseItem);
+        if (!group.appliesTo(itemType) || !def.appliesToItemType(itemType)) {
+            return new ApplyOutcome(ApplyResult.TARGET_NOT_ALLOWED, baseItem);
+        }
 
         ItemMeta meta = baseItem.getItemMeta();
         if (meta == null) return new ApplyOutcome(ApplyResult.TARGET_NOT_ALLOWED, baseItem);
@@ -176,6 +178,59 @@ public class ModifierEngine {
         return Math.max(1, Math.min(tier, def.getMaxTier()));
     }
 
+    /**
+     * The tier actually used to resolve effects/display for one instance: either the tier stored on
+     * the instance ({@link TierSource#INSTANCE}, the default — e.g. gemstones), or derived fresh
+     * from the item's current rarity rank ({@link TierSource#RARITY_RANK} — e.g. reforges, so
+     * re-rarity-ing an item automatically reflects in its reforge's granted stats without rewriting
+     * the component).
+     */
+    private int effectiveTier(ModifierGroupDefinition group, ModifierDefinition def, ModifierInstance instance, RarityDefinition rarity) {
+        if (group.getTierSource() == TierSource.RARITY_RANK && rarity != null) {
+            return Math.max(1, Math.min(rarity.getRank() + 1, def.getMaxTier()));
+        }
+        return instance.getTier();
+    }
+
+    /**
+     * Applies a uniformly-weighted random modifier from {@code groupId} (by {@link
+     * ModifierDefinition#getWeight()}), excluding whichever modifier(s) from that group are already
+     * attached — the generic equivalent of the legacy {@code forge_random} reforge reroll, but not
+     * special-cased to any one group id.
+     */
+    public ApplyOutcome applyRandom(ItemStack baseItem, String groupId) {
+        ModifierGroupDefinition group = groups.get(groupId).orElse(null);
+        if (group == null) return new ApplyOutcome(ApplyResult.GROUP_UNKNOWN, baseItem);
+
+        ItemType itemType = readItemType(baseItem);
+        ItemMeta meta = baseItem.getItemMeta();
+        List<ModifierInstance> current = meta != null ? store.read(meta, groupId) : List.of();
+        java.util.Set<String> excludeIds = new java.util.HashSet<>();
+        for (ModifierInstance i : current) excludeIds.add(i.getModifierId().toLowerCase(Locale.ROOT));
+
+        List<ModifierDefinition> eligible = new ArrayList<>();
+        for (ModifierDefinition def : modifiers.valuesInGroup(groupId)) {
+            if (excludeIds.contains(def.getId().toLowerCase(Locale.ROOT))) continue;
+            if (!def.getGroupId().equalsIgnoreCase(groupId)) continue;
+            eligible.add(def);
+        }
+        // appliesTo(itemType) is checked centrally in apply(...) too, but filtering here first keeps
+        // the weighted roll fair (an ineligible modifier shouldn't consume weight and force a retry).
+        eligible.removeIf(def -> !group.appliesTo(itemType) || !def.appliesToItemType(itemType));
+        if (eligible.isEmpty()) return new ApplyOutcome(ApplyResult.MODIFIER_UNKNOWN, baseItem);
+
+        double totalWeight = eligible.stream().mapToDouble(ModifierDefinition::getWeight).sum();
+        double roll = java.util.concurrent.ThreadLocalRandom.current().nextDouble() * totalWeight;
+        double cumulative = 0;
+        ModifierDefinition chosen = eligible.get(eligible.size() - 1);
+        for (ModifierDefinition def : eligible) {
+            cumulative += def.getWeight();
+            if (roll < cumulative) { chosen = def; break; }
+        }
+
+        return apply(baseItem, groupId, chosen.getId(), 1);
+    }
+
     private boolean intersectionEmpty(java.util.Set<String> a, java.util.Set<String> b) {
         for (String s : a) if (b.contains(s)) return false;
         return true;
@@ -195,13 +250,16 @@ public class ModifierEngine {
         ExecutionContext ctx = fullContext(player, item);
 
         for (Map.Entry<String, List<ModifierInstance>> entry : store.readAll(meta, groups).entrySet()) {
+            ModifierGroupDefinition group = groups.get(entry.getKey()).orElse(null);
+            if (group == null) continue;
             for (ModifierInstance instance : entry.getValue()) {
                 ModifierDefinition def = modifiers.get(instance.getModifierId()).orElse(null);
                 if (def == null) continue;
-                for (ModifierEffect effect : def.getEffects(instance.getTier())) {
+                int tier = effectiveTier(group, def, instance, rarity);
+                for (ModifierEffect effect : def.getEffects(tier)) {
                     if (!(effect instanceof StatEffect stat)) continue;
                     if (!stat.getConditions().evaluate(ctx)) continue;
-                    double value = stat.getValue().resolve(rarity, instance.getTier(), ctx) * instance.getCount();
+                    double value = stat.getValue().resolve(rarity, tier, ctx) * instance.getCount();
                     switch (stat.getOperation()) {
                         case ADD -> sink.accept(stat.getStat(), value);
                         case MULTIPLY -> {
@@ -229,11 +287,15 @@ public class ModifierEngine {
     public void applyPassiveAbilities(ItemStack item, Player player) {
         if (item == null || !item.hasItemMeta()) return;
         ItemMeta meta = item.getItemMeta();
+        RarityDefinition rarity = readRarity(item);
         for (Map.Entry<String, List<ModifierInstance>> entry : store.readAll(meta, groups).entrySet()) {
+            ModifierGroupDefinition group = groups.get(entry.getKey()).orElse(null);
+            if (group == null) continue;
             for (ModifierInstance instance : entry.getValue()) {
                 ModifierDefinition def = modifiers.get(instance.getModifierId()).orElse(null);
                 if (def == null) continue;
-                for (ModifierEffect effect : def.getEffects(instance.getTier())) {
+                int tier = effectiveTier(group, def, instance, rarity);
+                for (ModifierEffect effect : def.getEffects(tier)) {
                     if (!(effect instanceof AbilityEffect ability)) continue;
                     if (ability.getDefinition().getTrigger() != AbilityTrigger.PASSIVE) continue;
                     for (ConfiguredMechanic mechanic : ability.getDefinition().getMechanics()) {
@@ -242,6 +304,62 @@ public class ModifierEngine {
                 }
             }
         }
+    }
+
+    /**
+     * Resolves the display name (prefix/suffix) to render for the given {@link DisplayFormat}
+     * group(s) on this item — used by {@code ItemFactory.updateLore} instead of the old
+     * reforge-specific {@code Keys.REFORGE_DISPLAY_KEY} lookup. Returns the first match found across
+     * groups of that format (a group normally has at most one active instance when it drives display
+     * text, since {@code EXCLUSIVE}/{@code SINGLE} is the natural pairing for prefix/suffix content).
+     */
+    public java.util.Optional<String> getDisplayText(ItemStack item, DisplayFormat format) {
+        if (item == null || !item.hasItemMeta()) return java.util.Optional.empty();
+        ItemMeta meta = item.getItemMeta();
+        RarityDefinition rarity = readRarity(item);
+        for (Map.Entry<String, List<ModifierInstance>> entry : store.readAll(meta, groups).entrySet()) {
+            ModifierGroupDefinition group = groups.get(entry.getKey()).orElse(null);
+            if (group == null || group.getDisplayFormat() != format) continue;
+            for (ModifierInstance instance : entry.getValue()) {
+                ModifierDefinition def = modifiers.get(instance.getModifierId()).orElse(null);
+                if (def == null) continue;
+                int tier = effectiveTier(group, def, instance, rarity);
+                String text = format == DisplayFormat.SUFFIX ? def.getSuffix() : def.getPrefix();
+                if (text == null) {
+                    String name = def.getDisplayName(tier);
+                    text = name == null ? null : (format == DisplayFormat.SUFFIX ? " " + name : name + " ");
+                }
+                if (text != null) return java.util.Optional.of(text);
+            }
+        }
+        return java.util.Optional.empty();
+    }
+
+    /**
+     * Every LORE-format modifier attached to this item, as {@code (definition, effective tier)}
+     * pairs in group display order then attachment order — used by {@code ItemFactory.updateLore}
+     * to render gemstone-style lines. Effects themselves are folded into the caller's stat map via
+     * {@link #contributeStats}; this is purely for name/tier lore lines.
+     */
+    public List<Map.Entry<ModifierDefinition, Integer>> getLoreEntries(ItemStack item) {
+        List<Map.Entry<ModifierDefinition, Integer>> result = new ArrayList<>();
+        if (item == null || !item.hasItemMeta()) return result;
+        ItemMeta meta = item.getItemMeta();
+        RarityDefinition rarity = readRarity(item);
+
+        List<ModifierGroupDefinition> orderedGroups = new ArrayList<>(groups.values());
+        orderedGroups.sort(java.util.Comparator.comparingInt(ModifierGroupDefinition::getDisplayOrder));
+
+        for (ModifierGroupDefinition group : orderedGroups) {
+            if (group.getDisplayFormat() != DisplayFormat.LORE) continue;
+            for (ModifierInstance instance : store.read(meta, group.getId())) {
+                ModifierDefinition def = modifiers.get(instance.getModifierId()).orElse(null);
+                if (def == null) continue;
+                int tier = effectiveTier(group, def, instance, rarity);
+                result.add(Map.entry(def, tier));
+            }
+        }
+        return result;
     }
 
     /** Applies base-level (untiered-position) STATE effects once, at attachment time (§13). */

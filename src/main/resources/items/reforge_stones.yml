@@ -1,0 +1,77 @@
+# =====================================================================
+# Reforge stone items — generic modifier framework migration
+# (docs/Valmora_Modifier_Framework_Design.docx §10/§16). Each stone is the `addition` item
+# for its reforge's APPLY_MODIFIER recipe in modifiers/recipes/reforges.yml.
+# =====================================================================
+
+fierce_reforge_stone:
+  name: "<aqua>Fierce Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Fierce</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+sharp_reforge_stone:
+  name: "<aqua>Sharp Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Sharp</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+fabled_reforge_stone:
+  name: "<aqua>Fabled Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Fabled</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+heroic_reforge_stone:
+  name: "<aqua>Heroic Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Heroic</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+rapid_reforge_stone:
+  name: "<aqua>Rapid Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Rapid</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+fortified_reforge_stone:
+  name: "<aqua>Fortified Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Fortified</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+reinforced_reforge_stone:
+  name: "<aqua>Reinforced Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Reinforced</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."
+
+titanic_reforge_stone:
+  name: "<aqua>Titanic Reforge Stone"
+  material: "AMETHYST_SHARD"
+  rarity: "COMMON"
+  item-type: "NONE"
+  lore:
+    - "<gray>Apply the <red>Titanic</red> reforge to a weapon/armor"
+    - "<gray>piece in the Modifier Anvil."

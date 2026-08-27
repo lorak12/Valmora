@@ -99,8 +99,18 @@ public final class ModifierDefinitionParser {
                     ? ModifierEffectParser.parse(section.getMapList("effects"), mechanicRegistry)
                     : Collections.emptyList();
 
+            double weight = section.getDouble("weight", 1.0);
+
+            Set<org.nakii.valmora.module.item.ItemType> targetItemTypes = new HashSet<>();
+            ConfigurationSection targetsSec = section.getConfigurationSection("targets");
+            if (targetsSec != null) {
+                for (String typeStr : targetsSec.getStringList("item_types")) {
+                    org.nakii.valmora.module.item.ItemType.find(typeStr).ifPresent(targetItemTypes::add);
+                }
+            }
+
             return LoadResult.success(new ModifierDefinition(id, groupId.toLowerCase(Locale.ROOT), displayName, prefix, suffix,
-                    lore, requirements, tags, conflictIds, conflictTags, state, tiers, baseEffects));
+                    lore, requirements, tags, conflictIds, conflictTags, state, tiers, baseEffects, weight, targetItemTypes));
         } catch (ModifierEffectParser.EffectParseException e) {
             return LoadResult.failure("[" + filePath + "] Modifier '" + id + "': " + e.getMessage());
         } catch (Exception e) {

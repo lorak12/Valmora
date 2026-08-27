@@ -1,0 +1,25 @@
+# Default content pack: Reforges (docs/Valmora_Modifier_Framework_Design.docx §10), migrated off
+# the legacy org.nakii.valmora.module.reforge.ReforgeModule Java implementation. Pure YAML content
+# over the generic modifier engine — no Reforge Java class, no reforge-specific stat evaluator, no
+# reforge-specific application path.
+#
+# tier-source: RARITY_RANK is the key piece that makes this a lossless migration of the old
+# per-rarity stat tables without recreating a banned `stat-bonuses-by-rarity` map: each reforge in
+# modifiers/definitions/reforges.yml declares tiers 1-7 (COMMON..DIVINE by rank), and the engine
+# picks the tier from the carrying item's current rarity automatically — see
+# ModifierGroupDefinition/TierSource javadoc and docs/MODIFIER_FRAMEWORK_BACKLOG.md.
+
+reforges:
+  display:
+    format: PREFIX
+    order: 10
+  application:
+    mode: EXCLUSIVE
+    max: 1
+    replacement: true
+    removal: true
+  targets:
+    item_types: [SWORD, AXE, BOW, CROSSBOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  storage:
+    mode: SINGLE
+  tier-source: RARITY_RANK

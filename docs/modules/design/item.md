@@ -31,7 +31,7 @@
 
 ## 1. Overview
 
-The **Item Module** is the engine that defines, creates, and applies **custom RPG items**. Every custom item in Valmora — weapons, armor, wands, fishing rods, reforge stones, pet items, backpacks — is a YAML definition loaded into a case-insensitive registry and materialized into a Paper `ItemStack` carrying the item's identity, rarity, type, stats, and abilities as **PDC (PersistentDataContainer) data** (`AGENTS.md` §11.5).
+The **Item Module** is the engine that defines, creates, and applies **custom RPG items**. Every custom item in Valmora — weapons, armor, wands, fishing rods, gemstones/reforge stones, pet items, backpacks — is a YAML definition loaded into a case-insensitive registry and materialized into a Paper `ItemStack` carrying the item's identity, rarity, type, stats, and abilities as **PDC (PersistentDataContainer) data** (`AGENTS.md` §11.5).
 
 The module is split into **two registered modules** living in the same package:
 
@@ -125,7 +125,7 @@ The `/item` command is registered in `Valmora.onEnable()` after all modules — 
 
 ### 3.2 ItemDefinition / Builder
 
-`ItemDefinition` (`ItemDefinition.java:10-21`) is immutable and built through a nested `Builder` (`ItemDefinition.java:51-84`). Fields: `id`, `name`, `material`, `rarity` (default COMMON), `itemType` (default NONE), `lore`, `loreTemplate` (supports `$item.stat.<id>$` tokens resolved at create time), `customModelData`, `reforgePool`, `set` (armor-set link), `stats` (LinkedHashMap, stat ids lowercased by the builder), and `abilities` (LinkedHashMap<String, AbilityDefinition>).
+`ItemDefinition` (`ItemDefinition.java:10-21`) is immutable and built through a nested `Builder` (`ItemDefinition.java:51-84`). Fields: `id`, `name`, `material`, `rarity` (default COMMON), `itemType` (default NONE), `lore`, `loreTemplate` (supports `$item.stat.<id>$` tokens resolved at create time), `customModelData`, `set` (armor-set link), `stats` (LinkedHashMap, stat ids lowercased by the builder), and `abilities` (LinkedHashMap<String, AbilityDefinition>). (There is no `reforgePool` field any more — that concept was removed with the legacy reforge module; reforge/gemstone eligibility is now expressed generically via `modifiers/groups/*.yml`'s `targets.item_types` and a modifier's own `targets.item_types`, see `docs/modules/design/modifier.md`.)
 
 ### 3.3 ItemDefinitionParser
 
@@ -148,7 +148,7 @@ The `/item` command is registered in `Valmora.onEnable()` after all modules — 
 `ItemFactory.create(ItemDefinition)` (`ItemFactory.java:26-61`) is the single place a definition becomes a real `ItemStack`:
 
 1. Builds the base `ItemStack` from `definition.getMaterial()`.
-2. Writes identity PDC keys: `ITEM_ID_KEY`, `ITEM_TYPE_KEY`, `RARITY_KEY` (`ItemFactory.java:31-33`), plus `custom-model-data` and, for reforge stones, the comma-joined `reforge_pool` (`ItemFactory.java:49`).
+2. Writes identity PDC keys: `ITEM_ID_KEY`, `ITEM_TYPE_KEY`, `RARITY_KEY` (`ItemFactory.java:31-33`), plus `custom-model-data`.
 3. Saves the stat map via `ValmoraAPI.getInstance().getStatModule().saveStats(meta, stats)` (`ItemFactory.java:53`) — the stats live in `STATS_CONTAINER_KEY`.
 4. Calls `updateLore(item, meta)` to generate the full display lore.
 
@@ -250,9 +250,6 @@ my_sword:
   lore-template:                  # optional; $item.stat.<id>$ tokens resolved at create
     - "Damage: <green>$item.stat.damage$</green>"
   custom-model-data: 1001
-  reforge-pool:                   # for reforge stones
-    - fierce
-    - sharp
   set: young_dragon               # links to set_bonuses/young_dragon
   stats:
     damage: 30.0
@@ -304,15 +301,14 @@ Custom items carry **no database state**; everything about an item lives in its 
 
 | PDC key (`Keys.java`) | Written at | Purpose |
 |---|---|---|
-| `ITEM_ID_KEY` (`Keys.java:43`) | `ItemFactory.java:31` | Item identity; read by `AbilityExecutor.fireHeld`, `LootListener`, `SetBonusService`, reforge/enchant modules |
-| `ITEM_TYPE_KEY` (`Keys.java:45`) | `ItemFactory.java:32` | `ItemType` for mechanics/recipes |
-| `RARITY_KEY` (`Keys.java:44`) | `ItemFactory.java:33` | Rarity for reforge cost/lore |
-| `STATS_CONTAINER_KEY` (`Keys.java:46`) | `StatManager.saveStats` | Serialized stat map |
-| `ENCHANTS_CONTAINER_KEY` (`Keys.java:48`) | enchant module | Custom enchantments |
-| `REFORGE_POOL_KEY` (`Keys.java:66`) | `ItemFactory.java:49` | Reforge-stone candidate list (comma-joined) |
-| `REFORGE_ID_KEY` / `REFORGE_DISPLAY_KEY` (`Keys.java:65,67`) | reforge module | Applied reforge |
-| `MOB_ID_KEY` (`Keys.java:47`) | mob module | Spawned-mob identity (for ON_KILL/loot) |
-| `PET_ID_KEY`/`PET_XP_KEY`/`PET_LEVEL_KEY` (`Keys.java:33-35`) | pet module | Pet items |
+| `ITEM_ID_KEY` (`Keys.java`) | `ItemFactory.java:31` | Item identity; read by `AbilityExecutor.fireHeld`, `LootListener`, `SetBonusService`, modifier/enchant modules |
+| `ITEM_TYPE_KEY` (`Keys.java`) | `ItemFactory.java:32` | `ItemType` for mechanics/recipes |
+| `RARITY_KEY` (`Keys.java`) | `ItemFactory.java:33` | Rarity, resolved against `RarityRegistry` for modifier cost/value scaling and lore |
+| `STATS_CONTAINER_KEY` (`Keys.java`) | `StatManager.saveStats` | Serialized baked stat map (item-definition stats only — modifier-granted stats are resolved dynamically, not baked here) |
+| `ENCHANTS_CONTAINER_KEY` (`Keys.java`) | enchant module | Custom enchantments |
+| `modifiers_<group_id>` (`ModifierComponentStore`, not in `Keys.java` — created per-group on the fly) | modifier module | Active modifier instances for that group (id/tier/count/state) — replaces the old `REFORGE_ID_KEY`/`REFORGE_POOL_KEY`/`REFORGE_DISPLAY_KEY`, which no longer exist |
+| `MOB_ID_KEY` (`Keys.java`) | mob module | Spawned-mob identity (for ON_KILL/loot) |
+| `PET_ID_KEY`/`PET_XP_KEY`/`PET_LEVEL_KEY` (`Keys.java`) | pet module | Pet items |
 
 Shared static keys are initialized once in `Keys.init(plugin)` (`Keys.java:42`).
 
@@ -336,7 +332,7 @@ Shared static keys are initialized once in `Keys.init(plugin)` (`Keys.java:42`).
 
 Registered at `Valmora.java:237`, permission `valmora.admin` (`plugin.yml:16`). Subcommands in `ItemCommand.onCommand` (`ItemCommand.java:39-196`):
 
-- `give <id> [amount]` (`ItemCommand.java:54-104`) — auto-generates reforge stones for ids ending in `_reforge_stone` (`ItemCommand.java:80-94`).
+- `give <id> [amount]` (`ItemCommand.java:54-88`) — gives any registered item, including static reforge stone/gemstone items (`items/reforge_stones.yml`, `items/gemstones.yml`).
 - `info <id>` / `info` (held) (`ItemCommand.java:106-124`, detail at `sendDefinitionInfo` `ItemCommand.java:198-243`, `sendHeldItemInfo` `ItemCommand.java:245-352`).
 - `list [query]` (`ItemCommand.java:126-133`).
 - `reload` (`ItemCommand.java:135-138`).
@@ -360,12 +356,12 @@ Registered at `Valmora.java:237`, permission `valmora.admin` (`plugin.yml:16`). 
 - **combat** (`CombatListener.java:53-58`) — ON_HIT dispatch + `CombatTracker`.
 - **stat** (`StatManager.java:164,170`) — `SetBonusService.applyTo`, `TemporaryStatService.applyTo`.
 - **script** (`PlayerVariableProvider.java:153-154`) — `$player.last_damage$`.
-- **reforge** (design/reforge.md:5) — base stats, item type/rarity PDC, lore regeneration via `ItemFactory.updateLore`.
+- **modifier** (design/modifier.md) — base stats, item type/rarity PDC, lore regeneration via `ItemFactory.updateLore` (which now also renders modifier prefix/suffix text and merges modifier STAT effects into the displayed stats block).
 - **enchant, recipe, gui, fishing, backpack, pet, mob** — read `ITEM_ID_KEY`/`ITEM_TYPE_KEY`/rarity PDC and consume the registry/mechanics.
 
 ### 7.3 Load-order notes
 
-`abilities` registers before `items` (`Valmora.java:196-197`); both after `script`/`stat`/`player`/`ui`, before `combat`/`enchant`. Consumers (`combat`, `enchant`, `recipe`, `gui`, `reforge`, `backpack`) all register later and read item data at runtime via `ValmoraAPI`, never at enable-time — keeping reloads safe.
+`abilities` registers before `items`; both after `script`/`stat`/`player`/`ui`, before `combat`/`enchant`. Consumers (`combat`, `enchant`, `recipe`, `gui`, `modifier`, `backpack`) all register later and read item data at runtime via `ValmoraAPI`, never at enable-time — keeping reloads safe.
 
 ---
 

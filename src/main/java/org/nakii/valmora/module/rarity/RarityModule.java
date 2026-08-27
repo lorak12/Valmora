@@ -56,7 +56,17 @@ public class RarityModule implements ReloadableModule {
                 String color = def.getString("color", "<white>");
                 int rank = def.getInt("rank", 0);
                 double power = def.getDouble("power", 1.0);
-                registry.register(new RarityDefinition(key, id, name, color, rank, power));
+
+                java.util.Map<String, Double> extra = new java.util.HashMap<>();
+                for (String extraKey : def.getKeys(false)) {
+                    if (extraKey.equals("id") || extraKey.equals("name") || extraKey.equals("color")
+                            || extraKey.equals("rank") || extraKey.equals("power")) continue;
+                    if (def.isDouble(extraKey) || def.isInt(extraKey) || def.isLong(extraKey)) {
+                        extra.put(extraKey.toLowerCase(Locale.ROOT), def.getDouble(extraKey));
+                    }
+                }
+
+                registry.register(new RarityDefinition(key, id, name, color, rank, power, extra));
                 count++;
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to parse rarity '" + key + "': " + e.getMessage());

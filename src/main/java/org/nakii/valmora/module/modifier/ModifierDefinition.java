@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.modifier;
 
+import org.nakii.valmora.module.item.ItemType;
 import org.nakii.valmora.module.modifier.effect.ModifierEffect;
 import org.nakii.valmora.module.script.condition.ConditionGroup;
 
@@ -27,12 +28,15 @@ public class ModifierDefinition {
     private final Map<String, ModifierStateDefinition> state; // key -> def
     private final Map<Integer, ModifierTier> tiers; // may be empty -> use baseEffects at tier 1
     private final List<ModifierEffect> baseEffects; // used when tiers is empty
+    private final double weight; // relative weight for a group's random-selection application (default 1.0)
+    private final Set<ItemType> targetItemTypes; // empty = inherit only the group's restriction
 
     public ModifierDefinition(String id, String groupId, String displayName, String prefix, String suffix,
                                List<String> lore, ConditionGroup requirements, Set<String> tags,
                                Set<String> conflictIds, Set<String> conflictTags,
                                Map<String, ModifierStateDefinition> state,
-                               Map<Integer, ModifierTier> tiers, List<ModifierEffect> baseEffects) {
+                               Map<Integer, ModifierTier> tiers, List<ModifierEffect> baseEffects, double weight,
+                               Set<ItemType> targetItemTypes) {
         this.id = id;
         this.groupId = groupId;
         this.displayName = displayName;
@@ -46,6 +50,8 @@ public class ModifierDefinition {
         this.state = state;
         this.tiers = tiers;
         this.baseEffects = baseEffects;
+        this.weight = weight;
+        this.targetItemTypes = targetItemTypes;
     }
 
     public String getId() { return id; }
@@ -60,6 +66,13 @@ public class ModifierDefinition {
     public Set<String> getConflictTags() { return conflictTags; }
     public Map<String, ModifierStateDefinition> getState() { return state; }
     public Map<Integer, ModifierTier> getTiers() { return tiers; }
+    public double getWeight() { return weight; }
+    public Set<ItemType> getTargetItemTypes() { return targetItemTypes; }
+
+    /** Narrows the group's own {@code targets.item_types} — empty means "no additional restriction". */
+    public boolean appliesToItemType(ItemType type) {
+        return targetItemTypes.isEmpty() || targetItemTypes.contains(type);
+    }
 
     public boolean isTiered() { return !tiers.isEmpty(); }
 

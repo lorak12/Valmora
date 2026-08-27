@@ -19,9 +19,11 @@ import java.util.Optional;
 /**
  * {@code DynamicMachineHandler} for the {@code custom_anvil} machine (docs/
  * Valmora_Modifier_Framework_Design.docx §16) — the generic replacement for a gemstone-specific
- * {@code STAT_MODIFIER} recipe operation. Input slots: {@code base_item} (required) and {@code
- * addition_item} (required for APPLY_MODIFIER, ignored for REMOVE_MODIFIER). Mirrors {@code
- * ReforgeModule}'s {@code reforge_anvil} handler shape.
+ * {@code STAT_MODIFIER} recipe operation, and (via the {@code addition.item}-less recipe form + the
+ * {@code modifier.id: RANDOM} sentinel) also the generic replacement for the legacy reforge system's
+ * two anvil machines ({@code reforge_anvil}: item + specific stone; {@code forge_random}: item alone
+ * → weighted random reroll). Input slots: {@code base_item} (required) and {@code addition_item}
+ * (required only when the recipe declares an {@code addition.item}).
  */
 public class ModifierAnvilHandler implements DynamicMachineHandler {
 
@@ -53,31 +55,40 @@ public class ModifierAnvilHandler implements DynamicMachineHandler {
             if (!recipe.appliesToBase(baseType)) continue;
 
             if (recipe.getOperation() == ModifierRecipeDefinition.Operation.APPLY_MODIFIER) {
-                if (isEmpty(additionItem)) continue;
-                if (!matchesAdditionItem(additionItem, recipe.getAdditionItemId())) continue;
-                if (additionItem.getAmount() < recipe.getAdditionAmount()) continue;
-                if (!checkAndNotifyCost(player, recipe)) continue;
+                boolean needsAddition = recipe.getAdditionItemId() != null;
+                if (needsAddition) {
+                    if (isEmpty(additionItem)) continue;
+                    if (!matchesAdditionItem(additionItem, recipe.getAdditionItemId())) continue;
+                    if (additionItem.getAmount() < recipe.getAdditionAmount()) continue;
+                } else if (!isEmpty(additionItem)) {
+                    // A recipe with no declared addition (e.g. a random reforge reroll) shouldn't
+                    // silently match while the player has an unrelated item sitting in that slot.
+                    continue;
+                }
+                if (!checkAndNotifyCost(player, recipe, baseItem)) continue;
 
-                var outcome = engine.apply(baseItem, recipe.getModifierGroup(), recipe.getModifierId(), recipe.getModifierTier());
+                var outcome = "RANDOM".equalsIgnoreCase(recipe.getModifierId())
+                        ? engine.applyRandom(baseItem, recipe.getModifierGroup())
+                        : engine.apply(baseItem, recipe.getModifierGroup(), recipe.getModifierId(), recipe.getModifierTier());
                 if (!outcome.isSuccess()) continue;
 
                 ItemStack output = outcome.item();
                 plugin.getItemManager().getItemFactory().updateLore(output);
                 return Optional.of(RecipeDefinition.dynamic("custom_anvil", output, inp -> {
-                    consumeAmount(inp, "addition_item", recipe.getAdditionAmount());
+                    if (needsAddition) consumeAmount(inp, "addition_item", recipe.getAdditionAmount());
                     consumeItem(inp, "base_item");
-                    deductCost(player, recipe);
+                    deductCost(player, recipe, baseItem);
                 }));
             } else { // REMOVE_MODIFIER
                 var outcome = engine.remove(baseItem, recipe.getModifierGroup(), recipe.getModifierId());
                 if (!outcome.isSuccess()) continue;
-                if (!checkAndNotifyCost(player, recipe)) continue;
+                if (!checkAndNotifyCost(player, recipe, baseItem)) continue;
 
                 ItemStack output = outcome.item();
                 plugin.getItemManager().getItemFactory().updateLore(output);
                 return Optional.of(RecipeDefinition.dynamic("custom_anvil", output, inp -> {
                     consumeItem(inp, "base_item");
-                    deductCost(player, recipe);
+                    deductCost(player, recipe, baseItem);
                 }));
             }
         }
@@ -104,33 +115,43 @@ public class ModifierAnvilHandler implements DynamicMachineHandler {
         return item == null || item.getType().isAir() || item.getAmount() == 0;
     }
 
-    private boolean checkAndNotifyCost(@Nullable Player player, ModifierRecipeDefinition recipe) {
+    private boolean checkAndNotifyCost(@Nullable Player player, ModifierRecipeDefinition recipe, ItemStack baseItem) {
         if (player == null) return true;
-        if (recipe.getCostCoins() > 0) {
+        int coins = resolveCost(recipe.getCostCoins(), baseItem);
+        int xpLevels = resolveCost(recipe.getCostXpLevels(), baseItem);
+
+        if (coins > 0) {
             var eco = plugin.getEconomy();
-            if (eco != null && !eco.hasCoins(player, recipe.getCostCoins())) {
+            if (eco != null && !eco.hasCoins(player, coins)) {
                 plugin.getServer().getScheduler().runTask(plugin, () ->
-                        player.sendMessage(Formatter.format("<red>You need <gold>" + recipe.getCostCoins() + " Coins</gold> for this modifier.")));
+                        player.sendMessage(Formatter.format("<red>You need <gold>" + coins + " Coins</gold> for this modifier.")));
                 return false;
             }
         }
-        if (recipe.getCostXpLevels() > 0 && player.getLevel() < recipe.getCostXpLevels()) {
+        if (xpLevels > 0 && player.getLevel() < xpLevels) {
             plugin.getServer().getScheduler().runTask(plugin, () ->
-                    player.sendMessage(Formatter.format("<red>You need <green>" + recipe.getCostXpLevels() + " XP levels</green> for this modifier.")));
+                    player.sendMessage(Formatter.format("<red>You need <green>" + xpLevels + " XP levels</green> for this modifier.")));
             return false;
         }
         return true;
     }
 
-    private void deductCost(@Nullable Player player, ModifierRecipeDefinition recipe) {
+    private void deductCost(@Nullable Player player, ModifierRecipeDefinition recipe, ItemStack baseItem) {
         if (player == null) return;
-        if (recipe.getCostCoins() > 0) {
+        int coins = resolveCost(recipe.getCostCoins(), baseItem);
+        int xpLevels = resolveCost(recipe.getCostXpLevels(), baseItem);
+
+        if (coins > 0) {
             var eco = plugin.getEconomy();
-            if (eco != null) eco.removeCoins(player, recipe.getCostCoins());
+            if (eco != null) eco.removeCoins(player, coins);
         }
-        if (recipe.getCostXpLevels() > 0) {
-            player.setLevel(Math.max(0, player.getLevel() - recipe.getCostXpLevels()));
+        if (xpLevels > 0) {
+            player.setLevel(Math.max(0, player.getLevel() - xpLevels));
         }
+    }
+
+    private int resolveCost(org.nakii.valmora.module.modifier.value.ValueResolver cost, ItemStack baseItem) {
+        return (int) Math.round(cost.resolve(engine.readRarity(baseItem), 1, null));
     }
 
     private void consumeItem(Map<String, ItemStack> inputs, String key) {
