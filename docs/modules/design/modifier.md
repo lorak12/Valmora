@@ -86,7 +86,7 @@ when this module shipped — reforges are now shipped content over this engine
 | `ModifierDefinition` | `groupId`, display (`name`/`prefix`/`suffix`/`lore`), `requirements` (`ConditionGroup`), `tags`/`conflictIds`/`conflictTags`, `state` (`Map<String, ModifierStateDefinition>`), `tiers` (`Map<Integer, ModifierTier>`, empty for untiered), `weight`, and an additional `targetItemTypes` that **narrows** the group's own restriction (e.g. within the `reforges` group, `fierce` only applies to SWORD/AXE even though the group allows armor too). `getEffects(tier)`/`getDisplayName(tier)` fall back to base (untiered) content when `tiers` is empty. |
 | `ModifierTier` | One tier's `displayNameOverride` + full effect list (tiers **replace**, not add to, each other). |
 | `ModifierStateDefinition` | `default`/`min`/`max` for one state field. |
-| `ModifierGroupRegistry` / `ModifierRegistry` | Simple case-insensitive id maps, `ModifierRegistry.valuesInGroup(id)` for iteration. |
+| `ModifierGroupRegistry` / `ModifierRegistry` | Simple case-insensitive id maps, `ModifierRegistry.valuesInGroup(id)` for iteration. Populated by the YAML parsers, or directly by a plugin via `ModifierGroupDefinition.builder(id)`/`ModifierDefinition.builder(id, groupId)` (§20) + `.register(...)`. |
 | `ModifierGroupParser` / `ModifierDefinitionParser` | `YamlLoader.SectionParser` implementations — see §5 for the exact YAML shape used (note: it differs slightly from the design doc's illustrative wrapper syntax). |
 
 ### 2.3 `org.nakii.valmora.module.modifier.effect`
@@ -341,16 +341,16 @@ See `docs/MODIFIER_FRAMEWORK_BACKLOG.md` for the full list with rationale. Summa
    current `AbilityExecutor.fireModifiersForItem`/`ModifierEngine.getGrantedEventActions` plumbing
    doesn't provide. ABILITY and EVENT effects don't have this problem since they don't mutate the
    item itself.
-2. **No fluent Java builder** for `ModifierGroupDefinition`/`ModifierDefinition` (design doc §20's
-   `ModifierGroup.builder(...)`) — a plugin calls `.register(...)` on the registries directly with a
-   hand-built object today.
-3. **Item-upgrade `keep-data-on-upgrade` inheritance** doesn't exist anywhere in the codebase (not
-   modifier-specific — confirmed greenfield during the original framework implementation).
+2. **Item-upgrade `keep-data-on-upgrade` inheritance** doesn't exist anywhere in the codebase (not
+   modifier-specific — confirmed greenfield during the original framework implementation, and out of
+   scope for a modifier-framework pass to invent as a side effect — it would need its own item-
+   upgrade recipe/config schema first).
 
 **Done since the initial pass** (kept here for anyone cross-referencing an older read of this file):
 non-passive ability trigger dispatch (`AbilityExecutor.fireModifiersForItem`/`fireModifiersHeld`,
 wired into every existing trigger listener — `AbilityTriggerListener`, `CombatListener`), EVENT
-effect dispatch (same call), reload-time cross-reference validation (`ModifierValidator`), the
+effect dispatch (same call), reload-time cross-reference validation (`ModifierValidator`), a fluent
+Java builder API (`ModifierGroupDefinition.builder(...)`/`ModifierDefinition.builder(...)`, §20), the
 `custom_anvil` recipe-ordering ambiguity (`ModifierRecipeDefinition.priority`), and the full
 `$item.*$` variable provider (`type`/`id`/`stats.<id>` added alongside `rarity.*`, all served by
 `org.nakii.valmora.module.script.variable.providers.ItemAbilityVariableProvider`).

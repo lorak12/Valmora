@@ -4,6 +4,9 @@ import org.nakii.valmora.module.item.ItemType;
 import org.nakii.valmora.module.modifier.effect.ModifierEffect;
 import org.nakii.valmora.module.script.condition.ConditionGroup;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,5 +96,52 @@ public class ModifierDefinition {
             if (t != null && t.getDisplayNameOverride() != null) return t.getDisplayNameOverride();
         }
         return displayName;
+    }
+
+    /** Fluent Java construction (docs/Valmora_Modifier_Framework_Design.docx §20) for a plugin registering a custom modifier without YAML. */
+    public static Builder builder(String id, String groupId) {
+        return new Builder(id, groupId);
+    }
+
+    public static class Builder {
+        private final String id;
+        private final String groupId;
+        private String displayName;
+        private String prefix;
+        private String suffix;
+        private List<String> lore = List.of();
+        private ConditionGroup requirements = new ConditionGroup(Collections.emptyList());
+        private final Set<String> tags = new HashSet<>();
+        private final Set<String> conflictIds = new HashSet<>();
+        private final Set<String> conflictTags = new HashSet<>();
+        private final Map<String, ModifierStateDefinition> state = new HashMap<>();
+        private final Map<Integer, ModifierTier> tiers = new HashMap<>();
+        private List<ModifierEffect> baseEffects = new java.util.ArrayList<>();
+        private double weight = 1.0;
+        private final Set<ItemType> targetItemTypes = new HashSet<>();
+
+        private Builder(String id, String groupId) { this.id = id; this.groupId = groupId; }
+
+        public Builder displayName(String name) { this.displayName = name; return this; }
+        public Builder prefix(String prefix) { this.prefix = prefix; return this; }
+        public Builder suffix(String suffix) { this.suffix = suffix; return this; }
+        public Builder lore(List<String> lore) { this.lore = lore; return this; }
+        public Builder requirements(ConditionGroup requirements) { this.requirements = requirements; return this; }
+        public Builder tag(String tag) { this.tags.add(tag); return this; }
+        public Builder conflictId(String modifierId) { this.conflictIds.add(modifierId); return this; }
+        public Builder conflictTag(String tag) { this.conflictTags.add(tag); return this; }
+        public Builder state(String key, ModifierStateDefinition def) { this.state.put(key, def); return this; }
+        public Builder tier(int tier, ModifierTier def) { this.tiers.put(tier, def); return this; }
+        public Builder effect(ModifierEffect effect) { this.baseEffects.add(effect); return this; }
+        public Builder effects(List<ModifierEffect> effects) { this.baseEffects = new java.util.ArrayList<>(effects); return this; }
+        public Builder weight(double weight) { this.weight = weight; return this; }
+        public Builder targetItemType(ItemType type) { this.targetItemTypes.add(type); return this; }
+        public Builder targetItemTypes(Set<ItemType> types) { this.targetItemTypes.addAll(types); return this; }
+
+        public ModifierDefinition build() {
+            return new ModifierDefinition(id, groupId, displayName, prefix, suffix, lore, requirements,
+                    Set.copyOf(tags), Set.copyOf(conflictIds), Set.copyOf(conflictTags), Map.copyOf(state),
+                    Map.copyOf(tiers), List.copyOf(baseEffects), weight, Set.copyOf(targetItemTypes));
+        }
     }
 }

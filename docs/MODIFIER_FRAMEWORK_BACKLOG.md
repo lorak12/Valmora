@@ -58,8 +58,10 @@ branch `modifier-framework`. Read the design doc first; this file is the delta a
   `thundering` — §12/§17, and `thundering`'s ON_HIT now actually fires), `items/gemstones.yml`,
   `modifiers/recipes/gemstones.yml`.
 - **Java extension points** (§20): `ModifierGroupRegistry`/`ModifierRegistry` are plain registries a
-  plugin can populate directly; `ModifierEffectRegistry` and `ModifierValueResolverRegistry` are
-  dedicated static registries for custom effect types / value providers.
+  plugin can populate directly — with a fluent builder to do it (`ModifierGroupDefinition.builder(id)`
+  / `ModifierDefinition.builder(id, groupId)`, matching the doc's `ModifierGroup.builder(...)`
+  illustration); `ModifierEffectRegistry` and `ModifierValueResolverRegistry` are dedicated static
+  registries for custom effect types / value providers.
 - **`$item.*$` variables**: `rarity.*` (id/name/color/rank/power), `type`, `id`, `stats.<statId>`
   (the item's own baked stat map — not dynamically-resolved effective stats, to avoid recursing into
   `contributeStats`), all served by
@@ -88,13 +90,16 @@ branch `modifier-framework`. Read the design doc first; this file is the delta a
    indication of which inventory slot it came from, so there's nowhere safe to persist a state
    mutation back to. ABILITY/EVENT effects don't have this problem since they don't need to write
    back to the item.
-2. **`ModifierGroupRegistry`/`ModifierStorage`/`Codec` Java builder API surface** (§20's
-   `ModifierGroup.builder(...)`) — groups/modifiers are populated by the YAML parsers only right now;
-   a plugin can call `.register(...)` directly with a hand-built `ModifierGroupDefinition`, but there
-   is no fluent builder yet.
-3. **Item-upgrade `keep-data-on-upgrade` inheritance** (§21 task 11) — this system doesn't exist
+2. **Item-upgrade `keep-data-on-upgrade` inheritance** (§21 task 11) — this system doesn't exist
    anywhere in the codebase yet (confirmed by recon — greenfield, not a modifier-specific gap, and
-   out of scope for a modifier-framework pass to invent from nothing).
+   out of scope for a modifier-framework pass to invent from nothing — it would need its own
+   item-upgrade recipe/config schema before "preserve modifiers across it" is even meaningful).
+
+**Also done since the "Built" section above was last fully rewritten:** a fluent Java builder API —
+`ModifierGroupDefinition.builder(id)...build()` / `ModifierDefinition.builder(id, groupId)...build()`
+(§20), covered by `ModifierBuilderTest`. Only `ModifierStorage`/`Codec`-style custom persistence
+extension points (§20's last bullet, "only needed if a plugin requires custom persistent data beyond
+generic modifier state/metadata") remain unbuilt — no plugin need for that has come up.
 
 ## Known limitations
 

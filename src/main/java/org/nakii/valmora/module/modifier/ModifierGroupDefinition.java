@@ -2,6 +2,7 @@ package org.nakii.valmora.module.modifier;
 
 import org.nakii.valmora.module.item.ItemType;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -52,5 +53,41 @@ public class ModifierGroupDefinition {
 
     public boolean appliesTo(ItemType type) {
         return targetItemTypes.isEmpty() || targetItemTypes.contains(type);
+    }
+
+    /** Fluent Java construction (docs/Valmora_Modifier_Framework_Design.docx §20) for a plugin registering a custom group without YAML. */
+    public static Builder builder(String id) {
+        return new Builder(id);
+    }
+
+    public static class Builder {
+        private final String id;
+        private DisplayFormat displayFormat = DisplayFormat.NONE;
+        private int displayOrder = 0;
+        private ApplicationMode applicationMode = ApplicationMode.MULTIPLE;
+        private int max = Integer.MAX_VALUE;
+        private boolean replacement = false;
+        private boolean removal = true;
+        private final Set<ItemType> targetItemTypes = new HashSet<>();
+        private StorageMode storageMode = StorageMode.STACKED;
+        private TierSource tierSource = TierSource.INSTANCE;
+
+        private Builder(String id) { this.id = id; }
+
+        public Builder displayFormat(DisplayFormat format) { this.displayFormat = format; return this; }
+        public Builder displayOrder(int order) { this.displayOrder = order; return this; }
+        public Builder applicationMode(ApplicationMode mode) { this.applicationMode = mode; return this; }
+        public Builder maxApplications(int max) { this.max = max; return this; }
+        public Builder replacement(boolean replacement) { this.replacement = replacement; return this; }
+        public Builder removal(boolean removal) { this.removal = removal; return this; }
+        public Builder targetItemType(ItemType type) { this.targetItemTypes.add(type); return this; }
+        public Builder targetItemTypes(Set<ItemType> types) { this.targetItemTypes.addAll(types); return this; }
+        public Builder storageMode(StorageMode mode) { this.storageMode = mode; return this; }
+        public Builder tierSource(TierSource source) { this.tierSource = source; return this; }
+
+        public ModifierGroupDefinition build() {
+            return new ModifierGroupDefinition(id, displayFormat, displayOrder, applicationMode, max,
+                    replacement, removal, Set.copyOf(targetItemTypes), storageMode, tierSource);
+        }
     }
 }

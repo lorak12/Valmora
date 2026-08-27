@@ -7,6 +7,31 @@ All notable changes to Valmora are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Generic Modifier Framework** (`docs/Valmora_Modifier_Framework_Design.docx`): a data-driven
+  engine for attachable item components that grant stats/abilities/other effects — reforges,
+  gemstones, and any future system are now YAML content over one generic engine, not per-system Java.
+  - Data-driven rarities (`rarities.yml`, `RarityModule`/`RarityRegistry`) with an open per-rarity
+    property map for content-authoring values like `forge_cost`.
+  - Generic value resolution (literal / expression / rarity-scaled / Java-custom) reused for both
+    modifier effect values and recipe costs.
+  - `ModifierGroupDefinition`/`ModifierDefinition` core model (exclusivity/stacking/capacity/
+    replacement/removal/storage/display policy, requirements, conflicts, tiers, state), with a
+    fluent Java builder API for plugin-registered custom groups/modifiers.
+  - `STAT`/`ABILITY`/`EVENT`/`STATE` effect types, reusing the existing ability/mechanic/condition/
+    event infrastructure — no second action language. `ABILITY`/`EVENT` effects fire on every
+    trigger (ON_HIT, RIGHT_CLICK, ON_KILL, SNEAK, ON_SHOOT, ON_DAMAGE_TAKEN, ON_TELEPORT, EQUIP,
+    UNEQUIP, PASSIVE), with full cooldown/mana/condition gating for abilities.
+  - Generic PDC component storage and application semantics (EXCLUSIVE/STACKABLE/MULTIPLE,
+    weighted random selection, conflicts).
+  - `APPLY_MODIFIER`/`REMOVE_MODIFIER` recipes via a new `custom_anvil` machine (`modifier_anvil`
+    GUI), with optional addition items, a `RANDOM` selection sentinel, rarity-scaled costs, and
+    explicit `priority:` match ordering.
+  - Reload-time cross-reference validation (`ModifierValidator`).
+  - `$item.rarity.*$`/`$item.type$`/`$item.id$`/`$item.stats.<id>$` expression variables.
+  - New generic `/modifier groups|list|apply|remove` admin command.
+  - Default content: `reforges` (migrated, see Removed below) and a new `gemstones` group
+    (`ruby`/`sapphire`, tiered) plus a `traits` demo group.
+- `docs/modules/design/modifier.md` / `docs/modules/user/modifier.md`, `docs/MODIFIER_FRAMEWORK_BACKLOG.md`.
 - `docs/V1_RELEASE_CHECKLIST.md` — production-readiness checklist tracking test coverage,
   config/data integrity, in-game QA, load, security, and ops items ahead of v1.
 - Automated config/data integrity sweep (`ResourceIntegrityTest`): full shipped-YAML-tree parse
@@ -22,6 +47,24 @@ All notable changes to Valmora are documented here. The format is based on
   dupe-protection guard, including release-on-exception.
 - `YamlLoader` now recurses into subfolders, making CLAUDE.md §9.3's documented
   `recipes/<subfolder>/` organization actually work (previously flat-only).
+
+### Removed
+- The legacy `org.nakii.valmora.module.reforge` package (`ReforgeModule`, `ReforgeDefinition`,
+  `ReforgeCommand`, `ForgeCostRegistry`, `ReforgeVariableProvider`), the `reforge_anvil`/
+  `forge_random` recipe handlers, `Keys.REFORGE_ID_KEY`/`REFORGE_POOL_KEY`/`REFORGE_DISPLAY_KEY`,
+  `ItemDefinition.reforgePool`/`reforge-pool:` YAML, `resources/reforges/*.yml`,
+  `resources/enchant/forge_costs.yml`, `guis/reforge.yml`/`guis/reforge_anvil.yml`, and the
+  `/reforge` command — replaced by the Generic Modifier Framework (see Added). Existing reforge
+  numbers/behavior are preserved exactly (see `docs/modules/design/modifier.md` §6.1); the
+  admin-facing command is now `/modifier`.
+
+### Changed
+- `ItemFactory.updateLore` renders modifier prefix/suffix display text and merges modifier STAT
+  contributions into the displayed stats block generically, instead of reading a reforge-specific
+  PDC key.
+- `AbilityExecutor.fire` was refactored to extract a shared per-ability cooldown/mana/condition/
+  pipeline-hook path (`fireOne`), reused by both item abilities and modifier-granted abilities —
+  no behavior change for existing item abilities.
 
 ### Fixed
 - `items/swords.yml` and `items/wands.yml` both defined `fire_freeze_staff`/`fire_fury_staff`
