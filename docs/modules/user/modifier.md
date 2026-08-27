@@ -128,6 +128,16 @@ Effect `value:` accepts:
   (or `property: rank, operation: ADD, factor: <n>` for a linear-per-rank bonus)
 - An arbitrary formula: `value: { expression: "10 + $item.rarity.rank$ * 5" }`
 
+Expressions can also read `$item.type$`, `$item.id$`, and `$item.stats.<statId>$` (the item's own
+base stats) — not just `$item.rarity.*$`.
+
+Besides `STAT`, a modifier can grant an `ABILITY` effect (an ordinary ability — `trigger`,
+`conditions`, `mechanics`, cooldown, mana cost, exactly like an item's own `abilities:`) or an
+`EVENT` effect (a list of script DSL action strings on a trigger). Both fire on **any** trigger
+(`ON_HIT`, `RIGHT_CLICK`, `ON_KILL`, `SNEAK`, `ON_SHOOT`, `ON_DAMAGE_TAKEN`, `ON_TELEPORT`, `EQUIP`,
+`UNEQUIP`, `PASSIVE`) — see `modifiers/definitions/traits.yml`'s `thundering` for a worked ON_HIT
+example.
+
 ### 4.3 `tier-source: RARITY_RANK`
 
 Set this on a group when a modifier's strength should track the *item's* rarity automatically
@@ -158,6 +168,11 @@ frost_infusion_scroll:
 
 Omit `addition:` entirely to make a recipe match the base item alone (used for random-reroll style
 recipes — see `random_reforge` in `modifiers/recipes/reforges.yml`).
+
+Recipes are matched in `priority:` order (default `0`, higher tried first). If two different
+addition-less recipes could both match the same bare item (e.g. a random reroll and a group-wide
+removal), give the one that should win a higher `priority:` — otherwise which one matches is
+undefined.
 
 For removal:
 ```yaml

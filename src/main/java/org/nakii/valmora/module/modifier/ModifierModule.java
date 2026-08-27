@@ -16,8 +16,7 @@ import org.nakii.valmora.module.modifier.recipe.ModifierRecipeRegistry;
  * {@code DynamicMachineHandler} for {@code APPLY_MODIFIER}/{@code REMOVE_MODIFIER} recipes (§16).
  *
  * <p>Registered after {@code recipe} (needs to register a handler) and {@code rarity} (needs
- * {@link org.nakii.valmora.module.rarity.RarityRegistry}), before {@code reforge} — see
- * Valmora.java's module order comment.
+ * {@link org.nakii.valmora.module.rarity.RarityRegistry}) — see Valmora.java's module order comment.
  *
  * <p><b>Note on YAML shape:</b> the design doc's illustrative snippets wrap group/modifier entries
  * under a {@code groups:}/{@code modifiers:} root key. This codebase's {@link YamlLoader} convention
@@ -51,10 +50,12 @@ public class ModifierModule implements ReloadableModule {
         loadGroups();
         loadModifiers();
         loadRecipes();
+        ModifierValidator.validate(groupRegistry, modifierRegistry, recipeRegistry, plugin.getItemManager(), plugin.getLogger());
 
-        if (plugin.getScriptModule() != null) {
-            plugin.getScriptModule().registerProvider(new ItemRarityVariableProvider());
-        }
+        // No provider registration here: $item.*$ is served by ItemAbilityVariableProvider
+        // (registered once by ScriptModule) — see that class's javadoc for why a second "item"
+        // provider from this module would silently clobber it (SimpleRegistry is a flat map keyed
+        // by namespace, last registration wins).
 
         if (plugin.getRecipeModule() != null) {
             plugin.getRecipeModule().getRecipeEngine()

@@ -13,13 +13,14 @@ import org.nakii.valmora.module.script.condition.ConditionGroup;
  * (abilities currently live only inside {@code ItemDefinition}/mob definitions); see
  * docs/HSB_DECOUPLING_BACKLOG.md-style follow-up notes in the modifier framework backlog doc.
  *
- * <p><b>Trigger dispatch:</b> {@link AbilityTrigger#PASSIVE} modifier-granted abilities are fired
- * from {@code StatManager.recalculateStats} alongside item-defined passive abilities (see {@code
- * org.nakii.valmora.module.modifier.ModifierEngine#applyPassiveAbilities}). Non-passive triggers
- * (ON_HIT, RIGHT_CLICK, etc.) are parsed and stored here but not yet dispatched — {@code
- * AbilityExecutor.fire} currently takes an {@code ItemDefinition}, not a bare list of abilities, so
- * wiring those triggers requires either a small {@code AbilityExecutor} overload or a synthetic
- * {@code ItemDefinition} wrapper. Left for a follow-up pass — see the framework backlog doc.
+ * <p><b>Trigger dispatch:</b> {@code PASSIVE} modifier-granted abilities are fired from {@code
+ * StatManager.recalculateStats} alongside item-defined passive abilities (see {@code
+ * ModifierEngine#applyPassiveAbilities}). Every other trigger (ON_HIT, RIGHT_CLICK, ON_KILL, SNEAK,
+ * ON_SHOOT, ON_DAMAGE_TAKEN, ON_TELEPORT, EQUIP, UNEQUIP) is dispatched through {@code
+ * ModifierEngine#getGrantedAbilities} + {@code AbilityExecutor#fireModifiersForItem}/{@code
+ * #fireModifiersHeld}, wired into the same call sites as item-defined abilities ({@code
+ * AbilityTriggerListener}, {@code CombatListener}) — full cooldown/mana/condition gating applies,
+ * same as an item ability.
  */
 public class AbilityEffect implements ModifierEffect {
 

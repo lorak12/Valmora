@@ -36,6 +36,7 @@ public class AbilityTriggerListener implements Listener {
         Player killer = event.getEntity().getKiller();
         if (killer == null) return;
         AbilityExecutor.fireHeld(killer, AbilityTrigger.ON_KILL, event.getEntity(), true);
+        AbilityExecutor.fireModifiersHeld(killer, AbilityTrigger.ON_KILL, event.getEntity(), true);
     }
 
     @EventHandler
@@ -44,6 +45,7 @@ public class AbilityTriggerListener implements Listener {
         Player player = event.getPlayer();
         // Sneak abilities are usually on armor; check held item plus armor pieces.
         AbilityExecutor.fireHeld(player, AbilityTrigger.SNEAK, null, true);
+        AbilityExecutor.fireModifiersHeld(player, AbilityTrigger.SNEAK, null, true);
         fireArmor(player, AbilityTrigger.SNEAK);
     }
 
@@ -51,6 +53,7 @@ public class AbilityTriggerListener implements Listener {
     public void onShoot(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         AbilityExecutor.fireHeld(player, AbilityTrigger.ON_SHOOT, null, true);
+        AbilityExecutor.fireModifiersHeld(player, AbilityTrigger.ON_SHOOT, null, true);
     }
 
     /** Fires on any completed teleport (warps, ender pearls, /tp, plugin teleports) — non-gating, always after the fact. */
@@ -58,6 +61,7 @@ public class AbilityTriggerListener implements Listener {
     public void onTeleport(PlayerTeleportEvent event) {
         Player player = event.getPlayer();
         AbilityExecutor.fireHeld(player, AbilityTrigger.ON_TELEPORT, null, true);
+        AbilityExecutor.fireModifiersHeld(player, AbilityTrigger.ON_TELEPORT, null, true);
         fireArmor(player, AbilityTrigger.ON_TELEPORT);
     }
 
@@ -76,9 +80,11 @@ public class AbilityTriggerListener implements Listener {
     private void fireItem(Player player, ItemStack item, AbilityTrigger trigger) {
         if (item == null || !item.hasItemMeta()) return;
         String itemId = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
-        if (itemId == null) return;
-        org.nakii.valmora.api.ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
-                .ifPresent(def -> AbilityExecutor.fire(player, def, trigger, null, true));
+        if (itemId != null) {
+            org.nakii.valmora.api.ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
+                    .ifPresent(def -> AbilityExecutor.fire(player, def, trigger, null, true));
+        }
+        AbilityExecutor.fireModifiersForItem(player, item, trigger, null, true);
     }
 
     @EventHandler

@@ -6,12 +6,14 @@
 > **Load order:** `rarity` right after `time`; `modifier` after `recipe` (registers the
 > `custom_anvil` `DynamicMachineHandler`), before `alchemy`
 > **Status:** implemented — generic modifier groups/definitions, PDC component storage,
-> application semantics (EXCLUSIVE/STACKABLE/MULTIPLE), STAT/ABILITY(PASSIVE-only)/EVENT/STATE
-> effect types, rarity-scaled/expression/literal value resolution, `APPLY_MODIFIER`/
-> `REMOVE_MODIFIER` recipes, item lore/display integration, default reforges+gemstones content
-> pack. **Non-passive ability trigger dispatch for modifier-granted abilities is NOT implemented**
-> (see [Unfinished Things / TODOs](#unfinished-things--todos) and
-> `docs/MODIFIER_FRAMEWORK_BACKLOG.md`).
+> application semantics (EXCLUSIVE/STACKABLE/MULTIPLE), full-trigger STAT/ABILITY/EVENT effect
+> dispatch + attach-time STATE, rarity-scaled/expression/literal value resolution (including recipe
+> costs), `APPLY_MODIFIER`/`REMOVE_MODIFIER`/random-reroll recipes with explicit priority ordering,
+> reload-time cross-reference validation, `$item.*$` expression variables (rarity/type/id/stats),
+> item lore/display integration, default reforges+gemstones content pack (reforges fully migrated
+> off the legacy Java module). **Trigger-bound STATE effects are NOT implemented** (STATE still only
+> applies at attachment time) — see [Unfinished Things / TODOs](#unfinished-things--todos) and
+> `docs/MODIFIER_FRAMEWORK_BACKLOG.md`.
 
 Design source: `docs/Valmora_Modifier_Framework_Design.docx`. This doc verifies the actual
 implementation against that design and records where they diverge.
@@ -116,17 +118,17 @@ when this module shipped — reforges are now shipped content over this engine
 |---|---|
 | `ModifierInstance` | `groupId`, `modifierId`, `tier`, `count`, `state` (`Map<String,Integer>`). Pure data, no behavior. |
 | `ModifierComponentStore` | PDC read/write. One `NamespacedKey` per group (`modifiers_<group>`, cached, created via `new NamespacedKey(plugin, ...)` — **not** pre-registered in `Keys.java`, since groups are dynamic content). Each instance is a nested `PersistentDataContainer` inside a `TAG_CONTAINER_ARRAY`: fields `id` (STRING), `tier`/`count` (INTEGER), `state` (nested `TAG_CONTAINER` of INTEGERs). `readAll(meta, groupRegistry)` scans every known group. |
-| `ModifierEngine` | The resolver. `apply`/`remove` implement application semantics (see §3); `applyRandom` does a weighted pick excluding what's already attached (the generic `forge_random` replacement); `contributeStats`/`applyPassiveAbilities` are the per-item-per-recalculation hooks called from `StatManager`; `getDisplayText`/`getLoreEntries` feed `ItemFactory.updateLore`; `effectiveTier(...)` is the private helper implementing `TierSource`. |
-| `ModifierModule` | `ReloadableModule`, ID `modifier`. Loads `modifiers/groups/*.yml`, `modifiers/definitions/*.yml`, `modifiers/recipes/*.yml`; registers `ItemRarityVariableProvider` and the `custom_anvil` `DynamicMachineHandler`. |
+| `ModifierEngine` | The resolver. `apply`/`remove` implement application semantics (see §3); `applyRandom` does a weighted pick excluding what's already attached (the generic `forge_random` replacement); `contributeStats`/`applyPassiveAbilities` are the per-item-per-recalculation hooks called from `StatManager`; `getGrantedAbilities`/`getGrantedEventActions` feed `AbilityExecutor.fireModifiersForItem` for every non-passive trigger (see §7); `getDisplayText`/`getLoreEntries` feed `ItemFactory.updateLore`; `effectiveTier(...)` is the private helper implementing `TierSource`. |
+| `ModifierModule` | `ReloadableModule`, ID `modifier`. Loads `modifiers/groups/*.yml`, `modifiers/definitions/*.yml`, `modifiers/recipes/*.yml`; runs `ModifierValidator`; registers the `custom_anvil` `DynamicMachineHandler`. Deliberately does **not** register an `item`-namespace variable provider — see `ItemAbilityVariableProvider`'s javadoc for why that would silently clobber the ability-pipeline one `ScriptModule` already registers. |
 | `ModifierCommand` | Generic `/modifier groups\|list\|apply\|remove` admin command — replaces the old group-specific `/reforge`. |
 
 ### 2.6 `org.nakii.valmora.module.modifier.recipe`
 
 | Class | Role |
 |---|---|
-| `ModifierRecipeDefinition` | `operation` (APPLY_MODIFIER/REMOVE_MODIFIER), `baseItemTypes`, `additionItemId`/`additionAmount` (addition is **optional** — a recipe that omits it matches on the base item alone, e.g. a random reroll), `modifierGroup`/`modifierId`/`modifierTier`, and `costXpLevels`/`costCoins` as `ValueResolver`s (rarity-scaled cost is a first-class feature, not a hack). |
+| `ModifierRecipeDefinition` | `operation` (APPLY_MODIFIER/REMOVE_MODIFIER), `baseItemTypes`, `additionItemId`/`additionAmount` (addition is **optional** — a recipe that omits it matches on the base item alone, e.g. a random reroll), `modifierGroup`/`modifierId`/`modifierTier`, `costXpLevels`/`costCoins` as `ValueResolver`s (rarity-scaled cost is a first-class feature, not a hack), and `priority` (YAML `priority:`, default 0 — higher tried first; see §4). |
 | `ModifierRecipeParser` | YAML parser; `modifier.id: RANDOM` is a recognized sentinel (see §4). |
-| `ModifierAnvilHandler` | `DynamicMachineHandler` for machine id `custom_anvil`. Input slots `base_item`/`addition_item`. Iterates every registered `ModifierRecipeDefinition` in load order and returns the first match — see §4 for the ordering caveat this creates when multiple groups/recipes could match the same bare item. |
+| `ModifierAnvilHandler` | `DynamicMachineHandler` for machine id `custom_anvil`. Input slots `base_item`/`addition_item`. Iterates every registered `ModifierRecipeDefinition` in priority order (see §4) and returns the first match. |
 
 ---
 
@@ -139,7 +141,7 @@ when this module shipped — reforges are now shipped content over this engine
 2. Check `group.appliesTo(itemType) && def.appliesToItemType(itemType)` — **both** must pass; the
    group sets the outer boundary, the definition can narrow it further (used by reforges — see §6).
 3. Evaluate `def.getRequirements()` against a minimal `ExecutionContext` carrying only the item's
-   rarity (`ItemRarityVariableProvider.ATTACHMENT_KEY`) — no caster/target, since application isn't
+   rarity (`ItemAbilityVariableProvider.RARITY_ATTACHMENT_KEY`) — no caster/target, since application isn't
    tied to a player action in every call path (e.g. admin force-apply).
 4. Check conflicts: every *other* attached modifier across **every** group on the item is compared
    against `conflictIds`/`conflictTags` in both directions.
@@ -180,16 +182,16 @@ and (if declared) addition item match:
 - **Removal** (`operation: REMOVE_MODIFIER`): base item alone (no addition check at all) → removes
   `modifier.id` from `modifier.group`, or the whole group if `modifier.id` is omitted.
 
-**Known ordering caveat:** because the handler is "first match wins" across *all* recipes
-regardless of group, and `YamlLoader`'s directory scan order isn't guaranteed deterministic across
-platforms, placing a bare item that could simultaneously match more than one addition-less recipe
-(e.g. a `RANDOM` reforge reroll vs. a group-wide `REMOVE_MODIFIER`) has an environment-dependent
-winner. In the shipped content this is avoided by construction — `reforges.yml` deliberately ships
-**no** `REMOVE_MODIFIER` recipe (see the comment in that file) specifically because `random_reforge`
-would always win the race for a bare item, exactly reproducing the legacy behavior (which also had
-no anvil-based removal, only the admin command). If a future content pack needs both a random-reroll
-*and* a removal recipe for the same group reachable via a bare item, that ambiguity needs a real
-fix (e.g. an explicit `priority:` field) — not attempted here.
+**Ordering:** the handler is "first match wins" across *all* recipes regardless of group.
+`ModifierRecipeDefinition.priority` (YAML `priority:`, default `0`) controls match order —
+recipes are tried highest-priority-first, with a stable sort so same-priority recipes keep their
+YAML load order relative to each other (`YamlLoader`'s directory scan order is not itself guaranteed
+deterministic across platforms, so two same-priority addition-less recipes that could both match the
+same bare item are still an environment-dependent tie — give one an explicit higher `priority:` to
+resolve it). In the shipped content this never comes up — `reforges.yml` deliberately ships **no**
+`REMOVE_MODIFIER` recipe (see the comment in that file) specifically because `random_reforge` should
+always win the race for a bare reforged item, exactly reproducing the legacy behavior (which also had
+no anvil-based removal, only the admin command) — so no priority override is needed there either.
 
 Cost (`cost.coins`/`cost.xp_levels`) is a `ValueResolver`, resolved against `engine.readRarity
 (baseItem)` at match time — see §6 for the reforge migration's use of this.
@@ -270,7 +272,42 @@ of either.
 
 ---
 
-## 7. Item Lore/Display Integration
+## 7. Ability/Event Trigger Dispatch
+
+Every trigger an item ability can use, a modifier-granted `AbilityEffect`/`EventEffect` can use too —
+this is the piece that makes `AbilityEffect`'s "no second ability language" claim (§1) actually true
+end to end, not just at parse time.
+
+- `ModifierEngine.getGrantedAbilities(item, trigger, caster)` — every `AbilityEffect`'s
+  `AbilityDefinition` attached to `item` whose trigger matches and whose *effect-level* `conditions:`
+  pass (evaluated against a full `$item.*$`/`$player.*$`-capable context). The ability's *own*
+  `conditions:`/cooldown/mana are **not** checked here — that's `AbilityExecutor`'s job once it has
+  the definition, exactly like an item ability.
+- `ModifierEngine.getGrantedEventActions(item, trigger, caster)` — every `EventEffect`'s compiled
+  actions attached to `item` whose trigger/conditions match, flattened into one list.
+- `AbilityExecutor.fireModifiersForItem(player, item, trigger, target, silent)` — the single call
+  site every trigger listener uses: runs every returned ability through the same `fireOne` cooldown/
+  mana/pipeline-hook logic item abilities use (extracted from the original `fire(...)` into a shared
+  private method + a new public `fireAbility` for a single already-trigger-matched definition), then
+  executes every returned event action unconditionally. `fireModifiersHeld` is the main-hand
+  convenience wrapper, mirroring `fireHeld`.
+- **Call sites**: `AbilityTriggerListener` (ON_KILL, SNEAK + armor, ON_SHOOT, ON_TELEPORT + armor,
+  EQUIP/UNEQUIP via `fireItem`) and `CombatListener` (ON_HIT on the attacker's main hand,
+  ON_DAMAGE_TAKEN on the victim's main hand + every armor piece, both the main damage-by-entity path
+  and the no-attacking-entity fallback) each call the item-ability path and the modifier path
+  side by side.
+- **PASSIVE is intentionally different**: it doesn't go through `AbilityExecutor` at all —
+  `ModifierEngine.applyPassiveAbilities` runs a PASSIVE ability's mechanics directly, unconditionally,
+  every `StatManager.recalculateStats` pass, with no cooldown/mana check — matching how item-defined
+  PASSIVE abilities already worked before this framework existed (a passive is a standing effect, not
+  a discrete "fire event").
+- **Not covered**: STATE effects still only apply at attachment time — see
+  [Unfinished Things / TODOs](#unfinished-things--todos) item 1 for why trigger-bound state mutation
+  needs more plumbing than ABILITY/EVENT did.
+
+---
+
+## 8. Item Lore/Display Integration
 
 `ItemFactory.updateLore` (unchanged method signature) now additionally:
 
@@ -291,31 +328,32 @@ of either.
 
 ---
 
-## 8. Unfinished Things / TODOs
+## 9. Unfinished Things / TODOs
 
 See `docs/MODIFIER_FRAMEWORK_BACKLOG.md` for the full list with rationale. Summary:
 
-1. **Non-passive ability trigger dispatch.** `AbilityEffect` parses and stores a full
-   `AbilityDefinition`; only `PASSIVE` fires today (`ModifierEngine.applyPassiveAbilities`, called
-   from `StatManager.recalculateStats` alongside item-defined passives). ON_HIT/RIGHT_CLICK/etc. need
-   either an `AbilityExecutor` overload taking a bare ability list (with per-ability cooldown/mana key
-   namespacing so a modifier ability can't collide with an item ability of the same id) or a synthetic
-   `ItemDefinition` wrapper, then a hook in `AbilityTriggerListener`.
-2. **EVENT/STATE trigger-bound execution** — piggybacks on #1. `StateEffect` currently only applies
-   once at attachment time.
-3. **Full `$item.*$` variable provider.** Only `$item.rarity.*$` exists
-   (`ItemRarityVariableProvider`); `$item.type$`/`$item.stats.*$` from the design doc's examples
-   aren't implemented (no general "the item this expression is about" concept on `ExecutionContext`
-   yet).
-4. **No fluent Java builder** for `ModifierGroupDefinition`/`ModifierDefinition` (design doc §20's
+1. **STATE effects are still attach-time only.** `StateEffect` has no `trigger:` field, so it always
+   applies once when the modifier is attached (`ModifierEngine.applyStateEffectsOnAttach`). The
+   design doc's §13 `ON_KILL -> STATE ADD souls` pattern (state mutating on a combat trigger, not at
+   attachment) isn't implemented — doing it properly needs slot-aware item mutation (the trigger
+   dispatch call sites pass a bare `ItemStack`, not "this came from the player's main hand" vs. "this
+   is the chestplate slot", so there's nowhere safe to write the mutated state back to) that the
+   current `AbilityExecutor.fireModifiersForItem`/`ModifierEngine.getGrantedEventActions` plumbing
+   doesn't provide. ABILITY and EVENT effects don't have this problem since they don't mutate the
+   item itself.
+2. **No fluent Java builder** for `ModifierGroupDefinition`/`ModifierDefinition` (design doc §20's
    `ModifierGroup.builder(...)`) — a plugin calls `.register(...)` on the registries directly with a
    hand-built object today.
-5. **No cross-reference validation pass** at reload time (unknown group/modifier/target references,
-   duplicate-exclusive detection, malformed value providers) beyond the standard per-entry
-   `YamlLoader` parse-error batch.
-6. **Item-upgrade `keep-data-on-upgrade` inheritance** doesn't exist anywhere in the codebase (not
+3. **Item-upgrade `keep-data-on-upgrade` inheritance** doesn't exist anywhere in the codebase (not
    modifier-specific — confirmed greenfield during the original framework implementation).
-7. **The `custom_anvil` first-match-wins recipe ordering caveat** — see §4.
+
+**Done since the initial pass** (kept here for anyone cross-referencing an older read of this file):
+non-passive ability trigger dispatch (`AbilityExecutor.fireModifiersForItem`/`fireModifiersHeld`,
+wired into every existing trigger listener — `AbilityTriggerListener`, `CombatListener`), EVENT
+effect dispatch (same call), reload-time cross-reference validation (`ModifierValidator`), the
+`custom_anvil` recipe-ordering ambiguity (`ModifierRecipeDefinition.priority`), and the full
+`$item.*$` variable provider (`type`/`id`/`stats.<id>` added alongside `rarity.*`, all served by
+`org.nakii.valmora.module.script.variable.providers.ItemAbilityVariableProvider`).
 
 Related but pre-existing, not introduced by this module: the recon that led to this module found no
 `ComponentStore` abstraction elsewhere in the codebase to reuse — `ModifierComponentStore` is new

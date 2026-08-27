@@ -8,15 +8,18 @@ import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.item.AbilityTrigger;
 import org.nakii.valmora.module.item.ConfiguredMechanic;
 import org.nakii.valmora.module.item.ItemType;
 import org.nakii.valmora.module.modifier.effect.AbilityEffect;
+import org.nakii.valmora.module.modifier.effect.EventEffect;
 import org.nakii.valmora.module.modifier.effect.ModifierEffect;
 import org.nakii.valmora.module.modifier.effect.StatEffect;
 import org.nakii.valmora.module.modifier.effect.StateEffect;
 import org.nakii.valmora.module.rarity.RarityDefinition;
 import org.nakii.valmora.module.rarity.RarityRegistry;
+import org.nakii.valmora.module.script.variable.providers.ItemAbilityVariableProvider;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.util.Keys;
 
@@ -282,12 +285,34 @@ public class ModifierEngine {
     /**
      * Fires PASSIVE-triggered {@link AbilityEffect}s on every modifier attached to {@code item},
      * mirroring the passive-ability step already in {@code StatManager.recalculateStats} for
-     * item-defined abilities. Non-passive triggers are not yet dispatched — see {@link AbilityEffect}.
+     * item-defined abilities. PASSIVE mechanics run unconditionally on every stat recalculation
+     * (no cooldown/mana gating, matching the pre-existing item-passive behavior) — non-passive
+     * triggers go through {@link #getGrantedAbilities} + {@code AbilityExecutor} instead, which does
+     * apply cooldown/mana/condition gating (see {@code AbilityExecutor.fireModifiersForItem}).
      */
     public void applyPassiveAbilities(ItemStack item, Player player) {
-        if (item == null || !item.hasItemMeta()) return;
+        for (AbilityDefinition ability : getGrantedAbilities(item, AbilityTrigger.PASSIVE, player)) {
+            for (ConfiguredMechanic mechanic : ability.getMechanics()) {
+                mechanic.execute(player, player);
+            }
+        }
+    }
+
+    /**
+     * Every {@link AbilityDefinition} granted by an {@link AbilityEffect} attached to {@code item}
+     * whose trigger matches and whose effect-level {@code conditions:} pass — the modifier-content
+     * equivalent of {@code ItemDefinition.getAbilities()}. {@code caster} is used only to build the
+     * {@link ExecutionContext} for evaluating the effect's own conditions (e.g. gating a granted
+     * ability on the wielder's health); actual ability-level conditions/cooldown/mana are evaluated
+     * separately by {@code AbilityExecutor} once it receives the returned definition.
+     */
+    public List<AbilityDefinition> getGrantedAbilities(ItemStack item, AbilityTrigger trigger, LivingEntity caster) {
+        List<AbilityDefinition> result = new ArrayList<>();
+        if (item == null || !item.hasItemMeta()) return result;
         ItemMeta meta = item.getItemMeta();
         RarityDefinition rarity = readRarity(item);
+        ExecutionContext ctx = fullContext(caster, item);
+
         for (Map.Entry<String, List<ModifierInstance>> entry : store.readAll(meta, groups).entrySet()) {
             ModifierGroupDefinition group = groups.get(entry.getKey()).orElse(null);
             if (group == null) continue;
@@ -297,13 +322,44 @@ public class ModifierEngine {
                 int tier = effectiveTier(group, def, instance, rarity);
                 for (ModifierEffect effect : def.getEffects(tier)) {
                     if (!(effect instanceof AbilityEffect ability)) continue;
-                    if (ability.getDefinition().getTrigger() != AbilityTrigger.PASSIVE) continue;
-                    for (ConfiguredMechanic mechanic : ability.getDefinition().getMechanics()) {
-                        mechanic.execute(player, player);
-                    }
+                    if (ability.getDefinition().getTrigger() != trigger) continue;
+                    if (!ability.getConditions().evaluate(ctx)) continue;
+                    result.add(ability.getDefinition());
                 }
             }
         }
+        return result;
+    }
+
+    /**
+     * Every {@link org.nakii.valmora.api.scripting.CompiledEvent} action from an {@link EventEffect}
+     * attached to {@code item} whose trigger matches and whose effect-level {@code conditions:} pass.
+     * Unlike {@link #getGrantedAbilities}, there's no separate cooldown/mana gate — EVENT effects
+     * fire every time their trigger occurs.
+     */
+    public List<org.nakii.valmora.api.scripting.CompiledEvent> getGrantedEventActions(ItemStack item, AbilityTrigger trigger, LivingEntity caster) {
+        List<org.nakii.valmora.api.scripting.CompiledEvent> result = new ArrayList<>();
+        if (item == null || !item.hasItemMeta()) return result;
+        ItemMeta meta = item.getItemMeta();
+        RarityDefinition rarity = readRarity(item);
+        ExecutionContext ctx = fullContext(caster, item);
+
+        for (Map.Entry<String, List<ModifierInstance>> entry : store.readAll(meta, groups).entrySet()) {
+            ModifierGroupDefinition group = groups.get(entry.getKey()).orElse(null);
+            if (group == null) continue;
+            for (ModifierInstance instance : entry.getValue()) {
+                ModifierDefinition def = modifiers.get(instance.getModifierId()).orElse(null);
+                if (def == null) continue;
+                int tier = effectiveTier(group, def, instance, rarity);
+                for (ModifierEffect effect : def.getEffects(tier)) {
+                    if (!(effect instanceof EventEffect event)) continue;
+                    if (event.getTrigger() != trigger) continue;
+                    if (!event.getConditions().evaluate(ctx)) continue;
+                    result.addAll(event.getActions());
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -392,16 +448,31 @@ public class ModifierEngine {
     }
 
     private ExecutionContext minimalContext(ItemStack item) {
-        ExecutionContext ctx = new SimpleExecutionContext(null, null, null, new org.bukkit.configuration.MemoryConfiguration());
-        if (item != null) ctx.set(ItemRarityVariableProvider.ATTACHMENT_KEY, readRarity(item));
-        return ctx;
+        return fullContext(null, item);
     }
 
+    /**
+     * Builds an {@link ExecutionContext} for evaluating a modifier requirement/condition/expression
+     * against {@code item}, exposing it via {@code $item.*$}
+     * ({@code org.nakii.valmora.module.script.variable.providers.ItemAbilityVariableProvider} — the
+     * one shared provider for the {@code item} namespace, see its javadoc for why it isn't a
+     * separate class). {@code item:stats} is the item's own baked stat map (not the dynamically
+     * resolved effective stats) — safe to compute here without recursing into {@link
+     * #contributeStats}.
+     */
     private ExecutionContext fullContext(LivingEntity caster, ItemStack item) {
         ExecutionContext ctx = caster == null
                 ? new SimpleExecutionContext(null, null, null, new org.bukkit.configuration.MemoryConfiguration())
                 : new SimpleExecutionContext(caster, null, caster.getLocation(), new org.bukkit.configuration.MemoryConfiguration());
-        if (item != null) ctx.set(ItemRarityVariableProvider.ATTACHMENT_KEY, readRarity(item));
+        if (item == null) return ctx;
+
+        ctx.set(ItemAbilityVariableProvider.RARITY_ATTACHMENT_KEY, readRarity(item));
+        ctx.set(ItemAbilityVariableProvider.TYPE_ATTACHMENT_KEY, readItemType(item).name());
+        if (item.hasItemMeta()) {
+            String itemId = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
+            ctx.set(ItemAbilityVariableProvider.ID_ATTACHMENT_KEY, itemId);
+            ctx.set(ItemAbilityVariableProvider.STATS_ATTACHMENT_KEY, ValmoraAPI.getInstance().getStatModule().loadStats(item.getItemMeta()));
+        }
         return ctx;
     }
 

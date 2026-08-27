@@ -11,10 +11,11 @@ import java.util.List;
  * Valmora_Modifier_Framework_Design.docx §8), e.g. {@code ON_KILL -> "notify <red>Bloodlust!"}.
  * Reuses {@link org.nakii.valmora.module.script.event.EventParser} — no second action language.
  *
- * <p>Same dispatch-wiring caveat as {@link AbilityEffect}: parsed and stored, PASSIVE-adjacent
- * firing is not yet wired for arbitrary triggers beyond what {@link
- * org.nakii.valmora.module.modifier.ModifierEngine} explicitly drives (currently modifier
- * application/removal only — see the class javadoc there).
+ * <p>Dispatched via {@code ModifierEngine#getGrantedEventActions} + {@code
+ * AbilityExecutor#fireModifiersForItem}/{@code #fireModifiersHeld}, at the same call sites as
+ * {@link AbilityEffect}. Unlike an ability, there's no cooldown/mana gate — the actions fire every
+ * time their trigger occurs (each action string may of course include its own {@code condition ...}
+ * step, or the effect's own {@code conditions:} can gate the whole thing).
  */
 public class EventEffect implements ModifierEffect {
 

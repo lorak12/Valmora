@@ -58,8 +58,10 @@ public final class ModifierRecipeParser {
                 if (costSec.contains("coins")) coins = ValueParser.parse(costSec.get("coins"));
             }
 
+            int priority = section.getInt("priority", 0);
+
             return LoadResult.success(new ModifierRecipeDefinition(id, machine, operation, baseTypes,
-                    additionItemId, additionAmount, group, modifierId, tier, xpLevels, coins));
+                    additionItemId, additionAmount, group, modifierId, tier, xpLevels, coins, priority));
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Failed to parse modifier recipe '" + id + "': " + e.getMessage());
         }

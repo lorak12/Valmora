@@ -29,10 +29,16 @@ public class ModifierRecipeDefinition {
     // reroll can cost more for a higher-rarity item without a hardcoded by-rarity cost map.
     private final ValueResolver costXpLevels;
     private final ValueResolver costCoins;
+    // Explicit match ordering (docs/MODIFIER_FRAMEWORK_BACKLOG.md's custom_anvil ordering caveat):
+    // higher priority is tried first; ties fall back to load order, which is not guaranteed stable
+    // across platforms. Defaults to 0, so existing content is unaffected unless a recipe author
+    // opts in.
+    private final int priority;
 
     public ModifierRecipeDefinition(String id, String machine, Operation operation, Set<ItemType> baseItemTypes,
                                      String additionItemId, int additionAmount, String modifierGroup,
-                                     String modifierId, int modifierTier, ValueResolver costXpLevels, ValueResolver costCoins) {
+                                     String modifierId, int modifierTier, ValueResolver costXpLevels, ValueResolver costCoins,
+                                     int priority) {
         this.id = id;
         this.machine = machine;
         this.operation = operation;
@@ -44,6 +50,7 @@ public class ModifierRecipeDefinition {
         this.modifierTier = modifierTier;
         this.costXpLevels = costXpLevels;
         this.costCoins = costCoins;
+        this.priority = priority;
     }
 
     public String getId() { return id; }
@@ -57,6 +64,7 @@ public class ModifierRecipeDefinition {
     public int getModifierTier() { return modifierTier; }
     public ValueResolver getCostXpLevels() { return costXpLevels; }
     public ValueResolver getCostCoins() { return costCoins; }
+    public int getPriority() { return priority; }
 
     public boolean appliesToBase(ItemType type) {
         return baseItemTypes.isEmpty() || baseItemTypes.contains(type);

@@ -102,6 +102,10 @@ public class CombatListener implements Listener {
                         attackerPlayer,
                         org.nakii.valmora.module.item.AbilityTrigger.ON_HIT,
                         victim, true);
+                org.nakii.valmora.module.item.AbilityExecutor.fireModifiersHeld(
+                        attackerPlayer,
+                        org.nakii.valmora.module.item.AbilityTrigger.ON_HIT,
+                        victim, true);
             }
 
             // Fire ON_DAMAGE_TAKEN on the victim's held item + armor (docs/IMPLEMENTATION_BACKLOG.md
@@ -109,6 +113,8 @@ public class CombatListener implements Listener {
             // damage indicator, since nothing actually landed.
             if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
                 org.nakii.valmora.module.item.AbilityExecutor.fireHeld(
+                        victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true);
+                org.nakii.valmora.module.item.AbilityExecutor.fireModifiersHeld(
                         victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true);
                 fireArmorOnDamageTaken(victimPlayer, attacker);
             }
@@ -159,6 +165,8 @@ public class CombatListener implements Listener {
             if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
                 org.nakii.valmora.module.item.AbilityExecutor.fireHeld(
                         victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, null, true);
+                org.nakii.valmora.module.item.AbilityExecutor.fireModifiersHeld(
+                        victimPlayer, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, null, true);
                 fireArmorOnDamageTaken(victimPlayer, null);
             }
         }
@@ -170,10 +178,13 @@ public class CombatListener implements Listener {
             if (armor == null || !armor.hasItemMeta()) continue;
             String itemId = armor.getItemMeta().getPersistentDataContainer()
                     .get(org.nakii.valmora.util.Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
-            if (itemId == null) continue;
-            ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
-                    .ifPresent(def -> org.nakii.valmora.module.item.AbilityExecutor.fire(
-                            player, def, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true));
+            if (itemId != null) {
+                ValmoraAPI.getInstance().getItemManager().getItemRegistry().getItem(itemId)
+                        .ifPresent(def -> org.nakii.valmora.module.item.AbilityExecutor.fire(
+                                player, def, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true));
+            }
+            org.nakii.valmora.module.item.AbilityExecutor.fireModifiersForItem(
+                    player, armor, org.nakii.valmora.module.item.AbilityTrigger.ON_DAMAGE_TAKEN, attacker, true);
         }
     }
 
