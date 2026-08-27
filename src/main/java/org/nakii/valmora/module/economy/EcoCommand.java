@@ -59,16 +59,18 @@ public class EcoCommand implements TabExecutor {
                 String wallet = args.length >= 3 ? args[2].toLowerCase() : "both";
                 economy.readOffline(uuid, row -> {
                     double purse = row[0], bank = row[1];
+                    // /eco get shows the exact amount (not the abbreviated 1.0k/1.0m form used
+                    // elsewhere) — an admin checking a balance needs the precise number.
                     switch (wallet) {
                         case "purse" -> sender.sendMessage(Formatter.format(
-                            "<gold>" + name + "<gray>'s purse: <white>" + fmt(purse) + " coins"));
+                            "<dark_gray>[<gold>Eco<dark_gray>] <gold>" + name + "<gray>'s purse: <white>" + fmtExact(purse) + " coins"));
                         case "bank" -> sender.sendMessage(Formatter.format(
-                            "<gold>" + name + "<gray>'s bank: <white>" + fmt(bank) + " coins"));
+                            "<dark_gray>[<gold>Eco<dark_gray>] <gold>" + name + "<gray>'s bank: <white>" + fmtExact(bank) + " coins"));
                         default -> {
                             sender.sendMessage(Formatter.format(
-                                "<gold>" + name + "<gray>'s purse: <white>" + fmt(purse) + " coins"));
+                                "<dark_gray>[<gold>Eco<dark_gray>] <gold>" + name + "<gray>'s purse: <white>" + fmtExact(purse) + " coins"));
                             sender.sendMessage(Formatter.format(
-                                "<gold>" + name + "<gray>'s bank:  <white>" + fmt(bank) + " coins"));
+                                "<dark_gray>[<gold>Eco<dark_gray>] <gold>" + name + "<gray>'s bank:  <white>" + fmtExact(bank) + " coins"));
                         }
                     }
                 });
@@ -153,8 +155,12 @@ public class EcoCommand implements TabExecutor {
                     .filter(s -> s.startsWith(args[2].toLowerCase())).toList();
                 yield List.of();
             }
-            case 4 -> List.of("1000", "1k", "10k", "100k", "1m").stream()
-                .filter(s -> s.startsWith(args[3].toLowerCase())).toList();
+            case 4 -> {
+                // "get" only takes <player> [purse|bank] — no amount arg, so don't suggest numbers there.
+                if (!List.of("set", "add", "remove").contains(args[0].toLowerCase())) yield List.of();
+                yield List.of("1000", "1k", "10k", "100k", "1m").stream()
+                    .filter(s -> s.startsWith(args[3].toLowerCase())).toList();
+            }
             default -> List.of();
         };
     }
@@ -169,5 +175,11 @@ public class EcoCommand implements TabExecutor {
         if (rounded >= 1_000_000)     return String.format("%.2fm", amount / 1_000_000.0);
         if (rounded >= 1_000)         return String.format("%.1fk", amount / 1_000.0);
         return String.valueOf(rounded);
+    }
+
+    /** Exact, dot-thousands-separated amount — used by /eco get so admins see the real number, not an abbreviation. */
+    private static String fmtExact(double amount) {
+        long rounded = Math.round(amount);
+        return String.format(java.util.Locale.US, "%,d", rounded).replace(",", ".");
     }
 }

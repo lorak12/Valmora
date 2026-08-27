@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | -------------------- | ----------------------------------------------- |
 | Plugin name          | **Valmora**                                     |
 | Group / package root | `org.nakii.valmora`                             |
-| Version              | `0.1`                                           |
+| Version              | `1.0.0-beta1` (per `build.gradle`; verified 2026-08-26 — was stale at `0.1` here) |
 | Target server        | **Paper 1.21.11** (not Spigot, not CraftBukkit) |
 | Java version         | **21** (required)                               |
 | Build tool           | Gradle with Shadow + run-paper plugins          |
@@ -137,13 +137,16 @@ Valmora.onEnable()
     └── 5. Commands registered   ← NEVER register commands inside a module
 ```
 
-**Module registration order** (must be preserved):
+**Module registration order** (must be preserved — verified against `Valmora.java` 2026-08-26; the
+previous version of this table only listed the first 13 modules and had drifted 16 modules behind):
 
 ```
-script → time → stat → player → ui → ability → item → mob → skill → combat → gui → recipe → enchant
+script → time → stat → player → economy → ui → ability → item → mob → skill → combat → gui →
+recipe → alchemy → enchant → zone → resource → fishing → npc → warp → points → notify → quest →
+collection → hud → calendar → reforge → pet → progression
 ```
 
-Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java`.
+Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `reforge` after `recipe`).
 
 **Accessing modules at runtime:**
 
@@ -492,7 +495,7 @@ This section documents Paper API areas where **AI training data is stale or wron
 
 ### 14.1 Packets
 
-Paper 1.20.5+ introduced significant internal packet structure changes when Mojang switched to data-driven items. This project does not currently use raw packets. If needed, prefer **PacketEvents 2.x** over ProtocolLib (which has lagged on modern versions).
+Paper 1.20.5+ introduced significant internal packet structure changes when Mojang switched to data-driven items. This project **does** depend on and use **PacketEvents 2.x** (hard `depend` in `plugin.yml`) — not ProtocolLib (which has lagged on modern versions) — for NPC dialogue interception (`module/npc/dialogue/intercept/ConversationPacketManager.java`, wired up in `NpcModule`/`Valmora.java`). Corrected 2026-08-26; this section previously claimed no raw-packet usage existed.
 
 NMS class path changed in Paper 1.21 — there is no version suffix:
 

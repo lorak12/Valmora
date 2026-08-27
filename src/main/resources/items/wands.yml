@@ -14,10 +14,23 @@
 # the "swap rune" style mechanics are notes only where relevant).
 # =====================================================================
 
-
 # ---------------------------------------------------------------------
 # SUPPORT WANDS
 # ---------------------------------------------------------------------
+
+qa_take_coins_test:
+  name: "QA: Take Coins Test"
+  material: "PAPER"
+  rarity: "COMMON"
+  item-type: "NONE"
+  abilities:
+    test_take_coins:
+      name: "Test"
+      trigger: "RIGHT_CLICK"
+      mechanics:
+        - type: "TAKE_COINS"
+          params:
+            amount: 10
 
 wand_of_healing:
   name: "Wand Of Healing"
@@ -131,7 +144,6 @@ wand_of_strength:
             amount: 100.0
             duration: 10.0
             target: "@allies_in_radius{r=8}"
-
 
 # ---------------------------------------------------------------------
 # DAMAGE WANDS
@@ -310,7 +322,6 @@ hellstorm_wand:
           params:
             duration: 6.0
             target: "@enemies_in_radius{r=8}"
-
 
 # ---------------------------------------------------------------------
 # FIRE STAFFS (from the sword section — read like wands)

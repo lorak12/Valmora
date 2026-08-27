@@ -17,7 +17,11 @@ public class ResourceListener implements Listener {
         this.resourceManager = resourceManager;
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    // LOWEST so the INSUFFICIENT_POWER/DEPLETED/INTERRUPTED cancellation below lands before any
+    // other ignoreCancelled=true listener (SkillListener's mining XP, CollectionListener,
+    // QuestListener, ...) runs at their HIGH priority — otherwise those still see the event as
+    // "not yet cancelled" and grant XP/progress for a block the player was never allowed to break.
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         ResourceManager.BreakResult result = resourceManager.handleBlockBreak(player, event.getBlock());

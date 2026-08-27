@@ -304,6 +304,7 @@ leaping_sword:
           params:
             y-force: 1.2
             forward-force: 1.5
+            no-fall-damage: true
         - type: "DAMAGE"
           params:
             damage: 350.0

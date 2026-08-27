@@ -27,7 +27,8 @@ public class ProfileCommand implements TabExecutor {
         }
 
         if (args.length == 0) {
-            player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /profile <create|delete|switch|list|info> [name]"));
+            // Bare /profile (and its /profiles alias) opens the profile GUI rather than dumping usage text.
+            ProfileGui.open(player, playerManager);
             return true;
         }
 
@@ -38,26 +39,34 @@ public class ProfileCommand implements TabExecutor {
             case "gui":
                 ProfileGui.open(player, playerManager);
                 return true;
-            case "create":
-                if (args.length < 2) {
-                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /profile create <name>"));
-                    return true;
-                }
-                String name = args[1];
-                boolean created = playerManager.createProfile(player.getUniqueId(), name);
-                if (created) {
-                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' created."));
+            case "create": {
+                // No name given -> pick a random unused name from the configured pool (profiles.planet-names)
+                // instead of requiring the player to type one.
+                boolean randomName = args.length < 2;
+                String createdName = randomName ? null : args[1];
+                PlayerManager.CreateResult result;
+                if (randomName) {
+                    PlayerManager.CreateOutcome outcome = playerManager.createNextProfile(player.getUniqueId());
+                    result = outcome.result();
+                    createdName = outcome.name();
                 } else {
-                    player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Could not create profile '" + name
-                            + "' — you may be at the profile limit (" + playerManager.getMaxProfiles() + ") or that name is already in use."));
+                    result = playerManager.createProfileResult(player.getUniqueId(), createdName);
+                }
+                switch (result) {
+                    case OK -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + createdName + "' created."));
+                    case AT_CAP -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>You're at the profile limit ("
+                            + playerManager.getMaxProfiles() + "). Delete a profile before creating another."));
+                    case DUPLICATE_NAME -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>You already have a profile named '" + createdName + "'."));
+                    case NO_SESSION -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <red>Your session isn't loaded yet."));
                 }
                 break;
+            }
             case "delete":
                 if (args.length < 2) {
                     player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <gray>Usage: /profile delete <name>"));
                     return true;
                 }
-                name = args[1];
+                String name = args[1];
                 PlayerManager.DeleteResult result = playerManager.deleteProfile(player.getUniqueId(), name);
                 switch (result) {
                     case OK -> player.sendMessage(Formatter.format("<dark_gray>[<gold>Valmora<dark_gray>] <green>Profile '" + name + "' deleted."));

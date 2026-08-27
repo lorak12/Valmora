@@ -3,6 +3,7 @@ package org.nakii.valmora.module.mob;
 import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.api.ValmoraAPI;
@@ -195,20 +196,23 @@ public class MobDefinitionParser {
         if (section.contains("loot-table")) {
             ConfigurationSection lootSection = section.getConfigurationSection("loot-table");
             if (lootSection != null && lootSection.contains("drops")) {
-                List<?> dropsList = lootSection.getList("drops");
-                if (dropsList != null) {
-                    List<LootEntry> entries = new ArrayList<>();
-                    for (Object dropObj : dropsList) {
-                        if (dropObj instanceof ConfigurationSection dropEntry) {
-                            LootEntry entry = parseLootEntry(dropEntry, sectionId, fileName, itemManager);
-                            if (entry == null) {
-                                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Failed to parse loot entry.");
-                            }
-                            entries.add(entry);
-                        }
+                // NOTE: getList("drops") deserializes each map entry as a raw java.util.Map, not a
+                // ConfigurationSection (that instanceof check only ever matches for actual nested
+                // sections, e.g. YAML anchors) — so use getMapList() and wrap each map into a
+                // section via MemoryConfiguration#createSection to reuse parseLootEntry() below.
+                List<Map<?, ?>> dropsList = lootSection.getMapList("drops");
+                List<LootEntry> entries = new ArrayList<>();
+                for (Map<?, ?> dropMap : dropsList) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> typedMap = (Map<String, Object>) dropMap;
+                    ConfigurationSection dropEntry = new MemoryConfiguration().createSection("drop", typedMap);
+                    LootEntry entry = parseLootEntry(dropEntry, sectionId, fileName, itemManager);
+                    if (entry == null) {
+                        return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Failed to parse loot entry.");
                     }
-                    builder.lootTable(new LootTable(entries));
+                    entries.add(entry);
                 }
+                builder.lootTable(new LootTable(entries));
             }
         }
 

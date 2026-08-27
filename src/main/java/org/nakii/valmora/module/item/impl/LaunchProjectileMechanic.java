@@ -1,5 +1,6 @@
 package org.nakii.valmora.module.item.impl;
 
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Fireball;
@@ -45,6 +46,9 @@ public class LaunchProjectileMechanic implements AbilityMechanic {
         if (onHit.isEmpty()) onHit = context.getParams().getMapList("on-land");
         double damage = context.getParams().contains("damage") ? context.resolveDouble("damage", 0.0) : 0.0;
         String damageType = context.getString("damage-type", "MAGIC");
+        // Lets one thrown projectile hit every entity along its path (e.g. a thrown axe/spear
+        // "damaging all enemies in its path") instead of stopping dead after the first hit.
+        boolean pierce = context.getBoolean("pierce", false);
 
         Vector base = caster.getLocation().getDirection().normalize();
         for (int i = 0; i < count; i++) {
@@ -57,8 +61,11 @@ public class LaunchProjectileMechanic implements AbilityMechanic {
                         (Math.random() - 0.5) * s));
             }
             Projectile projectile = caster.launchProjectile(type, dir.normalize().multiply(velocity));
+            if (pierce && projectile instanceof AbstractArrow arrow) {
+                arrow.setPierceLevel(127);
+            }
             ProjectileAbilityService.register(projectile.getUniqueId(),
-                    new ProjectileAbilityService.Callback(caster.getUniqueId(), onHit, damage, damageType));
+                    new ProjectileAbilityService.Callback(caster.getUniqueId(), onHit, damage, damageType, pierce));
         }
     }
 

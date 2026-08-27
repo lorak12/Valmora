@@ -3,6 +3,7 @@ package org.nakii.valmora.module.gui;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.gui.storage.PlayerHeldItemHandle;
 import org.nakii.valmora.module.item.AbilityMechanic;
@@ -13,14 +14,17 @@ import org.nakii.valmora.util.Keys;
  * the old backpack-only {@code OPEN_BACKPACK} mechanic. Reads the held item's
  * {@link Keys#CONTAINER_GUI_KEY} PDC tag (set from an item's {@code container-gui:} YAML
  * field) and opens that GUI bound to the held item.
+ *
+ * <p>Resolves {@link GuiModule} lazily via {@link ValmoraAPI} at execution time rather than
+ * taking it as a constructor dependency: this mechanic is registered once, up front, alongside
+ * every other {@code AbilityMechanic} in {@code AbilityManager.registerMechanics()} — the item
+ * module (which validates every configured ability's mechanic type while parsing {@code
+ * items/*.yml}) enables well before the GUI module does (see the module order in
+ * Valmora.onEnable()), so a constructor-injected GuiModule reference wasn't available yet and
+ * every item using this mechanic (e.g. the backpacks) failed to load with "Unknown mechanic
+ * type 'OPEN_CONTAINER_GUI'".
  */
 public class OpenContainerMechanic implements AbilityMechanic {
-
-    private final GuiModule guiModule;
-
-    public OpenContainerMechanic(GuiModule guiModule) {
-        this.guiModule = guiModule;
-    }
 
     @Override
     public String getId() { return "OPEN_CONTAINER_GUI"; }
@@ -38,6 +42,8 @@ public class OpenContainerMechanic implements AbilityMechanic {
                 .get(Keys.CONTAINER_GUI_KEY, PersistentDataType.STRING);
         if (guiId == null) return;
 
+        GuiModule guiModule = ValmoraAPI.getInstance().getGuiModule();
+        if (guiModule == null) return;
         guiModule.openItemBoundGui(player, guiId, new PlayerHeldItemHandle(player, slot));
     }
 }

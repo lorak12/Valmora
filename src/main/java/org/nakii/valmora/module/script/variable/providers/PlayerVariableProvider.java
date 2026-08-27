@@ -36,7 +36,10 @@ public class PlayerVariableProvider implements VariableProvider {
         if (key.equalsIgnoreCase("name")) return player.getName();
         if (key.equalsIgnoreCase("world")) return player.getWorld().getName();
         if (key.equalsIgnoreCase("ping")) return player.getPing();
-        if (key.equalsIgnoreCase("biome")) return player.getLocation().getBlock().getBiome().name();
+        // Biome is registry-backed as of 1.21 (like Attribute/Enchantment, CLAUDE.md §14.9) —
+        // Enum#name() is deprecated for removal; getKey().getKey() is the supported replacement
+        // (yields the lowercase vanilla id, e.g. "plains", rather than "PLAINS").
+        if (key.equalsIgnoreCase("biome")) return player.getLocation().getBlock().getBiome().getKey().getKey();
 
         ValmoraAPI api = ValmoraAPI.getInstance();
         ValmoraPlayer vp = api.getPlayerManager().getSession(player.getUniqueId());

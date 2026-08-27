@@ -70,4 +70,10 @@ forge:
   on-open:
     actions:
       - "sound player block.blast_furnace.crack"
+  on-slot-update:
+    actions:
+      # Without this, placing/removing items in the input slots never attempts a craft — the GUI
+      # engine only ever crafts in response to an explicit gui_force_craft, it doesn't auto-match
+      # recipes on every render (see CLAUDE.md §8.4).
+      - "gui_force_craft"
   on-close: {}

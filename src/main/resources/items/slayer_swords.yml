@@ -129,6 +129,7 @@ halberd_of_the_shredded:
             projectile: "ARROW"
             velocity: 2.0
             count: 1
+            pierce: true
             damage: "$player.weapon_damage$ * 0.1"
             damage-type: "PHYSICAL"
 

@@ -210,7 +210,12 @@ class YamlConfigLoadTest {
                 "DAMAGE", "HEAL", "APPLY_EFFECT", "MODIFY_STAT", "TELEPORT",
                 "PUSH_ENTITIES", "PULL_ENTITIES", "SCRIPT",
                 "LAUNCH_PROJECTILE", "LAUNCH_PLAYER", "GIVE_COINS", "TAKE_COINS",
-                "CANCEL_TRAMPLE", "CHARGE_JUMP", "IGNITE", "AOE_MINE");
+                "CANCEL_TRAMPLE", "CHARGE_JUMP", "IGNITE", "AOE_MINE",
+                // Registered by GuiModule#onEnable() into the shared MechanicRegistry, not by
+                // AbilityManager#registerMechanics() — see ResourceIntegrityTest's broader sweep
+                // (src/test/.../config/ResourceIntegrityTest.java), which caught backpacks.yml
+                // using this before it was added here.
+                "OPEN_CONTAINER_GUI");
 
         for (String path : List.of("/items/new_items.yml", "/items/individual_pieces.yml", "/items/swords.yml")) {
             YamlConfiguration cfg = load(path);

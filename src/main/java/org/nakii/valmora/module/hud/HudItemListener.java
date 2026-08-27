@@ -48,6 +48,12 @@ public class HudItemListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
         if (module.isHudItem(event.getItemDrop().getItemStack())) {
+            // By the time this event fires, the ItemStack has already been pulled from the
+            // player's inventory and spawned as a live Item entity in the world — cancelling the
+            // event does NOT remove that entity. Without removing it explicitly, the player just
+            // walks over and picks it back up while giveHudItems() below also re-populates the
+            // slot, producing two copies of the same item (the reported dupe).
+            event.getItemDrop().remove();
             event.setCancelled(true);
             // Restore the item to its configured slot
             module.giveHudItems(event.getPlayer());

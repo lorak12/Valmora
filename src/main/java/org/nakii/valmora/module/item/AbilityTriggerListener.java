@@ -84,9 +84,18 @@ public class AbilityTriggerListener implements Listener {
     @EventHandler
     public void onProjectileHit(ProjectileHitEvent event) {
         Projectile projectile = event.getEntity();
-        ProjectileAbilityService.Callback callback =
-                ProjectileAbilityService.consume(projectile.getUniqueId());
+        // A piercing projectile fires this event once per entity it passes through, then again
+        // when it finally hits a block — only release the tracking on that terminal hit (or a
+        // non-piercing projectile's very first hit), otherwise every earlier entity hit would
+        // clear it and every later hit along the same path would be silently ignored.
+        boolean terminal = event.getHitBlock() != null;
+        ProjectileAbilityService.Callback callback = terminal
+                ? ProjectileAbilityService.consume(projectile.getUniqueId())
+                : ProjectileAbilityService.peek(projectile.getUniqueId());
         if (callback == null) return;
+        if (!terminal && !callback.pierce()) {
+            ProjectileAbilityService.consume(projectile.getUniqueId());
+        }
 
         Player caster = org.bukkit.Bukkit.getPlayer(callback.casterId());
         if (caster == null) return;

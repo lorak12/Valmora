@@ -43,7 +43,7 @@ economy:
   # Flat-rate bank interest, applied to every online/cached player's bank balance every
   # `bank-interest-interval-seconds`. 0 disables interest entirely (no task is scheduled).
   bank-interest-percent: 0.5
-  bank-interest-interval-seconds: 3600
+  bank-interest-interval-seconds: 60
 
 # ========================================================== #
 #                      Profile Settings                      #
@@ -79,13 +79,13 @@ time:
 
   # Starting calendar position (applied on first server launch; stored in time.yml after that)
   start-year: 1
-  start-season: SPRING   # SPRING | SUMMER | AUTUMN | WINTER
-  start-phase: EARLY     # EARLY | MID | LATE
-  start-day: 1           # 1–30
+  start-season: SPRING # SPRING | SUMMER | AUTUMN | WINTER
+  start-phase: EARLY # EARLY | MID | LATE
+  start-day: 1 # 1–30
 
   # Display names used in the scoreboard and variables
   season-names: [Spring, Summer, Autumn, Winter]
-  phase-names:  [Early, Mid, Late]
+  phase-names: [Early, Mid, Late]
 
   # Show time lines on the sidebar scoreboard
   scoreboard-enabled: true

@@ -46,7 +46,7 @@ The module also owns the **vanilla-item translation layer** (`ItemTranslator`): 
 
 ## 2. Code Structure
 
-The module lives in `src/main/java/org/nakii/valmora/module/item/` and is the largest in the codebase. It does not follow the single flat `XModule`/`XListener`/`XRegistry`/`XLoader` convention (`AGENTS.md` §3) — it has **two registered modules**, two sub-packages (`impl/` for the 14 concrete mechanics, `set/` for set-bonus support), and a thick supporting layer of data classes and services.
+The module lives in `src/main/java/org/nakii/valmora/module/item/` and is the largest in the codebase. It does not follow the single flat `XModule`/`XListener`/`XRegistry`/`XLoader` convention (`AGENTS.md` §3) — it has **two registered modules**, two sub-packages (`impl/` for the 16 concrete mechanics, `set/` for set-bonus support), and a thick supporting layer of data classes and services.
 
 ```
 src/main/java/org/nakii/valmora/module/item/
@@ -78,7 +78,7 @@ src/main/java/org/nakii/valmora/module/item/
 ├── TemporaryStatService.java      # Timed temporary stat boosts (survive recalculation)
 ├── LootListener.java              # Converts block/mob/fish drops to custom items
 │
-├── impl/                          # 14 concrete mechanics
+├── impl/                          # 16 concrete mechanics (was 14; CANCEL_TRAMPLE + CHARGE_JUMP added since)
 │   ├── DamageMechanic.java        # damage/amount + damage-type → DamageCalculator
 │   ├── HealMechanic.java          # heal param → PlayerState.heal
 │   ├── ApplyEffectMechanic.java   # PotionEffect via Registry.POTION_EFFECT_TYPE
@@ -118,7 +118,7 @@ Both modules implement `ReloadableModule` (`docs/MODULE_DEVELOPMENT.md` §2). Th
 
 - `ItemManager.onEnable()` (`ItemManager.java:27-34`): `itemLoader.loadItems()`, `setBonusRegistry.load()`, registers `LootListener`.
 - `ItemManager.onDisable()` (`ItemManager.java:37-41`): clears `itemRegistry` and `setBonusRegistry`.
-- `AbilityManager.onEnable()` (`AbilityManager.java:20-27`): `registerMechanics()` (registers all 14 impl mechanics, `AbilityManager.java:50-65`), registers `AbilityListener` + `AbilityTriggerListener`.
+- `AbilityManager.onEnable()` (`AbilityManager.java:20-27`): `registerMechanics()` (registers all 16 impl mechanics — see `AbilityManager.java`'s `registerMechanics()`; line numbers drift as mechanics are added, count verified 2026-08-26), registers `AbilityListener` + `AbilityTriggerListener`.
 - `AbilityManager.onDisable()` (`AbilityManager.java:30-39`): clears the mechanic registry and unregisters both listeners via `HandlerList.unregisterAll` (mandatory per `AGENTS.md` §6.2).
 
 The `/item` command is registered in `Valmora.onEnable()` after all modules — `Valmora.java:237` — never inside a module (`AGENTS.md` §6.3). It requires `valmora.admin` (`plugin.yml:16`).
@@ -195,6 +195,9 @@ The `silent` flag suppresses cooldown/mana/no-target action bars for high-freque
 | `ON_SHOOT` | `AbilityTriggerListener.onShoot` (`AbilityTriggerListener.java:43-47`) | `EntityShootBowEvent`, held only |
 | `ON_HIT` | `CombatListener` (combat module, `CombatListener.java:51-59`) | `fireHeld(attacker, ON_HIT, victim, silent=true)` after damage; `CombatTracker.recordDamageDealt` backs `$player.last_damage$` (`PlayerVariableProvider.java:153-154`) |
 | `PASSIVE` | `StatManager.recalculateStats` (`StatManager.java:117-126`) | Executes mechanics for every equipped+held item on each recalculation |
+| `ON_DAMAGE_TAKEN` | `CombatListener` (combat module) — **not** `AbilityTriggerListener` despite that class's own header javadoc claiming it; fired on the victim's held item and (via a duplicated `fireArmor`-equivalent) each armor piece, skipped when the hit was immune/absorbed | Added in backlog pass 57 (2026-08-08-ish); doc row added 2026-08-26 — was previously undocumented here |
+| `ON_TELEPORT` | `AbilityTriggerListener.onTeleport` | `PlayerTeleportEvent`, non-gating (fires after any completed teleport — warps, ender pearls, `/tp`, plugin teleports); held item + armor pieces |
+| `EQUIP` / `UNEQUIP` | `AbilityTriggerListener.onArmorChange` | Paper's `PlayerArmorChangeEvent` — fires `UNEQUIP` on the old item and `EQUIP` on the new item for any armor-slot change regardless of cause (click, shift-click, dispenser, command, ...), rather than enumerating individual inventory-click cases |
 
 ### 3.11 Armor-piece ability firing
 

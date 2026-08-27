@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -71,13 +72,20 @@ class RecipeEngineTest {
 
     /** Mock Bukkit to prevent NPE in matchVanillaRecipe (numeric-keyed inputs only). */
     private void withBukkitVanillaNoMatch(Runnable action) {
+        withBukkitVanillaRecipe(null, action);
+    }
+
+    /** Same as {@link #withBukkitVanillaNoMatch}, but Bukkit reports a real vanilla match — used
+     *  to prove a machine is never even consulting vanilla recipes, rather than consulting them
+     *  and (coincidentally) finding nothing. */
+    private void withBukkitVanillaRecipe(@org.jetbrains.annotations.Nullable Recipe vanillaRecipe, Runnable action) {
         try (MockedStatic<Bukkit> mockedBukkit = mockStatic(Bukkit.class)) {
             Server server = mock(Server.class);
             World world = mock(World.class);
             mockedBukkit.when(Bukkit::getServer).thenReturn(server);
             when(plugin.getServer()).thenReturn(server);
             when(server.getWorlds()).thenReturn(List.of(world));
-            mockedBukkit.when(() -> Bukkit.getCraftingRecipe(any(), any())).thenReturn(null);
+            mockedBukkit.when(() -> Bukkit.getCraftingRecipe(any(), any())).thenReturn(vanillaRecipe);
             action.run();
         }
     }
@@ -302,6 +310,105 @@ class RecipeEngineTest {
         withBukkitVanillaNoMatch(() -> {
             Optional<RecipeDefinition> result = engine.match("crafting", inputs);
             assertTrue(result.isEmpty());
+        });
+    }
+
+    // ── Precedence: DynamicMachineHandler > YAML recipe > vanilla ──────────
+    // docs/V1_RELEASE_CHECKLIST.md §1 — CLAUDE.md §9 documents this order but nothing previously
+    // asserted it end to end for a machine that has more than one layer defined at once.
+
+    @Test
+    void dynamicHandlerTakesPrecedenceOverAMatchingYamlRecipeForTheSameMachine() {
+        RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+        when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
+
+        RecipeDefinition dynamicRecipe = new RecipeDefinition("dynamic_r", "forge", RecipeType.EXACT_SLOT,
+                Map.of(), null, Map.of(), null);
+        engine.registerHandler("forge", inputs -> Optional.of(dynamicRecipe));
+
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("input1", item("iron_ingot", 1)); // would also satisfy the YAML recipe above
+
+        Optional<RecipeDefinition> result = engine.match("forge", inputs);
+        assertTrue(result.isPresent());
+        assertEquals("dynamic_r", result.get().getId(), "a registered handler must win over a matching YAML recipe");
+    }
+
+    @Test
+    void yamlRecipeIsUsedWhenTheDynamicHandlerDeclinesToMatch() {
+        RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+        when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
+
+        // Handler is registered but returns empty — e.g. its own preconditions weren't met.
+        engine.registerHandler("forge", inputs -> Optional.empty());
+
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("input1", item("iron_ingot", 1));
+
+        Optional<RecipeDefinition> result = engine.match("forge", inputs);
+        assertTrue(result.isPresent());
+        assertEquals("yaml_r", result.get().getId(), "YAML recipe must be checked when the handler declines");
+    }
+
+    @Test
+    void unregisteringAHandlerFallsBackToYamlRecipes() {
+        RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+        when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
+
+        RecipeDefinition dynamicRecipe = new RecipeDefinition("dynamic_r", "forge", RecipeType.EXACT_SLOT,
+                Map.of(), null, Map.of(), null);
+        engine.registerHandler("forge", inputs -> Optional.of(dynamicRecipe));
+        engine.unregisterHandler("forge");
+
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("input1", item("iron_ingot", 1));
+
+        Optional<RecipeDefinition> result = engine.match("forge", inputs);
+        assertTrue(result.isPresent());
+        assertEquals("yaml_r", result.get().getId(), "unregistering a handler must not leave it matching");
+    }
+
+    @Test
+    void vanillaFallbackIsScopedToCraftingTableAndNeverConsultedForOtherMachines() {
+        // A "forge" machine with no dynamic handler and no matching YAML recipe must NOT fall
+        // through to vanilla crafting, even if the inputs happen to form a valid vanilla recipe —
+        // see RecipeEngine.VANILLA_FALLBACK_MACHINES and the regression it fixed (an anvil/forge/
+        // alchemy GUI silently matching an unrelated vanilla recipe).
+        when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of());
+
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("0", item("wood", 1));
+
+        // Bukkit is stubbed to report a REAL vanilla match here — if the "forge" machine-name
+        // guard in RecipeEngine.match() were ever removed/broken, this would flip the result to
+        // present, so an empty result here actually proves vanilla was never consulted for
+        // "forge", not just that it happened to find nothing.
+        ItemStack vanillaResult = item("some_vanilla_result", 1); // precomputed — see item()'s own note on UnfinishedStubbingException
+        Recipe vanillaMatch = mock(Recipe.class);
+        when(vanillaMatch.getResult()).thenReturn(vanillaResult);
+        withBukkitVanillaRecipe(vanillaMatch, () -> {
+            Optional<RecipeDefinition> result = engine.match("forge", inputs);
+            assertTrue(result.isEmpty(), "\"forge\" must never fall through to vanilla crafting recipes");
+        });
+    }
+
+    @Test
+    void vanillaFallbackDoesApplyForTheCraftingTableMachine() {
+        when(recipeModule.getRecipesForMachine("crafting_table")).thenReturn(List.of());
+
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("0", item("wood", 1));
+
+        Recipe vanillaMatch = mock(Recipe.class);
+        ItemStack result = item("some_vanilla_result", 1);
+        when(vanillaMatch.getResult()).thenReturn(result);
+        withBukkitVanillaRecipe(vanillaMatch, () -> {
+            Optional<RecipeDefinition> matched = engine.match("crafting_table", inputs);
+            assertTrue(matched.isPresent(), "crafting_table must fall through to vanilla when nothing else matches");
+            assertTrue(matched.get().isVanilla());
         });
     }
 

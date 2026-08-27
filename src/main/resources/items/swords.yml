@@ -613,67 +613,8 @@ blade_of_the_volcano:
         - "<gray>who are in lava."
 
 
-# ---------------------------------------------------------------------
-# Staves (melee weapons)
-# ---------------------------------------------------------------------
-fire_freeze_staff:
-  name: "Fire Freeze Staff"
-  material: "BLAZE_ROD"
-  rarity: "EPIC"
-  item-type: "SWORD"
-  stats:
-    DAMAGE: 50
-    STRENGTH: 20
-  abilities:
-    fire_freeze:
-      name: "Fire Freeze"
-      trigger: "RIGHT_CLICK"
-      cooldown: 10.0
-      mana-cost: 500.0
-      description:
-        - "<gray>Creates a circle with a 5 block radius."
-        - "<gray>After 5s, all mobs inside are <aqua>frozen"
-        - "<gray>for 10s."
-      mechanics:
-        - type: "APPLY_EFFECT"
-          params:
-            effect: "slowness"
-            duration: 10.0
-            amplifier: 10
-            target: "@enemies_in_radius{r=5}"
-
-fire_fury_staff:
-  name: "Fire Fury Staff"
-  material: "BLAZE_ROD"
-  rarity: "EPIC"
-  item-type: "SWORD"
-  stats:
-    DAMAGE: 100
-    MANA: 300
-  abilities:
-    firestorm:
-      name: "Firestorm"
-      trigger: "RIGHT_CLICK"
-      cooldown: 20.0
-      mana-cost: 1000.0
-      description:
-        - "<gray>Shoots a projectile that creates a firestorm"
-        - "<gray>on impact, dealing up to <red>42,000 damage"
-        - "<gray>over 10s to mobs in a 10 block radius."
-      mechanics:
-        - type: "LAUNCH_PROJECTILE"
-          params:
-            projectile: "FIREBALL"
-            velocity: 1.8
-            count: 1
-            damage: 4200.0
-            damage-type: "MAGIC"
-            on-hit:
-              - type: "DAMAGE"
-                params:
-                  damage: 42000.0
-                  damage-type: "MAGIC"
-                  target: "@enemies_in_radius{r=10}"
+# Staves (fire_freeze_staff, fire_fury_staff) moved to items/wands.yml — "read like wands" per
+# its section header there; this used to be a stale duplicate copy left behind after the move.
 
 midas_sword:
   name: "Midas' Sword"

@@ -30,7 +30,9 @@ public class YamlLoader<T> {
     }
 
     /**
-     * Loads and parses all YML files in the configured directory.
+     * Loads and parses all YML files in the configured directory, including any subfolders (e.g.
+     * {@code recipes/alchemy/}, {@code recipes/anvil/} per CLAUDE.md §9.3) — subfolders are purely
+     * for author organisation and carry no meaning of their own.
      * @param parser a functional interface for parsing a ConfigurationSection into an object of type T
      * @param registerAction a functional interface for registering a successfully parsed object
      */
@@ -40,36 +42,46 @@ public class YamlLoader<T> {
             folder.mkdirs();
         }
 
-        File[] files = folder.listFiles();
+        List<File> files = new ArrayList<>();
+        collectYamlFilesRecursive(folder, files);
         List<String> errors = new ArrayList<>();
         int loadedCount = 0;
 
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile() && file.getName().endsWith(".yml")) {
-                    String relativePath = folderName + "/" + file.getName();
-                    try {
-                        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                        for (String key : config.getKeys(false)) {
-                            ConfigurationSection section = config.getConfigurationSection(key);
-                            if (section != null) {
-                                LoadResult<T, String> result = parser.parse(key, section, relativePath);
-                                if (result.isSuccess()) {
-                                    registerAction.accept(result.getValue());
-                                    loadedCount++;
-                                } else {
-                                    errors.add(result.getError());
-                                }
-                            }
+        for (File file : files) {
+            String relativePath = folderName + "/" + folder.toPath().relativize(file.toPath()).toString().replace(File.separatorChar, '/');
+            try {
+                YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+                for (String key : config.getKeys(false)) {
+                    ConfigurationSection section = config.getConfigurationSection(key);
+                    if (section != null) {
+                        LoadResult<T, String> result = parser.parse(key, section, relativePath);
+                        if (result.isSuccess()) {
+                            registerAction.accept(result.getValue());
+                            loadedCount++;
+                        } else {
+                            errors.add(result.getError());
                         }
-                    } catch (Exception e) {
-                        errors.add("[" + relativePath + "] Failed to parse YAML: " + e.getMessage());
                     }
                 }
+            } catch (Exception e) {
+                errors.add("[" + relativePath + "] Failed to parse YAML: " + e.getMessage());
             }
         }
 
         reportErrors(errors, loadedCount);
+    }
+
+    /** Recursively collects every {@code .yml} file under {@code dir} into {@code out}, depth-first. */
+    private void collectYamlFilesRecursive(File dir, List<File> out) {
+        File[] children = dir.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isDirectory()) {
+                collectYamlFilesRecursive(child, out);
+            } else if (child.getName().endsWith(".yml")) {
+                out.add(child);
+            }
+        }
     }
 
     /**

@@ -12,8 +12,14 @@ commands:
     description: Toggle the sidebar scoreboard on/off.
   profile:
     usage: /profile help
+    aliases: [profiles]
   stat:
     usage: /stat help
+    permission: valmora.admin
+    description: Directly edit a player's stats. Admin only.
+  stats:
+    usage: /stats
+    description: Opens your stat sheet.
   item:
     usage: /item help
     permission: valmora.admin

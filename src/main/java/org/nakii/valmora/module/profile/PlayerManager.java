@@ -100,6 +100,21 @@ public class PlayerManager implements ReloadableModule {
             org.bukkit.event.HandlerList.unregisterAll(connectionListener);
         }
         
+        // A profile's savedInventory/savedArmor/savedOffhand fields are only refreshed on quit or
+        // profile switch (see savePlayerInventory's other call sites) — while a player is actively
+        // online, they're a stale snapshot from whenever that last happened. Re-capture the live
+        // inventory for every online player right before persisting below, otherwise this reload
+        // writes that stale snapshot to the DB and then handleJoin()'s sync reload path re-applies
+        // it on top of the player's current inventory — silently reverting anything they picked up,
+        // dropped, or deleted (e.g. via the creative-mode inventory) since their last quit/switch.
+        for (Map.Entry<UUID, ValmoraPlayer> entry : activeSession.entrySet()) {
+            Player online = Bukkit.getPlayer(entry.getKey());
+            ValmoraProfile active = entry.getValue().getActiveProfile();
+            if (online != null && active != null) {
+                savePlayerInventory(online, active);
+            }
+        }
+
         // Concurrent (fixed 2026-08-07, was a synchronous per-player .join() loop) — each save is
         // already a CompletableFuture backed by the DB executor's own thread pool, so dispatching
         // them all up front and joining once on the aggregate lets the DB layer's own concurrency
@@ -231,24 +246,35 @@ public class PlayerManager implements ReloadableModule {
         return available.get(random.nextInt(available.size()));
     }
 
-    /** @return false if the profile was NOT created (no session, at the profile cap, or a duplicate name) */
+    public enum CreateResult { OK, NO_SESSION, AT_CAP, DUPLICATE_NAME }
+
+    /** @deprecated use {@link #createProfileResult(UUID, String)} for a result that distinguishes the failure reason. */
+    @Deprecated
     public boolean createProfile(UUID uuid, String profileName) {
+        return createProfileResult(uuid, profileName) == CreateResult.OK;
+    }
+
+    public CreateResult createProfileResult(UUID uuid, String profileName) {
         ValmoraPlayer vp = activeSession.get(uuid);
-        if (vp == null) return false;
-        if (vp.getProfiles().size() >= getMaxProfiles()) return false;
+        if (vp == null) return CreateResult.NO_SESSION;
+        if (vp.getProfiles().size() >= getMaxProfiles()) return CreateResult.AT_CAP;
         for (ValmoraProfile existing : vp.getProfiles().values()) {
-            if (existing.getName().equalsIgnoreCase(profileName)) return false;
+            if (existing.getName().equalsIgnoreCase(profileName)) return CreateResult.DUPLICATE_NAME;
         }
         ValmoraProfile newProfile = new ValmoraProfile(profileName);
         vp.addProfile(newProfile);
         dataStore.savePlayer(vp);
-        return true;
+        return CreateResult.OK;
     }
 
-    public void createNextProfile(UUID uuid) {
+    public record CreateOutcome(CreateResult result, String name) {}
+
+    /** Creates a profile with a random unused name from {@code profiles.planet-names}. */
+    public CreateOutcome createNextProfile(UUID uuid) {
         ValmoraPlayer vp = activeSession.get(uuid);
-        if (vp == null) return;
-        createProfile(uuid, pickNextProfileName(vp));
+        if (vp == null) return new CreateOutcome(CreateResult.NO_SESSION, null);
+        String name = pickNextProfileName(vp);
+        return new CreateOutcome(createProfileResult(uuid, name), name);
     }
 
     public enum DeleteResult { OK, NO_SESSION, NOT_FOUND, ONLY_PROFILE, IS_ACTIVE }

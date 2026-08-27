@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.mob;
 
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -16,6 +17,9 @@ import org.nakii.valmora.util.Keys;
 
 public class MobFactory {
 
+    /** Vanilla's generic.max_health attribute definition hard-clamps to this range regardless of base value. */
+    private static final double VANILLA_MAX_HEALTH_CAP = 1024.0;
+
     private final BossController bossController;
 
     public MobFactory(Valmora plugin, BossController bossController) {
@@ -26,11 +30,21 @@ public class MobFactory {
         // Set the ID
         entity.getPersistentDataContainer().set(Keys.MOB_ID_KEY, PersistentDataType.STRING, definition.getId());
 
-        // Set health
+        // Set health. Vanilla's generic.max_health attribute is hard-clamped to [0, 1024] by the
+        // game itself — a base value above that is silently accepted by setBaseValue() but then
+        // CraftLivingEntity#setHealth() rejects any health above the clamped attribute value with
+        // an IllegalArgumentException, killing the whole spawn (and, via /mob spawn, throwing all
+        // the way up through the command). Clamp here so high-HP bosses (e.g. 25000) don't crash.
         AttributeInstance healthAttribute = entity.getAttribute(Attribute.MAX_HEALTH);
         if (healthAttribute != null) {
-            healthAttribute.setBaseValue(definition.getHealth());
-            entity.setHealth(definition.getHealth());
+            double health = Math.min(definition.getHealth(), VANILLA_MAX_HEALTH_CAP);
+            if (health < definition.getHealth()) {
+                Bukkit.getLogger().warning("[Valmora] [Mob] '" + definition.getId() + "' configured health "
+                        + definition.getHealth() + " exceeds the vanilla max_health attribute cap ("
+                        + VANILLA_MAX_HEALTH_CAP + "); clamping. Scale the mob's damage/level instead of relying on raw HP beyond this cap.");
+            }
+            healthAttribute.setBaseValue(health);
+            entity.setHealth(health);
         }
 
         // Set scaled damage
@@ -78,8 +92,12 @@ public class MobFactory {
             entity.setRemoveWhenFarAway(false);
             if (entity instanceof Mob mob) mob.setPersistent(true);
         }
-        if (definition.isBaby() && entity instanceof Ageable ageable) {
-            ageable.setBaby();
+        // Explicitly force adult/baby either way — some vanilla mobs (e.g. Zombie) roll their own
+        // random baby chance on spawn, so leaving the "not baby" case untouched let that vanilla
+        // roll silently override the configured value some of the time.
+        if (entity instanceof Ageable ageable) {
+            if (definition.isBaby()) ageable.setBaby();
+            else ageable.setAdult();
         }
     }
 
@@ -101,10 +119,19 @@ public class MobFactory {
 
     public void applyVisuals(LivingEntity entity, MobDefinition definition) {
         if (definition == null) return;
-        // Format: <gray>[<white>Lv.</white>" + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getName()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>
-        String name = "<gray>[<white>Lv." + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getName()) + " " + entity.getHealth() + "</white><gray>/</gray><white>" + definition.getHealth() + "</white><red>❤</red>";
+        String currentHealth = formatHealth(entity.getHealth());
+        String maxHealth = formatHealth(definition.getHealth());
+        String name = "<gray>[<white>Lv." + definition.getLevel() + "</white>]</gray><white>" + Formatter.capitalize(definition.getName()) + " " + currentHealth + "</white><gray>/</gray><white>" + maxHealth + "</white><red>❤</red>";
         entity.customName(Formatter.format(name));
-        entity.setCustomNameVisible(true);  
+        entity.setCustomNameVisible(true);
+    }
+
+    /** Renders a health value without a trailing ".0" for whole numbers (e.g. "100" not "100.0"). */
+    private static String formatHealth(double health) {
+        if (health == Math.rint(health)) {
+            return String.valueOf((long) health);
+        }
+        return String.format(java.util.Locale.ROOT, "%.1f", health);
     }
 
     @SuppressWarnings("unchecked")

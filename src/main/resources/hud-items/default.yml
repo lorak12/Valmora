@@ -11,6 +11,7 @@ menu_button:
     - "notifyall io:actionbar <yellow>Menu coming soon!"
   on-left-click:
     - "notifyall io:actionbar <yellow>Menu coming soon!"
+    - "open_gui stats"
 
 profile_button:
   slot: 7

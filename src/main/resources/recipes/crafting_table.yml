@@ -30,12 +30,17 @@ iron_pickaxe:
   outputs:
     result: { item: IRON_PICKAXE, amount: 1 }
 
-# Example: Wood planks (shapeless - any 3x logs anywhere)
+# Example: Wood planks (shapeless). NOTE: "LOG" is not a real 1.13+ Material (there's no generic
+# log id post-flattening — see CLAUDE.md §14.18 on using Tag.LOGS instead of a material list), so
+# Material.matchMaterial("LOG") returned null and this recipe never matched ANY item at all,
+# silently — not even a real oak log. Pinned to OAK_LOG so it actually works, rather than fixed
+# into a real any-log-type recipe, since that needs recipe-engine support for material tags this
+# engine doesn't have yet.
 wood_planks:
   machine: crafting_table
   type: SHAPELESS
   inputs:
-    - { item: LOG, amount: 1 }
+    - { item: OAK_LOG, amount: 1 }
   outputs:
     result: { item: PLANKS, amount: 4 }
 

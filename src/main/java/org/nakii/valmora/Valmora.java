@@ -249,6 +249,14 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         getCommand("profile").setExecutor(profileCommand);
         getCommand("profile").setTabCompleter(profileCommand);
         getCommand("stat").setExecutor(new StatCommand(playerManager));
+        getCommand("stats").setExecutor((sender, cmd, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player p)) {
+                sender.sendMessage("This command is for players only.");
+                return true;
+            }
+            guiModule.openGui(p, "stats");
+            return true;
+        });
         getCommand("item").setExecutor(new ItemCommand(this));
         getCommand("mob").setExecutor(new MobCommand(this, mobManager));
         SkillCommand skillCommand = new SkillCommand(this, playerManager);

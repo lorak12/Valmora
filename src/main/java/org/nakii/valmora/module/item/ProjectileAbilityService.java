@@ -19,8 +19,12 @@ public final class ProjectileAbilityService {
      * @param onHit      mechanic maps to run against the struck entity / impact area
      * @param damage     direct damage to apply to a struck entity (0 = none)
      * @param damageType damage type for the direct hit
+     * @param pierce     if true, the projectile keeps its tracking after hitting an entity (so a
+     *                   piercing arrow can damage every entity along its path) instead of being
+     *                   consumed on the very first hit; it's only released once the projectile
+     *                   hits a block (or otherwise terminates).
      */
-    public record Callback(UUID casterId, List<Map<?, ?>> onHit, double damage, String damageType) {}
+    public record Callback(UUID casterId, List<Map<?, ?>> onHit, double damage, String damageType, boolean pierce) {}
 
     private static final Map<UUID, Callback> CALLBACKS = new ConcurrentHashMap<>();
 
@@ -32,6 +36,11 @@ public final class ProjectileAbilityService {
 
     public static Callback consume(UUID projectileId) {
         return CALLBACKS.remove(projectileId);
+    }
+
+    /** Reads the callback without removing it — used for a piercing projectile's non-terminal (entity) hits. */
+    public static Callback peek(UUID projectileId) {
+        return CALLBACKS.get(projectileId);
     }
 
     public static boolean isTracked(LivingEntity ignored) {

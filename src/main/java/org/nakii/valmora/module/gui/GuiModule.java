@@ -95,7 +95,6 @@ public class GuiModule implements ReloadableModule {
         plugin.getScriptModule().registerEvent(
                 new org.nakii.valmora.module.gui.event.OpenSignInputEventFactory(plugin, signInputManager, this));
 
-        plugin.getAbilityManager().getMechanicRegistry().registerMechanic(new OpenContainerMechanic(this));
 
         loadGuis();
     }

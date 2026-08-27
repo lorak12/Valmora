@@ -18,7 +18,16 @@ public class Formatter {
         return text.stream().map(Formatter::format).toList();
     }
 
+    /** Title-cases every word in {@code text} (e.g. "forge titan" / "FORGE_TITAN".replace("_"," ") -> "Forge Titan"). */
     public static String capitalize(String text){
-        return text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
+        if (text == null || text.isEmpty()) return text;
+        String[] words = text.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1).toLowerCase());
+        }
+        return sb.toString();
     }
 }

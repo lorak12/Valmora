@@ -17,6 +17,7 @@ public class AbilityManager implements ReloadableModule {
     private AbilityTriggerListener abilityTriggerListener;
     private TrampleListener trampleListener;
     private ChargeJumpListener chargeJumpListener;
+    private NoFallDamageGuard noFallDamageGuard;
     private ItemPipelineLoader pipelineLoader;
 
     @Override
@@ -31,6 +32,8 @@ public class AbilityManager implements ReloadableModule {
         plugin.getServer().getPluginManager().registerEvents(trampleListener, plugin);
         this.chargeJumpListener = new ChargeJumpListener();
         plugin.getServer().getPluginManager().registerEvents(chargeJumpListener, plugin);
+        this.noFallDamageGuard = new NoFallDamageGuard();
+        plugin.getServer().getPluginManager().registerEvents(noFallDamageGuard, plugin);
 
         // Item ability pipeline (docs/VALMORA_DOCUMENTATION.md §39) — depends on scriptModule,
         // which registers/enables before this module (see module order in Valmora.onEnable()).
@@ -55,6 +58,9 @@ public class AbilityManager implements ReloadableModule {
         }
         if (chargeJumpListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(chargeJumpListener);
+        }
+        if (noFallDamageGuard != null) {
+            org.bukkit.event.HandlerList.unregisterAll(noFallDamageGuard);
         }
         if (plugin.getScriptModule() != null) {
             plugin.getScriptModule().getHookBus().clearYamlStages(ItemPipelineLoader.POINT_PREFIX);
@@ -88,6 +94,10 @@ public class AbilityManager implements ReloadableModule {
         mechanicRegistry.registerMechanic(new AoeMineMechanic());
         mechanicRegistry.registerMechanic(new CancelTrampleMechanic());
         mechanicRegistry.registerMechanic(new ChargeJumpMechanic());
+        // Resolves GuiModule lazily via ValmoraAPI at execution time (see its own javadoc) so it
+        // can be registered here, before the item module validates items/*.yml abilities against
+        // this registry — GuiModule itself doesn't enable until much later.
+        mechanicRegistry.registerMechanic(new org.nakii.valmora.module.gui.OpenContainerMechanic());
     }
     
     public MechanicRegistry getMechanicRegistry() {
