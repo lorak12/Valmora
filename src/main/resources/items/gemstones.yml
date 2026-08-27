@@ -1,0 +1,41 @@
+# =====================================================================
+# Gemstone items for the generic modifier framework's custom_anvil recipes
+# (docs/Valmora_Modifier_Framework_Design.docx §11/§16). Purely inert items — no stats/
+# abilities of their own — consumed as the "addition" input by modifiers/recipes/gemstones.yml.
+# =====================================================================
+
+ruby_gem_1:
+  name: "<dark_red>Rough Ruby"
+  material: "REDSTONE"
+  rarity: "COMMON"
+  item-type: "NONE"
+
+ruby_gem_2:
+  name: "<red>Fine Ruby"
+  material: "REDSTONE"
+  rarity: "UNCOMMON"
+  item-type: "NONE"
+
+ruby_gem_3:
+  name: "<red>Flawless Ruby"
+  material: "REDSTONE"
+  rarity: "RARE"
+  item-type: "NONE"
+
+sapphire_gem_1:
+  name: "<blue>Rough Sapphire"
+  material: "LAPIS_LAZULI"
+  rarity: "COMMON"
+  item-type: "NONE"
+
+sapphire_gem_2:
+  name: "<blue>Fine Sapphire"
+  material: "LAPIS_LAZULI"
+  rarity: "UNCOMMON"
+  item-type: "NONE"
+
+sapphire_gem_3:
+  name: "<aqua>Flawless Sapphire"
+  material: "LAPIS_LAZULI"
+  rarity: "RARE"
+  item-type: "NONE"

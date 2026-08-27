@@ -1,0 +1,102 @@
+# Generic APPLY_MODIFIER/REMOVE_MODIFIER recipes for the custom_anvil machine
+# (docs/Valmora_Modifier_Framework_Design.docx §16). Each recipe declares which base item types,
+# addition item, and modifier/tier it grants — the ModifierEngine owns attachment semantics
+# (capacity/exclusivity/conflicts); this file only declares intent + cost.
+
+ruby_application_1:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: ruby_gem_1
+    amount: 1
+  modifier:
+    group: gemstones
+    id: ruby
+    tier: 1
+  cost:
+    xp_levels: 2
+
+ruby_application_2:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: ruby_gem_2
+    amount: 1
+  modifier:
+    group: gemstones
+    id: ruby
+    tier: 2
+  cost:
+    xp_levels: 4
+
+ruby_application_3:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: ruby_gem_3
+    amount: 1
+  modifier:
+    group: gemstones
+    id: ruby
+    tier: 3
+  cost:
+    xp_levels: 6
+
+sapphire_application_1:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: sapphire_gem_1
+    amount: 1
+  modifier:
+    group: gemstones
+    id: sapphire
+    tier: 1
+  cost:
+    xp_levels: 2
+
+sapphire_application_2:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: sapphire_gem_2
+    amount: 1
+  modifier:
+    group: gemstones
+    id: sapphire
+    tier: 2
+  cost:
+    xp_levels: 4
+
+sapphire_application_3:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: sapphire_gem_3
+    amount: 1
+  modifier:
+    group: gemstones
+    id: sapphire
+    tier: 3
+  cost:
+    xp_levels: 6
+
+remove_gemstone:
+  machine: custom_anvil
+  operation: REMOVE_MODIFIER
+  base:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  modifier:
+    group: gemstones

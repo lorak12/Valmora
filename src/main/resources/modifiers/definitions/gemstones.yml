@@ -1,0 +1,70 @@
+# Default gemstones (docs/Valmora_Modifier_Framework_Design.docx §11) — tiered modifiers in the
+# "gemstones" group. Each tier fully defines its own effects (no by_rarity map anywhere).
+
+ruby:
+  group: gemstones
+  display:
+    name: "<red>Ruby"
+  tiers:
+    1:
+      display:
+        name: "<dark_red>Rough Ruby"
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 2
+    2:
+      display:
+        name: "<red>Fine Ruby"
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 5
+    3:
+      display:
+        name: "<red>Flawless Ruby"
+      effects:
+        - type: STAT
+          stat: strength
+          operation: ADD
+          value: 10
+        - type: STAT
+          stat: ferocity
+          operation: ADD
+          value: 1
+
+sapphire:
+  group: gemstones
+  display:
+    name: "<blue>Sapphire"
+  tiers:
+    1:
+      display:
+        name: "<blue>Rough Sapphire"
+      effects:
+        - type: STAT
+          stat: intelligence
+          operation: ADD
+          value: 5
+    2:
+      display:
+        name: "<blue>Fine Sapphire"
+      effects:
+        - type: STAT
+          stat: intelligence
+          operation: ADD
+          value: 12
+    3:
+      display:
+        name: "<aqua>Flawless Sapphire"
+      effects:
+        - type: STAT
+          stat: intelligence
+          operation: ADD
+          value: 25
+        - type: STAT
+          stat: mana_regen
+          operation: ADD
+          value: 5

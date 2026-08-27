@@ -132,10 +132,11 @@ class ResourceIntegrityTest {
      * Machine IDs fully owned by a {@code DynamicMachineHandler} registered in Java (checked
      * before YAML recipes per CLAUDE.md §8.5/§9) — these legitimately have zero YAML recipes.
      * Kept in sync by hand; grep {@code registerHandler(} across src/main/java if this list ever
-     * looks stale (found: AlchemyModule, EnchantModule, ReforgeModule x2, RecipeModule#anvil).
+     * looks stale (found: AlchemyModule, EnchantModule, ReforgeModule x2, RecipeModule#anvil,
+     * ModifierModule#custom_anvil — see docs/Valmora_Modifier_Framework_Design.docx §16).
      */
     private static final Set<String> HANDLER_OWNED_MACHINES = Set.of(
-            "alchemy", "anvil", "enchanting_table", "forge_random", "reforge_anvil");
+            "alchemy", "anvil", "enchanting_table", "forge_random", "reforge_anvil", "custom_anvil");
 
     @Test
     @EnabledIf("resourcesDirPresent")

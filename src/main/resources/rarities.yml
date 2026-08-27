@@ -1,0 +1,69 @@
+# =====================================================================
+# Valmora Rarities — single source of truth for rarity metadata.
+#
+# Per docs/Valmora_Modifier_Framework_Design.docx §4: modifier definitions
+# must NOT contain explicit COMMON/RARE/LEGENDARY maps. Instead they use
+# generic value providers (see resources/modifiers/*.yml, "scaling: { type:
+# RARITY, property: power|rank }") that read a property off the rarity
+# resolved for the item at evaluation time. Adding, removing, reordering,
+# or rebalancing a rarity here does not require touching any modifier file.
+#
+# Fields:
+#   id     - stable machine identifier (lowercase, used by expressions/APIs)
+#   name   - display name
+#   color  - MiniMessage-compatible display color/prefix
+#   rank   - ordered rarity position (0 = weakest), used for linear scaling
+#            and rank comparisons
+#   power  - numeric content-authoring scale factor used by the default
+#            RARITY value provider; NOT itself a stat multiplier
+#
+# NOTE: these ids intentionally mirror the legacy org.nakii.valmora.module.
+# item.Rarity enum (COMMON..DIVINE) so existing items/reforges keep working
+# unchanged while the new generic modifier framework is adopted. The legacy
+# enum remains the on-item PDC representation; RarityRegistry is the new
+# metadata layer content authors and the modifier engine read from.
+# =====================================================================
+
+rarities:
+  COMMON:
+    id: common
+    name: "Common"
+    color: "<white>"
+    rank: 0
+    power: 1.0
+  UNCOMMON:
+    id: uncommon
+    name: "Uncommon"
+    color: "<green>"
+    rank: 1
+    power: 1.15
+  RARE:
+    id: rare
+    name: "Rare"
+    color: "<blue>"
+    rank: 2
+    power: 1.35
+  EPIC:
+    id: epic
+    name: "Epic"
+    color: "<dark_purple>"
+    rank: 3
+    power: 1.65
+  LEGENDARY:
+    id: legendary
+    name: "Legendary"
+    color: "<gold>"
+    rank: 4
+    power: 2.0
+  MYTHIC:
+    id: mythic
+    name: "Mythic"
+    color: "<light_purple>"
+    rank: 5
+    power: 2.5
+  DIVINE:
+    id: divine
+    name: "Divine"
+    color: "<aqua>"
+    rank: 6
+    power: 3.0

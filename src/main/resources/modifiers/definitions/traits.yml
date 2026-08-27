@@ -1,0 +1,67 @@
+# Demo "traits" group content (docs/Valmora_Modifier_Framework_Design.docx §7/§9/§12/§17) —
+# proves the generic engine covers rarity-scaled values, conditional stat effects, and
+# ability-granting modifiers using the *existing* AbilityDefinition/mechanic schema, with no
+# second action language.
+
+fierce:
+  group: traits
+  display:
+    name: "<red>Fierce"
+    prefix: "<red>Fierce "
+  # Applicability to SWORD/AXE is already enforced generically by the "traits" group's
+  # targets.item_types (see modifiers/groups/gemstones.yml) — no per-modifier $item.type$
+  # requirement needed here (that variable isn't exposed yet; see the backlog doc).
+  effects:
+    - type: STAT
+      stat: strength
+      operation: ADD
+      value:
+        base: 8
+        scaling:
+          type: RARITY
+          property: power
+          operation: MULTIPLY
+    - type: STAT
+      stat: crit_damage
+      operation: ADD
+      value:
+        base: 3
+        scaling:
+          type: RARITY
+          property: power
+          operation: MULTIPLY
+
+low_health_fury:
+  group: traits
+  display:
+    name: "<dark_red>Low Health Fury"
+  effects:
+    - type: STAT
+      stat: damage
+      operation: MULTIPLY
+      value: 1.25
+      conditions:
+        - "$player.health_percent$ < 30"
+
+# ABILITY-effect example (§17): parsed and stored via the ordinary AbilityDefinition schema.
+# PASSIVE-trigger modifier abilities already fire (ModifierEngine.applyPassiveAbilities, wired
+# into StatManager.recalculateStats); ON_HIT/etc. dispatch for modifier-granted abilities is not
+# yet wired — see docs/MODIFIER_FRAMEWORK_BACKLOG.md.
+thundering:
+  group: traits
+  display:
+    name: "<yellow>Thundering"
+  effects:
+    - type: ABILITY
+      definition:
+        id: thundering_strike
+        name: "Thundering Strike"
+        trigger: ON_HIT
+        conditions:
+          - "$target.type$ != \"PLAYER\""
+        mechanics:
+          - type: DAMAGE
+            params:
+              damage: "$player.last_damage$ * 0.35"
+              damage-type: MAGIC
+              target: "@target"

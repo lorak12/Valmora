@@ -1,0 +1,42 @@
+# =====================================================================
+# Default content pack: Gemstones (docs/Valmora_Modifier_Framework_Design.docx §11).
+#
+# Pure YAML content over the generic modifier engine — no Gemstone Java class, no
+# gemstone-specific stat evaluator, no gemstone-specific application path.
+#
+# NOTE: per ModifierModule's javadoc, each top-level key here is one group id directly
+# (this codebase's YamlLoader convention), rather than the design doc's illustrative
+# "groups:\n  gemstones:\n ..." wrapper.
+# =====================================================================
+
+gemstones:
+  display:
+    format: LORE
+    order: 40
+  application:
+    mode: STACKABLE
+    max: 5
+    replacement: false
+    removal: true
+  targets:
+    item_types: [SWORD, AXE, BOW, HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  storage:
+    mode: INSTANCES
+
+# A second demo group ("traits") showing MULTIPLE application mode plus conditional STAT
+# and ABILITY effects (docs §12/§17) — deliberately not named "reforges"/"gemstones" so it
+# doesn't collide conceptually with the legacy ReforgeModule, which is not yet migrated
+# onto this engine (see docs/MODIFIER_FRAMEWORK_BACKLOG.md).
+traits:
+  display:
+    format: LORE
+    order: 50
+  application:
+    mode: MULTIPLE
+    max: 3
+    replacement: true
+    removal: true
+  targets:
+    item_types: [SWORD, AXE, BOW]
+  storage:
+    mode: STACKED

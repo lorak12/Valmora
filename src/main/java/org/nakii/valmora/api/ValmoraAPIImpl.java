@@ -323,6 +323,16 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.rarity.RarityModule getRarityModule() {
+        return module("rarity", org.nakii.valmora.module.rarity.RarityModule.class);
+    }
+
+    @Override
+    public org.nakii.valmora.module.modifier.ModifierModule getModifierModule() {
+        return module("modifier", org.nakii.valmora.module.modifier.ModifierModule.class);
+    }
+
+    @Override
     public org.nakii.valmora.api.pipeline.HookBus getHookBus() {
         ScriptModule m = getScriptModule();
         return m != null ? m.getHookBus() : null;

@@ -164,6 +164,14 @@ public class StatManager {
                 }
             }
 
+            // Generic modifier framework: STAT effects from every attached modifier (reforges,
+            // gemstones, traits, etc.) — see docs/Valmora_Modifier_Framework_Design.docx.
+            var modifierModule = api.getModifierModule();
+            if (modifierModule != null && modifierModule.getEngine() != null) {
+                modifierModule.getEngine().contributeStats(item, player, this::addModifier);
+                modifierModule.getEngine().applyPassiveAbilities(item, player);
+            }
+
             String itemId = item.getItemMeta().getPersistentDataContainer()
                     .get(Keys.ITEM_ID_KEY, org.bukkit.persistence.PersistentDataType.STRING);
             if (itemId != null) {

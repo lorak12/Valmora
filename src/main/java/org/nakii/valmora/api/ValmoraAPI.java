@@ -108,6 +108,10 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.recipe.RecipeModule getRecipeModule();
 
+    org.nakii.valmora.module.rarity.RarityModule getRarityModule();
+
+    org.nakii.valmora.module.modifier.ModifierModule getModifierModule();
+
     /**
      * Shared pipeline dispatch bus — register a Java hook to react to a named insertion point
      * (e.g. {@code "combat:pre_damage"}, {@code "combat:post_calculation"},

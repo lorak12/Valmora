@@ -126,6 +126,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private ReforgeModule reforgeModule;
     private PetModule petModule;
     private org.nakii.valmora.module.progression.ProgressionModule progressionModule;
+    private org.nakii.valmora.module.rarity.RarityModule rarityModule;
+    private org.nakii.valmora.module.modifier.ModifierModule modifierModule;
 
     @Override
     public void onEnable() {
@@ -178,9 +180,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.combatModule = new CombatModule(this);
         this.scriptModule = new ScriptModule(this);
         this.timeModule = new TimeModule(this);
+        this.rarityModule = new org.nakii.valmora.module.rarity.RarityModule(this);
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this, dataStore);
         this.recipeModule = new RecipeModule(this);
+        this.modifierModule = new org.nakii.valmora.module.modifier.ModifierModule(this);
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
         this.zoneModule = new ZoneModule(this);
@@ -202,6 +206,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // Foundational Modules (No dependencies)
         moduleManager.registerModule(scriptModule);
         moduleManager.registerModule(timeModule);    // No dependencies; scoreboard and scripts read from it
+        moduleManager.registerModule(rarityModule);  // No dependencies; item stats/lore and the modifier engine read rarity metadata
         moduleManager.registerModule(statModule);
         moduleManager.registerModule(playerManager);
         moduleManager.registerModule(economyModule); // Depends on playerManager for join/quit lifecycle
@@ -215,6 +220,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(combatModule);
         moduleManager.registerModule(guiModule);
         moduleManager.registerModule(recipeModule);
+        moduleManager.registerModule(modifierModule); // Depends on recipeModule (registers custom_anvil handler), rarityModule, itemManager, abilityManager
         moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
         moduleManager.registerModule(zoneModule);
@@ -511,6 +517,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public ReforgeModule getReforgeModule() { return reforgeModule; }
     @Override
+    public org.nakii.valmora.module.rarity.RarityModule getRarityModule() { return rarityModule; }
+    @Override
+    public org.nakii.valmora.module.modifier.ModifierModule getModifierModule() { return modifierModule; }
+    @Override
     public PetModule getPetModule() { return petModule; }
     @Override
     public org.nakii.valmora.module.alchemy.AlchemyModule getAlchemyModule() { return alchemyModule; }
@@ -603,7 +613,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
                 || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
                 || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
-                || name.equals("mob_pipeline.yml")) {
+                || name.equals("mob_pipeline.yml") || name.equals("rarities.yml")) {
             if (!new File(getDataFolder(), name).exists()) {
                 saveResource(name, false);
             }
@@ -619,6 +629,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 name.startsWith("warps/") || name.startsWith("quests/") ||
                 name.startsWith("collections/") || name.startsWith("hud-items/") ||
                 name.startsWith("calendar/") || name.startsWith("reforges/") ||
+                name.startsWith("modifiers/") ||
                 name.startsWith("pets/") ||
                 name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
                 name.startsWith("quest_boards/")) {
