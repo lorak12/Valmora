@@ -1,0 +1,9 @@
+# gui: which GUI file (guis/*.yml) opens for this machine.
+# logic: a descriptive label only — changing it has no effect on how crafting behaves.
+# input-slots / output-slots: expected slot counts. Checked against the GUI on load; a mismatch
+# only logs a warning, it does not stop the server from starting.
+anvil:
+  gui: anvil
+  logic: anvil
+  input-slots: 2
+  output-slots: 1

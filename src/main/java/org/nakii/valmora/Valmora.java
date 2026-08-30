@@ -126,6 +126,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.progression.ProgressionModule progressionModule;
     private org.nakii.valmora.module.rarity.RarityModule rarityModule;
     private org.nakii.valmora.module.modifier.ModifierModule modifierModule;
+    private org.nakii.valmora.module.machine.MachineModule machineModule;
 
     @Override
     public void onEnable() {
@@ -182,6 +183,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this, dataStore);
         this.recipeModule = new RecipeModule(this);
+        this.machineModule = new org.nakii.valmora.module.machine.MachineModule(this);
         this.modifierModule = new org.nakii.valmora.module.modifier.ModifierModule(this);
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
@@ -217,7 +219,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(combatModule);
         moduleManager.registerModule(guiModule);
         moduleManager.registerModule(recipeModule);
-        moduleManager.registerModule(modifierModule); // Depends on recipeModule (registers custom_anvil handler), rarityModule, itemManager, abilityManager
+        moduleManager.registerModule(machineModule); // Depends on guiModule (validates GUI slot counts) + recipeModule; must run before modifier/alchemy/enchant register their own machine handlers
+        moduleManager.registerModule(modifierModule); // Depends on recipeModule (registers the unified anvil's modifier-recipe step), rarityModule, itemManager, abilityManager
         moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
         moduleManager.registerModule(zoneModule);
@@ -298,6 +301,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         CollectionCommand collectionCommand = new CollectionCommand(this);
         getCommand("collections").setExecutor(collectionCommand);
         getCommand("collections").setTabCompleter(collectionCommand);
+        TestCommand testCommand = new TestCommand(this);
+        getCommand("test").setExecutor(testCommand);
+        getCommand("test").setTabCompleter(testCommand);
     }
 
      @Override
@@ -514,6 +520,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     public org.nakii.valmora.module.rarity.RarityModule getRarityModule() { return rarityModule; }
     @Override
     public org.nakii.valmora.module.modifier.ModifierModule getModifierModule() { return modifierModule; }
+
+    public org.nakii.valmora.module.machine.MachineModule getMachineModule() { return machineModule; }
     @Override
     public PetModule getPetModule() { return petModule; }
     @Override

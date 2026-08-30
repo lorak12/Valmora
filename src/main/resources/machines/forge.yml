@@ -1,0 +1,12 @@
+# gui: which GUI file (guis/*.yml) opens for this machine.
+# logic: a descriptive label only — changing it has no effect on how crafting behaves.
+# input-slots / output-slots: expected slot counts. Checked against the GUI on load; a mismatch
+# only logs a warning, it does not stop the server from starting.
+# shape: "ROWSxCOLS" — declares the grid a SHAPED recipe's pattern: is matched against. A machine
+# with only 2 slots still uses a SHAPED recipe, just with a narrower pattern (1 row, 2 columns).
+forge:
+  gui: forge
+  logic: custom
+  input-slots: 2
+  output-slots: 1
+  shape: 1x2

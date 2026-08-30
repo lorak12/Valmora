@@ -16,11 +16,13 @@ import org.nakii.valmora.module.gui.components.*;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
+import org.nakii.valmora.module.recipe.RecipeOutput;
 import org.nakii.valmora.module.script.event.ConditionAbortException;
 import org.nakii.valmora.util.Keys;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -284,7 +286,16 @@ public class GuiListener implements Listener {
                 }
             }
 
-            if (!recipe.isVanilla()) {
+            // A dynamic recipe (anvil/alchemy/enchanting-table handlers, RecipeDefinition.dynamic())
+            // also carries isVanilla()==true — it reuses that flag purely so GuiRenderer/
+            // updateRecipeOutput can treat "has a pre-built result item" uniformly for preview
+            // (see GuiRenderer.updateOutputSlot's comment) — but it has its own consumeHandler with
+            // real per-recipe amounts (e.g. "consume 4 of the material slot"), which the
+            // hardcoded-"1 per input slot" consumeVanillaIngredients() below knows nothing about.
+            // Checking getConsumeHandler() first (same precedence RecipeEngine.consume() already
+            // uses) routes those through their own logic; only a genuine Bukkit vanilla-crafting
+            // match (isVanilla() true, no consumeHandler) falls through to the 1-per-slot path.
+            if (recipe.getConsumeHandler() != null || !recipe.isVanilla()) {
                 engine.consume(recipe, session.getInputSnapshot());
             } else {
                 consumeVanillaIngredients(session);
@@ -335,56 +346,47 @@ public class GuiListener implements Listener {
         String machineId = session.getDefinition().getMachine();
         Optional<RecipeDefinition> match = plugin.getRecipeModule().getRecipeEngine().match(machineId, session.getInputSnapshot());
 
-        int outputSlot = findOutputSlot(session);
-        if (outputSlot == -1) return;
+        Map<String, Integer> outputSlotsById = session.getDefinition().findOutputSlotsById();
+        if (outputSlotsById.isEmpty()) return;
+        // Clear every OUTPUT slot first — a stale preview from a previous (now non-matching or
+        // differently-shaped) recipe must not linger in a slot the new match doesn't touch.
+        for (int slot : outputSlotsById.values()) session.getInventory().setItem(slot, null);
+        if (match.isEmpty()) return;
 
-        if (match.isPresent()) {
-            RecipeDefinition recipe = match.get();
+        RecipeDefinition recipe = match.get();
 
-            if (recipe.isVanilla()) {
-                ItemStack result = recipe.getVanillaResult();
-                if (result != null) {
-                    ItemStack translated = result.clone();
-                    plugin.getItemManager().getItemTranslator().translate(translated);
-                    session.getInventory().setItem(outputSlot, translated);
-                }
-                return;
+        if (recipe.isVanilla()) {
+            ItemStack result = recipe.getVanillaResult();
+            if (result != null) {
+                ItemStack translated = result.clone();
+                plugin.getItemManager().getItemTranslator().translate(translated);
+                outputSlotsById.values().stream().findFirst()
+                        .ifPresent(slot -> session.getInventory().setItem(slot, translated));
             }
+            return;
+        }
 
-            if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) {
-                session.getInventory().setItem(outputSlot, null);
-                return;
-            }
-            RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
+        if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) return;
 
-            Material mat = Material.matchMaterial(firstOutput.item());
+        for (RecipeOutput recipeOutput : recipe.getOutputs()) {
+            RecipeIngredient ingredient = recipeOutput.ingredient();
+            Integer slot = recipeOutput.slot() != null
+                    ? outputSlotsById.get(recipeOutput.slot())
+                    : outputSlotsById.values().stream().findFirst().orElse(null);
+            if (slot == null) continue; // named slot doesn't exist in this GUI — nothing to preview into
+
+            Material mat = Material.matchMaterial(ingredient.item());
             if (mat == null) {
-                ItemStack custom = plugin.getItemManager().createItemStack(firstOutput.item());
+                ItemStack custom = plugin.getItemManager().createItemStack(ingredient.item());
                 if (custom != null) {
-                    custom.setAmount(firstOutput.amount());
-                    session.getInventory().setItem(outputSlot, custom);
-                    return;
+                    custom.setAmount(ingredient.amount());
+                    session.getInventory().setItem(slot, custom);
+                    continue;
                 }
                 mat = Material.BARRIER;
             }
-            session.getInventory().setItem(outputSlot, new ItemStack(mat, firstOutput.amount()));
-        } else {
-            session.getInventory().setItem(outputSlot, null);
+            session.getInventory().setItem(slot, new ItemStack(mat, ingredient.amount()));
         }
-    }
-
-    private int findOutputSlot(GuiSession session) {
-        List<List<Character>> layout = session.getDefinition().getLayout();
-        for (int r = 0; r < layout.size(); r++) {
-            List<Character> row = layout.get(r);
-            for (int c = 0; c < row.size(); c++) {
-                char ch = row.get(c);
-                if (session.getDefinition().getComponents().get(ch) instanceof OutputComponent) {
-                    return r * 9 + c;
-                }
-            }
-        }
-        return -1;
     }
 
     private void executeHandler(GuiSession session, ClickHandler handler) {

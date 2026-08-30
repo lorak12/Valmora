@@ -140,12 +140,13 @@ Valmora.onEnable()
 
 **Module registration order** (must be preserved — verified against `Valmora.java`, post
 modifier-framework refactor: the legacy `reforge` module was removed and replaced by `rarity` +
-`modifier`, see §Generic Modifier Framework below):
+`modifier`, see §Generic Modifier Framework below; `machine` was added after `recipe` for the
+machine-definition layer, see §Machine Definition Layer below):
 
 ```
 script → time → rarity → stat → player → economy → ui → ability → item → mob → skill → combat →
-gui → recipe → modifier → alchemy → enchant → zone → resource → fishing → npc → warp → points →
-notify → quest → collection → hud → calendar → pet → progression
+gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc → warp →
+points → notify → quest → collection → hud → calendar → pet → progression
 ```
 
 Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).
@@ -329,11 +330,19 @@ The `RecipeEngine` (`module/recipe/RecipeEngine.java`) runs a three-step match f
 
 ### 9.1 Recipe Types
 
-| Type | Input key format | Matching |
-|------|-----------------|----------|
-| `EXACT_SLOT` | String slot ID (matches INPUT component `id`) | Exact map equality |
-| `SHAPED` | `"0"` – `"8"` (3×3 grid index, left→right, top→bottom) | Position matters |
-| `SHAPELESS` | List of items (any order) | Bag matching; ignores slot |
+Every YAML recipe is one of two types — there is no more named-slot `EXACT_SLOT` format
+(`inputs: {input1: ..., input2: ...}`); a machine with a small fixed number of slots (e.g. the
+forge's 2) is just a SHAPED recipe with a narrow pattern, the same mechanism a 3×3 crafting grid or
+a 1×3 press uses.
+
+| Type | Ingredient format | Matching |
+|------|--------------------|----------|
+| `SHAPED` | `ingredients:` (letter → `{material, amount}`) + `pattern:` (rows of those letters, `' '` = must be empty) | Position matters; pattern can be narrower/shorter than the machine's full grid and slides to fit (recipe-yaml rework note) |
+| `SHAPELESS` | `ingredients:` — a plain list of `{item, amount}` | Bag matching; any slot/order. `pattern:` has no effect here and logs a load-time warning if present |
+
+`RecipeType.EXACT_SLOT` still exists as an internal marker (dynamic recipes — the anvil, alchemy,
+enchanting table — and the vanilla-crafting-passthrough fallback), just not as something a YAML
+recipe can request via `type:`.
 
 ### 9.2 YAML Recipe Format
 
@@ -341,25 +350,98 @@ The `RecipeEngine` (`module/recipe/RecipeEngine.java`) runs a three-step match f
 my_recipe_id:
   machine: alchemy          # must match GUI's machine: field
   type: SHAPELESS
-  inputs:
+  ingredients:
     - item: NETHER_WART
       amount: 1
     - item: GLASS_BOTTLE
       amount: 1
   outputs:
-    result:
-      item: custom_item_id  # Valmora item ID or vanilla material
+    - item: custom_item_id  # Valmora item ID or vanilla material
       amount: 1
   on-craft:
     - "sound player block.brewing_stand.brew"
 ```
+
+A SHAPED recipe on a small positional machine (e.g. the forge's 2 slots, left→right) looks like:
+
+```yaml
+my_forge_recipe:
+  machine: forge
+  type: SHAPED
+  ingredients:
+    i: { material: IRON_INGOT, amount: 2 }
+    d: { material: DIAMOND, amount: 1 }
+  pattern:
+    - "id"                  # left slot = 2x iron ingot, right slot = 1x diamond
+  outputs:
+    - item: reinforced_ingot
+      amount: 1
+```
+
+`outputs:` is a plain list — almost every recipe has exactly one entry and needs nothing more than
+`{item, amount}`. A recipe with **more than one** output must give every entry a `slot:` naming
+which OUTPUT component id (a GUI's `id:` under its `O`-type component, same convention INPUT
+components already use — e.g. `primary`/`byproduct`) it goes into — required rather than optional,
+since which physical slot an unslotted item lands in would otherwise depend on the GUI's own
+layout-scan order rather than anything the recipe author actually chose:
+
+```yaml
+outputs:
+  - slot: primary
+    item: gold_nugget
+    amount: 4
+  - slot: byproduct
+    item: iron_dust
+    amount: 1
+```
+
+A `slot:` naming an id the matched GUI doesn't actually have logs a runtime warning and gives that
+item directly to the player instead of being silently dropped (`GuiForceCraftEventFactory`).
 
 ### 9.3 Recipe Folder Structure
 
 Recipes live in `resources/recipes/`. Sub-folders are supported for organisation:
 - `recipes/crafting/` — crafting table recipes
 - `recipes/alchemy/` — alchemy machine recipes
-- `recipes/anvil/` — anvil machine recipes
+- `recipes/anvil/` — explicit `type: UPGRADE`/`TRANSMUTE` anvil recipes (`AnvilRecipeDefinition`,
+  `AnvilRecipeParser`), consulted first by the unified anvil handler below.
+
+### 9.4 Machine Definition Layer
+
+`module/machine/` (`MachineModule`, id `machine`, registered right after `recipe`) loads
+`machines/*.yml` — one entry per machine declaring `gui:` (which GUI it opens), `logic:`
+(descriptive only — dispatch is still driven purely by the GUI's own `machine:` field),
+`input-slots`/`output-slots`/optional `shape: ROWSxCOLS` (cross-validated at load time against the
+target GUI's actual `INPUT`/`OUTPUT` component counts — logged as a warning, not a hard failure),
+and an optional `open-triggers:` list, each entry a plain `ConditionParser` string (the same
+condition language used by GUI/ability/quest conditions — `tag`, `health`, `hunger`, `location`,
+`zone`, `block` (new: true when the player is looking at a block of the given material — a short
+ray trace, not tied to actually clicking it), `variable`, `objective`, `quest`, `point`, or a raw
+expression). `MachineOpenListener` evaluates every machine's trigger list (OR'd) on two occasions —
+`PlayerInteractEvent` (right-click) and `ZoneEnterEvent` — and opens the GUI the first time any one
+of them is true; no command needed. Machine parsing runs through `MachineDefinitionParser` (an
+instance, not static, so it can reach `ScriptModule.getConditionParser()` — `machine` loads well
+after `script` in the module order).
+
+### 9.5 The Unified Anvil
+
+Machine id `anvil` (`module/recipe/AnvilMachineHandler`) is the single dual-slot anvil (`base`/
+`material` slots) implementing the full spec in
+`docs/Valmora_Modifier_Framework_Design.docx`-adjacent design work — see
+`docs/modules/design/recipe.md` for the full pipeline. One evaluation order per craft:
+
+1. Explicit `recipes/anvil/*.yml` (`type: UPGRADE`/`TRANSMUTE`) — first match wins.
+2. The modifier framework's `APPLY_MODIFIER`/`REMOVE_MODIFIER` recipes (reforges, gemstones, any
+   group) — delegated to `ModifierModule.getAnvilHandler()`, never reimplemented, per the modifier
+   framework's rule against group-specific engine code.
+3. The standard combination engine — book+book/gear+book enchant merge, gear+gear enchant +
+   durability merge, gear+repair-material durability repair.
+
+A PDC-tracked "prior work" counter (`Keys.ANVIL_WORK_COUNT_KEY`) drives a `2^n - 1` XP-level
+penalty (`AnvilCostCalculator`) on top of steps 1 and 3's base costs; step 2 keeps its own
+independent `ValueResolver`-based cost. `keep-data-on-upgrade` (default `true`, also usable on any
+ordinary crafting recipe via `upgrade-from: <ingredient key>`) carries enchants/modifier components/
+durability/custom name from the upgraded item onto the result (`ItemDataCarrier`).
 
 ---
 

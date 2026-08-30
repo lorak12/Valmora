@@ -1,0 +1,26 @@
+# =====================================================================
+# Dedicated test items for /test anvil (TestCommand) — a plain tier-1 sword and
+# its tier-2 upgrade, used to exercise the anvil's keep-data-on-upgrade path
+# (recipes/anvil/examples.yml's apprentice_to_journeyman recipe): enchant and
+# reforge the tier-1 blade, then anvil-upgrade it and verify both rode along
+# onto the tier-2 result together with its durability and custom name.
+# =====================================================================
+
+apprentice_blade:
+  name: "<white>Apprentice's Blade"
+  material: IRON_SWORD
+  rarity: COMMON
+  item-type: SWORD
+  stats:
+    DAMAGE: 15
+    STRENGTH: 5
+
+journeyman_blade:
+  name: "<green>Journeyman's Blade"
+  material: DIAMOND_SWORD
+  rarity: UNCOMMON
+  item-type: SWORD
+  stats:
+    DAMAGE: 35
+    STRENGTH: 15
+    CRIT_CHANCE: 5

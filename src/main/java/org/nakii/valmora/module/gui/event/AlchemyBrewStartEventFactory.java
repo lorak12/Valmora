@@ -130,7 +130,7 @@ public class AlchemyBrewStartEventFactory implements EventFactory {
 
     private ItemStack buildResultItem(RecipeDefinition recipe) {
         if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) return null;
-        var firstOutput = recipe.getOutputs().values().iterator().next();
+        var firstOutput = recipe.getOutputs().get(0).ingredient();
         Material mat = Material.matchMaterial(firstOutput.item());
         if (mat == null) {
             ItemStack custom = plugin.getItemManager().createItemStack(firstOutput.item());

@@ -52,25 +52,36 @@ public class RecipeEngine {
         if (matched.isEmpty()) return Optional.empty();
 
         RecipeDefinition recipe = matched.get();
-        List<ItemStack> outputs = buildOutputs(recipe);
+        List<CraftOutput> outputs = buildOutputs(recipe);
         if (outputs.isEmpty()) return Optional.empty();
-        ItemStack output = outputs.get(0);
-        List<ItemStack> extras = outputs.size() > 1 ? outputs.subList(1, outputs.size()) : List.of();
+
+        // "keep-data-on-upgrade" (recipe-yaml rework note) — carry enchants/modifiers/durability/
+        // name from the designated source ingredient onto the primary (first) output before it's
+        // returned. Only meaningful for a single-output recipe (the only kind that uses this flag).
+        if (recipe.isKeepDataOnUpgrade() && recipe.getUpgradeFrom() != null) {
+            ItemStack source = inputs.get(recipe.getUpgradeFrom());
+            CraftOutput first = outputs.get(0);
+            if (source != null && source.getType() != Material.AIR) {
+                outputs = new ArrayList<>(outputs);
+                outputs.set(0, new CraftOutput(ItemDataCarrier.carryForward(plugin, source, first.item()), first.slot()));
+            }
+        }
 
         consume(recipe, inputs);
-        return Optional.of(new CraftResult(output, extras, recipe, recipe.getOnCraft()));
+        return Optional.of(new CraftResult(outputs, recipe, recipe.getOnCraft()));
     }
 
     /** Builds every {@code outputs:} entry, not just the first — see {@link CraftResult}. */
-    private List<ItemStack> buildOutputs(RecipeDefinition recipe) {
+    private List<CraftOutput> buildOutputs(RecipeDefinition recipe) {
         if (recipe.isVanilla()) {
             ItemStack output = recipe.getVanillaResult().clone();
-            return output.getType() == org.bukkit.Material.AIR ? List.of() : List.of(output);
+            return output.getType() == org.bukkit.Material.AIR ? List.of() : List.of(new CraftOutput(output, null));
         }
         if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) return List.of();
 
-        List<ItemStack> built = new ArrayList<>();
-        for (RecipeIngredient outputIngredient : recipe.getOutputs().values()) {
+        List<CraftOutput> built = new ArrayList<>();
+        for (RecipeOutput recipeOutput : recipe.getOutputs()) {
+            RecipeIngredient outputIngredient = recipeOutput.ingredient();
             ItemStack output;
             org.bukkit.Material mat = org.bukkit.Material.matchMaterial(outputIngredient.item());
             if (mat == null) {
@@ -81,7 +92,7 @@ public class RecipeEngine {
             }
             if (output == null || output.getType() == org.bukkit.Material.AIR) continue;
             // Ensure every item coming out of a machine is a Valmora-formatted item
-            built.add(plugin.getItemManager().getItemTranslator().translate(output));
+            built.add(new CraftOutput(plugin.getItemManager().getItemTranslator().translate(output), recipeOutput.slot()));
         }
         return built;
     }
@@ -134,8 +145,16 @@ public class RecipeEngine {
     private boolean matchExact(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
         Map<String, RecipeIngredient> required = recipe.getInputMap();
 
+        // GuiSession.buildInputSnapshot() publishes every INPUT slot's item TWICE — once under its
+        // component id ("input1", "base", ...) and once under a zero-indexed numeric alias ("0",
+        // "1", ...), see CLAUDE.md's "Machine input key conventions". EXACT_SLOT recipes are keyed
+        // by the named ids, so counting occupied physical slots must skip the numeric aliases —
+        // otherwise every placed item is counted twice and this never matches (providedCount always
+        // double `required.size()`).
         int providedCount = 0;
-        for (ItemStack stack : inputs.values()) {
+        for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
+            if (isNumericKey(entry.getKey())) continue;
+            ItemStack stack = entry.getValue();
             if (stack != null && stack.getType() != Material.AIR) {
                 providedCount++;
             }
@@ -218,6 +237,7 @@ public class RecipeEngine {
             return true;
         } else if (recipe.getType() == RecipeType.SHAPED) {
             // Find the active offset so we know exactly which physical slots to deduct from
+            int width = recipe.getGridWidth();
             Map<Integer, ItemStack> gridInput = new HashMap<>();
             Map<Integer, RecipeIngredient> gridRecipe = new HashMap<>();
 
@@ -230,36 +250,23 @@ public class RecipeEngine {
                 try { gridRecipe.put(Integer.parseInt(entry.getKey()), entry.getValue()); } catch (NumberFormatException ignored) {}
             }
 
-            int minX = 3, maxX = -1, minY = 3, maxY = -1;
-            for (int slot : gridInput.keySet()) {
-                int x = slot % 3; int y = slot / 3;
-                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-                minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-            }
-
-            int inputWidth = maxX - minX + 1, inputHeight = maxY - minY + 1;
-
-            int recipeMinX = 3, recipeMaxX = -1, recipeMinY = 3, recipeMaxY = -1;
-            for (int slot : gridRecipe.keySet()) {
-                int x = slot % 3; int y = slot / 3;
-                recipeMinX = Math.min(recipeMinX, x); recipeMaxX = Math.max(recipeMaxX, x);
-                recipeMinY = Math.min(recipeMinY, y); recipeMaxY = Math.max(recipeMaxY, y);
-            }
-
-            int recipeWidth = recipeMaxX - recipeMinX + 1, recipeHeight = recipeMaxY - recipeMinY + 1;
+            int[] inputBox = boundingBox(gridInput.keySet(), width);
+            int[] recipeBox = boundingBox(gridRecipe.keySet(), width);
+            int inputWidth = inputBox[2], inputHeight = inputBox[3];
+            int recipeWidth = recipeBox[2], recipeHeight = recipeBox[3];
 
             // Match offset loop
             for (int offsetY = 0; offsetY <= inputHeight - recipeHeight; offsetY++) {
                 for (int offsetX = 0; offsetX <= inputWidth - recipeWidth; offsetX++) {
-                    if (matchesPatternAt(gridInput, gridRecipe, minX, minY, offsetX, offsetY, recipeMinX, recipeMinY)) {
-                        
+                    if (matchesPatternAt(gridInput, gridRecipe, width, inputBox[0], inputBox[1], offsetX, offsetY, recipeBox[0], recipeBox[1])) {
+
                         // Deduct exactly from the offset slots that matched
                         for (Map.Entry<Integer, RecipeIngredient> entry : gridRecipe.entrySet()) {
                             int recipeSlot = entry.getKey();
-                            int recipeX = recipeSlot % 3 - recipeMinX;
-                            int recipeY = recipeSlot / 3 - recipeMinY;
-                            int inputSlot = (minX + offsetX + recipeX) + (minY + offsetY + recipeY) * 3;
-                            
+                            int recipeX = recipeSlot % width - recipeBox[0];
+                            int recipeY = recipeSlot / width - recipeBox[1];
+                            int inputSlot = (inputBox[0] + offsetX + recipeX) + (inputBox[1] + offsetY + recipeY) * width;
+
                             ItemStack inputStack = gridInput.get(inputSlot);
                             if (inputStack != null) {
                                 inputStack.setAmount(inputStack.getAmount() - entry.getValue().amount());
@@ -271,6 +278,21 @@ public class RecipeEngine {
             }
         }
         return false;
+    }
+
+    /** {@code [minX, minY, width, height]} of a set of numeric slot keys on a grid of the given
+     *  column width — generalizes the old hardcoded-3-wide bounding-box math (RecipeEngine used to
+     *  assume every SHAPED recipe lived on a fixed 3x3 crafting grid; machines/recipes can now
+     *  declare their own width via the letter-pattern syntax, see RecipeDefinitionParser). */
+    private int[] boundingBox(java.util.Set<Integer> slots, int width) {
+        int minX = Integer.MAX_VALUE, maxX = -1, minY = Integer.MAX_VALUE, maxY = -1;
+        for (int slot : slots) {
+            int x = slot % width, y = slot / width;
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+        }
+        if (maxX < 0) return new int[]{0, 0, 0, 0};
+        return new int[]{minX, minY, maxX - minX + 1, maxY - minY + 1};
     }
 
     public void consumeVanilla(Map<String, ItemStack> inputs) {
@@ -287,6 +309,7 @@ public class RecipeEngine {
 
     private boolean matchShaped(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
         Map<String, RecipeIngredient> recipeMap = recipe.getInputMap();
+        int width = recipe.getGridWidth();
 
         Map<Integer, ItemStack> gridInput = new HashMap<>();
         Map<Integer, RecipeIngredient> gridRecipe = new HashMap<>();
@@ -295,7 +318,7 @@ public class RecipeEngine {
             if (entry.getValue() != null && entry.getValue().getType() != Material.AIR) {
                 try {
                     int slot = Integer.parseInt(entry.getKey());
-                    if (slot >= 0 && slot < 9) {
+                    if (slot >= 0) {
                         gridInput.put(slot, entry.getValue());
                     }
                 } catch (NumberFormatException e) {
@@ -307,7 +330,7 @@ public class RecipeEngine {
         for (Map.Entry<String, RecipeIngredient> entry : recipeMap.entrySet()) {
             try {
                 int slot = Integer.parseInt(entry.getKey());
-                if (slot >= 0 && slot < 9) {
+                if (slot >= 0) {
                     gridRecipe.put(slot, entry.getValue());
                 }
             } catch (NumberFormatException e) {
@@ -319,37 +342,21 @@ public class RecipeEngine {
 
         if (gridInput.size() != gridRecipe.size()) return false;
 
-        int minX = 3, maxX = -1, minY = 3, maxY = -1;
-        for (int slot : gridInput.keySet()) {
-            int x = slot % 3;
-            int y = slot / 3;
-            minX = Math.min(minX, x);
-            maxX = Math.max(maxX, x);
-            minY = Math.min(minY, y);
-            maxY = Math.max(maxY, y);
-        }
-
-        int inputWidth = maxX - minX + 1;
-        int inputHeight = maxY - minY + 1;
-
-        int recipeMinX = 3, recipeMaxX = -1, recipeMinY = 3, recipeMaxY = -1;
-        for (int slot : gridRecipe.keySet()) {
-            int x = slot % 3;
-            int y = slot / 3;
-            recipeMinX = Math.min(recipeMinX, x);
-            recipeMaxX = Math.max(recipeMaxX, x);
-            recipeMinY = Math.min(recipeMinY, y);
-            recipeMaxY = Math.max(recipeMaxY, y);
-        }
-
-        int recipeWidth = recipeMaxX - recipeMinX + 1;
-        int recipeHeight = recipeMaxY - recipeMinY + 1;
+        int[] inputBox = boundingBox(gridInput.keySet(), width);
+        int[] recipeBox = boundingBox(gridRecipe.keySet(), width);
+        int inputWidth = inputBox[2], inputHeight = inputBox[3];
+        int recipeWidth = recipeBox[2], recipeHeight = recipeBox[3];
 
         if (inputWidth < recipeWidth || inputHeight < recipeHeight) return false;
 
+        // Bounding-box translation: tries every valid offset, so a pattern smaller than the
+        // machine's full grid naturally slides to every position it fits (the recipe-yaml note's
+        // "2x2 fits all 4 corners" / "1-2 row pattern slides vertically" behavior falls out of this
+        // for free — an explicit full-height pattern has exactly one vertical offset, which is
+        // already the "exact position" case the note describes, with no extra flag needed).
         for (int offsetY = 0; offsetY <= inputHeight - recipeHeight; offsetY++) {
             for (int offsetX = 0; offsetX <= inputWidth - recipeWidth; offsetX++) {
-                if (matchesPatternAt(gridInput, gridRecipe, minX, minY, offsetX, offsetY, recipeMinX, recipeMinY)) {
+                if (matchesPatternAt(gridInput, gridRecipe, width, inputBox[0], inputBox[1], offsetX, offsetY, recipeBox[0], recipeBox[1])) {
                     return true;
                 }
             }
@@ -359,14 +366,14 @@ public class RecipeEngine {
     }
 
     private boolean matchesPatternAt(Map<Integer, ItemStack> gridInput, Map<Integer, RecipeIngredient> gridRecipe,
-                                   int inputBaseX, int inputBaseY, int offsetX, int offsetY,
+                                   int width, int inputBaseX, int inputBaseY, int offsetX, int offsetY,
                                    int recipeBaseX, int recipeBaseY) {
         for (Map.Entry<Integer, RecipeIngredient> entry : gridRecipe.entrySet()) {
             int recipeSlot = entry.getKey();
-            int recipeX = recipeSlot % 3 - recipeBaseX;
-            int recipeY = recipeSlot / 3 - recipeBaseY;
+            int recipeX = recipeSlot % width - recipeBaseX;
+            int recipeY = recipeSlot / width - recipeBaseY;
 
-            int inputSlot = (inputBaseX + offsetX + recipeX) + (inputBaseY + offsetY + recipeY) * 3;
+            int inputSlot = (inputBaseX + offsetX + recipeX) + (inputBaseY + offsetY + recipeY) * width;
             ItemStack inputStack = gridInput.get(inputSlot);
 
             if (inputStack == null) return false;
@@ -409,6 +416,15 @@ public class RecipeEngine {
         }
 
         return Optional.empty();
+    }
+
+    private boolean isNumericKey(String key) {
+        try {
+            Integer.parseInt(key);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private boolean isSameItem(ItemStack stack, String targetId) {

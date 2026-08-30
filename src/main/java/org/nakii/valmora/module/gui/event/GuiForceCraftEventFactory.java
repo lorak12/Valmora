@@ -8,8 +8,8 @@ import org.nakii.valmora.module.gui.GuiComponent;
 import org.nakii.valmora.module.gui.GuiExecutionContext;
 import org.nakii.valmora.module.gui.GuiSession;
 import org.nakii.valmora.module.gui.components.InputComponent;
-import org.nakii.valmora.module.gui.components.OutputComponent;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
+import org.nakii.valmora.module.recipe.CraftOutput;
 import org.nakii.valmora.module.recipe.CraftResult;
 import org.nakii.valmora.module.recipe.RecipeEngine;
 import org.nakii.valmora.module.script.event.EventFactory;
@@ -57,21 +57,33 @@ public class GuiForceCraftEventFactory implements EventFactory {
 
                 CraftResult craft = result.get();
 
-                // Find output slot in GUI layout; fall back to input slot for in-place machines
-                int outputSlot = findOutputSlot(session);
-                if (outputSlot == -1) {
-                    int inputSlot = findInputSlot(session, "base_item");
-                    if (inputSlot == -1) return;
-                    session.getInventory().setItem(inputSlot, craft.output());
-                } else {
-                    session.getInventory().setItem(outputSlot, craft.output());
-                }
-
-                // Give any additional outputs beyond the primary one directly to the player —
-                // the GUI only has one OUTPUT slot to place items into (see CraftResult).
-                if (!craft.extraOutputs().isEmpty()) {
-                    for (ItemStack extra : craft.extraOutputs()) {
-                        var leftover = player.getInventory().addItem(extra);
+                // Route each built output to the OUTPUT component slot it named (RecipeOutput.slot,
+                // matching a GUI's OUTPUT id — e.g. a 2-output "processor" machine's `primary`/
+                // `byproduct`), so which physical slot an item lands in is exactly what the recipe
+                // author declared rather than layout-scan order. `slot() == null` (only possible for
+                // a single-output recipe) falls back to the GUI's sole/first OUTPUT component.
+                Map<String, Integer> outputSlotsById = session.getDefinition().findOutputSlotsById();
+                for (CraftOutput craftOutput : craft.outputs()) {
+                    Integer physicalSlot = craftOutput.slot() != null
+                            ? outputSlotsById.get(craftOutput.slot())
+                            : outputSlotsById.values().stream().findFirst().orElse(null);
+                    if (craftOutput.slot() != null && physicalSlot == null) {
+                        plugin.getLogger().warning("[gui_force_craft] Recipe '" + craft.recipe().getId()
+                                + "' output targets slot '" + craftOutput.slot() + "', but GUI '"
+                                + session.getDefinition().getId() + "' has no OUTPUT component with that"
+                                + " id — giving it directly to the player instead.");
+                    }
+                    if (physicalSlot != null) {
+                        session.getInventory().setItem(physicalSlot, craftOutput.item());
+                    } else if (craftOutput.slot() == null && findInputSlot(session, "base_item") != -1) {
+                        // No OUTPUT component at all and this output wasn't targeting a named slot
+                        // (only possible for a single-output recipe) — in-place machines (e.g. the
+                        // modifier anvil) render their result directly into the base item's own
+                        // INPUT slot. A genuinely misconfigured named slot never lands here, so it
+                        // can't collide with this fallback.
+                        session.getInventory().setItem(findInputSlot(session, "base_item"), craftOutput.item());
+                    } else {
+                        var leftover = player.getInventory().addItem(craftOutput.item());
                         leftover.values().forEach(item -> player.getWorld().dropItem(player.getLocation(), item));
                     }
                 }
@@ -101,20 +113,6 @@ public class GuiForceCraftEventFactory implements EventFactory {
                 session.setCraftingLocked(false);
             }
         };
-    }
-
-    private int findOutputSlot(GuiSession session) {
-        List<List<Character>> layout = session.getDefinition().getLayout();
-        for (int r = 0; r < layout.size(); r++) {
-            List<Character> row = layout.get(r);
-            for (int c = 0; c < row.size(); c++) {
-                GuiComponent comp = session.getDefinition().getComponents().get(row.get(c));
-                if (comp instanceof OutputComponent) {
-                    return r * 9 + c;
-                }
-            }
-        }
-        return -1;
     }
 
     private int findInputSlot(GuiSession session, String inputId) {

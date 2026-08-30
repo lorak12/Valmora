@@ -12,6 +12,7 @@ import org.nakii.valmora.module.gui.components.*;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeEngine;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
+import org.nakii.valmora.module.recipe.RecipeOutput;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.*;
@@ -134,38 +135,55 @@ public class GuiRenderer {
         GuiDefinition def = session.getDefinition();
         Inventory inv = session.getInventory();
 
-        for (OutputComponent output : getOutputComponents(def)) {
-            for (int slot : findAllSlotsForComponent(def, output)) {
-                Optional<RecipeDefinition> match = matchRecipe(session);
-                if (match.isPresent()) {
-                    RecipeDefinition recipe = match.get();
+        Map<String, Integer> outputSlotsById = def.findOutputSlotsById();
+        if (outputSlotsById.isEmpty()) return;
 
-                    // Vanilla/dynamic recipes carry the pre-built result item (preserves enchantments etc.)
-                    if (recipe.isVanilla() && recipe.getVanillaResult() != null) {
-                        ItemStack result = recipe.getVanillaResult().clone();
-                        plugin.getItemManager().getItemTranslator().translate(result);
-                        inv.setItem(slot, result);
-                        continue;
-                    }
+        Optional<RecipeDefinition> match = matchRecipe(session);
+        if (match.isEmpty()) {
+            // No recipe matches the CURRENT inputs. For a live-preview GUI (crafting_table, anvil,
+            // ...) that's already correct — GuiListener.updateRecipeOutput ran first and already
+            // nulled/updated every output slot to match, so previousOutput.get(slot) is already
+            // null/up to date here too. But for a "gui_force_craft on-slot-update" auto-craft GUI
+            // (press, forge, ...) this render() runs AFTER the craft already consumed every input and
+            // placed the real result here — inputs are now empty so matchRecipe() naturally finds
+            // nothing, and unconditionally nulling every slot would discard the just-crafted item(s)
+            // before the player could ever collect them. Falling back to whatever was already in each
+            // slot preserves that result without needing to special-case which machines auto-craft.
+            for (int slot : outputSlotsById.values()) inv.setItem(slot, previousOutput.get(slot));
+            return;
+        }
 
-                    if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) continue;
-                    RecipeIngredient firstOutput = recipe.getOutputs().values().iterator().next();
+        RecipeDefinition recipe = match.get();
 
-                    Material mat = Material.matchMaterial(firstOutput.item());
-                    if (mat == null) {
-                        ItemStack custom = plugin.getItemManager().createItemStack(firstOutput.item());
-                        if (custom != null) {
-                            custom.setAmount(firstOutput.amount());
-                            inv.setItem(slot, custom);
-                            continue;
-                        }
-                        mat = Material.BARRIER;
-                    }
-                    inv.setItem(slot, new ItemStack(mat, firstOutput.amount()));
-                } else {
-                    inv.setItem(slot, null);
+        // Vanilla/dynamic recipes carry ONE pre-built result item (preserves enchantments etc.) —
+        // preview it into the sole/first OUTPUT slot.
+        if (recipe.isVanilla() && recipe.getVanillaResult() != null) {
+            ItemStack result = recipe.getVanillaResult().clone();
+            plugin.getItemManager().getItemTranslator().translate(result);
+            outputSlotsById.values().stream().findFirst().ifPresent(slot -> inv.setItem(slot, result));
+            return;
+        }
+
+        if (recipe.getOutputs() == null || recipe.getOutputs().isEmpty()) return;
+
+        for (RecipeOutput recipeOutput : recipe.getOutputs()) {
+            RecipeIngredient ingredient = recipeOutput.ingredient();
+            Integer slot = recipeOutput.slot() != null
+                    ? outputSlotsById.get(recipeOutput.slot())
+                    : outputSlotsById.values().stream().findFirst().orElse(null);
+            if (slot == null) continue; // named slot doesn't exist in this GUI — nothing to preview into
+
+            Material mat = Material.matchMaterial(ingredient.item());
+            if (mat == null) {
+                ItemStack custom = plugin.getItemManager().createItemStack(ingredient.item());
+                if (custom != null) {
+                    custom.setAmount(ingredient.amount());
+                    inv.setItem(slot, custom);
+                    continue;
                 }
+                mat = Material.BARRIER;
             }
+            inv.setItem(slot, new ItemStack(mat, ingredient.amount()));
         }
     }
 

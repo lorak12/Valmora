@@ -1,5 +1,8 @@
 package org.nakii.valmora.module.gui;
 
+import org.nakii.valmora.module.gui.components.OutputComponent;
+
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,4 +54,26 @@ public class GuiDefinition {
     public GuiEventBlock getOnUpdate() { return onUpdate; }
     public String getCommand() { return command; }
     public String getCommandPermission() { return commandPermission; }
+
+    /**
+     * Maps every {@link OutputComponent}'s {@code id:} to its first physical slot index (row*9+col,
+     * layout scan order) — used to route a recipe's {@code outputs:} entries to the correct physical
+     * GUI slot by {@code slot:} (see {@code RecipeOutput}/CLAUDE.md's recipe-outputs routing
+     * convention: a recipe with more than one output must name which OUTPUT component id each one
+     * goes to). Iteration order matches first-encountered layout position, so a single-output GUI's
+     * sole entry is reachable positionally too when a recipe output omits {@code slot:}.
+     */
+    public Map<String, Integer> findOutputSlotsById() {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        for (int r = 0; r < layout.size(); r++) {
+            List<Character> row = layout.get(r);
+            for (int c = 0; c < row.size(); c++) {
+                GuiComponent comp = components.get(row.get(c));
+                if (comp instanceof OutputComponent output) {
+                    result.putIfAbsent(output.getId(), r * 9 + c);
+                }
+            }
+        }
+        return result;
+    }
 }

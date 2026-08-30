@@ -154,6 +154,22 @@ npc-skin-server:
   #              clients connect from outside the local network.
 
 # ========================================================== #
+#                       Anvil Settings                       #
+# ========================================================== #
+# Unified anvil tunables (coworker anvil spec §2/§6). Costs are all in XP levels — the "prior
+# work penalty" (2^work_count - 1) is charged on top of these for both input items automatically,
+# see module/recipe/AnvilCostCalculator.
+anvil:
+  templates:
+    merge:
+      cost-per-level: 2               # XP levels charged per enchant level merged/transferred
+      base-cost: 0                    # flat XP levels charged on every gear+gear/book merge
+      durability-bonus-percent: 0.12  # gear+gear durability merge bonus (of max durability)
+    repair:
+      base-cost: 0                    # flat XP levels charged on every repair
+      percent-per-unit: 0.25          # % of max durability repaired per consumed repair-material unit
+
+# ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
 alchemy:

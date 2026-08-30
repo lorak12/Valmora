@@ -1,0 +1,78 @@
+# =====================================================================
+# Example recipes, built only from vanilla materials and items already shipped
+# in items/*.yml, so they work with no other content added. Try them with
+# /test crafting and /test forge, which hand you the exact ingredients needed.
+#
+# type: SHAPED — ingredients: is a letter -> {material, amount} dictionary,
+# and pattern: is one or more rows built from those letters (a space means
+# that position must stay empty). One character = one physical slot, so a
+# small machine like the forge just uses a shorter pattern than a full 3x3
+# crafting grid.
+#
+# type: SHAPELESS — ingredients: is a plain list instead; the items can go in
+# any slot, in any order.
+#
+# outputs: is a list of {item, amount}. One entry needs nothing else. More
+# than one entry needs a slot: on each one, naming which OUTPUT slot (its id
+# in the GUI file) that item goes into.
+# =====================================================================
+
+# A ring of leather around the empty center slot.
+backpack_tier1_craft:
+  machine: crafting_table
+  type: SHAPED
+  ingredients:
+    l: { material: LEATHER, amount: 1 }
+  pattern:
+    - "lll"
+    - "l l"
+    - "lll"
+  outputs:
+    - item: backpack_tier1
+      amount: 1
+  on-craft:
+    - "sound player entity.horse.armor"
+
+# Upgrades the tier-1 backpack into tier-2. The backpack must be empty first — its stored items
+# don't carry over onto the new one.
+backpack_tier2_craft:
+  machine: crafting_table
+  type: SHAPELESS
+  ingredients:
+    - { item: backpack_tier1, amount: 1 }
+    - { item: IRON_INGOT, amount: 8 }
+  outputs:
+    - item: backpack_tier2
+      amount: 1
+  on-craft:
+    - "sound player entity.horse.armor"
+
+# The forge has 2 slots (left, right) — a single 2-character pattern row.
+reinforced_ingot_craft:
+  machine: forge
+  type: SHAPED
+  ingredients:
+    i: { material: IRON_INGOT, amount: 2 }
+    d: { material: DIAMOND, amount: 1 }
+  pattern:
+    - "id"
+  outputs:
+    - item: reinforced_ingot
+      amount: 1
+  on-craft:
+    - "sound player block.anvil.use"
+
+# Needs a reinforced_ingot — craft reinforced_ingot_craft above first.
+forged_blade_craft:
+  machine: forge
+  type: SHAPED
+  ingredients:
+    s: { material: IRON_SWORD, amount: 1 }
+    r: { material: reinforced_ingot, amount: 2 }
+  pattern:
+    - "sr"
+  outputs:
+    - item: forged_blade
+      amount: 1
+  on-craft:
+    - "sound player block.anvil.use"

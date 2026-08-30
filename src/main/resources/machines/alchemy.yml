@@ -1,0 +1,9 @@
+# gui: which GUI file (guis/*.yml) opens for this machine.
+# logic: a descriptive label only — changing it has no effect on how crafting behaves.
+# input-slots / output-slots: expected slot counts. Checked against the GUI on load; a mismatch
+# only logs a warning, it does not stop the server from starting.
+alchemy:
+  gui: alchemy_table
+  logic: alchemy_table
+  input-slots: 4
+  output-slots: 0

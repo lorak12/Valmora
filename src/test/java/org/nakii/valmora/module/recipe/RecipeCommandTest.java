@@ -40,8 +40,7 @@ public class RecipeCommandTest {
     private RecipeDefinition definition(String id) {
         Map<String, RecipeIngredient> inputs = new HashMap<>();
         inputs.put("base", new RecipeIngredient("NETHER_WART", 1));
-        Map<String, RecipeIngredient> outputs = new HashMap<>();
-        outputs.put("result", new RecipeIngredient("valmora:elixir", 1));
+        List<RecipeOutput> outputs = List.of(new RecipeOutput(new RecipeIngredient("valmora:elixir", 1), null));
         return new RecipeDefinition(id, "alchemy", RecipeType.EXACT_SLOT, inputs, null, outputs, ctx -> {});
     }
 

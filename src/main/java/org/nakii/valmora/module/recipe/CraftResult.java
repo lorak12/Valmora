@@ -6,15 +6,19 @@ import org.nakii.valmora.api.scripting.CompiledEvent;
 import java.util.List;
 
 /**
- * @param output       the primary output, placed in the GUI's OUTPUT slot (unchanged behavior)
- * @param extraOutputs any additional {@code outputs:} entries beyond the first — previously
- *                     silently dropped, since a recipe definition could declare multiple named
- *                     outputs but only the first was ever built. Given directly to the player's
- *                     inventory by the caller (see {@code GuiForceCraftEventFactory}), since the
- *                     GUI has only one OUTPUT slot to place items into.
+ * @param outputs every built {@code outputs:} entry, each paired with the OUTPUT-component slot id
+ *                 it targets (see {@link CraftOutput}/{@link RecipeOutput}) — routed to the right
+ *                 physical GUI slot by the caller ({@code GuiForceCraftEventFactory}); a slotted
+ *                 entry naming an id the current GUI doesn't have falls back to the player's
+ *                 inventory rather than being silently dropped.
  */
-public record CraftResult(ItemStack output, List<ItemStack> extraOutputs, RecipeDefinition recipe, CompiledEvent onCraft) {
-    public CraftResult(ItemStack output, RecipeDefinition recipe, CompiledEvent onCraft) {
-        this(output, List.of(), recipe, onCraft);
+public record CraftResult(List<CraftOutput> outputs, RecipeDefinition recipe, CompiledEvent onCraft) {
+    public CraftResult(ItemStack singleOutput, RecipeDefinition recipe, CompiledEvent onCraft) {
+        this(List.of(new CraftOutput(singleOutput, null)), recipe, onCraft);
+    }
+
+    /** The first built output — the common case (a single-output recipe) needs nothing more. */
+    public ItemStack output() {
+        return outputs.isEmpty() ? null : outputs.get(0).item();
     }
 }

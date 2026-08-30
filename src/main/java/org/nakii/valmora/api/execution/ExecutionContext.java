@@ -160,8 +160,18 @@ public interface ExecutionContext {
     /**
      * Writes a namespaced attachment. Always writes to the local context — never to a parent,
      * even if the key currently resolves through inheritance.
+     *
+     * <p>{@code value == null} is treated as a local removal rather than a {@link
+     * ConcurrentHashMap} write (which disallows null values and would throw) — this keeps it safe
+     * to pass through possibly-absent lookups (e.g. an item's rarity/id) without a null check at
+     * every call site, and is consistent with {@link #get(String)} treating "absent" and "null" the
+     * same way.
      */
     default void set(String key, Object value) {
+        if (value == null) {
+            remove(key);
+            return;
+        }
         ATTACHMENTS.computeIfAbsent(this, c -> new ConcurrentHashMap<>()).put(key, value);
     }
 

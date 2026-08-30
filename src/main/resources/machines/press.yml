@@ -1,0 +1,23 @@
+# gui: which GUI file (guis/*.yml) opens for this machine.
+# logic: a descriptive label only — changing it has no effect on how crafting behaves.
+# input-slots / output-slots: expected slot counts. Checked against the GUI on load; a mismatch
+# only logs a warning, it does not stop the server from starting.
+# shape: "ROWSxCOLS" — declares the grid a SHAPED recipe's pattern: is matched against.
+# open-triggers: ways to open this GUI without a command — list any number; the GUI opens the
+# moment any one of them is true. Each line is a normal condition (the same kind used everywhere
+# else — GUI/ability/quest conditions), checked when the player right-clicks and when they step
+# into a zone. Common ones for this purpose:
+#   block <MATERIAL>  - right-clicking any block of that material anywhere on the server opens it.
+#                        Pick something uncommon as plain decoration, or every wall/floor built out
+#                        of that block becomes a machine.
+#   zone <zone-id>    - stepping into that zone opens it automatically, no click needed.
+# Any other condition works too (tag, health, hunger, location, variable, objective, quest, point,
+# or a raw expression) — e.g. "tag has_forge_license" to gate a machine behind a quest reward.
+press:
+  gui: press
+  logic: custom
+  input-slots: 3
+  output-slots: 1
+  shape: 1x3
+  open-triggers:
+    - "block LODESTONE"

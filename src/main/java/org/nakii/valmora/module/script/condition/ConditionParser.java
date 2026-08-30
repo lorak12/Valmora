@@ -17,7 +17,7 @@ public class ConditionParser {
 
     /**
      * Parses a single condition string. Supports an optional leading '!' negation prefix.
-     * Keywords: tag, health, hunger, location, zone, variable, objective, quest, point.
+     * Keywords: tag, health, hunger, location, zone, block, variable, objective, quest, point.
      * Anything else is treated as an expression.
      */
     public Condition parse(String raw) {
@@ -57,6 +57,9 @@ public class ConditionParser {
 
         if (clean.startsWith("zone "))
             return new ZoneCondition(clean.substring(5).trim());
+
+        if (clean.startsWith("block "))
+            return BlockLookCondition.parse(clean.substring(6));
 
         if (clean.startsWith("variable ")) {
             String[] parts = clean.substring(9).trim().split("\\s+");

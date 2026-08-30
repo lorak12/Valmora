@@ -88,3 +88,7 @@ commands:
   collections:
     usage: /collections [view|force|reset <player> <collectionId> [count]]
     description: Open the collections menu, or (valmora.admin) view/force/reset a player's collection.
+  test:
+    usage: /test <anvil|crafting|forge|press>
+    permission: valmora.admin
+    description: Give the ingredients for, and print the steps to run, a shipped example recipe end to end.

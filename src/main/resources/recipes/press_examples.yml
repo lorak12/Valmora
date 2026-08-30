@@ -1,0 +1,16 @@
+# Example recipe for the "press" machine (machines/press.yml) — a 1x3 row of slots.
+# handle / binding / head must sit left-to-right in that exact order.
+pressed_hoe:
+  machine: press
+  type: SHAPED
+  ingredients:
+    h: { material: STICK, amount: 1 }
+    d: { material: STRING, amount: 1 }
+    e: { material: IRON_INGOT, amount: 1 }
+  pattern:
+    - "hde"
+  outputs:
+    - item: IRON_HOE
+      amount: 1
+  on-craft:
+    - "sound player block.anvil.use"

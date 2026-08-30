@@ -38,11 +38,10 @@ class YamlConfigLoadTest {
                 "/skills/foraging.yml",
                 "/skills/fishing.yml",
                 "/skills/alchemy.yml",
-                "/recipes/forge.yml",
-                "/recipes/crafting_table.yml",
+                "/recipes/example_recipes.yml",
+                "/recipes/press_examples.yml",
                 "/alchemy/effects.yml",
                 "/alchemy/modifiers.yml",
-                "/alchemy/healing_boost.yml",
                 "/enchants/example_enchantments.yml",
                 "/fishing/hub_fishing.yml",
                 "/guis/stats.yml",
@@ -121,7 +120,7 @@ class YamlConfigLoadTest {
 
     @Test
     void testRecipeFiles_eachRecipeHasMachineAndType() {
-        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml")) {
+        for (String path : List.of("/recipes/example_recipes.yml", "/recipes/press_examples.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);
@@ -137,7 +136,7 @@ class YamlConfigLoadTest {
     @Test
     void testRecipeTypes_areValidValues() {
         Set<String> validTypes = Set.of("EXACT_SLOT", "SHAPED", "SHAPELESS");
-        for (String path : List.of("/recipes/forge.yml", "/recipes/crafting_table.yml")) {
+        for (String path : List.of("/recipes/example_recipes.yml", "/recipes/press_examples.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);
@@ -184,7 +183,7 @@ class YamlConfigLoadTest {
 
     @Test
     void testAlchemyEffectsFile_hasEffectsWithTiersAndDuration() {
-        for (String path : List.of("/alchemy/effects.yml", "/alchemy/healing_boost.yml")) {
+        for (String path : List.of("/alchemy/effects.yml")) {
             YamlConfiguration cfg = load(path);
             for (String key : cfg.getKeys(false)) {
                 ConfigurationSection section = cfg.getConfigurationSection(key);

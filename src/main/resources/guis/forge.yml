@@ -19,7 +19,7 @@ forge:
   layout:
     - "BBBBBBBBB"
     - "BGGGGGGGB"
-    - "BGIBMOGBB"
+    - "BGIBMBOGB"
     - "BBBBFBBBB"
 
   components:
@@ -72,8 +72,12 @@ forge:
       - "sound player block.blast_furnace.crack"
   on-slot-update:
     actions:
-      # Without this, placing/removing items in the input slots never attempts a craft — the GUI
-      # engine only ever crafts in response to an explicit gui_force_craft, it doesn't auto-match
-      # recipes on every render (see CLAUDE.md §8.4).
-      - "gui_force_craft"
+      # NOTE: no gui_force_craft here on purpose. GuiListener.triggerSlotUpdate already re-previews
+      # the OUTPUT slot on every input change regardless of this block's contents (updateRecipeOutput
+      # runs unconditionally before these actions) — wiring gui_force_craft here would REALLY craft
+      # (consume + build) the instant ingredients match, with no way to back out, and would leave the
+      # output slot un-collectible by the normal click-to-take handler once the inputs it needs are
+      # already gone. Same click-to-collect pattern as the crafting table/anvil: the preview updates
+      # live, the actual craft only happens when the player clicks the OUTPUT slot.
+      - "sound player block.anvil.land"
   on-close: {}

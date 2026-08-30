@@ -89,9 +89,10 @@ public class RecipeCommand implements TabExecutor {
             }
         }
         if (recipe.getOutputs() != null) {
-            for (Map.Entry<String, RecipeIngredient> e : recipe.getOutputs().entrySet()) {
-                sender.sendMessage(Formatter.format(" <gray>Output [" + e.getKey() + "]: <white>"
-                        + e.getValue().item() + " x" + e.getValue().amount()));
+            for (RecipeOutput out : recipe.getOutputs()) {
+                String slotLabel = out.slot() != null ? out.slot() : "default";
+                sender.sendMessage(Formatter.format(" <gray>Output [" + slotLabel + "]: <white>"
+                        + out.ingredient().item() + " x" + out.ingredient().amount()));
             }
         }
         sender.sendMessage(Formatter.format("<dark_gray><st>                                                </st>"));

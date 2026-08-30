@@ -1,0 +1,42 @@
+# Anvil recipes are either type: UPGRADE or type: TRANSMUTE. Both take a base item and an
+# addition (material or item + amount), and produce a result. Try these with /test anvil, which
+# hands you the ingredients and walks you through the steps.
+
+# UPGRADE: the base item's enchants, reforges/gemstones, durability, and custom name all carry
+# over onto the result automatically (keep-data-on-upgrade: true).
+apprentice_to_journeyman:
+  machine: anvil
+  type: UPGRADE
+  base:
+    valmora_id: apprentice_blade
+  addition:
+    material: AMETHYST_SHARD
+    amount: 4
+  result:
+    valmora_id: journeyman_blade
+    # add_lore lines are appended below the result's normal stat/enchant/rarity lore. A line of
+    # exactly "{inherit_lore}" would insert the base item's own full lore here too — only useful
+    # if the base item carries extra lines nothing else would reproduce; left out here since the
+    # carried stats/enchants already show up in the result's own lore.
+    add_lore:
+      - "<dark_gray><strikethrough>------------------------"
+      - "<light_purple>Reforged in the anvil's fire."
+    increase_work_penalty: true
+  keep-data-on-upgrade: true
+  cost:
+    xp_levels: 5
+
+# TRANSMUTE: a plain base + addition -> result swap — nothing carries over from the base item.
+demo_iron_to_gold_pickaxe:
+  machine: anvil
+  type: TRANSMUTE
+  base:
+    material: IRON_PICKAXE
+  addition:
+    material: GOLD_INGOT
+    amount: 4
+  result:
+    material: GOLDEN_PICKAXE
+    name: "<yellow>Gilded Pickaxe"
+  cost:
+    xp_levels: 10

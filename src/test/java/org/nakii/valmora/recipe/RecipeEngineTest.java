@@ -99,7 +99,7 @@ class RecipeEngineTest {
                 "input2", new RecipeIngredient("diamond", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r1", "forge", RecipeType.EXACT_SLOT,
-                inputMap, null, Map.of(), null);
+                inputMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -117,7 +117,7 @@ class RecipeEngineTest {
                 "input2", new RecipeIngredient("diamond", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r1", "forge", RecipeType.EXACT_SLOT,
-                inputMap, null, Map.of(), null);
+                inputMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -134,7 +134,7 @@ class RecipeEngineTest {
                 "input1", new RecipeIngredient("iron_ingot", 3)
         );
         RecipeDefinition recipe = new RecipeDefinition("r1", "forge", RecipeType.EXACT_SLOT,
-                inputMap, null, Map.of(), null);
+                inputMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -150,7 +150,7 @@ class RecipeEngineTest {
                 "input1", new RecipeIngredient("iron_ingot", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r1", "forge", RecipeType.EXACT_SLOT,
-                inputMap, null, Map.of(), null);
+                inputMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -169,7 +169,7 @@ class RecipeEngineTest {
                 new RecipeIngredient("glass_bottle", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r2", "alchemy", RecipeType.SHAPELESS,
-                null, inputList, Map.of(), null);
+                null, inputList, List.of(), null);
         when(recipeModule.getRecipesForMachine("alchemy")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -188,7 +188,7 @@ class RecipeEngineTest {
                 new RecipeIngredient("item_c", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r3", "forge", RecipeType.SHAPELESS,
-                null, inputList, Map.of(), null);
+                null, inputList, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -206,7 +206,7 @@ class RecipeEngineTest {
                 new RecipeIngredient("nether_wart", 3)
         );
         RecipeDefinition recipe = new RecipeDefinition("r4", "alchemy", RecipeType.SHAPELESS,
-                null, inputList, Map.of(), null);
+                null, inputList, List.of(), null);
         when(recipeModule.getRecipesForMachine("alchemy")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -224,7 +224,7 @@ class RecipeEngineTest {
                 new RecipeIngredient("iron_ingot", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r5", "forge", RecipeType.SHAPELESS,
-                null, inputList, Map.of(), null);
+                null, inputList, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(recipe));
 
         // One slot with amount 1 — can only match one of the two ingredients
@@ -247,7 +247,7 @@ class RecipeEngineTest {
                 "4", new RecipeIngredient("wood", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r6", "crafting", RecipeType.SHAPED,
-                recipeMap, null, Map.of(), null);
+                recipeMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("crafting")).thenReturn(List.of(recipe));
 
         // Input also in top-left slots
@@ -273,7 +273,7 @@ class RecipeEngineTest {
                 "4", new RecipeIngredient("wood", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r7", "crafting", RecipeType.SHAPED,
-                recipeMap, null, Map.of(), null);
+                recipeMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("crafting")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -298,7 +298,7 @@ class RecipeEngineTest {
                 "7", new RecipeIngredient("wood", 1)
         );
         RecipeDefinition recipe = new RecipeDefinition("r8", "crafting", RecipeType.SHAPED,
-                recipeMap, null, Map.of(), null);
+                recipeMap, null, List.of(), null);
         when(recipeModule.getRecipesForMachine("crafting")).thenReturn(List.of(recipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -313,6 +313,35 @@ class RecipeEngineTest {
         });
     }
 
+    @Test
+    void testShaped_nonDefaultGridWidth_translatesCorrectly() {
+        // Recipe-yaml rework note: a machine can declare a grid width other than 3 (e.g. a 1x3
+        // press, or here a 2-wide arrangement) via the letter-pattern syntax's gridWidth. This
+        // proves RecipeEngine's bounding-box math actually uses that width instead of the old
+        // hardcoded "%3"/"/3" — with width=3 assumed instead of 2, this would fail to translate.
+        Map<String, RecipeIngredient> recipeMap = Map.of(
+                "0", new RecipeIngredient("wood", 1),   // (0,0)
+                "1", new RecipeIngredient("stone", 1),  // (1,0)
+                "2", new RecipeIngredient("stone", 1),  // (0,1)
+                "3", new RecipeIngredient("wood", 1)    // (1,1)
+        );
+        RecipeDefinition recipe = new RecipeDefinition("rW", "press", RecipeType.SHAPED,
+                recipeMap, null, List.of(), null, 2, true, null);
+        when(recipeModule.getRecipesForMachine("press")).thenReturn(List.of(recipe));
+
+        // Same pattern, shifted down one row in a 2-wide grid: slots 2,3,4,5 -> (0,1)(1,1)(0,2)(1,2)
+        Map<String, ItemStack> inputs = new HashMap<>();
+        inputs.put("2", item("wood", 1));
+        inputs.put("3", item("stone", 1));
+        inputs.put("4", item("stone", 1));
+        inputs.put("5", item("wood", 1));
+
+        withBukkitVanillaNoMatch(() -> {
+            Optional<RecipeDefinition> result = engine.match("press", inputs);
+            assertTrue(result.isPresent(), "SHAPED matching must translate using the recipe's own grid width, not a hardcoded 3");
+        });
+    }
+
     // ── Precedence: DynamicMachineHandler > YAML recipe > vanilla ──────────
     // docs/V1_RELEASE_CHECKLIST.md §1 — CLAUDE.md §9 documents this order but nothing previously
     // asserted it end to end for a machine that has more than one layer defined at once.
@@ -320,11 +349,11 @@ class RecipeEngineTest {
     @Test
     void dynamicHandlerTakesPrecedenceOverAMatchingYamlRecipeForTheSameMachine() {
         RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
-                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
 
         RecipeDefinition dynamicRecipe = new RecipeDefinition("dynamic_r", "forge", RecipeType.EXACT_SLOT,
-                Map.of(), null, Map.of(), null);
+                Map.of(), null, List.of(), null);
         engine.registerHandler("forge", inputs -> Optional.of(dynamicRecipe));
 
         Map<String, ItemStack> inputs = new HashMap<>();
@@ -338,7 +367,7 @@ class RecipeEngineTest {
     @Test
     void yamlRecipeIsUsedWhenTheDynamicHandlerDeclinesToMatch() {
         RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
-                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
 
         // Handler is registered but returns empty — e.g. its own preconditions weren't met.
@@ -355,11 +384,11 @@ class RecipeEngineTest {
     @Test
     void unregisteringAHandlerFallsBackToYamlRecipes() {
         RecipeDefinition yamlRecipe = new RecipeDefinition("yaml_r", "forge", RecipeType.EXACT_SLOT,
-                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, Map.of(), null);
+                Map.of("input1", new RecipeIngredient("iron_ingot", 1)), null, List.of(), null);
         when(recipeModule.getRecipesForMachine("forge")).thenReturn(List.of(yamlRecipe));
 
         RecipeDefinition dynamicRecipe = new RecipeDefinition("dynamic_r", "forge", RecipeType.EXACT_SLOT,
-                Map.of(), null, Map.of(), null);
+                Map.of(), null, List.of(), null);
         engine.registerHandler("forge", inputs -> Optional.of(dynamicRecipe));
         engine.unregisterHandler("forge");
 
@@ -420,7 +449,7 @@ class RecipeEngineTest {
                 "input1", new RecipeIngredient("iron_ingot", 2)
         );
         RecipeDefinition recipe = new RecipeDefinition("r9", "forge", RecipeType.EXACT_SLOT,
-                inputMap, null, Map.of(), null);
+                inputMap, null, List.of(), null);
 
         ItemStack stack = mock(ItemStack.class);
         when(stack.getAmount()).thenReturn(5);
@@ -441,7 +470,7 @@ class RecipeEngineTest {
                 new RecipeIngredient("iron_ingot", 2)
         );
         RecipeDefinition recipe = new RecipeDefinition("r10", "forge", RecipeType.SHAPELESS,
-                null, inputList, Map.of(), null);
+                null, inputList, List.of(), null);
 
         // Numeric key so consume() targets it
         ItemStack stack = mock(ItemStack.class);

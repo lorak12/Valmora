@@ -90,10 +90,13 @@ branch `modifier-framework`. Read the design doc first; this file is the delta a
    indication of which inventory slot it came from, so there's nowhere safe to persist a state
    mutation back to. ABILITY/EVENT effects don't have this problem since they don't need to write
    back to the item.
-2. **Item-upgrade `keep-data-on-upgrade` inheritance** (§21 task 11) — this system doesn't exist
-   anywhere in the codebase yet (confirmed by recon — greenfield, not a modifier-specific gap, and
-   out of scope for a modifier-framework pass to invent from nothing — it would need its own
-   item-upgrade recipe/config schema before "preserve modifiers across it" is even meaningful).
+2. ~~**Item-upgrade `keep-data-on-upgrade` inheritance**~~ — **built** (machine-layer/anvil-rework
+   pass, see `docs/modules/design/recipe.md`): `RecipeDefinition.keepDataOnUpgrade`/`upgradeFrom` +
+   `org.nakii.valmora.module.recipe.ItemDataCarrier.carryForward(...)` copies enchants, every
+   attached modifier-framework component (via `ModifierComponentStore.readAll`/`write`, generic
+   across groups), durability, and custom display name from a source ingredient onto a recipe's
+   output — usable by any crafting recipe and by the anvil's `type: UPGRADE` recipes
+   (`AnvilRecipeDefinition`).
 
 **Also done since the "Built" section above was last fully rewritten:** a fluent Java builder API —
 `ModifierGroupDefinition.builder(id)...build()` / `ModifierDefinition.builder(id, groupId)...build()`

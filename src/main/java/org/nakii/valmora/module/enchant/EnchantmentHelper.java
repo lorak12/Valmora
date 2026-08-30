@@ -256,9 +256,9 @@ public class EnchantmentHelper {
         if (enchantMap.size() < 4) {
             for (String id : sortedIds) {
                 int level = enchantMap.get(id);
-                lore.add(Formatter.format("<blue>" + id + " " + level + "</blue>"));
-
                 EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(id).orElse(null);
+                lore.add(Formatter.format("<blue>" + displayName(id, def) + " " + level + "</blue>"));
+
                 if (def != null && def.getDescription() != null) {
                     for (String descLine : def.getDescription()) {
                         lore.add(Formatter.format("<gray>" + descLine + "</gray>"));
@@ -271,7 +271,8 @@ public class EnchantmentHelper {
 
             for (String id : sortedIds) {
                 int level = enchantMap.get(id);
-                String enchantStr = id + " " + level;
+                EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(id).orElse(null);
+                String enchantStr = displayName(id, def) + " " + level;
 
                 if (currentLine.length() + enchantStr.length() + 2 > 40) {
                     shortEnchants.add(Formatter.format("<blue>" + currentLine.toString().trim() + "</blue>"));
@@ -293,6 +294,15 @@ public class EnchantmentHelper {
         lore.add(Component.empty());
 
         return lore;
+    }
+
+    /** The enchant's configured {@code name:} (e.g. "Sharpness"), falling back to a title-cased
+     *  version of the raw id (e.g. {@code "fire_aspect"} -&gt; "Fire Aspect") when the enchant isn't
+     *  registered — previously the raw lowercase id (e.g. "sharpness 3") was shown unconditionally,
+     *  ignoring the definition's display name entirely. */
+    private static String displayName(String id, EnchantmentDefinition def) {
+        if (def != null && def.getName() != null && !def.getName().isEmpty()) return def.getName();
+        return Formatter.capitalize(id.replace("_", " "));
     }
 
     public static ItemStack createEnchantedBook(String enchantId, int level) {

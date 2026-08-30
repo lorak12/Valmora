@@ -12,10 +12,12 @@ import org.nakii.valmora.module.modifier.recipe.ModifierRecipeRegistry;
 /**
  * The generic modifier framework module (docs/Valmora_Modifier_Framework_Design.docx). Loads
  * modifier groups + definitions from {@code modifiers/} content, wires the {@link ModifierEngine}
- * against the rarity registry and stat/recipe systems, and registers the {@code custom_anvil}
- * {@code DynamicMachineHandler} for {@code APPLY_MODIFIER}/{@code REMOVE_MODIFIER} recipes (§16).
+ * against the rarity registry and stat/recipe systems, and builds a {@link ModifierAnvilHandler}
+ * for {@code APPLY_MODIFIER}/{@code REMOVE_MODIFIER} recipes (§16) — exposed via
+ * {@link #getAnvilHandler()} for the unified anvil ({@code module.recipe.AnvilMachineHandler}) to
+ * call directly, rather than self-registered as a separate {@code DynamicMachineHandler}.
  *
- * <p>Registered after {@code recipe} (needs to register a handler) and {@code rarity} (needs
+ * <p>Registered after {@code recipe}/{@code machine} and {@code rarity} (needs
  * {@link org.nakii.valmora.module.rarity.RarityRegistry}) — see Valmora.java's module order comment.
  *
  * <p><b>Note on YAML shape:</b> the design doc's illustrative snippets wrap group/modifier entries
@@ -31,6 +33,7 @@ public class ModifierModule implements ReloadableModule {
     private final ModifierRecipeRegistry recipeRegistry = new ModifierRecipeRegistry();
     private ModifierComponentStore store;
     private ModifierEngine engine;
+    private ModifierAnvilHandler anvilHandler;
 
     public ModifierModule(Valmora plugin) {
         this.plugin = plugin;
@@ -57,17 +60,16 @@ public class ModifierModule implements ReloadableModule {
         // provider from this module would silently clobber it (SimpleRegistry is a flat map keyed
         // by namespace, last registration wins).
 
-        if (plugin.getRecipeModule() != null) {
-            plugin.getRecipeModule().getRecipeEngine()
-                    .registerHandler("custom_anvil", new ModifierAnvilHandler(plugin, recipeRegistry, engine));
-        }
+        // Not registered on RecipeEngine as its own machine handler anymore — the unified anvil
+        // (module/recipe/AnvilMachineHandler, machine id "anvil") delegates to this instance
+        // directly as one step of its pipeline instead of RecipeEngine dispatching to it under a
+        // separate "custom_anvil" machine id. See docs/modules/design/modifier.md §4.
+        this.anvilHandler = new ModifierAnvilHandler(plugin, recipeRegistry, engine);
     }
 
     @Override
     public void onDisable() {
-        if (plugin.getRecipeModule() != null) {
-            plugin.getRecipeModule().unregisterHandler("custom_anvil");
-        }
+        anvilHandler = null;
         groupRegistry.clear();
         modifierRegistry.clear();
         recipeRegistry.clear();
@@ -83,6 +85,7 @@ public class ModifierModule implements ReloadableModule {
     public ModifierRegistry getModifierRegistry() { return modifierRegistry; }
     public ModifierComponentStore getStore() { return store; }
     public ModifierEngine getEngine() { return engine; }
+    public ModifierAnvilHandler getAnvilHandler() { return anvilHandler; }
 
     private void loadGroups() {
         YamlLoader<ModifierGroupDefinition> loader = new YamlLoader<>(plugin, "modifiers/groups", "Modifier Group");

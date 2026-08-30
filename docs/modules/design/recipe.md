@@ -6,8 +6,9 @@
 
 > **Generic-engine refactor (Phase 4.3):** `AnvilMachineHandler`'s merge cost (previously hardcoded
 > "10 coins per merged enchant level") now comes from `AnvilTemplateRegistry`
-> (`recipes/anvil_templates.yml` → `templates.merge.cost-per-level`, default 10). See
-> `docs/REFACTOR/CONFIG_REFERENCE.md`.
+> (`config.yml` → `anvil.templates.merge.cost-per-level`, default 2 — moved off a standalone
+> `recipes/anvil_templates.yml` file so the recipes folder holds only actual recipes; see
+> CLAUDE.md §9.3). See `docs/REFACTOR/CONFIG_REFERENCE.md` (also stale on this point).
 
 ---
 
@@ -81,9 +82,9 @@ Enum with exactly three values (`RecipeType.java:3`):
 
 | Value | Meaning |
 |---|---|
-| `EXACT_SLOT` | Each named input slot must be present and match exactly; the *number* of non-empty input stacks must equal the number of recipe inputs. Used by 2-input machines (forge, anvil) and dynamic recipes. |
-| `SHAPELESS` | A set of required ingredients that may occupy any slots, in any order. Used by alchemy and ore-refining recipes. |
-| `SHAPED` | A spatial 3×3 grid pattern (slots `0`–`8`) that may be translated anywhere within the input bounding box. Used by crafting-table recipes. |
+| `EXACT_SLOT` | Each named input slot must be present and match exactly; the *number* of non-empty input stacks (excluding the numeric slot-index aliases every GUI snapshot also publishes, see `matchExact`'s `isNumericKey` filter) must equal the number of recipe inputs. No longer choosable via YAML `type:` — only used internally by dynamic recipes (anvil/alchemy/enchanting-table handlers) and the vanilla-crafting passthrough. |
+| `SHAPELESS` | A set of required ingredients that may occupy any slots, in any order. Used by alchemy, crafting-table upgrade recipes, and ore-refining recipes. |
+| `SHAPED` | A spatial grid pattern (letter-keyed `ingredients:`/`pattern:`, translated at load time into numeric slot indices) that may be translated anywhere within the input bounding box. Grid width is the widest pattern row — 3 for a crafting table, 1 for a 1-wide vertical arrangement, 2 for the forge's 2-slot row, etc. Used by crafting-table, forge, and press recipes — i.e. every positional machine, regardless of slot count. |
 
 ### `RecipeDefinition.java` (77 lines)
 
@@ -96,7 +97,7 @@ Immutable recipe data model (`RecipeDefinition.java:11`). Fields (`RecipeDefinit
 | `type` | `RecipeType` | Matching strategy. |
 | `inputMap` | `Map<String, RecipeIngredient>` | Named/keyed inputs (EXACT_SLOT + SHAPED grid slots). |
 | `inputList` | `List<RecipeIngredient>` | Ordered list of required ingredients (SHAPELESS). |
-| `outputs` | `Map<String, RecipeIngredient>` | Result items keyed by name (`result`). Only the **first** value is ever used. |
+| `outputs` | `List<RecipeOutput>` | Result items — `RecipeOutput(RecipeIngredient, String slot)`. Every entry is built and given; more than one entry requires every `slot` to be non-null, naming a target GUI OUTPUT component id (`RecipeDefinitionParser` rejects the load otherwise). See §"outputs routing" below. |
 | `onCraft` | `CompiledEvent` | Script event list executed when a craft is completed. May be `null`. |
 | `isVanilla` | `boolean` | True for recipes synthesized from `Bukkit.getCraftingRecipe` or from the anvil/dynamic handlers. |
 | `vanillaResult` | `ItemStack` | Pre-built output item for vanilla/dynamic recipes (preserves NBT/enchantments). |
@@ -104,7 +105,7 @@ Immutable recipe data model (`RecipeDefinition.java:11`). Fields (`RecipeDefinit
 
 Static factories:
 
-- `vanilla(ItemStack result)` (`RecipeDefinition.java:49`) and `vanilla(ItemStack result, CompiledEvent onCraft)` (`RecipeDefinition.java:53`) — builds a `SHAPELESS` recipe on machine `crafting_table` whose `outputs` map is `{ "result": RecipeIngredient(typeName, amount) }`.
+- `vanilla(ItemStack result)` (`RecipeDefinition.java:49`) and `vanilla(ItemStack result, CompiledEvent onCraft)` (`RecipeDefinition.java:53`) — builds a `SHAPELESS` recipe on machine `crafting_table` whose `outputs` list is `[RecipeOutput(RecipeIngredient(typeName, amount), null)]` (unused in practice — `isVanilla()` consumers read `vanillaResult` directly instead).
 - `dynamic(String machineId, ItemStack result, Consumer<Map<String, ItemStack>> consumeHandler)` (`RecipeDefinition.java:61`) — builds an `EXACT_SLOT` recipe with a `dynamic:<machine>:<nanoTime>` ID, a pre-built output item, and custom consumption. Used by the alchemy and reforge handlers.
 
 ### `RecipeIngredient.java` (7 lines)
@@ -249,8 +250,8 @@ The `enchanting_table` machine has **no** handler (`guis/enchanting.yml:4`) — 
 
 `GuiSession.buildInputSnapshot()` (`GuiSession.java:82`–`104`) publishes every `INPUT` component's item **twice**: under the component's `id` (e.g. `ingredient`, `base`, `material`, `base_item`, `reforge_stone`, `input1`, `input2`, `bottle`) and under a zero-indexed numeric key (`"0"`, `"1"`, …) in layout scan order (`GuiSession.java:97`–`98`). This is why:
 
-- EXACT_SLOT forge recipes use `input1`/`input2` (`recipes/forge.yml:15`–`16`).
-- Anvil handler reads `base`/`material` (`guis/anvil.yml:44`/`48`).
+- The forge's SHAPED recipes match positionally on the numeric aliases (`recipes/example_recipes.yml`'s `reinforced_ingot_craft`) — `input1`/`input2` are just the physical INPUT components' own ids, unused by matching itself now that EXACT_SLOT is gone from YAML.
+- The anvil's own Java matcher (bypasses this generic engine entirely) reads `base`/`material` (`guis/anvil.yml:44`/`48`).
 - Reforge handlers read `base_item`/`reforge_stone` (`guis/reforge_anvil.yml:42`/`57`, `guis/reforge.yml:42`).
 - SHAPED/SHAPELESS and vanilla matching use the numeric aliases.
 
@@ -265,18 +266,19 @@ Folder: `plugins/Valmora/recipes/` (auto-copied from `src/main/resources/recipes
 | Key | Required | Default | Type | Description |
 |---|---|---|---|---|
 | `<recipe-id>` | Yes | — | `String` (map key) | Unique recipe identifier; also the recipe ID used in logs/errors. |
-| `machine` | Yes* | `null` | `String` | Machine ID this recipe is registered under (`RecipeDefinitionParser.java:23`). *No default — if omitted the recipe is stored under a `null` machine key and will never be matched by the GUI.* |
-| `type` | No | `EXACT_SLOT` | `String` | One of `EXACT_SLOT`, `SHAPELESS`, `SHAPED`; parsed case-insensitively via `RecipeType.valueOf(...toUpperCase())` (`RecipeDefinitionParser.java:24`). |
-| `inputs` | Yes | — | section or list | Depends on `type` — see below. |
-| `outputs` | No | — | section | Result items. Only the first entry is used by `buildOutput` (`RecipeEngine.java:60`). |
-| `on-craft` | No | — | `List<String>` | Script event lines executed on successful craft via `plugin.getScriptModule().getEventParser().parseList(...)` (`RecipeDefinitionParser.java:71`–`74`). |
+| `machine` | Yes* | `null` | `String` | Machine ID this recipe is registered under (`RecipeDefinitionParser.java:39`). *No default — if omitted the recipe is stored under a `null` machine key and will never be matched by the GUI.* |
+| `type` | Yes | — | `String` | `SHAPED` or `SHAPELESS` (case-insensitive). Anything else (including the old `EXACT_SLOT`) fails the load with a migration message — see §9.1. |
+| `ingredients` | Yes | — | map or list | Depends on `type` — see below. |
+| `pattern` | SHAPED only | — | `List<String>` | Required for SHAPED; a load-time warning (not a failure) if present on a SHAPELESS recipe, since it has no effect there. |
+| `outputs` | Yes | — | list | Result items — see below. |
+| `on-craft` | No | — | `List<String>` | Script event lines executed on successful craft via `plugin.getScriptModule().getEventParser().parseList(...)`. |
 
-### `inputs` by type
+### `ingredients` by type
 
-**SHAPELESS** — a YAML **list of maps** (`RecipeDefinitionParser.java:29`–`33`), e.g.:
+**SHAPELESS** — a plain YAML **list of maps** (mirrors vanilla Minecraft's own shapeless-recipe JSON convention: a flat ingredients list, vs. shaped's `key`+`pattern`), order/slot irrelevant:
 
 ```yaml
-inputs:
+ingredients:
   - { item: NETHER_WART, amount: 1 }
   - { item: GLASS_BOTTLE, amount: 1 }
 ```
@@ -284,40 +286,78 @@ inputs:
 | Sub-key | Required | Default | Description |
 |---|---|---|---|
 | `item` | Yes | — | Valmora custom item ID or Bukkit Material name. |
-| `amount` | Yes (in this form) | — | Per-slot quantity required. A missing value throws (`(int) input.get("amount")`, `RecipeDefinitionParser.java:32`). |
+| `amount` | No | `1` | Per-slot quantity required. |
 
-**EXACT_SLOT / SHAPED** — a section keyed by slot name (`RecipeDefinitionParser.java:34`–`51`), e.g.:
+The old `inputs:` key name is gone — a SHAPELESS recipe still using it fails the load with a
+rename message rather than silently matching zero ingredients.
+
+**SHAPED** — a letter → `{material, amount}` dictionary, referenced by a `pattern:` of rows built
+from those letters (`' '` = this position must stay empty). This is the *only* positional-ingredient
+format now — a machine with a small fixed slot count (the forge's 2 slots, the press's 3) just uses
+a narrower/shorter pattern, not a different recipe type:
 
 ```yaml
-inputs:
-  input1: { item: IRON_INGOT, amount: 2 }
-  input2: { item: enchanted_diamond, amount: 1 }
+ingredients:
+  i: { material: IRON_INGOT, amount: 2 }
+  d: { material: DIAMOND, amount: 1 }
+pattern:
+  - "id"                     # a 2-slot machine (forge): left=2x iron ingot, right=1x diamond
 ```
 
-For SHAPED, keys are grid slots `"0"`…`"8"` (`0 1 2 / 3 4 5 / 6 7 8`). For 2×2 recipes only the needed slots are listed (see `recipes/crafting_table.yml:5`–`10`).
+A pattern's width is its widest row; matching translates it to every position it fits within the
+machine's actual grid (recipe-yaml rework note — a pattern narrower/shorter than the full grid
+slides to fit, exactly like a 2×2 pattern fitting all 4 corners of a 3×3 crafting grid). Expanded at
+load time into the engine's internal numeric `"row*width+col"` keys — `RecipeEngine` never sees a
+letter. See `recipes/example_recipes.yml`'s `reinforced_ingot_craft`/`backpack_tier1_craft` or
+`recipes/press_examples.yml`.
 
 | Sub-key | Required | Default | Description |
 |---|---|---|---|
-| `<slot>` | Yes | — | Slot key: named (`input1`) for EXACT_SLOT, numeric (`"0"`–`"8"`) for SHAPED. |
-| `item` | Yes | — | Valmora custom item ID or Bukkit Material name. |
-| `amount` | No | `1` | Quantity required in that slot (`RecipeDefinitionParser.java:45`). |
-
-Both the nested-section form (`"1": { item: DIAMOND, amount: 2 }`) and the dot-path form (`inputs.get("1.item")`) are accepted (`RecipeDefinitionParser.java:39`–`47`).
+| `<letter>` | Yes | — | Single-character key referenced by `pattern:`. |
+| `material` | Yes | — | Valmora custom item ID or Bukkit Material name. |
+| `amount` | No | `1` | Quantity required in that one slot. |
 
 ### `outputs`
 
-A section keyed by result name (`RecipeDefinitionParser.java:53`–`69`):
+A plain list — almost every recipe has exactly one entry and needs nothing more than
+`{item, amount}`:
 
 ```yaml
 outputs:
-  result: { item: DIAMOND_SWORD, amount: 1 }
+  - item: DIAMOND_SWORD
+    amount: 1
 ```
 
 | Sub-key | Required | Default | Description |
 |---|---|---|---|
-| `<name>` | Yes | — | Result key; only the **first** is read (`RecipeEngine.java:60`). |
 | `item` | Yes | — | Valmora custom item ID (built via `ItemManager.createItemStack`) or Bukkit Material name (`new ItemStack`). |
-| `amount` | No | `1` | Output quantity (`RecipeDefinitionParser.java:64`). |
+| `amount` | No | `1` | Output quantity. |
+| `slot` | Required only if `outputs:` has more than one entry | `null` | The target GUI's OUTPUT component `id:` this item is routed to. |
+
+**Multi-output routing.** A recipe with more than one `outputs:` entry (a "processor" machine with
+two OUTPUT slots, say `primary`/`byproduct`) must give every entry a `slot:` naming which OUTPUT
+component id it targets:
+
+```yaml
+outputs:
+  - slot: primary
+    item: gold_nugget
+    amount: 4
+  - slot: byproduct
+    item: iron_dust
+    amount: 1
+```
+
+`RecipeDefinitionParser` rejects the load if any entry is missing `slot:` once there's more than
+one — the alternative (silently falling back to layout-scan order) would make which physical slot
+an unslotted item lands in an accident of the GUI's `layout:` rather than something the recipe
+author actually chose. `GuiDefinition.findOutputSlotsById()` resolves each `slot:` to a physical
+inventory slot at craft/preview time (not parse time — `machine`/`recipe`/`machine` module load
+order means the target GUI isn't guaranteed loaded yet when a recipe file parses); a `slot:` naming
+an id the matched GUI doesn't actually have logs a runtime warning and gives that item directly to
+the player instead of overwriting an unrelated slot or being silently dropped
+(`GuiForceCraftEventFactory`). A single-entry `outputs:` list may omit `slot:` — it targets the
+GUI's sole/first OUTPUT component.
 
 ### `on-craft`
 
@@ -335,8 +375,8 @@ Compiled by the script module's `EventParser` (`RecipeDefinitionParser.java:73`)
 
 | Machine ID | Recipe files | GUI | Dynamic handler |
 |---|---|---|---|
-| `crafting_table` | `crafting_table.yml`, `shardworks_recipes.yml` | `guis/crafting.yml:15` | — (vanilla fallback applies) |
-| `forge` | `forge.yml` | `guis/forge.yml:16` | — |
+| `crafting_table` | `example_recipes.yml` | `guis/crafting.yml:15` | — (vanilla fallback applies) |
+| `forge` | `example_recipes.yml` | `guis/forge.yml:16` | — |
 | `alchemy` | `alchemy.yml` | `guis/alchemy.yml:4` | `AlchemyMachineHandler` |
 | `anvil` | — | `guis/anvil.yml:16` | `AnvilMachineHandler` |
 | `enchanting_table` | — | `guis/enchanting.yml:4` | **none** |
@@ -346,13 +386,25 @@ Compiled by the script module's `EventParser` (`RecipeDefinitionParser.java:73`)
 
 ### Shipped recipe reference
 
-**`recipes/crafting_table.yml`** — SHAPED demo recipes on `crafting_table`: `diamond_sword`, `iron_pickaxe`, `crafting_table_block`, `stone_sword`, plus SHAPELESS `wood_planks` (1×`LOG` → 4×`PLANKS`) and SHAPED `test_sword_craft` (2×`reinforced_ingot` + `STICK` → `testSword`).
+> The old per-machine demo files (`crafting_table.yml`, `forge.yml`, `shardworks_recipes.yml`,
+> `anvil/examples.yml`'s original content) were removed in favor of a smaller, actively-tested set —
+> drive them end to end with `/test <name>` (`TestCommand`), which hands out the exact ingredients.
 
-**`recipes/forge.yml`** — EXACT_SLOT on `forge`: `reinforced_ingot` (2×`IRON_INGOT` + `enchanted_diamond`), `forged_blade` (`IRON_SWORD` + 2×`reinforced_ingot`), `enchant_diamond` (`DIAMOND` + 3×`emerald`).
+**`recipes/example_recipes.yml`** — one worked example per machine/recipe-type combo: SHAPED
+`backpack_tier1_craft` (letter-pattern syntax, ring of 8×`LEATHER` → `backpack_tier1`) and SHAPELESS
+`backpack_tier2_craft` (`backpack_tier1` + 8×`IRON_INGOT` → `backpack_tier2`) on `crafting_table`;
+SHAPED (2-wide single-row pattern) `reinforced_ingot_craft` (2×`IRON_INGOT` + `DIAMOND` →
+`reinforced_ingot`) and `forged_blade_craft` (`IRON_SWORD` + 2×`reinforced_ingot` → `forged_blade`)
+on `forge`.
+
+**`recipes/press_examples.yml`** — SHAPED `pressed_hoe` on the `press` example machine
+(`machines/press.yml`), proving the letter-keyed pattern syntax on a non-3-wide (1×3) grid.
+
+**`recipes/anvil/examples.yml`** — `type: UPGRADE` `apprentice_to_journeyman` (`apprentice_blade` +
+4×`AMETHYST_SHARD` → `journeyman_blade`, `keep-data-on-upgrade: true`, using the dedicated test items
+in `items/test_items.yml`) and `type: TRANSMUTE` `demo_iron_to_gold_pickaxe` (vanilla-only).
 
 **`recipes/alchemy.yml`** — SHAPELESS on `alchemy`; every effect exists in `_bottle` (uses `GLASS_BOTTLE`) and `_potion` (uses `POTION`) variants; each produces 1×`POTION` and grants `player.var.alchemy_xp` via `on-craft`. Effects: `awkward_potion` (NETHER_WART, +5), `thick_potion` (GLOWSTONE_DUST, +3), `healing_potion` (GLISTERING_MELON_SLICE, +15), `strength_potion` (BLAZE_POWDER, +12), `fire_resistance_potion` (MAGMA_CREAM, +10), `night_vision_potion` (GOLDEN_CARROT, +8), `swiftness_potion` (SUGAR, +10).
-
-**`recipes/shardworks_recipes.yml`** — `crafting_table`: SHAPELESS ore refining (`raw_ferrite`×2 → `ferrite_ingot`, `raw_lumicite`×2 → `lumicite_crystal`, `raw_aetherium`×2 → `aetherium_ingot`), SHAPED tiered pickaxes and full ferrite/lumicite/aetherium armor sets (helmet/chestplate/leggings/boots). All outputs reference custom item IDs defined in `items/shardworks_*.yml` / `items/example.yml`.
 
 ---
 

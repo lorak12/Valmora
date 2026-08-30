@@ -41,6 +41,10 @@ public class Keys {
 
     public static NamespacedKey DAMAGE_RESISTANCES_KEY;
 
+    /** Anvil "prior work" counter (coworker anvil spec §6) — climbs each time an item passes
+     *  through the unified anvil, driving the 2^n-1 XP penalty curve. Absent = 0. */
+    public static NamespacedKey ANVIL_WORK_COUNT_KEY;
+
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
         RARITY_KEY = new NamespacedKey(plugin, "rarity");
@@ -78,5 +82,7 @@ public class Keys {
         CONTAINER_GUI_KEY = new NamespacedKey(plugin, "container_gui");
 
         DAMAGE_RESISTANCES_KEY = new NamespacedKey(plugin, "damage_resistances");
+
+        ANVIL_WORK_COUNT_KEY = new NamespacedKey(plugin, "anvil_work_count");
     }
 }

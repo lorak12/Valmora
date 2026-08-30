@@ -1,0 +1,55 @@
+# =====================================================================
+# Demo "Press" machine — proves the machine-definition layer's shape:
+# (machines/press.yml, shape: 1x3) end-to-end with a 3-wide single-row
+# ingredient arrangement (handle / binding / head, order matters) and a
+# right-click-a-block open trigger instead of a command.
+#
+# Layout:
+#  B = Black glass border
+#  G = Grey glass filler
+#  H = Handle input, D = Binding input, E = Head input
+#  O = Output slot
+# =====================================================================
+
+press:
+  title: "<gray><bold>⚒ Tool Press</bold></gray>"
+  rows: 3
+  machine: press
+  update-interval: 0
+
+  layout:
+    - "BBBBBBBBB"
+    - "BGHDEGOGB"
+    - "BBBBBBBBB"
+
+  components:
+    B:
+      type: DISPLAY
+      display-item:
+        material: BLACK_STAINED_GLASS_PANE
+        name: " "
+    G:
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+    H:
+      type: INPUT
+      id: handle
+    D:
+      type: INPUT
+      id: binding
+    E:
+      type: INPUT
+      id: head
+    O:
+      type: OUTPUT
+      id: result
+
+  on-slot-update:
+    actions:
+      # NOTE: no gui_force_craft here on purpose — see guis/forge.yml's on-slot-update comment.
+      # GuiListener.triggerSlotUpdate already re-previews the OUTPUT slot on every input change
+      # regardless of this block; the actual craft (consume + build) only happens when the player
+      # clicks the OUTPUT slot, same as the crafting table/anvil/forge.
+      - "sound player block.note_block.hat"
