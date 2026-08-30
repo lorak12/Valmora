@@ -19,8 +19,15 @@ import org.nakii.valmora.module.enchant.logic.LifeStealLogic;
 import org.nakii.valmora.module.enchant.logic.RespiteLogic;
 import org.nakii.valmora.module.enchant.logic.ThornsLogic;
 import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.api.scripting.Condition;
+import org.nakii.valmora.api.scripting.Expression;
+import org.nakii.valmora.module.script.condition.ConditionParser;
+import org.nakii.valmora.module.script.event.EventParser;
+import org.nakii.valmora.module.script.expression.ExpressionParser;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +40,7 @@ public class EnchantModule implements ReloadableModule {
     private final EnchantmentRegistry registry;
     private final Map<String, EnchantmentLogic> logicMap;
     private final Map<String, Function<ConfigurationSection, EnchantmentLogic>> logicFactories;
+    private EnchantKillListener killListener;
 
     public EnchantModule(Valmora plugin) {
         this.plugin = plugin;
@@ -44,7 +52,19 @@ public class EnchantModule implements ReloadableModule {
     @Override
     public void onEnable() {
         registerBuiltinLogics();
+
+        // Script bridge (Phase 2 of the enchant overhaul) — enchant's own variable namespaces,
+        // reusing the shared script module/HookBus infra rather than a parallel DSL.
+        var scriptModule = plugin.getScriptModule();
+        scriptModule.registerProvider(new EnchantLevelVariableProvider());
+        scriptModule.registerProvider(new EnchantVariableProvider());
+        scriptModule.registerProvider(new EnchantCalcVariableProvider());
+        scriptModule.registerProvider(new HitVariableProvider());
+
         loadEnchants();
+
+        killListener = new EnchantKillListener();
+        plugin.getServer().getPluginManager().registerEvents(killListener, plugin);
     }
 
     private void registerBuiltinLogics() {
@@ -108,6 +128,11 @@ public class EnchantModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        if (killListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(killListener);
+            killListener = null;
+        }
+        plugin.getScriptModule().getHookBus().clearYamlStages("enchant:");
         registry.clear();
         logicMap.clear();
         logicFactories.clear();
@@ -139,7 +164,20 @@ public class EnchantModule implements ReloadableModule {
         YamlLoader<EnchantmentDefinition> loader = new YamlLoader<>(plugin, "enchants", "Enchantment");
         loader.load(createParser(), definition -> {
             registry.register(definition.getId(), definition);
+            registerTriggerStages(definition);
         });
+    }
+
+    /** Registers every compiled {@code triggers.<TRIGGER>:} block onto the shared HookBus at
+     *  {@code "enchant:<id>:<trigger>"} — mirrors GuiModule's per-definition YAML-stage
+     *  registration at load time. Safe to call repeatedly across reloads: {@code onDisable()}
+     *  clears every {@code "enchant:"}-prefixed stage first. */
+    private void registerTriggerStages(EnchantmentDefinition definition) {
+        var hookBus = plugin.getScriptModule().getHookBus();
+        for (Map.Entry<EnchantTrigger, EnchantTriggerBlock> entry : definition.getTriggers().entrySet()) {
+            String point = EnchantDispatcher.point(definition.getId(), entry.getKey());
+            hookBus.registerYamlStage(point, new EnchantTriggerStage(definition.getId(), entry.getValue()));
+        }
     }
 
     private YamlLoader.SectionParser<EnchantmentDefinition> createParser() {
@@ -179,13 +217,26 @@ public class EnchantModule implements ReloadableModule {
                             + logicId + "' — it will have no gameplay effect.");
                 }
 
-                Map<String, String> variables = new java.util.LinkedHashMap<>();
+                Map<String, String> variables = new LinkedHashMap<>();
                 ConfigurationSection variablesSection = section.getConfigurationSection("variables");
                 if (variablesSection != null) {
                     for (String key : variablesSection.getKeys(false)) {
                         variables.put(key, variablesSection.getString(key));
                     }
                 }
+
+                ConditionParser conditionParser = plugin.getScriptModule().getConditionParser();
+                EventParser eventParser = plugin.getScriptModule().getEventParser();
+                ExpressionParser expressionParser = plugin.getScriptModule().getExpressionParser();
+
+                ConfigurationSection combatSection = section.getConfigurationSection("combat");
+                EnchantCombatHook.CompiledCombatModifiers modifyAttack = combatSection == null ? null
+                        : parseCombatModifiers(combatSection.getConfigurationSection("modify-attack"), conditionParser, expressionParser);
+                EnchantCombatHook.CompiledCombatModifiers modifyDefend = combatSection == null ? null
+                        : parseCombatModifiers(combatSection.getConfigurationSection("modify-defend"), conditionParser, expressionParser);
+
+                Map<EnchantTrigger, EnchantTriggerBlock> triggers = parseTriggers(
+                        section.getConfigurationSection("triggers"), conditionParser, eventParser);
 
                 EnchantmentDefinition definition = EnchantmentDefinition.builder(id)
                         .name(name)
@@ -196,11 +247,12 @@ public class EnchantModule implements ReloadableModule {
                         .conflicts(conflicts)
                         .logic(logic)
                         .variables(variables)
-                        // Inert placeholders (Phase 1) — combat/triggers/state/stats are parsed but
-                        // not yet compiled/executed; the script bridge and state engine phases
-                        // replace these raw sections' consumers without another schema change.
-                        .combatSection(section.getConfigurationSection("combat"))
-                        .triggersSection(section.getConfigurationSection("triggers"))
+                        .modifyAttack(modifyAttack)
+                        .modifyDefend(modifyDefend)
+                        .triggers(triggers)
+                        // Inert placeholders (Phase 1) — state/stats are parsed but not yet
+                        // compiled/executed; the state engine and stat-wiring phases replace these
+                        // raw sections' consumers without another schema change.
                         .stateSection(section.getConfigurationSection("state"))
                         .statsSection(section.getConfigurationSection("stats"))
                         .build();
@@ -210,6 +262,68 @@ public class EnchantModule implements ReloadableModule {
                 return LoadResult.failure("[" + filePath + "] Failed to parse enchant '" + id + "': " + e.getMessage());
             }
         };
+    }
+
+    /** Compiles one {@code modify-attack:}/{@code modify-defend:} sub-section into a
+     *  {@link EnchantCombatHook.CompiledCombatModifiers}, or {@code null} if absent. */
+    private EnchantCombatHook.CompiledCombatModifiers parseCombatModifiers(ConfigurationSection section,
+            ConditionParser conditionParser, ExpressionParser expressionParser) {
+        if (section == null) return null;
+
+        Condition conditions = null;
+        List<String> conditionStrings = section.getStringList("conditions");
+        if (conditionStrings != null && !conditionStrings.isEmpty()) {
+            conditions = conditionParser.parseList(conditionStrings);
+        }
+
+        Map<String, Expression> modifiers = new LinkedHashMap<>();
+        ConfigurationSection modifiersSection = section.getConfigurationSection("modifiers");
+        if (modifiersSection != null) {
+            for (String key : modifiersSection.getKeys(false)) {
+                String formula = modifiersSection.getString(key);
+                if (formula != null) modifiers.put(key, expressionParser.parse(formula));
+            }
+        }
+
+        return new EnchantCombatHook.CompiledCombatModifiers(conditions, modifiers);
+    }
+
+    /** Compiles the {@code triggers:} section's {@code <TRIGGER>:} sub-blocks into
+     *  {@link EnchantTriggerBlock}s, keyed by {@link EnchantTrigger}. Unknown trigger names are
+     *  warned about and skipped (mirrors the unknown-{@code logic:} warning above). */
+    private Map<EnchantTrigger, EnchantTriggerBlock> parseTriggers(ConfigurationSection section,
+            ConditionParser conditionParser, EventParser eventParser) {
+        Map<EnchantTrigger, EnchantTriggerBlock> result = new EnumMap<>(EnchantTrigger.class);
+        if (section == null) return result;
+
+        for (String key : section.getKeys(false)) {
+            EnchantTrigger trigger;
+            try {
+                trigger = EnchantTrigger.valueOf(key.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("[Enchants] Unknown trigger '" + key + "' — it will never fire.");
+                continue;
+            }
+
+            ConfigurationSection triggerSection = section.getConfigurationSection(key);
+            if (triggerSection == null) continue;
+
+            Condition conditions = null;
+            List<String> conditionStrings = triggerSection.getStringList("conditions");
+            if (conditionStrings != null && !conditionStrings.isEmpty()) {
+                conditions = conditionParser.parseList(conditionStrings);
+            }
+
+            List<String> actionStrings = triggerSection.getStringList("actions");
+            var actions = eventParser.parseList(actionStrings);
+
+            List<String> failActionStrings = triggerSection.getStringList("fail-actions");
+            var failActions = (failActionStrings == null || failActionStrings.isEmpty())
+                    ? null : eventParser.parseList(failActionStrings);
+
+            result.put(trigger, new EnchantTriggerBlock(conditions, actions, failActions));
+        }
+        return result;
     }
 
     private List<ItemType> parseTargets(List<String> targetStrings) {

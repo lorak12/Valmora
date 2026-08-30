@@ -7,8 +7,10 @@ import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.module.enchant.EnchantCombatHook;
+import org.nakii.valmora.module.enchant.EnchantDispatcher;
+import org.nakii.valmora.module.enchant.EnchantStateStore;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
-import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.StatManager;
@@ -89,30 +91,47 @@ public class DamageCalculator {
 
         DamageModifierContext context = new DamageModifierContext(baseDamage, strength, critChance, critDamage, defense, damageType);
 
-        if (attacker instanceof Player) {
-            ItemStack weapon = ((Player) attacker).getInventory().getItemInMainHand();
-            if (weapon != null) {
-                Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
-                for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
-                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                    if (def != null && def.getLogic() != null) {
-                        def.getLogic().modifyAttack(context, attacker, victim, entry.getValue());
-                    }
+        // Built here (moved up from after the pre-hit loops) so the enchant combat hook can attach
+        // per-enchant $enchant.level$/$calc.*$ values to it while evaluating modify-attack/
+        // modify-defend conditions and formulas below — the same context is then reused and
+        // incrementally attached to for the rest of the hit (dmg:*, hit:*). caster=attacker,
+        // target=victim, matching every other attacker-side use of this context in the codebase.
+        ExecutionContext formulaContext = buildFormulaContext(attacker, victim, context);
+
+        // Defender-side enchants (armor) need "myself"/"the other party" to mean the wearer/
+        // attacker respectively — the reverse of formulaContext's roles — so $target.*$ in a
+        // modify-defend/ON_DEFEND_POST condition means "the attacker", and a trigger action's
+        // @self/@target (TargetResolver) means "the wearer"/"the attacker". A child context swaps
+        // caster/target while still inheriting every dmg:*/hit:* attachment via the parent chain.
+        ExecutionContext defendContext = victim != null
+                ? new SimpleExecutionContext(victim, attacker, formulaContext.getLocation(), null, formulaContext)
+                : formulaContext;
+
+        ItemStack weapon = attacker instanceof Player attackerPlayer ? attackerPlayer.getInventory().getItemInMainHand() : null;
+        if (weapon != null) {
+            for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(weapon).values()) {
+                EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
+                if (def == null) continue;
+                if (def.getLogic() != null) {
+                    def.getLogic().modifyAttack(context, attacker, victim, instance.getLevel());
                 }
+                attachEnchantVars(def, instance, formulaContext);
+                EnchantCombatHook.applyAttack(context, formulaContext, def.getModifyAttack());
             }
         }
 
         if (victim instanceof Player victimPlayer) {
             ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
             for (ItemStack armorItem : armor) {
-                if (armorItem != null) {
-                    Map<String, Integer> armorEnchants = EnchantmentHelper.getEnchantments(armorItem);
-                    for (Map.Entry<String, Integer> entry : armorEnchants.entrySet()) {
-                        EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                        if (def != null && def.getLogic() != null) {
-                            def.getLogic().modifyDefend(context, attacker, victim, entry.getValue());
-                        }
+                if (armorItem == null) continue;
+                for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(armorItem).values()) {
+                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
+                    if (def == null) continue;
+                    if (def.getLogic() != null) {
+                        def.getLogic().modifyDefend(context, attacker, victim, instance.getLevel());
                     }
+                    attachEnchantVars(def, instance, defendContext);
+                    EnchantCombatHook.applyDefend(context, defendContext, def.getModifyDefend());
                 }
             }
         }
@@ -123,7 +142,6 @@ public class DamageCalculator {
         // at CombatModule.onEnable() and evaluated here, not re-parsed. Falls back to the exact
         // pre-refactor hardcoded math (the fallback values below) when no CombatModule/registry
         // is available — e.g. in unit tests that mock ValmoraAPI without stubbing getCombatModule().
-        ExecutionContext formulaContext = buildFormulaContext(attacker, victim, context);
         DamageFormulaRegistry formulas = getFormulaRegistry();
 
         double damageMultiplier = formulas != null
@@ -145,15 +163,24 @@ public class DamageCalculator {
             fullDamage *= (double) pipelineContext.get("dmg:pipeline_multiplier", 1.0);
         }
 
+        // Attacker-side enchant defense-shred (combat.modify-attack.modifiers.defense-shred-percent)
+        // reduces the victim's effective defense before the mitigation formula sees it.
+        double effectiveDefense = Math.max(0, context.getDefense() * (1.0 - context.getDefenseShredPercent() / 100.0));
+
         // Replaces the old hardcoded VOID/DROWNING/FALL exclusion list — now data-driven per damage type.
         double defenseMultiplier = 1.0;
         if (!damageType.isIgnoresDefense()) {
             defenseMultiplier = formulas != null
-                    ? formulas.evaluate(DamageFormulaRegistry.DEFENSE_MULTIPLIER, formulaContext, 100.0 / (context.getDefense() + 100.0))
-                    : 100.0 / (context.getDefense() + 100.0);
+                    ? formulas.evaluate(DamageFormulaRegistry.DEFENSE_MULTIPLIER, formulaContext, 100.0 / (effectiveDefense + 100.0))
+                    : 100.0 / (effectiveDefense + 100.0);
         }
 
         double mitigated = fullDamage * defenseMultiplier;
+
+        // Defender-side enchant flat reduction (combat.modify-defend.modifiers.damage-reduction-percent).
+        if (context.getDamageReductionPercent() > 0) {
+            mitigated *= Math.max(0, 1.0 - context.getDamageReductionPercent() / 100.0);
+        }
 
         // Mob victim damage-type resistances (1.0 = full immunity)
         boolean immune = false;
@@ -180,15 +207,17 @@ public class DamageCalculator {
 
         damageType.fireOnHit(formulaContext);
 
-        if (attacker instanceof Player) {
-            ItemStack weapon = ((Player) attacker).getInventory().getItemInMainHand();
-            if (weapon != null) {
-                Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(weapon);
-                for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
-                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                    if (def != null && def.getLogic() != null) {
-                        def.getLogic().onPostAttack(result, attacker, victim, entry.getValue());
-                    }
+        // $hit.*$ (HitVariableProvider) — attached once the result is known, read by enchant
+        // ON_ATTACK_POST/ON_DEFEND_POST trigger conditions/actions below.
+        formulaContext.set("hit:damage", finalDamage);
+        formulaContext.set("hit:is_crit", isCritical);
+        formulaContext.set("hit:damage_type", damageType.getId());
+
+        if (weapon != null) {
+            for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(weapon).values()) {
+                EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
+                if (def != null) {
+                    EnchantDispatcher.dispatchPostAttack(result, attacker, victim, instance.getLevel(), instance, def, formulaContext);
                 }
             }
         }
@@ -196,19 +225,31 @@ public class DamageCalculator {
         if (victim instanceof Player victimPlayer) {
             ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
             for (ItemStack armorItem : armor) {
-                if (armorItem != null) {
-                    Map<String, Integer> armorEnchants = EnchantmentHelper.getEnchantments(armorItem);
-                    for (Map.Entry<String, Integer> entry : armorEnchants.entrySet()) {
-                        EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                        if (def != null && def.getLogic() != null) {
-                            def.getLogic().onPostDefend(result, attacker, victim, entry.getValue());
-                        }
+                if (armorItem == null) continue;
+                for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(armorItem).values()) {
+                    EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
+                    if (def != null) {
+                        EnchantDispatcher.dispatchPostDefend(result, attacker, victim, instance.getLevel(), instance, def, defendContext);
                     }
                 }
             }
         }
 
         return result;
+    }
+
+    /** Attaches {@code enchant:id}/{@code enchant:level}/{@code enchant:instance} and every
+     *  {@code variables:} formula (as {@code calc:<name>}) for the enchant instance currently being
+     *  evaluated — shared by the pre-hit modify-attack/modify-defend loops above. */
+    private static void attachEnchantVars(EnchantmentDefinition def, EnchantStateStore.EnchantInstance instance, ExecutionContext ctx) {
+        ctx.set("enchant:id", def.getId());
+        ctx.set("enchant:level", instance.getLevel());
+        ctx.set("enchant:instance", instance);
+        if (def.getVariables().isEmpty()) return;
+        var evaluator = ValmoraAPI.getInstance().getScriptModule().getExpressionEvaluator();
+        for (Map.Entry<String, String> entry : def.getVariables().entrySet()) {
+            ctx.set("calc:" + entry.getKey().toLowerCase(), evaluator.evaluate(entry.getValue(), ctx));
+        }
     }
 
     public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType) {

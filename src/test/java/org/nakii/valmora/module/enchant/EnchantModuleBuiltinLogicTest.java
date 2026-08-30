@@ -1,10 +1,12 @@
 package org.nakii.valmora.module.enchant;
 
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.module.stat.SystemStats;
 
@@ -48,6 +50,16 @@ public class EnchantModuleBuiltinLogicTest {
         Valmora plugin = mock(Valmora.class);
         when(plugin.getDataFolder()).thenReturn(dataFolder);
         when(plugin.getLogger()).thenReturn(Logger.getLogger("EnchantModuleBuiltinLogicTest"));
+
+        // Phase 2 of the enchant overhaul: onEnable() now registers enchant variable providers and
+        // an EntityDeathEvent listener through the script module/Bukkit server — neither is
+        // exercised by these builtin-logic tests, so bare mocks are enough.
+        ScriptModule scriptModule = mock(ScriptModule.class);
+        when(plugin.getScriptModule()).thenReturn(scriptModule);
+        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        PluginManager pluginManager = mock(PluginManager.class);
+        when(plugin.getServer()).thenReturn(server);
+        when(server.getPluginManager()).thenReturn(pluginManager);
 
         EnchantModule module = new EnchantModule(plugin);
         module.onEnable();

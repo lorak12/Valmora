@@ -7,6 +7,15 @@ public class DamageModifierContext {
     private double critDamage;
     private double defense;
     private double damageMultiplier = 1.0;
+    /** Additive attacker-side defense reduction, as a percent of the victim's defense stat
+     *  (0-100+), applied before the standard {@code 100/(100+defense)} mitigation formula. Added
+     *  for the enchant overhaul's {@code combat.modify-attack.modifiers.defense-shred-percent} —
+     *  kept separate from {@link #damageMultiplier} since attacker and victim enchants share this
+     *  one context instance per hit and must not clobber each other's contribution. */
+    private double defenseShredPercent = 0.0;
+    /** Additive defender-side flat damage reduction (0-100+), applied as an extra multiplicative
+     *  step alongside defense mitigation. Added for {@code combat.modify-defend.modifiers.damage-reduction-percent}. */
+    private double damageReductionPercent = 0.0;
     private final DamageType damageType;
 
     public DamageModifierContext(double baseDamage, double strength, double critChance, double critDamage, double defense, DamageType damageType) {
@@ -68,5 +77,30 @@ public class DamageModifierContext {
 
     public DamageType getDamageType() {
         return damageType;
+    }
+
+    public double getDefenseShredPercent() {
+        return defenseShredPercent;
+    }
+
+    public void setDefenseShredPercent(double defenseShredPercent) {
+        this.defenseShredPercent = defenseShredPercent;
+    }
+
+    /** Adds to the current value — the composition convention multiple stacked enchants should use. */
+    public void addDefenseShredPercent(double amount) {
+        this.defenseShredPercent += amount;
+    }
+
+    public double getDamageReductionPercent() {
+        return damageReductionPercent;
+    }
+
+    public void setDamageReductionPercent(double damageReductionPercent) {
+        this.damageReductionPercent = damageReductionPercent;
+    }
+
+    public void addDamageReductionPercent(double amount) {
+        this.damageReductionPercent += amount;
     }
 }

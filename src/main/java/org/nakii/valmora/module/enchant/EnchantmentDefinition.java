@@ -4,15 +4,17 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.module.item.ItemType;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Immutable enchant content definition. {@code combat}/{@code triggers}/{@code state}/{@code stats}
- * are parsed as raw {@link ConfigurationSection}s in this phase — inert placeholders carried
- * forward so the YAML schema is stable from here on; the script/state engine phases replace these
- * accessors' callers with real compiled objects without another schema change.
+ * Immutable enchant content definition. {@code combat}/{@code triggers} are compiled at load time
+ * (Phase 2 of the enchant overhaul) into {@link EnchantCombatHook.CompiledCombatModifiers}/{@link
+ * EnchantTriggerBlock}; {@code state}/{@code stats} are still parsed as raw {@link
+ * ConfigurationSection}s — inert placeholders carried forward until Phase 3/4 wire them up, so the
+ * YAML schema stays stable.
  */
 public class EnchantmentDefinition {
 
@@ -25,8 +27,9 @@ public class EnchantmentDefinition {
     private final List<String> conflicts;
     private final EnchantmentLogic logic;
     private final Map<String, String> variables;
-    private final ConfigurationSection combatSection;
-    private final ConfigurationSection triggersSection;
+    private final EnchantCombatHook.CompiledCombatModifiers modifyAttack;
+    private final EnchantCombatHook.CompiledCombatModifiers modifyDefend;
+    private final Map<EnchantTrigger, EnchantTriggerBlock> triggers;
     private final ConfigurationSection stateSection;
     private final ConfigurationSection statsSection;
 
@@ -34,13 +37,15 @@ public class EnchantmentDefinition {
                               int absoluteMaxLevel, List<ItemType> targets, List<String> conflicts,
                               EnchantmentLogic logic) {
         this(id, name, description, etableMaxLevel, absoluteMaxLevel, targets, conflicts, logic,
-                Map.of(), null, null, null, null);
+                Map.of(), null, null, Map.of(), null, null);
     }
 
     private EnchantmentDefinition(String id, String name, List<String> description, int etableMaxLevel,
                               int absoluteMaxLevel, List<ItemType> targets, List<String> conflicts,
                               EnchantmentLogic logic, Map<String, String> variables,
-                              ConfigurationSection combatSection, ConfigurationSection triggersSection,
+                              EnchantCombatHook.CompiledCombatModifiers modifyAttack,
+                              EnchantCombatHook.CompiledCombatModifiers modifyDefend,
+                              Map<EnchantTrigger, EnchantTriggerBlock> triggers,
                               ConfigurationSection stateSection, ConfigurationSection statsSection) {
         this.id = id;
         this.name = name;
@@ -51,8 +56,9 @@ public class EnchantmentDefinition {
         this.conflicts = conflicts;
         this.logic = logic;
         this.variables = variables;
-        this.combatSection = combatSection;
-        this.triggersSection = triggersSection;
+        this.modifyAttack = modifyAttack;
+        this.modifyDefend = modifyDefend;
+        this.triggers = triggers;
         this.stateSection = stateSection;
         this.statsSection = statsSection;
     }
@@ -89,20 +95,25 @@ public class EnchantmentDefinition {
         return logic;
     }
 
-    /** Raw {@code $level$}-scoped formula strings from the YAML {@code variables:} block, backing
-     *  {@code $calc.<name>$} once the script bridge (Phase 2) evaluates and attaches them. */
+    /** Raw {@code $level$}-scoped formula strings from the YAML {@code variables:} block, evaluated
+     *  once per dispatch and attached as {@code $calc.<name>$} (see {@link EnchantDispatcher}). */
     public Map<String, String> getVariables() {
         return variables;
     }
 
-    /** Raw {@code combat:} section (modify-attack/modify-defend) — inert until Phase 2 compiles it. */
-    public ConfigurationSection getCombatSection() {
-        return combatSection;
+    /** Compiled {@code combat.modify-attack:} block, or {@code null} if not declared. */
+    public EnchantCombatHook.CompiledCombatModifiers getModifyAttack() {
+        return modifyAttack;
     }
 
-    /** Raw {@code triggers:} section — inert until Phase 2 compiles it into dispatchable blocks. */
-    public ConfigurationSection getTriggersSection() {
-        return triggersSection;
+    /** Compiled {@code combat.modify-defend:} block, or {@code null} if not declared. */
+    public EnchantCombatHook.CompiledCombatModifiers getModifyDefend() {
+        return modifyDefend;
+    }
+
+    /** Compiled {@code triggers.<TRIGGER>:} blocks, keyed by trigger — empty if none declared. */
+    public Map<EnchantTrigger, EnchantTriggerBlock> getTriggers() {
+        return triggers;
     }
 
     /** Raw {@code state:} section (transient/persistent) — inert until Phase 3's state engine. */
@@ -139,8 +150,9 @@ public class EnchantmentDefinition {
         private List<String> conflicts = new ArrayList<>();
         private EnchantmentLogic logic;
         private Map<String, String> variables = new LinkedHashMap<>();
-        private ConfigurationSection combatSection;
-        private ConfigurationSection triggersSection;
+        private EnchantCombatHook.CompiledCombatModifiers modifyAttack;
+        private EnchantCombatHook.CompiledCombatModifiers modifyDefend;
+        private Map<EnchantTrigger, EnchantTriggerBlock> triggers = new EnumMap<>(EnchantTrigger.class);
         private ConfigurationSection stateSection;
         private ConfigurationSection statsSection;
 
@@ -160,15 +172,17 @@ public class EnchantmentDefinition {
         public Builder logic(EnchantmentLogic logic) { this.logic = logic; return this; }
         public Builder variables(Map<String, String> variables) { this.variables = variables; return this; }
         public Builder variable(String name, String formula) { this.variables.put(name, formula); return this; }
-        public Builder combatSection(ConfigurationSection section) { this.combatSection = section; return this; }
-        public Builder triggersSection(ConfigurationSection section) { this.triggersSection = section; return this; }
+        public Builder modifyAttack(EnchantCombatHook.CompiledCombatModifiers block) { this.modifyAttack = block; return this; }
+        public Builder modifyDefend(EnchantCombatHook.CompiledCombatModifiers block) { this.modifyDefend = block; return this; }
+        public Builder triggers(Map<EnchantTrigger, EnchantTriggerBlock> triggers) { this.triggers = triggers; return this; }
+        public Builder trigger(EnchantTrigger trigger, EnchantTriggerBlock block) { this.triggers.put(trigger, block); return this; }
         public Builder stateSection(ConfigurationSection section) { this.stateSection = section; return this; }
         public Builder statsSection(ConfigurationSection section) { this.statsSection = section; return this; }
 
         public EnchantmentDefinition build() {
             return new EnchantmentDefinition(id, name, description, etableMaxLevel, absoluteMaxLevel,
-                    targets, conflicts, logic, Map.copyOf(variables), combatSection, triggersSection,
-                    stateSection, statsSection);
+                    targets, conflicts, logic, Map.copyOf(variables), modifyAttack, modifyDefend,
+                    Map.copyOf(triggers), stateSection, statsSection);
         }
     }
 }

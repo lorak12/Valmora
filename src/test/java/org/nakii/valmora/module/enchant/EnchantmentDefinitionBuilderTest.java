@@ -56,8 +56,9 @@ class EnchantmentDefinitionBuilderTest {
                 .build();
 
         assertEquals(Map.of("bonus", "$level$ * 25"), def.getVariables());
-        assertNull(def.getCombatSection());
-        assertNull(def.getTriggersSection());
+        assertNull(def.getModifyAttack());
+        assertNull(def.getModifyDefend());
+        assertTrue(def.getTriggers().isEmpty());
         assertNull(def.getStateSection());
         assertNull(def.getStatsSection());
     }

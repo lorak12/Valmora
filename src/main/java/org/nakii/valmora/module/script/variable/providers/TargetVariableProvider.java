@@ -14,6 +14,9 @@ import java.util.Optional;
  *     <li>{@code $target.type$} — Bukkit entity type name (e.g. {@code ZOMBIE})</li>
  *     <li>{@code $target.health$} — current health</li>
  *     <li>{@code $target.max_health$} — maximum health</li>
+ *     <li>{@code $target.hp_percent$} — {@code (health / max_health) * 100.0} (added for the enchant
+ *     overhaul's {@code execute}/{@code first_strike}-style combat conditions)</li>
+ *     <li>{@code $target.missing_hp_percent$} — {@code 100.0 - hp_percent}</li>
  *     <li>{@code $target.level$} — custom mob level if tracked, otherwise 1</li>
  * </ul>
  */
@@ -39,7 +42,16 @@ public class TargetVariableProvider implements VariableProvider {
             }
             case "level" -> 1; // Custom mob levels are wired in a later phase.
             case "name" -> target.getName();
+            case "hp_percent" -> hpPercent(target);
+            case "missing_hp_percent" -> 100.0 - hpPercent(target);
             default -> null;
         };
+    }
+
+    private double hpPercent(LivingEntity target) {
+        var attr = target.getAttribute(Attribute.MAX_HEALTH);
+        double max = attr != null ? attr.getValue() : target.getHealth();
+        if (max <= 0) return 0.0;
+        return (target.getHealth() / max) * 100.0;
     }
 }

@@ -94,6 +94,12 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new ApplyPotionEventFactory());
         registerEvent(new EconomyCoinsEventFactory(true));
         registerEvent(new EconomyCoinsEventFactory(false));
+        // Generic entity heal/damage/lightning — added for the enchant overhaul's trigger actions
+        // (life_steal/thorns/thunderlord) but domain-agnostic, so registered here rather than
+        // enchant-private (see HealEventFactory's class doc).
+        registerEvent(new HealEventFactory());
+        registerEvent(new DamageEventFactory());
+        registerEvent(new StrikeLightningEventFactory());
     }
 
     public void registerProvider(VariableProvider provider) {
