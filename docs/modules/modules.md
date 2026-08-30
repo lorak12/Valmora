@@ -6,7 +6,7 @@
 [] combat
 [] core
 [] economy
-[] enchant
+[] enchant - now a YAML-driven engine (variables/combat/triggers/state/stats) alongside the original logic: Java hook, not just Java; see docs/modules/design/enchant.md
 [] fishing
 [] gui
 [] hud

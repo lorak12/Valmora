@@ -433,6 +433,132 @@ stages:
     ],
   },
   {
+    slug: "enchants",
+    title: "Enchants",
+    category: "Items & Combat",
+    summary: "Custom RPG enchantments — levelled, conflict-checked, and authorable entirely in YAML.",
+    sections: [
+      {
+        heading: "What it is",
+        body: [
+          "Every enchant is a top-level key in a YAML file under enchants/, stored on the item's hidden data alongside a level (I, II, III, ...). An enchant can be a plain stat bonus, a conditional combat modifier, a per-hit combo counter, an on-kill effect, or any mix of those — all as data, no Java required.",
+          "A separate, still-fully-supported logic: key exists for anything hand-written in Java before this system grew its YAML layer — both run side by side on the same enchant if you use both, so nothing that predates the YAML layer ever needs to be rewritten.",
+        ],
+      },
+      {
+        heading: "The simplest enchant: a flat stat bonus",
+        body: [
+          "stats: is just a map of stat id to a $level$-scoped formula, applied every time StatManager recalculates the wearer's stats — no logic:, no restart."
+        ],
+        code: {
+          lang: "yaml",
+          content: `strength_boost:
+  name: "Strength Boost"
+  description:
+    - "<gray>Grants <yellow>+2 Strength<gray> per level."
+  targets: [SWORD, AXE]
+  etable-max-level: 5
+  absolute-max-level: 10
+  stats:
+    strength: "2 * $level$"`,
+        },
+      },
+      {
+        heading: "Combat modifiers: conditional, pre-hit numbers",
+        body: [
+          "combat.modify-attack / modify-defend contribute a numeric modifier straight into the damage formula, gated by an optional conditions: list evaluated against the current hit. damage-multiplier is the full multiplicative factor (not a delta) — 1.0 + (0.002 * $level$ * missing-health%) reads as \"the more health your target is missing, the harder you hit\".",
+        ],
+        code: {
+          lang: "yaml",
+          content: `execute:
+  name: "Execute"
+  targets: [SWORD]
+  combat:
+    modify-attack:
+      conditions:
+        - "$target.hp_percent$ < 100"
+      modifiers:
+        damage-multiplier: "1.0 + (0.002 * $level$ * $target.missing_hp_percent$)"`,
+        },
+      },
+      {
+        heading: "Triggers: react to a hit, a kill, or being hit",
+        body: [
+          "triggers.<TRIGGER>: runs an ordinary DSL action list — heal, damage, sound, or the enchant-specific enchant_state event — after a moment in combat. ON_ATTACK_POST fires after your hit lands, ON_DEFEND_POST after you take one (with @self/@target swapped to mean \"the wearer\"/\"the attacker\"), and ON_KILL on a killing blow.",
+        ],
+        code: {
+          lang: "yaml",
+          content: `life_steal:
+  name: "Life Steal"
+  targets: [SWORD]
+  variables:
+    heal_percent: "0.5 * $level$"
+  triggers:
+    ON_ATTACK_POST:
+      conditions:
+        - "$hit.damage$ > 0"
+      actions:
+        - "heal @self $player.max_hp$ * $calc.heal_percent$ / 100"`,
+        },
+      },
+      {
+        heading: "State: per-attacker combo counters and per-item counters",
+        body: [
+          "state.transient tracks an in-memory counter per attacker — never saved, and reset by an inactivity timer or by switching targets. This is what lets a stacking debuff correctly belong to the attacker who's building it up, rather than being shared by every player fighting the same mob. state.persistent instead saves a counter onto the item itself (a lifetime kill counter, for instance), surviving forever.",
+          "Read either tier back with $enchant.state.<key>$; mutate one from a trigger's actions: with enchant_state increment|add|set|reset <key> [amount].",
+        ],
+        code: {
+          lang: "yaml",
+          content: `lethality:
+  name: "Lethality"
+  targets: [SWORD]
+  variables:
+    shred_per_stack: "0.2 * $level$"
+  combat:
+    modify-attack:
+      modifiers:
+        # reads the CURRENT stack count, before this hit's own increment below
+        defense-shred-percent: "$calc.shred_per_stack$ * $enchant.state.stacks$"
+  triggers:
+    ON_ATTACK_POST:
+      actions:
+        - "enchant_state increment stacks"
+  state:
+    transient:
+      stacks:
+        type: HIT_COUNTER
+        reset-after-seconds: 4
+        reset-on-target-switch: true
+        max-stacks: 4`,
+        },
+      },
+      {
+        heading: "Applying enchants",
+        body: [
+          "The Enchanting Table charges XP levels (2 per level requested) and refuses anything above an enchant's etable-max-level — both checked server-side, not just by which levels the GUI happens to render as buttons. The Anvil merges two enchanted items/books (same level bumps by one, different levels keep the higher, conflicting enchants are skipped), following the same XP-cost-plus-prior-work-penalty model every other anvil operation uses.",
+        ],
+        code: { lang: "text", content: "/item enchant sharpness 5\n/item enchantbook life_steal 3" },
+      },
+      {
+        heading: "Full YAML schema",
+        body: ["Every block is optional and independent — use only the ones a given enchant actually needs."],
+        table: {
+          headers: ["Field", "Notes"],
+          rows: [
+            ["targets / conflicts", "Compatible item types, and enchant IDs this one can't coexist with (conflicts enforced by the anvil)."],
+            ["etable-max-level / absolute-max-level", "Ceiling for the Enchanting Table, and for /item enchant + non-book anvil merges — both enforced server-side."],
+            ["logic / logic-params", "The legacy Java hook — still fully supported, runs alongside anything below."],
+            ["variables", "Named $level$-scoped formulas, evaluated once per dispatch, read back as $calc.<name>$."],
+            ["combat.modify-attack / modify-defend", "Pre-hit numeric modifiers — damage-multiplier, crit-chance, crit-damage, defense-shred-percent, damage-reduction-percent."],
+            ["triggers.ON_ATTACK_POST / ON_DEFEND_POST / ON_KILL", "Post-hit/kill conditions -> actions/fail-actions."],
+            ["state.transient / state.persistent", "Per-attacker (in-memory) or per-item (saved) counters, read as $enchant.state.<key>$."],
+            ["stats", "Additive per-level stat bonuses, applied alongside logic.applyStats."],
+          ],
+        },
+      },
+    ],
+  },
+  {
     slug: "mobs",
     title: "Mobs",
     category: "World & Content",
@@ -1876,7 +2002,7 @@ alchemy:
             ["recipes/shardworks_recipes.yml", "Recipes specific to the Shardworks content pack."],
             ["reforges/combat.yml", "The eight shipped combat reforges (Fierce, Sharp, Fabled, Heroic, Rapid, Fortified, Reinforced, Titanic) and their per-rarity bonuses."],
             ["enchant/forge_costs.yml", "Coin cost to reforge an item, keyed by rarity tier."],
-            ["enchants/example_enchantments.yml", "Custom enchantment definitions — name, targets, conflicts, and max level, each backed by a logic: key."],
+            ["enchants/example_enchantments.yml", "Custom enchantment definitions — name, targets, conflicts, and max level. Behavior can be a legacy logic: Java hook, or fully YAML: stats/combat/triggers/state — see the Enchants page."],
           ],
         },
       },

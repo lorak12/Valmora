@@ -12,10 +12,14 @@ Module registration order (see `Valmora.java`) enforces a strict layering. Lower
 
 ```
 script → time → rarity → stat → player → economy
-       → ui → ability → item → mob → skill → combat → gui → recipe → modifier
-       → alchemy → enchant → zone → resource → fishing → npc → warp → quest
-       → points → notify → collection → hud → calendar → pet → progression
+       → ui → ability → item → mob → skill → combat → gui → recipe → machine → modifier
+       → alchemy → enchant → zone → resource → fishing → npc → warp
+       → points → notify → quest → collection → hud → calendar → pet → progression
 ```
+
+> **Note:** `machine` (module id `machine`) sits between `recipe` and `modifier` — it loads the
+> `machines/*.yml` machine-definition layer (which GUI opens for which machine id, open-triggers,
+> input/output slot shapes) consulted by `MachineOpenListener`. See CLAUDE.md §5/§9.4.
 
 > **Note:** `accessory`, `backpack`, `quiver`, and `slayer` are **no longer modules** — they were
 > removed and rebuilt as plain data (items + GUI `STORAGE` components, and quest packages). See
@@ -41,7 +45,7 @@ The tables below list **Uses** (modules this module depends on) and **Consumers*
 | Module     | Uses                              | Consumers                             |
 |------------|-----------------------------------|---------------------------------------|
 | item       | stat, profile, script, mob        | combat, enchant, skill, npc, quest, gui |
-| enchant    | item, stat, script                | combat, skill                         |
+| enchant    | item, stat, script                | combat, skill, gui (enchanting-table apply/select/remove events), recipe (anvil merge) |
 | modifier   | item, stat, script, rarity, recipe | item (lore rendering), stat (STAT effect contributions) — generic modifier framework replacing the old reforge module, docs/Valmora_Modifier_Framework_Design.docx |
 
 Accessories/backpacks are `item-type` tags + a GUI `STORAGE` component, not modules — see §2.1.1
@@ -112,7 +116,7 @@ All modules interact through a common set of APIs and utilities defined in `api/
 | `getEconomyManager()`     | `EconomyManager`          | npc, quest                                 |
 | `getGUIManager()`         | `GUIManager`              | quest, skill, npc                          |
 | `getZoneManager()`        | `ZoneManager`             | resource, fishing                |
-| `getEnchantManager()`     | `EnchantManager`          | combat, skill                              |
+| `getEnchantModule()`      | `EnchantModule`           | combat, skill, gui, recipe                 |
 | `getPetManager()`         | `PetManager`              | combat, stat, progression                  |
 | `getHudManager()`         | `HudManager`              | ui, profile                                |
 | `getNotifyManager()`      | `NotifyManager`           | quest, combat                              |
@@ -175,7 +179,7 @@ YAML-defined or Java-registered logic at named points in their otherwise-hardcod
 3. ScriptManager resolves item parameters (scripts, variables)
 4. ProfileManager updates player state (if consumable)
 5. StatManager applies stat modifiers (if equipment)
-6. EnchantManager applies enchant effects
+6. EnchantModule applies enchant effects (logic: hooks and/or compiled combat:/triggers:/stats: — see docs/modules/design/enchant.md)
 7. SkillManager triggers skills (if on-use)
 8. HudManager updates UI if relevant
 ```
@@ -221,13 +225,13 @@ YAML-defined or Java-registered logic at named points in their otherwise-hardcod
 
 `ModuleManager.reloadModules()` (invoked via `/valmora reload`) performs:
 
-1. **Disable phase** — All modules' `onDisable()` called in **reverse registration order**:
+1. **Disable phase** — All modules' `onDisable()` called in **reverse registration order** — the
+   exact reverse of the Section 1 chain:
    ```
-   progression → calendar → hud
-   → modifier → pet → notify → collection → time → ui → gui
-   → recipe → enchant → alchemy → fishing → resource → zone
-   → economy → skill → quest → npc → mob → item → combat
-   → profile → stat → script
+   progression → pet → calendar → hud → collection → quest → notify → points
+   → warp → npc → fishing → resource → zone → enchant → alchemy → modifier → machine
+   → recipe → gui → combat → skill → mob → item → ability → ui
+   → economy → player → stat → rarity → time → script
    ```
 
 2. **Re-enable phase** — `ModuleManager.enableModules()` called in **forward registration order** (as listed in Section 1).

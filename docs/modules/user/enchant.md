@@ -1,6 +1,6 @@
 # Enchant Module — User Documentation
 
-> **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
+> **Version:** 0.2 (post enchant-overhaul) | **API:** Paper 1.21.x | **Java:** 21
 > **Module ID:** `enchants` | **Config folder:** `plugins/Valmora/enchants/`
 
 ---
@@ -11,25 +11,37 @@
 2. [Player Guide](#player-guide)
 3. [Admin Guide](#admin-guide)
 4. [Configuration Reference](#configuration-reference)
+5. [Migrating an Old-Style Enchant](#migrating-an-old-style-enchant)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Overview
 
-The Enchant module adds **custom RPG enchantments** on top of vanilla Minecraft. Unlike vanilla enchants (which come from enchanting tables, villagers, and books), Valmora enchantments are:
+The Enchant module adds **custom RPG enchantments** on top of vanilla Minecraft. Unlike vanilla
+enchants, Valmora enchantments are:
 
 - **Fully configurable** — every enchant is defined in `plugins/Valmora/enchants/*.yml` as plain YAML.
-- **Stored on the item itself** — enchantments live in the item's hidden data and travel with it through inventories, trading, and drops. No database involved.
-- **Visually distinct** — an enchanted item gains a purple **glint** plus a blue **lore block** listing the enchant and its description.
-- **Effect-driven** — each enchant maps to a `logic` handler that determines what it actually does: passive stat bonuses (e.g. +Health, +Mining Fortune), pre-hit damage modifiers (e.g. +% melee damage), or defense reduction on the target.
+- **Stored on the item itself** — enchantments live in the item's hidden data and travel with it
+  through inventories, trading, and drops. No database involved.
+- **Visually distinct** — an enchanted item gains a purple **glint** plus a blue **lore block**
+  listing the enchant and its description.
+- **Written entirely in YAML, if you want** — an enchant's effect can be a passive stat bonus, a
+  conditional damage multiplier, a per-hit combo counter, an on-kill heal, an on-hit stacking debuff,
+  or any combination of those — all without writing a line of Java. A separate, still-supported Java
+  hook (`logic:`) exists for anything the YAML layer doesn't (yet) cover, and both run side by side
+  if you use both on the same enchant.
 
 There are three ways to get/apply enchants in a stock install:
 
-1. **`/item enchant <enchant_id> <level>`** (admin) — apply directly to the item in your main hand.
-2. **`/item enchantbook <enchant_id> <level>`** (admin) — spawn an Enchanted Book carrying the enchant.
-3. **The Anvil** — combine an item carrying Valmora enchants with another item or Enchanted Book that carries them. Cost: **10 coins per total enchant level**.
-
-An **Enchanting Table GUI** definition ships as `guis/enchanting.yml`, but in the stock plugin it is **not wired to any command or machine handler** (see [Limitations](#limitations)), so players normally get enchants through the anvil and admin-given items.
+1. **The Enchanting Table GUI** (`/enchanting`, or right-click a physical enchanting table if a
+   `machines/*.yml` entry is bound to one) — costs XP levels, and refuses a level above the enchant's
+   `etable-max-level`.
+2. **`/item enchant <enchant_id> <level>`** (admin) — apply directly to the item in your main hand,
+   bypassing the table's XP cost (still respects `absolute-max-level`).
+3. **`/item enchantbook <enchant_id> <level>`** (admin) — spawn an Enchanted Book carrying the enchant.
+4. **The Anvil** — combine an item carrying Valmora enchants with another item or Enchanted Book that
+   carries them.
 
 ---
 
@@ -39,53 +51,56 @@ An **Enchanting Table GUI** definition ships as `guis/enchanting.yml`, but in th
 
 Look at an enchanted item in your inventory:
 
-- The item has a **purple glowing glint** (like a vanilla enchanted item), but no vanilla enchant line is shown — it's a purely visual effect.
-- Below the stats, a **blue block** lists each enchant as `<id> <level>` (e.g. `sharpness 5`), followed by the enchant's grey description lines.
+- The item has a **purple glowing glint** (like a vanilla enchanted item), but no vanilla enchant
+  line is shown — it's a purely visual effect.
+- Below the stats, a **blue block** lists each enchant as `<Name> <Roman numeral>` (e.g.
+  `Sharpness V`), followed by the enchant's grey description lines.
 
-For items carrying **four or more** enchants, the lore switches to a **compact mode**: enchant names are packed together on single lines (`sharpness 5, growth 3, fortune 2, ...`) and descriptions are hidden.
+For items carrying **four or more** enchants, the lore switches to a **compact mode**: enchant names
+are packed together on single lines and descriptions are hidden.
 
 ### How levels work
 
-- Level is a plain integer (1, 2, 3, …) applied per enchant.
+- Level is a plain integer (1, 2, 3, …) applied per enchant, displayed as a Roman numeral.
 - Each enchant defines two ceilings:
-  - **`etable-max-level`** — the ceiling for the Enchanting Table / Enchanted Book path.
-  - **`absolute-max-level`** — the absolute hard cap for the anvil merge path.
-- **Caveat (as shipped):** no code actually clamps levels on the `/item` or GUI apply paths — an admin can apply any level with `/item enchant`. Only the **anvil merge** enforces these ceilings.
+  - **`etable-max-level`** — the ceiling for the Enchanting Table path.
+  - **`absolute-max-level`** — the absolute hard cap for `/item enchant` and the anvil merge path.
+- Both ceilings are now enforced **server-side**, not just by which buttons a GUI happens to render.
 
-### Applying enchants
+### Applying enchants via the Enchanting Table
 
-**Via anvil (anyone):**
+1. Open the table and place an item in the ingredient slot.
+2. Pick an enchant whose `targets` match your item's type.
+3. Pick a level. The table shows you the **XP-level cost** before you click — it charges 2 XP levels
+   per level of the enchant you're requesting (a level 5 enchant costs 10 XP levels), and simply
+   refuses the click if you don't have enough.
+4. You cannot request a level above the enchant's `etable-max-level` from the table — for higher
+   levels you need the anvil.
+
+### Applying enchants via the Anvil
+
 1. Put an item carrying Valmora enchants in the **base** slot.
-2. Put a **material** in the second slot — either a Valmora-enchanted item or an Enchanted Book carrying Valmora enchants.
+2. Put a **material** in the second slot — either a Valmora-enchanted item or an Enchanted Book
+   carrying Valmora enchants.
 3. The result merges the enchant maps:
-   - Same enchant at the **same level** → level **+1** (capped).
+   - Same enchant at the **same level** → level **+1** (capped at `absolute-max-level`, or
+     `etable-max-level` if the material is an Enchanted Book).
    - Different levels → the **higher** level wins.
    - **Conflicting** enchants (per each enchant's `conflicts` list) are skipped.
-4. Cost: **10 coins per level of the merged enchants**, deducted from the player's coin balance.
+4. Cost is XP levels, following the same "prior work" penalty every other anvil operation uses (see
+   `docs/modules/user/recipe.md`'s anvil section) — repeatedly working the same item raises the cost.
 
-**Via admin commands (`/item enchant` / `/item enchantbook`):**
-- `/item enchant sharpness 5` — applies Sharpness V to the item in your main hand. Only works if the enchant's `targets` include your item's type.
+### Admin commands
+
+- `/item enchant sharpness 5` — applies Sharpness V to the item in your main hand, clamped to
+  `absolute-max-level` (not the table's lower `etable-max-level` ceiling).
 - `/item enchantbook life_steal 3` — gives you an Enchanted Book with Life Steal III.
 
-### The Enchanting Table GUI (shipped but not reachable by default)
+### Enchanting skill XP & the quest objective
 
-The file `guis/enchanting.yml` defines a custom enchanting-table interface with two phases:
-
-1. **Enchant catalog** — shows every enchant whose `targets` match the item you placed in the ingredient slot (with its `etable-max-level` and `absolute-max-level`).
-2. **Level selection** — click an enchant, then click a level. Levels are shown as:
-   - **Green** (`available`) — apply it.
-   - **Yellow** (`active`) — your current level; clicking removes it.
-   - **Grey** (`locked`) — a level you've already surpassed.
-
-However, in the stock plugin there is **no command or block interaction wired to open this GUI** — a server admin must add an `open_gui` action (from another GUI) or a `command` key to make it reachable. Additionally, applying an enchant through the GUI costs **nothing** (no XP/mana/coins are deducted).
-
-### Enchanting skill XP
-
-The **Enchanting skill** (`/skill info enchanting`, max level 60) is leveled up by performing **vanilla** enchant actions (using a vanilla enchanting table or anvil), per `skills/enchanting.yml`. Valmora enchant *definitions* themselves do not grant Enchanting skill XP — the two systems are separate.
-
-### Quest objective
-
-The Quest system's `enchant` objective type also tracks **vanilla** enchant actions (`/quest` editor → objective `enchant <item> <enchants>`), not Valmora enchants.
+The **Enchanting skill** and the Quest module's `enchant` objective both still track only **vanilla**
+enchanting-table/anvil actions — Valmora enchant definitions are a separate system and don't feed
+either of those.
 
 ---
 
@@ -93,159 +108,208 @@ The Quest system's `enchant` objective type also tracks **vanilla** enchant acti
 
 ### Where configs live
 
-Enchant definitions are YAML files in `plugins/Valmora/enchants/`. The plugin ships `example_enchantments.yml` there on first run. Files are only written if they don't already exist, so your edits survive restarts.
+Enchant definitions are YAML files in `plugins/Valmora/enchants/`. The plugin ships
+`example_enchantments.yml` there on first run (only if the file doesn't already exist, so your edits
+survive restarts) — **open that file first**: every enchant in it is commented to explain what each
+block is doing and why, and it's the fastest way to see the schema in action before writing your own.
 
-After editing, run **`/valmora reload`** to reload the module (requires `valmora.admin`). Enchants defined in new files, and edits to existing ones, take effect immediately; enchants already applied to items re-render on the next lore rebuild.
+After editing, run **`/valmora reload`** (requires `valmora.admin`).
 
-### Defining an enchant
+### Defining an enchant — the short version
 
-Create a new file (or add to an existing one) in `plugins/Valmora/enchants/`. Every top-level key is an enchant **ID**:
+The smallest useful enchant is just a stat bonus:
 
 ```yaml
-my_enchant:
-  name: "My Enchant"
-  logic: "valmora:stat_bonus"
+strength_boost:
+  name: "Strength Boost"
   description:
     - "<gray>Grants <yellow>+2 Strength<gray> per level."
   targets: [SWORD, AXE]
-  conflicts: [some_other_enchant]
   etable-max-level: 5
   absolute-max-level: 10
-  logic-params:
-    stat: "strength"
-    per-level: 2.0
+  stats:
+    strength: "2 * $level$"
 ```
 
-### Choosing a `logic`
+No `logic:`, no Java class, no restart — just `stats:` and a formula. `$level$` is always the current
+level of whichever instance is being evaluated.
 
-The `logic` key decides what the enchant *does*. Registered values:
+### The full toolbox
 
-| `logic` | Parameters (`logic-params`) | Effect |
+Every block below is optional and independent — mix whichever ones your enchant actually needs.
+
+| Block | What it's for | Worked example in `example_enchantments.yml` |
 |---|---|---|
-| `valmora:sharpness` | — | +5% **melee** damage per level (applied before hit) |
-| `valmora:growth` | — | +10 **Health** per level (passive, players) |
-| `valmora:fortune` | — | +10 **Mining Fortune** per level (passive, players) |
-| `valmora:efficiency` | — | +50 **Mining Speed** per level (passive, players) |
-| `valmora:stat_bonus` | `stat` (default `strength`), `per-level` (default `1.0`) | +`per-level` of any stat per level (passive) |
-| `valmora:damage_multiplier` | `type` (default `MELEE`; `ANY` or a damage type), `percent-per-level` (default `5.0`) | +`percent-per-level`% damage per level for that damage type (before hit) |
-| `valmora:defense_reduction` | `percent-per-level` (default `3.0`) | Reduces the victim's defense by `percent-per-level`%×level on hit |
+| `stats:` | A flat per-level bonus to any stat, evaluated as a formula | `growth`, `protection`, `fortune`, `efficiency`, `respite` |
+| `combat.modify-attack:` / `modify-defend:` | A pre-hit numeric modifier (damage multiplier, crit chance, defense shred, damage reduction), optionally gated by `conditions:` | `sharpness`, `execute`, `first_strike`, `lethality` |
+| `triggers.<TRIGGER>:` | Run a list of DSL events (`heal`, `damage`, `sound`, `enchant_state`, …) after a hit or kill, gated by `conditions:` | `first_strike`, `life_steal`, `lethality` |
+| `state.transient:` / `state.persistent:` | A per-attacker combo/stacking counter (never saved) or a per-item counter (saved to the item's data), read back as `$enchant.state.<key>$` | `first_strike` (transient combo), `lethality` (transient stacks) |
+| `variables:` | Named `$level$`-scoped formulas, evaluated once and reusable as `$calc.<name>$` in both `combat:` and `triggers:` | `first_strike`, `lethality`, `life_steal` |
+| `logic:` | The old Java hook — still fully supported, and runs alongside anything above | `thorns` (the one enchant that must stay Java-only — see below) |
 
-Damage types usable in `type`: `MELEE`, `PROJECTILE`, `FALL`, `DROWNING`, `FIRE`, `LAVA`, `MAGIC`, `VOID`, `POISON`, `WITHER`, `EXPLOSION` — or `ANY`.
+`example_enchantments.yml` has a complete, commented example of every one of these except a bare
+`triggers:`-only enchant — read it before writing your own, since seeing a real formula in context is
+much faster than reading a schema table.
 
-**Important:** if `logic` does not match a registered key, the enchant still appears in the GUI and lore but has **no effect**. The shipped `example_enchantments.yml` includes several such enchants (`execute`, `first_strike`, `life_steal`, `lethality`, `protection`, `respite`, `thorns`) that reference logic IDs **not yet implemented** — they are decorative until their logic is built. There is no warning at load time, so double-check your logic IDs.
+### Variables available in formulas and conditions
 
-### Permissions & commands
-
-| Command | Permission | Description |
+| Variable | Where it's valid | Meaning |
 |---|---|---|
-| `/item enchant <id> <level>` | `valmora.admin` | Apply an enchant to the item in your main hand (type-checked). |
-| `/item enchantbook <id> <level>` | `valmora.admin` | Give yourself an Enchanted Book with the enchant. |
-| `/valmora reload` | `valmora.admin` | Reload all modules, including enchants. |
+| `$level$` / `$enchant.level$` | anywhere | the current enchant instance's level |
+| `$enchant.state.<key>$` | anywhere | the value of a `state.transient`/`state.persistent` key |
+| `$calc.<name>$` | anywhere | a pre-evaluated `variables:` formula |
+| `$hit.damage$` / `$hit.is_crit$` / `$hit.damage_type$` | `triggers.ON_ATTACK_POST`/`ON_DEFEND_POST` only | the just-computed hit |
+| `$target.hp_percent$` / `$target.missing_hp_percent$` | `combat:`/`triggers:` | the victim's (or, on defend-side, the attacker's) health percentage |
+| `$player.in_combat$` | `stats:` | whether the wearer is currently in combat |
 
-Both `/item` subcommands have tab-completion for enchant IDs and levels (`1`–`5`).
+### `triggers:` — the four moments you can react to
 
-### Item type values for `targets`
+| Trigger | Fires | `@self` means | `@target` means |
+|---|---|---|---|
+| `ON_ATTACK_POST` | after your hit lands, for your weapon's enchants | the attacker | the victim |
+| `ON_DEFEND_POST` | after you take a hit, for your armor's enchants | **the wearer** (you) | **the attacker** |
+| `ON_KILL` | you land the killing blow, for your weapon's enchants | the attacker | the victim (dead) |
+| `ON_DEATH` | reserved for future use | — | — |
 
-Valid values (case-insensitive): `SWORD`, `AXE`, `PICKAXE`, `SHOVEL`, `HOE`, `TRIDENT`, `BOW`, `CROSSBOW`, `FISHING_ROD`, `SHEARS`, `SHIELD`, `ELYTRA`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`, `HORSE_ARMOR`, `PET`, `ACCESSORY`, `BACKPACK`, `ALL`, `NONE`.
+Note `ON_DEFEND_POST`'s selectors are intentionally swapped relative to `ON_ATTACK_POST` — a thorns-
+style "hit the attacker back" action always means "hit `@target`", regardless of which side of the
+exchange you're declaring a trigger for.
 
-- `ALL` matches **every** item type.
-- Unknown entries in `targets` are silently ignored at load time.
-
-### Example — a full file
+### `state:` — combo counters and per-item counters
 
 ```yaml
-# plugins/Valmora/enchants/my_enchants.yml
-vampirism:
-  name: "Vampirism"
-  logic: "valmora:life_steal"      # NOTE: not implemented yet in 0.1
-  description:
-    - "Heals <red>+1%<gray> of your max health per level"
-    - "each time you deal damage."
-  targets: [SWORD]
-  conflicts: [life_steal]
-  etable-max-level: 3
-  absolute-max-level: 5
+state:
+  transient:
+    combo_counter:
+      type: HIT_COUNTER
+      reset-after-seconds: 10       # counter zeroes after 10s of no hits
+      reset-on-target-switch: true  # counter also zeroes if you switch targets
+      max-stacks: 3                 # counter never exceeds 3
+  persistent:
+    kills:
+      type: INTEGER
+      default: 0                    # value read on an item that's never had this key written
 ```
 
-### Troubleshooting
+- **`transient`** counters live in memory, per player, and are lost on `/valmora reload` or a server
+  restart — use these for combo/stacking mechanics that only matter mid-fight.
+- **`persistent`** counters are saved on the item itself and survive forever (a "kills with this
+  sword" tally, for instance).
+- Mutate either one with the `enchant_state` event inside a `triggers:` action list:
+  `enchant_state increment <key>`, `enchant_state add <key> <amount>`, `enchant_state set <key> <amount>`,
+  `enchant_state reset <key>`.
 
-| Symptom | Cause / fix |
-|---|---|
-| Enchant shows in lore but has no effect | The `logic` key is unregistered (see the table above) — check spelling, or it's one of the not-yet-implemented logics. |
-| `/item enchant` says "cannot be applied to this item" | Your item isn't a Valmora item with a matching `targets` type. Vanilla (non-Valmora) items can't take type-checked enchants. |
-| Vanilla item in the enchanting-table GUI won't apply | Same restriction — the apply path requires a Valmora item-type tag. |
-| Enchant lore repeats on re-enchant | This was fixed (`docs/UNFINISHED_FEATURES.md` §12) — lore is rebuilt from a stored snapshot, so the block should never duplicate. |
+### `targets` — valid item type values
+
+Case-insensitive: `SWORD`, `AXE`, `PICKAXE`, `SHOVEL`, `HOE`, `TRIDENT`, `BOW`, `CROSSBOW`,
+`FISHING_ROD`, `SHEARS`, `SHIELD`, `ELYTRA`, `HELMET`, `CHESTPLATE`, `LEGGINGS`, `BOOTS`,
+`HORSE_ARMOR`, `PET`, `ACCESSORY`, `BACKPACK`, `ALL`, `NONE`. `ALL` matches every item type. Unknown
+entries are silently ignored at load time.
 
 ---
 
 ## Configuration Reference
-
-### File layout
-
-```
-plugins/Valmora/enchants/
-└── example_enchantments.yml      # shipped example (10 enchants)
-```
-
-Each YAML file contains one or more enchant definitions under top-level keys. The key is the **enchant ID** — it becomes the registry ID, the lore label, the GUI event argument, and the PDC storage key (always stored lowercase internally).
 
 ### Schema
 
 ```yaml
 <enchant-id>:
   name: "<display name>"
-  logic: "<logic_key>"
-  logic-params:
-    <param>: <value>
   description:
     - "<MiniMessage line>"
-  targets:
-    - SWORD
-  conflicts:
-    - "other_enchant_id"
+  targets: [SWORD]
+  conflicts: ["other_enchant_id"]
   etable-max-level: 5
   absolute-max-level: 10
+
+  logic: "<logic_key>"          # optional — legacy Java hook, see the design doc
+  logic-params: { }
+
+  variables:
+    <name>: "<$level$-scoped formula>"
+
+  combat:
+    modify-attack:
+      conditions: ["<condition>"]
+      modifiers:
+        damage-multiplier: "<formula>"
+        crit-chance: "<formula>"
+        crit-damage: "<formula>"
+        defense-shred-percent: "<formula>"
+    modify-defend:
+      conditions: ["<condition>"]
+      modifiers:
+        damage-multiplier: "<formula>"
+        damage-reduction-percent: "<formula>"
+
+  triggers:
+    ON_ATTACK_POST: # or ON_DEFEND_POST / ON_KILL
+      conditions: ["<condition>"]
+      actions: ["<event>"]
+      fail-actions: ["<event>"]
+
+  state:
+    transient:
+      <key>: { type: HIT_COUNTER, reset-after-seconds: N, reset-on-target-switch: bool, max-stacks: N }
+    persistent:
+      <key>: { type: INTEGER, default: N }
+
+  stats:
+    <statId>: "<$level$-scoped formula>"
 ```
 
 ### Field reference
 
-| Field | Required | Default | Explanation |
+| Field | Required | Default | Notes |
 |---|---|---|---|
-| `<enchant-id>` (top-level key) | **Yes** | — | Enchant ID. Must be unique across all `enchants/*.yml`. Referenced by `/item enchant`, GUI events, and anvil merges. |
-| `name` | No | the enchant ID | Display name shown in the enchanting-table GUI and `/item info`. **Not** used on the item's lore lines (lore shows the raw ID, e.g. `sharpness 5`). |
-| `logic` | Yes* | `""` | The effect handler key — see the logic table in the [Admin Guide](#admin-guide). If unregistered, the enchant is inert. |
-| `logic-params` | No | empty | Tuning parameters for the parameterized logics (`stat_bonus`, `damage_multiplier`, `defense_reduction`). |
-| `description` | No | `[]` | MiniMessage lines shown under the enchant on the item lore (only when the item has fewer than 4 enchants). |
-| `targets` | **Yes** | — | Item types the enchant can apply to (see the values list above). Invalid entries are silently ignored. |
-| `conflicts` | No | `[]` | Enchant IDs this enchant cannot coexist with. Enforced **only** by the anvil merge; direct `/item` and GUI applies ignore it. |
-| `etable-max-level` | No | `5` | Ceiling for the Enchanting-Table path and Enchanted-Book merges in the anvil. |
-| `absolute-max-level` | No | `10` | Absolute hard cap applied by the anvil for non-book merges. |
+| `<enchant-id>` (top-level key) | **Yes** | — | Unique across all `enchants/*.yml`. |
+| `name` | No | the enchant ID | Display name in GUIs and lore. |
+| `description` | No | `[]` | MiniMessage lore lines (shown only under 4 total enchants). |
+| `targets` | **Yes** | — | See the item-type list above. |
+| `conflicts` | No | `[]` | Enforced only by the anvil merge. |
+| `etable-max-level` | No | `5` | Ceiling for the Enchanting Table path. |
+| `absolute-max-level` | No | `10` | Ceiling for `/item enchant` and non-book anvil merges. |
+| `logic` / `logic-params` | No | — | Legacy Java hook — see the design doc's logic table. |
+| `variables` | No | `{}` | `$level$`-scoped formulas, evaluated once per dispatch. |
+| `combat.modify-attack` / `modify-defend` | No | none | Pre-hit numeric modifiers. |
+| `triggers.<TRIGGER>` | No | none | Post-hit/kill event dispatch. |
+| `state.transient` / `state.persistent` | No | none | Per-attacker or per-item counters. |
+| `stats` | No | `{}` | Additive stat bonuses. |
 
-\* Technically optional — but a missing/unknown `logic` produces a definition with no effect.
-
-### Defaults at a glance
-
-| Setting | Default |
-|---|---|
-| `name` | enchant ID |
-| `description` | `[]` |
-| `etable-max-level` | `5` |
-| `absolute-max-level` | `10` |
-| `conflicts` | `[]` |
-| `logic` | `""` (no effect) |
-| `logic-params.stat` (`stat_bonus`) | `"strength"` |
-| `logic-params.per-level` (`stat_bonus`) | `1.0` |
-| `logic-params.type` (`damage_multiplier`) | `"MELEE"` |
-| `logic-params.percent-per-level` (`damage_multiplier`) | `5.0` |
-| `logic-params.percent-per-level` (`defense_reduction`) | `3.0` |
+An unknown `logic:` id, unknown trigger name, or unknown `state:` `type:` logs a warning at load time
+and is skipped — the rest of that enchant (and every other enchant) still loads normally.
 
 ---
 
-## Limitations
+## Migrating an Old-Style Enchant
 
-These are the current behavior gaps of the module (see the design doc for the full list):
+If you have an enchant that only uses `logic: valmora:stat_bonus` (or `damage_multiplier`/
+`defense_reduction`), you can usually drop the Java hook entirely:
 
-- The shipped **Enchanting Table GUI is not reachable** in a stock install (no command, no machine handler) and applies enchants **for free**.
-- The example file's `execute`, `first_strike`, `life_steal`, `lethality`, `protection`, `respite`, and `thorns` enchants have **no logic implemented**.
-- `/item enchant` and the GUI apply path **only work on Valmora items** — vanilla items can't receive enchants that way (the anvil is the exception).
-- Level ceilings and `conflicts` are **not enforced** by the `/item` and GUI apply paths — only by the anvil.
+```yaml
+# Before
+old_strength:
+  logic: "valmora:stat_bonus"
+  logic-params: { stat: "strength", per-level: 2.0 }
+
+# After — identical effect, no logic: at all
+new_strength:
+  stats:
+    strength: "2 * $level$"
+```
+
+You are never required to migrate — `logic:` keeps working forever, and a hybrid enchant (both
+`logic:` and `stats:`/`combat:`/`triggers:`) is fully supported if you only want to move part of an
+enchant's behavior to YAML.
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| Enchant shows in lore but has no effect | The `logic:` key is unregistered, or it has none of `stats:`/`combat:`/`triggers:` either — check the server console for a load-time warning. |
+| `/item enchant` says "cannot be applied to this item" | Your item's type isn't in the enchant's `targets` list, or it's not a Valmora item (vanilla items can't take type-checked enchants outside the anvil). |
+| The enchanting table won't let me pick a level | You're requesting above `etable-max-level`, or you don't have enough XP levels for `EtableCostCalculator`'s cost (2 XP per level requested). |
+| A combo/stacking counter isn't resetting when I expect | Check `reset-after-seconds`/`reset-on-target-switch` on that `state.transient` key — transient counters are also always lost on `/valmora reload` and server restart, by design. |
+| Enchant lore repeats on re-enchant | Should not happen — lore is rebuilt from a stored base-lore snapshot on every enchant/remove. |

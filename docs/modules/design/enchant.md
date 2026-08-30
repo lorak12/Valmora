@@ -1,411 +1,561 @@
 # Enchant Module — Design & Code
 
-> **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
-> **Module ID:** `enchants` | **Source:** `src/main/java/org/nakii/valmora/module/enchant/`
-
-> **Generic-engine refactor (Phase 4.5):** `valmora:sharpness`, `valmora:growth`,
-> `valmora:fortune`, and `valmora:efficiency` used to be separate fixed Java classes
-> (`SharpnessLogic`, `GrowthLogic`, `FortuneLogic`, `EfficiencyLogic` — all deleted). They're now
-> `logicFactories` entries over the already-generic `DamageMultiplierLogic`/`StatBonusLogic`, with
-> defaults matching their old hardcoded per-level values — existing `enchants/*.yml` files need no
-> changes, and new ones can override via `logic-params:`. See `docs/REFACTOR/CONFIG_REFERENCE.md`.
+> **Version:** 0.2 (post enchant-overhaul) | **API:** Paper 1.21.x | **Java:** 21
+> **Module ID:** `enchants` | **Package:** `org.nakii.valmora.module.enchant`
+> **Load order:** after `machine`/`modifier`, before `zone` — see CLAUDE.md §5.
+> **Status:** implemented — structured PDC storage with legacy-CSV migration-on-write, a fluent
+> Java builder API, a full script-module bridge (`variables:`/`combat:`/`triggers:`), a two-tier
+> state engine (in-memory per-attacker transient counters + PDC-backed persistent counters), a
+> `stats:` block wired into `StatManager`, and enchanting-table XP cost + server-side level-cap
+> enforcement. `EnchantmentLogic` (the pre-overhaul Java hook interface) is preserved and still
+> fires alongside anything YAML-declared — nothing forces a migration off it.
 
 ---
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Code Structure](#code-structure)
-3. [Architecture & Key Classes](#architecture--key-classes)
-4. [Configuration (YAML)](#configuration-yaml)
-5. [Data Model / Persistence](#data-model--persistence)
-6. [API Exposed](#api-exposed)
-7. [Dependencies & Consumers](#dependencies--consumers)
-8. [Unfinished Things / TODOs](#unfinished-things--todos)
-9. [Possible Improvements / Changes](#possible-improvements--changes)
+1. [Overview](#1-overview)
+2. [Why This Is Not Just the Modifier Framework](#2-why-this-is-not-just-the-modifier-framework)
+3. [Code Structure](#3-code-structure)
+4. [Storage — `EnchantStateStore`](#4-storage--enchantstatestore)
+5. [The Script Bridge](#5-the-script-bridge)
+6. [Combat Hook — `combat:`](#6-combat-hook--combat)
+7. [Trigger Dispatch — `triggers:`](#7-trigger-dispatch--triggers)
+8. [The State Engine — `state:`](#8-the-state-engine--state)
+9. [Stats — `stats:`](#9-stats--stats)
+10. [The Legacy `EnchantmentLogic` Hook](#10-the-legacy-enchantmentlogic-hook)
+11. [Full YAML Schema](#11-full-yaml-schema)
+12. [GUI / Anvil / Enchanting-Table Integration](#12-gui--anvil--enchanting-table-integration)
+13. [Data Model / Persistence](#13-data-model--persistence)
+14. [API Exposed](#14-api-exposed)
+15. [Dependencies & Consumers](#15-dependencies--consumers)
+16. [Testing](#16-testing)
+17. [Possible Improvements / Known Gaps](#17-possible-improvements--known-gaps)
 
 ---
 
-## Overview
+## 1. Overview
 
-The Enchant module is Valmora's **custom RPG enchantment system**. It is a data-driven `ReloadableModule` that loads **enchantment definitions** from `plugins/Valmora/enchants/*.yml`, stores applied enchantments on items in the item's **PersistentDataContainer (PDC)**, renders them as an **enchanted glint** plus **lore block**, and feeds their runtime effects into two other subsystems:
+The Enchant module is Valmora's **custom RPG enchantment system** — a data-driven `ReloadableModule`
+that loads enchantment definitions from `plugins/Valmora/enchants/*.yml`, stores applied enchants on
+the item's `PersistentDataContainer`, renders them as a lore block + fake glint, and feeds their
+runtime effects into three places: the **stat system** (passive bonuses), the **combat damage
+pipeline** (pre-hit modifiers and post-hit triggers), and the **enchanting table / anvil** (cost and
+level-cap enforcement).
 
-- the **Stat system** (passive stat bonuses while equipped/held, via `StatManager.recalculateStats()`), and
-- the **Combat damage pipeline** (pre-hit damage modifiers and post-hit hooks, via `DamageCalculator`).
+Before the overhaul (`enchant-overhaul` branch, four phases) an enchant's *behavior* could only be
+Java: a `logic:` key pointed at one of a handful of hardcoded `EnchantmentLogic` implementations, and
+adding new behavior meant writing and compiling a new Java class. The overhaul turned enchant
+authoring into the same kind of YAML-driven authoring the GUI, item-ability, and combat-pipeline
+systems already offer — an admin can now give an enchant conditional damage multipliers, a
+per-attacker stacking debuff, a combo counter, an on-kill heal, or a stat bonus **entirely from
+YAML**, using the same condition/expression/event DSL those other systems already use — while the
+old `logic:` mechanism keeps working unchanged for anything not (yet) migrated. Both paths run for
+the same enchant instance if both are declared; this is a deliberate hybrid, not an either/or.
 
-It is deliberately **stateless as a module** — there is no event listener, no scheduled task, and no database table. All state lives on the `ItemStack` itself (PDC), so enchantments travel with the item through inventories, drops, trades, and GUIs exactly like item attributes do. The module's only jobs are: parse YAML into `EnchantmentDefinition`s, expose a registry of them, and register the `EnchantmentLogic` handlers that other modules invoke.
-
-The module also exposes the GUI-facing plumbing used by the **Enchanting Table GUI** (`guis/enchanting.yml`, `machine: enchanting_table`) and the **Anvil merge** (`AnvilMachineHandler`). Those GUIs are owned by the `gui` and `recipe` modules respectively, but they call back into `EnchantmentHelper` and the `EnchantModule` registry.
-
-Per the module load order (`docs/MODULE_DEVELOPMENT.md` §9), `EnchantModule` is registered **after** `gui` and `recipe`, and **depends on** the Items and GUI systems (`Valmora.java:204`):
-
-```
-... → gui → recipe → alchemy → enchant → zone → ...
-```
+The module remains **stateless as far as persistence goes** — there is no database table, and the
+only runtime state that isn't item-bound (the transient combo/stacking counters — see §8) lives in a
+plain in-memory map that resets on `/valmora reload` or restart, by design.
 
 ---
 
-## Code Structure
+## 2. Why This Is Not Just the Modifier Framework
+
+The Modifier Framework (`module/modifier/`, `docs/modules/design/modifier.md`) already solves "an
+attachable item component that grants stats/abilities/effects" generically, and structurally the two
+systems look alike: both parse YAML content into an immutable definition object, both store
+structured per-instance data in the item's PDC, both drive `StatManager.recalculateStats`, and both
+compile condition/event blocks through the same script-module primitives.
+
+They are nonetheless **two independent implementations**, by deliberate decision, not an oversight:
+
+- Enchants have their own storage (`EnchantStateStore`, its own PDC keys), their own registry
+  (`EnchantmentRegistry`), their own trigger enum (`EnchantTrigger`), and their own dispatcher
+  (`EnchantDispatcher`) — none of it shares code with `ModifierComponentStore`/`ModifierEngine`.
+- The *in-game application* is genuinely different: enchants are levelled (I, II, III, …), have
+  `etable-max-level`/`absolute-max-level` ceilings, conflict lists, and an enchanting-table/anvil
+  cost model; modifiers are tiered, rarity-scaled, and have their own exclusivity/stacking/capacity
+  rules. Forcing one engine to serve both would mean the engine either grows enchant-specific
+  branches (exactly what the modifier framework's design doc forbids: "no group-specific Java in the
+  engine") or the enchant-specific concepts (levels, conflicts, the etable cost curve) get bolted
+  onto the modifier schema as an awkward special case.
+- Only **generic, already-multi-consumer** `api/`-level infrastructure is shared: `HookBus`,
+  `ExecutionContext`, `ConditionParser`, `EventParser`, `VariableProvider`. That's not a violation of
+  "don't duplicate the modifier framework" — GUI, combat, mob, and fishing all already share exactly
+  this same infra without being "the same system".
+
+If you're deciding whether new content belongs in enchants or in the modifier framework: **anything
+levelled with an enchant-shaped apply/remove/conflict/cost story is an enchant; anything tiered,
+rarity-scaled, or reforge/gemstone-shaped is a modifier.**
+
+---
+
+## 3. Code Structure
 
 ```
 src/main/java/org/nakii/valmora/module/enchant/
-├── EnchantModule.java              # ReloadableModule — lifecycle, builtin logic registry, YAML parser
-├── EnchantmentHelper.java          # Static utility — PDC serialization, apply/remove, lore rendering, books
-├── EnchantmentDefinition.java      # Immutable enchant definition POJO
-├── EnchantmentLogic.java           # Logic hook interface (5 default no-op methods)
-├── EnchantmentRegistry.java        # SimpleRegistry<EnchantmentDefinition> subclass
+├── EnchantModule.java              # ReloadableModule — lifecycle, YAML parser, builtin logic registry
+├── EnchantmentHelper.java          # Static utility — apply/remove/lore, thin wrapper over EnchantStateStore
+├── EnchantmentDefinition.java      # Immutable definition + fluent Builder (mirrors ModifierDefinition.Builder)
+├── EnchantmentLogic.java           # Legacy Java hook interface (5 default no-op methods) — still supported
+├── EnchantmentRegistry.java        # SimpleRegistry<EnchantmentDefinition>
+├── EnchantStateStore.java          # Structured PDC read/write + legacy-CSV migration-on-write
+├── EtableCostCalculator.java       # Pure XP-level cost function for the enchanting table
+├── EnchantTrigger.java             # enum ON_ATTACK_POST, ON_DEFEND_POST, ON_KILL, ON_DEATH
+├── EnchantTriggerBlock.java        # record(conditions, actions, failActions) — one compiled `triggers.<T>:` block
+├── EnchantTriggerStage.java        # HookBus PipelineStage wrapping one EnchantTriggerBlock
+├── EnchantCombatHook.java          # Compiles/applies `combat.modify-attack`/`modify-defend` into DamageModifierContext
+├── EnchantDispatcher.java          # Central per-hit orchestrator: runs legacy logic, then the compiled trigger
+├── EnchantKillListener.java        # EntityDeathEvent listener firing ON_KILL for the killer's weapon
+├── EnchantVariableProvider.java    # $enchant.level$ / $enchant.state.<key>$
+├── EnchantLevelVariableProvider.java # bare $level$ (alias for $enchant.level$, used throughout formulas)
+├── EnchantCalcVariableProvider.java  # $calc.<name>$ — pre-evaluated `variables:` formulas
+├── HitVariableProvider.java        # $hit.damage$ / $hit.is_crit$ / $hit.damage_type$
+├── event/
+│   └── EnchantStateEventFactory.java # `enchant_state <increment|add|set|reset> <key> [amount]` DSL event
+├── state/
+│   ├── EnchantStateType.java          # enum HIT_COUNTER, INTEGER — schema tag for state: entries
+│   ├── TransientStateDefinition.java  # parsed state.transient.<key>: entry
+│   ├── PersistentStateDefinition.java # parsed state.persistent.<key>: entry
+│   ├── TransientStateTracker.java     # in-memory per-attacker counter tracker + cleanup sweep
+│   └── EnchantStateEngine.java        # facade: resolves/mutates whichever tier a key belongs to
 └── logic/
-    ├── SharpnessLogic.java         # +5% melee damage per level (pre-hit multiplier)
-    ├── GrowthLogic.java            # +10 max health per level (passive, players only)
-    ├── FortuneLogic.java           # +10 Mining Fortune per level (passive, players only)
-    ├── EfficiencyLogic.java        # +50 Mining Speed per level (passive, players only)
     ├── StatBonusLogic.java         # Generic: +per-level of any stat (parameterized)
     ├── DamageMultiplierLogic.java  # Generic: +% damage of a DamageType per level (parameterized)
-    └── DefenseReductionLogic.java  # Generic: reduce victim defense by % per level (parameterized)
+    ├── DefenseReductionLogic.java  # Generic: reduce victim defense by % per level (parameterized)
+    ├── ExecuteLogic.java           # (superseded by `execute`'s combat: migration, kept for hybrid use)
+    ├── FirstStrikeLogic.java       # (superseded by `first_strike`'s full migration, kept for hybrid use)
+    ├── LethalityLogic.java         # (superseded by `lethality`'s full migration, kept for hybrid use)
+    ├── LifeStealLogic.java         # (superseded by `life_steal`'s full migration, kept for hybrid use)
+    ├── RespiteLogic.java           # (superseded by `respite`'s stats: migration, kept for hybrid use)
+    └── ThornsLogic.java            # still the ONLY implementation of `thorns` — see §7's recursion note
 
 src/main/resources/enchants/
-└── example_enchantments.yml        # Shipped example file (10 enchant definitions)
+└── example_enchantments.yml        # Shipped example file — see §11's worked examples and the file's own comments
 
 src/main/resources/guis/
 └── enchanting.yml                  # Enchanting Table GUI definition (consumer, not module code)
 ```
 
-There are **no unit tests** for the enchant module — `src/test/java/org/nakii/valmora/module/enchant/` does not exist. The only test touching enchant code is `src/test/java/org/nakii/valmora/module/combat/DamageCalculatorTest.java`, which mocks `EnchantModule`/`EnchantmentRegistry` (`DamageCalculatorTest.java:41-54`, `:89`) and feeds a fake PDC enchant string `"sharpness:5"` (`DamageCalculatorTest.java:196-197`).
+**A class you will not find:** `org.nakii.valmora.module.recipe.EnchantingTableMachineHandler`. It
+was confirmed dead code (the shipped `guis/enchanting.yml` never referenced it — the GUI's own
+`enchant_apply`/`enchant_select`/`enchant_remove`/`enchant_back` events, owned by the `gui` module,
+are the actual apply path) and was deleted as part of the overhaul rather than left unreferenced.
 
 ---
 
-## Architecture & Key Classes
+## 4. Storage — `EnchantStateStore`
 
-### 3.1 Module Lifecycle — `EnchantModule.java`
+`EnchantStateStore` replaced `EnchantmentHelper`'s original flat CSV PDC string
+(`"sharpness:5,growth:3"` under `Keys.ENCHANTS_CONTAINER_KEY`) with a structured format, needed
+because an enchant instance can now carry its own persistent state (a per-item counter — see §8),
+which a flat `id:level` string has no room for.
 
-Implements `ReloadableModule` (see `docs/MODULE_DEVELOPMENT.md` §2).
+**New format:** `Keys.ENCHANTS_STATE_CONTAINER_KEY` holds one `TAG_CONTAINER_ARRAY`, one nested
+container per enchant instance with three fixed fields — `id` (STRING), `level` (INTEGER), and an
+optional `state` (STRING) holding every declared persistent counter as one delimited blob, e.g.
+`"kills=1542,combo=3"`. This mirrors the *shape* of `ModifierComponentStore` (one PDC key, one
+container per instance) but not its implementation — critically, it uses a single fixed STRING field
+for all persistent state rather than one dynamic `NamespacedKey` per state-key, specifically so
+`EnchantStateStore` never needs a live plugin instance just to construct a key (this also turned out
+to matter for testability — see §16).
 
-| Method | Behavior | Lines |
+**Migration-on-write.** `EnchantStateStore.load(...)` checks the new key first; if absent, it falls
+back to parsing the legacy CSV format **read-only** (no write-back). `EnchantStateStore.save(...)`
+always writes the new format and deletes the legacy key. Consequently, any code path that *mutates*
+an item's enchants (apply, remove, anvil merge) transparently upgrades that item to the new format as
+a side effect of the very next write — there is no batch migration script, and an item nobody
+re-enchants keeps working indefinitely through the legacy-read fallback.
+
+`EnchantmentHelper` is now a thin wrapper: every one of its public methods (`applyEnchantment`,
+`getEnchantments`, `removeEnchantment`, `hasValmoraEnchants`, `createEnchantedBook`, …) is unchanged
+in signature and delegates internally to `EnchantStateStore`. One real behavior fix rode along with
+this rewrite: `applyEnchantment` gained a 4-arg overload
+(`applyEnchantment(item, id, level, enforceEtableCap)`) — the 3-arg overload (still used by the
+anvil/admin path) clamps to `absoluteMaxLevel` as before, but the enchanting-table GUI's apply event
+now passes `enforceEtableCap = true`, closing a bug where the table only ever *offered* in-range
+level buttons but never actually rejected an out-of-range level server-side.
+
+`EnchantmentDefinition.builder(id)` is a fluent Java builder (mirroring `ModifierDefinition.Builder`)
+for registering a custom enchant purely in Java, without a YAML file — every field the YAML parser
+can set has a corresponding builder method.
+
+---
+
+## 5. The Script Bridge
+
+Every YAML-driven capability described in §6-9 rides on the same generic primitive: `ExecutionContext`'s
+namespaced key-value attachment map (see `api/execution/ExecutionContext.java`), by convention
+`"enchant:id"` / `"enchant:level"` / `"enchant:instance"` / `"enchant:item"` / `"calc:<name>"` /
+`"hit:*"`. No enchant-specific `ExecutionContext` subclass exists — `DamageCalculator` already builds
+one `SimpleExecutionContext` per hit for its own `dmg:*` variables (`buildFormulaContext`); the
+enchant dispatch code just attaches more keys onto that same context before running conditions and
+actions against it.
+
+New `VariableProvider`s (registered by `EnchantModule.onEnable()`) expose these attachments as
+script variables:
+
+| Variable | Resolves | Notes |
 |---|---|---|
-| `onEnable()` | Calls `registerBuiltinLogics()` then `loadEnchants()` | `EnchantModule.java:41-45` |
-| `onDisable()` | Clears the registry and both logic maps | `EnchantModule.java:62-67` |
-| `getId()` | `"enchants"` | `EnchantModule.java:69-72` |
-| `getName()` | `"Enchant System"` | `EnchantModule.java:74-77` |
-| `getRegistry()` | Returns the live `EnchantmentRegistry` | `EnchantModule.java:79-81` |
-| `getLogic(String id)` | Returns a registered `EnchantmentLogic` by lowercase id, or `null` | `EnchantModule.java:83-85` |
-| `registerLogic(String id, EnchantmentLogic)` | Registers an external logic handler (lowercased key) | `EnchantModule.java:87-89` |
+| `$enchant.level$` | `context.get("enchant:level")` | The level of whichever enchant instance is currently dispatching. |
+| `$level$` | same as `$enchant.level$` | A bare alias — every worked example in the overhaul's spec writes `$level$`, not `$enchant.level$`. |
+| `$enchant.state.<key>$` | `EnchantStateEngine.resolve(context, key)` | Transient or persistent, whichever tier the enchant declared `<key>` under — see §8. |
+| `$calc.<name>$` | `context.get("calc:<name>")` | One entry per `variables:` formula, pre-evaluated once per dispatch (see below). |
+| `$hit.damage$` / `$hit.is_crit$` / `$hit.damage_type$` | `context.get("hit:*")` | Attached by `DamageCalculator` right after the `DamageResult` is computed — only meaningful in `ON_ATTACK_POST`/`ON_DEFEND_POST`. |
+| `$target.hp_percent$` / `$target.missing_hp_percent$` | extends the existing `TargetVariableProvider` | Added for `execute`/`first_strike`-style conditions — not a new provider, since `target` was already owned. |
 
-Note the constructor (`EnchantModule.java:34-39`) allocates the registry and the two logic maps but **does not populate them** — population happens in `onEnable()`, preserving the hot-reload contract. `logicMap` and `logicFactories` are `ConcurrentHashMap`s (`EnchantModule.java:31-32`).
+A `variables:` block declares named formulas, `$level$`-scoped, evaluated **once per dispatch** (not
+once per reference) and attached as `$calc.<name>$` — this exists so a combat modifier and a trigger
+action can share one derived number (e.g. `first_strike`'s `bonus_multiplier`) without re-deriving it
+twice or drifting if the formula is edited in only one place.
 
-**`registerBuiltinLogics()`** (`EnchantModule.java:47-60`) registers two kinds of handlers:
+```yaml
+variables:
+  bonus_multiplier: "1.0 + (0.25 * $level$)"
+```
 
-1. **Direct instances** (no parameters):
-   - `valmora:sharpness` → `new SharpnessLogic()`
-   - `valmora:growth` → `new GrowthLogic()`
-   - `valmora:fortune` → `new FortuneLogic()`
-   - `valmora:efficiency` → `new EfficiencyLogic()`
-2. **Parameterized factories** (`Function<ConfigurationSection, EnchantmentLogic>`), which read their tuning from the enchant's `logic-params` YAML section:
-   - `valmora:stat_bonus` → `new StatBonusLogic(params.getString("stat", "strength"), params.getDouble("per-level", 1.0))`
-   - `valmora:damage_multiplier` → `new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0))`
-   - `valmora:defense_reduction` → `new DefenseReductionLogic(params.getDouble("percent-per-level", 3.0))`
+---
 
-**`loadEnchants()`** (`EnchantModule.java:91-96`) uses `YamlLoader<EnchantmentDefinition>` on folder `"enchants"` with type name `"Enchantment"` and registers every successfully parsed definition into the registry. Per `YamlLoader` semantics, one malformed enchant logs a warning but does not stop the rest (`YamlLoader.java:113-123`).
+## 6. Combat Hook — `combat:`
 
-**The parser** (`EnchantModule.java:98-138`) builds an `EnchantmentDefinition` from each top-level YAML key and returns `LoadResult.success(...)` / `LoadResult.failure(...)` (`LoadResult.java:17-23`). Important behavior:
+`combat.modify-attack:` / `combat.modify-defend:` compile (via `EnchantCombatHook`) into a
+`conditions:` gate plus a `modifiers:` map, applied against `DamageModifierContext` using the same
+composition rules the pre-overhaul `EnchantmentLogic` implementations already used for that field —
+so a hybrid Java+YAML enchant can mix a Java `modifyAttack` and a YAML `combat.modify-attack` without
+their contributions clobbering each other:
 
-- **Logic resolution is lenient** (`EnchantModule.java:120-126`): it first checks `logicFactories`, then `logicMap`. If the `logic:` string matches neither, `logic` is **`null`** — the definition still loads and is still visible in GUIs and lore, but has **no runtime effect**. Unknown logic IDs are **not** logged as errors.
-- **`targets` parsing is silently lossy** (`parseTargets`, `EnchantModule.java:140-151`): each string is upper-cased and resolved against the `ItemType` enum (`ItemType.valueOf(...)`); invalid values are dropped with an ignored `IllegalArgumentException`.
-- `logic-params` defaults to an empty `MemoryConfiguration` when absent (`EnchantModule.java:117-118`).
+| Modifier key | Side | Composition | Meaning |
+|---|---|---|---|
+| `damage-multiplier` | attack or defend | multiplicative — `ctx.setDamageMultiplier(ctx.getDamageMultiplier() * value)` | the formula is the **full factor**, e.g. `"1.0 + (0.05 * $level$)"` for +5%/level |
+| `crit-chance` / `crit-damage` | attack | additive | a delta added to the running total |
+| `defense-shred-percent` | attack | additive, accumulator | reduces the victim's *effective* defense before mitigation — `DamageCalculator` computes `effectiveDefense = defense * (1 - shred/100)` |
+| `damage-reduction-percent` | defend | additive, accumulator | a flat percentage taken off the mitigated damage, applied **after** defense mitigation |
 
-### 3.2 The Enchant Definition — `EnchantmentDefinition.java`
+`combat:` is a separate mechanism from `triggers:` (§7) — it contributes numeric modifiers to the
+damage formula itself, evaluated **pre-hit**, whereas triggers run pass/fail action lists **post-hit**.
+An enchant can declare both; `sharpness`'s migration only needs `combat:`, while `first_strike` needs
+both (a `combat.modify-attack` gated on the current combo count, plus a `triggers.ON_ATTACK_POST` that
+increments it).
 
-An immutable value object (`EnchantmentDefinition.java:9-29`):
+**Defend-side role swap.** A `modify-defend`/`ON_DEFEND_POST` condition or trigger action's
+`@self`/`@target` (via `TargetResolver`) must mean "the wearer"/"the attacker", not "the attacker"/"the
+victim" (which is what the shared attack-side context means). `DamageCalculator` builds a child
+`SimpleExecutionContext` with `caster`/`target` swapped, parented to the shared hit context so it
+still inherits every `dmg:*`/`hit:*` attachment via the parent chain — this is `defendContext`, used
+for every defend-side dispatch (both the pre-hit `modify-defend` evaluation and the post-hit
+`ON_DEFEND_POST` trigger).
 
-| Field | Source YAML | Notes |
+---
+
+## 7. Trigger Dispatch — `triggers:`
+
+`triggers.<TRIGGER>:` blocks (`conditions:`/`actions:`/`fail-actions:`) compile into
+`EnchantTriggerBlock` (an independent copy of `GuiEventBlock`'s shape — conditions gate, actions run
+catching `ConditionAbortException` as an early interrupt into `fail-actions`) and register onto the
+shared `HookBus` at point `"enchant:<id>:<trigger>"` via `EnchantTriggerStage`, exactly the same
+"insertion point → conditions → pass/fail actions" pipeline GUI event blocks and the combat pipeline
+already use.
+
+```java
+public enum EnchantTrigger { ON_ATTACK_POST, ON_DEFEND_POST, ON_KILL, ON_DEATH }
+```
+
+`EnchantDispatcher` is the single orchestrator every trigger point actually runs through:
+
+1. Runs the legacy `EnchantmentLogic` hook first (`onPostAttack`/`onPostDefend`), unconditionally —
+   hybrid coexistence, not either/or.
+2. Checks `HookBus.hasStages(point)` — **zero-cost when nothing is registered** — before attaching
+   anything further, so an unmigrated enchant with no `triggers:` block costs nothing extra per hit.
+3. Attaches `enchant:id`/`enchant:level`/`enchant:instance` and every `variables:` formula (as
+   `calc:*`) onto the dispatch context.
+4. Runs `bus.runPoint("enchant:<id>:<trigger>", context)`.
+
+`DamageCalculator` calls `EnchantDispatcher.dispatchPostAttack`/`dispatchPostDefend` from its
+post-hit loops (per weapon enchant / per armor-piece enchant respectively); `EnchantKillListener` — a
+dedicated `EntityDeathEvent` listener, separate from `MobDeathListener`'s custom-mob-only
+`combat:on_death` point and `AbilityTriggerListener`'s item-ability-owned kill dispatch — fires
+`ON_KILL` for the killer's main-hand weapon on any kill (vanilla mob, custom mob, or PvP).
+
+`ON_ATTACK_POST`/`ON_DEFEND_POST`/`ON_KILL` dispatch also attaches `"enchant:item"` (the live
+weapon/armor `ItemStack`) onto the context — this exists solely so a triggered `enchant_state` action
+(§8) has something to save a persistent-state mutation back to.
+
+**New generic script events**, added alongside this and registered by `ScriptModule` itself (not
+enchant-private, since mob/item abilities and quest scripts can use them too):
+
+| Event | DSL | Notes |
 |---|---|---|
-| `id` | top-level key | The registry key (stored lowercase). |
-| `name` | `name` | Display name used in the enchanting GUI; **not** used in item lore (see §3.4). |
-| `description` | `description` | List of MiniMessage lore lines. |
-| `etableMaxLevel` | `etable-max-level` | "Enchanting Table" ceiling; used by GUI and anvil book logic. |
-| `absoluteMaxLevel` | `absolute-max-level` | Hard ceiling; used by anvil merge capping. |
-| `targets` | `targets` | `List<ItemType>` — which item categories are compatible. |
-| `conflicts` | `conflicts` | IDs this enchant cannot coexist with. |
-| `logic` | `logic` (+ `logic-params`) | The `EnchantmentLogic` handler (nullable!). |
+| `heal` | `heal <selector> <amount>` | Player targets heal through their profile; other entities heal via vanilla `setHealth`, clamped to max. |
+| `damage` | `damage <selector> <amount> [type]` | Routes through `DamageCalculator`, same as the `DAMAGE` ability mechanic. |
+| `strike_lightning` | `strike_lightning [selector]` | Visual/audio only (`World.strikeLightningEffect`) — damage is always a separate, explicit `damage` step, deliberately not bundled. |
 
-Behavioral helpers:
-- `canApplyTo(ItemType)` — `targets.contains(type)` (`EnchantmentDefinition.java:63-65`).
-- `conflictsWith(String)` — `conflicts.contains(otherId.toLowerCase())` (`EnchantmentDefinition.java:67-69`).
+**Why `thorns` is not migrated to `triggers.ON_DEFEND_POST` + `damage`.** `ThornsLogic` reflects
+damage by directly mutating the attacker's health rather than routing back through
+`DamageCalculator`, specifically to avoid the attacker's own armor re-triggering this same
+`ON_DEFEND_POST` hook on itself (infinite recursion). The new `damage` event always goes through the
+full pipeline, so migrating `thorns` this way would reintroduce exactly the bug the old code was
+written to avoid — it's the one shipped enchant deliberately left on legacy `logic:` only.
 
-Note that **level caps are not enforced here** — they are pure data read by the GUI (`GuiVariableProvider`) and the anvil handler. Neither `EnchantmentHelper.applyEnchantment` nor `createEnchantedBook` ever consults them.
+---
 
-### 3.3 The Logic Contract — `EnchantmentLogic.java`
+## 8. The State Engine — `state:`
 
-A 5-hook interface, all methods defaulting to no-ops (`EnchantmentLogic.java:10-18`):
+Two independent tiers, both readable via `$enchant.state.<key>$` and mutable via the
+`enchant_state <increment|add|set|reset> <key> [amount]` event — `EnchantStateEngine` is the single
+facade resolving/mutating whichever tier an enchant declared `<key>` under, so callers never need to
+know which one they're touching.
+
+```yaml
+state:
+  transient:
+    <key>: { type: HIT_COUNTER, reset-after-seconds: N, reset-on-target-switch: bool, max-stacks: N }
+  persistent:
+    <key>: { type: INTEGER, default: N }
+```
+
+**Transient** (`TransientStateTracker`) — an in-memory counter, never PDC-persisted, keyed **per
+attacker** (`(attacker UUID, enchant id, key)`), not per victim. This is the concrete fix for a real
+pre-overhaul bug: `LethalityLogic`'s stack counter was keyed by victim UUID only, so two different
+players attacking the same mob shared (and polluted) each other's stack count. Each entry also
+remembers the attacker's last-hit victim, so `reset-on-target-switch` can zero the count the moment
+that attacker's target changes, without needing a separate map entry per (attacker, victim) pair ever
+fought. `cleanup()`, swept every 5 minutes by `EnchantModule`, purges entries idle past a generous
+fixed window (15 minutes) — independent of any one enchant's own `reset-after-seconds` — which is the
+fix for the pre-overhaul `FirstStrikeLogic`/`LethalityLogic` classes' unbounded map growth (an
+attacker who stops fighting, or is simply never fought by anyone again, previously stayed in the map
+forever).
+
+**Persistent** (`EnchantStateStore`, §4) — a counter written into the item's PDC alongside `id`/
+`level`, surviving across hits, sessions, and item transfers (e.g. a "kills with this weapon" tally).
+A mutation reads the `"enchant:item"` context attachment (§7) to know which `ItemStack` to save back
+to — a mutate call with no item attached (e.g. a hand-built test context) is a safe no-op rather than
+a throw.
+
+No new `Condition` keyword was needed for any of this — `$enchant.state.<key>$ >= N` already works
+through `ConditionParser`'s existing bare-expression fallback once the variable resolves.
+
+---
+
+## 9. Stats — `stats:`
+
+```yaml
+stats:
+  <statId>: "<$level$-scoped formula>"
+```
+
+Compiled at load time into a `Map<String, Expression>` on `EnchantmentDefinition`, and applied by
+`StatManager.recalculateStats` **additively**, alongside (not instead of) the legacy
+`EnchantmentLogic.applyStats` hook — the same hybrid-coexistence rule as everywhere else in this
+module. A `stats:` entry can be an arbitrary expression, not just a flat `perLevel * level` — this is
+how `respite`'s "bonus only while out of combat" gating became expressible declaratively, using a new
+`$player.in_combat$` variable (added to `PlayerVariableProvider` specifically for this — nothing
+previously exposed `PlayerState.isInCombat()` to scripts) and a ternary:
+
+```yaml
+stats:
+  health_regen: "$player.in_combat$ ? 0 : (0.5 * $level$)"
+```
+
+**Caveat — hardcoded stat ids.** A `stats:` entry names a literal stat id (e.g. `"health"`), whereas
+the pre-overhaul `StatBonusLogic`-family Java classes resolve their target stat through
+`StatRoleRegistry` (`ValmoraAPI.getSystemStats().getHealth()`), which follows a server's own role
+renames. The shipped `growth`/`protection`/`fortune`/`efficiency` migrations use the *default* role
+ids and say so in a YAML comment — a server that renamed those roles should keep those specific
+enchants on their original `logic:` instead of migrating them, since the declarative `stats:` block
+has no way to follow a role rename the way the Java logic classes do.
+
+---
+
+## 10. The Legacy `EnchantmentLogic` Hook
+
+Unchanged in shape from before the overhaul — a 5-method interface, every method defaulting to a
+no-op:
 
 | Hook | Signature | Invoked from |
 |---|---|---|
-| `applyStats` | `(LivingEntity, int level, StatManager)` | `StatManager.recalculateStats()` — passive stat contribution while equipped/held |
-| `modifyAttack` | `(DamageModifierContext, attacker, victim, level)` | `DamageCalculator` — before damage resolution, when **attacker** carries the enchant |
-| `modifyDefend` | `(DamageModifierContext, attacker, victim, level)` | `DamageCalculator` — before damage resolution, when **victim** wears the enchant in armor |
-| `onPostAttack` | `(DamageResult, attacker, victim, level)` | `DamageCalculator` — after the `DamageResult` is computed |
-| `onPostDefend` | `(DamageResult, attacker, victim, level)` | `DamageCalculator` — after the `DamageResult` is computed |
+| `applyStats` | `(LivingEntity, int level, StatManager)` | `StatManager.recalculateStats()` |
+| `modifyAttack` | `(DamageModifierContext, attacker, victim, level)` | `DamageCalculator`, pre-hit, attacker's weapon |
+| `modifyDefend` | `(DamageModifierContext, attacker, victim, level)` | `DamageCalculator`, pre-hit, victim's armor |
+| `onPostAttack` | `(DamageResult, attacker, victim, level)` | `EnchantDispatcher.dispatchPostAttack`, post-hit |
+| `onPostDefend` | `(DamageResult, attacker, victim, level)` | `EnchantDispatcher.dispatchPostDefend`, post-hit |
 
-`DamageModifierContext` carries `baseDamage`, `strength`, `critChance`, `critDamage`, `defense`, `damageMultiplier` (default `1.0`), and the immutable `damageType` (`DamageModifierContext.java:4-19`). `DamageType` is a Valmora enum (`MELEE`, `PROJECTILE`, `FALL`, `DROWNING`, `FIRE`, `LAVA`, `MAGIC`, `VOID`, `POISON`, `WITHER`, `EXPLOSION` — `DamageType.java:3-14`).
-
-#### Builtin implementations
-
-**`SharpnessLogic`** (`SharpnessLogic.java:9-22`) — pre-hit only. `applyStats` is an explicit no-op ("Passive stat removed. Sharpness is a pre-hit multiplier only.", `SharpnessLogic.java:12-14`). In `modifyAttack`, if `context.getDamageType() == MELEE`, multiplies the damage multiplier by `1.0 + 0.05 * level` (i.e. +5% per level, `SharpnessLogic.java:17-22`).
-
-**`GrowthLogic`** (`GrowthLogic.java:9-17`) — passive only. `applyStats` adds `+10.0 * level` Health **modifiers** (`statManager.addModifier`, not `addStat`) for `Player` entities. Health stat id resolved through `ValmoraAPI.getInstance().getSystemStats().getHealth()` (`SystemStats.java:65`).
-
-**`FortuneLogic`** (`FortuneLogic.java:9-16`) — passive only. Adds `+10.0 * level` to the Mining Fortune stat (`getMiningFortune()`, `SystemStats.java:76`) for players.
-
-**`EfficiencyLogic`** (`EfficiencyLogic.java:9-16`) — passive only. Adds `+50.0 * level` to the Mining Speed stat (`getMiningSpeed()`, `SystemStats.java:77`) for players.
-
-**`StatBonusLogic`** (`StatBonusLogic.java:7-20`) — generic passive. Constructor lowercases the `statId` (`StatBonusLogic.java:13`) and stores `perLevel`. `applyStats` adds `perLevel * level` to that stat via `addModifier`. Note: unlike Growth/Fortune/Efficiency it does **not** check for `Player` — it applies to any `LivingEntity`.
-
-**`DamageMultiplierLogic`** (`DamageMultiplierLogic.java:9-29`) — generic pre-hit. Constructor parses `type`: `"ANY"` (or unparseable) → `damageType = null` meaning "apply to any damage type"; otherwise resolves via `DamageType.valueOf(type.toUpperCase())` (`DamageMultiplierLogic.java:15-22`). `modifyAttack` multiplies the damage multiplier by `1.0 + (percentPerLevel / 100.0) * level` when the type matches or is null (`DamageMultiplierLogic.java:25-29`).
-
-**`DefenseReductionLogic`** (`DefenseReductionLogic.java:8-21`) — generic pre-hit. `modifyAttack` reduces the **victim's** effective defense by `percentPerLevel * level` percent of its current value, clamped at `0` (`DefenseReductionLogic.java:17-21`).
-
-### 3.4 Application to Items — `EnchantmentHelper.java`
-
-`EnchantmentHelper` is a **static** utility (no instance state). All operations go through `ItemMeta` + PDC.
-
-**PDC serialization format.** The enchant map is flattened into a single string under `Keys.ENCHANTS_CONTAINER_KEY` (`valmora_enchants_container`, `Keys.java:48`), `PersistentDataType.STRING`, as comma-separated `id:level` pairs:
-
-```
-"sharpness:5,growth:3"
-```
-
-- `loadEnchantMap(PDC)` (`EnchantmentHelper.java:116-135`) splits on `,` then `:`, parsing integer levels; malformed pairs are silently skipped.
-- `saveEnchantMap(PDC, map)` (`EnchantmentHelper.java:137-146`) rebuilds the string. Map iteration order is `HashMap` order — display order is re-sorted later (see §3.4 lore).
-
-**Public operations:**
-
-| Method | Behavior | Lines |
-|---|---|---|
-| `canApplyEnchantment(item, id)` | `true` only if the item has meta **and** a `Keys.ITEM_TYPE_KEY` PDC value that resolves to an `ItemType` in the definition's `targets` | `EnchantmentHelper.java:26-47` |
-| `applyEnchantmentMap(item, map)` | Writes a full enchant map **bypassing the type check** (documented as for pre-validated sets like anvil merging); no-op on null/no-meta/empty map | `EnchantmentHelper.java:53-59` |
-| `applyEnchantment(item, id, level)` | Guards with `canApplyEnchantment`, then puts `id.toLowerCase() → level` into the loaded map, saves, renders glow/lore | `EnchantmentHelper.java:61-79` |
-| `getEnchantments(item)` | Returns the map (empty map if no meta) | `EnchantmentHelper.java:81-86` |
-| `getEnchantLevel(item, id)` | Returns level or `0` | `EnchantmentHelper.java:88-90` |
-| `removeEnchantment(item, id)` | Removes the key; when the map becomes empty also removes the `ENCHANTS_CONTAINER_KEY`, removes the fake `UNBREAKING` enchant and `HIDE_ENCHANTS` flag | `EnchantmentHelper.java:92-110` |
-| `hasValmoraEnchants(item)` | Whether the enchant map is non-empty | `EnchantmentHelper.java:112-114` |
-| `updateItemLore(item)` | Re-renders lore if the enchant map is non-empty; early-returns if empty | `EnchantmentHelper.java:166-181` |
-| `createEnchantedBook(id, level)` | Builds an `Material.ENCHANTED_BOOK` with the given enchant + glow/lore | `EnchantmentHelper.java:269-285` |
-
-**Key nuance on `canApplyEnchantment`:** it requires the `ITEM_TYPE_KEY` PDC tag, which is only written by `ItemFactory.create()` for **Valmora items** (`ItemFactory.java:33-35`). A stock vanilla item has no such tag, so `canApplyEnchantment` returns `false` — meaning `/item enchant` rejects it (`ItemCommand.java:161-164`) and `applyEnchantment` silently no-ops on it. `applyEnchantmentMap` (anvil) is the path that *can* touch generic items.
-
-### 3.5 Lore Rendering & the Enchanted Glint
-
-`applyGlowAndLore(item, meta, enchantMap)` (`EnchantmentHelper.java:183-219`) is the single rendering entry point used by every apply/remove path:
-
-1. **Glint:** `meta.addEnchant(Enchantment.UNBREAKING, 1, true)` + `meta.addItemFlags(ItemFlag.HIDE_ENCHANTS)` (`EnchantmentHelper.java:184-185`) — a fake "glint without a visible enchant line", the pattern documented in AGENTS.md §11.12.
-2. **Valmora items** (have `ITEM_ID_KEY`, `EnchantmentHelper.java:187-194`): delegates to `ItemFactory.updateLore(item, meta)` so stats, abilities, rarity and reforge prefix are all rebuilt together (`ItemFactory.java:70-197`, enchant section at `ItemFactory.java:160-165`).
-3. **Generic items** (`EnchantmentHelper.java:196-218`): snapshots the item's lore the first time it is enchanted (before any enchant block exists) into `Keys.GENERIC_BASE_LORE_KEY` (`valmora_generic_base_lore`, `Keys.java:49`) as a MiniMessage-serialized, newline-joined string (`serializeLore`/`deserializeLore`, `EnchantmentHelper.java:148-164`), then **always rebuilds** lore from that snapshot + the formatted enchant block. This is the fix documented in `docs/UNFINISHED_FEATURES.md` §12 — re-enchanting no longer stacks stale enchant blocks because the source of truth is the snapshot, not the already-mutated `meta.lore()`.
-
-**`formatEnchants(Map)`** (`EnchantmentHelper.java:221-267`) builds the enchant lore block:
-
-- IDs are sorted case-insensitively (`EnchantmentHelper.java:223-225`).
-- **Fewer than 4 enchants:** each enchant gets one line `<blue><id> <level></blue>` followed by the definition's description lines as `<gray><desc-line></gray>` (`EnchantmentHelper.java:227-238`).
-- **4 or more enchants:** compact lines of `<id> <level>` joined by `", "`, wrapped when a line would exceed **40 characters**; descriptions are **omitted** (`EnchantmentHelper.java:239-263`).
-- Always appends a trailing empty `Component` (`EnchantmentHelper.java:264`).
-
-**Important:** the enchant lore line uses the raw **enchant ID** (`"sharpness 5"`), not `EnchantmentDefinition.getName()` (`EnchantmentHelper.java:230`). The display name only appears in the enchanting GUI (`GuiVariableProvider.buildLevelList` → `def.getName() + " " + toRoman(level)`, `GuiVariableProvider.java:189`).
-
-### 3.6 Damage Integration — `DamageCalculator.java`
-
-`DamageCalculator.calculateDamage(attacker, victim, damageType, baseDamageOverride)` (`DamageCalculator.java:20-156`) is the single damage pipeline. The four logic hooks are invoked at these points:
-
-| Hook | When | Caller site |
-|---|---|---|
-| `modifyAttack` | attacker is a `Player`; for each enchant on the main-hand weapon | `DamageCalculator.java:68-79` |
-| `modifyDefend` | victim is a `Player`; for each enchant on each armor piece | `DamageCalculator.java:81-94` |
-| `onPostAttack` | after `DamageResult` construction; per weapon enchant | `DamageCalculator.java:127-138` |
-| `onPostDefend` | after `DamageResult` construction; per armor enchant | `DamageCalculator.java:140-153` |
-
-Every lookup guards `def != null && def.getLogic() != null` (`DamageCalculator.java:74`, `:87`, `:133`, `:147`) — so enchants with unregistered logic are inert rather than crashing.
-
-The multiplier set by `modifyAttack` is applied as `fullDamage *= context.getDamageMultiplier()` **after** the crit roll and strength scaling (`DamageCalculator.java:96-103`), and before the defense mitigation `100 / (defense + 100)` (`DamageCalculator.java:105-110`).
-
-### 3.7 Stat Integration — `StatManager.java`
-
-`StatManager.recalculateStats(player)` (`StatManager.java:83-193`) scans main-hand, off-hand, and the four armor slots. For each item with Valmora enchants it calls `enchantDef.getLogic().applyStats(player, level, this)` (`StatManager.java:129-135`). Because `applyStats` uses `addModifier` (an effective-stat overlay, `StatManager.java:65-68`), enchant bonuses layer on top of base stats and vanish on the next recalc — the recalc loop is the "lifecycle" that keeps passive enchant stats current. Set/cap logic later in the method still applies (e.g. the stat max-value cap at `StatManager.java:173-178`).
-
-### 3.8 GUI / Anvil integration
-
-- **Enchanting Table GUI** — `guis/enchanting.yml` defines the 6-row `enchanting_table` GUI (`machine: enchanting_table`, `guis/enchanting.yml:4`). The `GuiVariableProvider` exposes the `$gui.enchanting.*$` namespace (`GuiVariableProvider.java:43-44`):
-  - `$gui.enchanting.has_selection$` — whether an enchant is selected (`GuiVariableProvider.java:126`).
-  - `$gui.enchanting.display_list$` — the unified list; Phase 1 returns the enchant catalog, Phase 2 returns level rows for the selected enchant (`GuiVariableProvider.java:121-203`).
-  - Catalog entries are filtered by `targets.contains(ItemType.ALL) || targets.contains(itemType)` (`GuiVariableProvider.java:155-156`, `:248-250`). Item type resolution first reads `ITEM_TYPE_KEY` PDC, then falls back to **material-name inference** for vanilla items (`GuiVariableProvider.java:212-244`).
-  - Level states: `locked` (already surpassed), `active` (== current level, click to remove), `available` (applyable) (`GuiVariableProvider.java:178-203`).
-  - GUI click events: `enchant_select ingredient $entry.id$` (`guis/enchanting.yml:94`), `enchant_apply ingredient $entry.enchantId$ $entry.level$` (`guis/enchanting.yml:110`), `enchant_remove ingredient $entry.enchantId$` (`guis/enchanting.yml:124`).
-- **GUI event factories** (registered by `GuiModule.onEnable()`, `GuiModule.java:45-48`): `EnchantApplyEventFactory` (name `enchant_apply`, applies then clears selection and re-renders, `EnchantApplyEventFactory.java:25-60`), `EnchantSelectEventFactory` (`enchant_select`, stores `selected_enchant` prop, `EnchantSelectEventFactory.java:21-43`), `EnchantRemoveEventFactory` (`enchant_remove`, `EnchantRemoveEventFactory.java:25-55`), `EnchantBackEventFactory` (`enchant_back`, `EnchantBackEventFactory.java:21-36`).
-- **Anvil merge** — `AnvilMachineHandler implements DynamicMachineHandler`, registered for machine `"anvil"` in `RecipeModule.onEnable()` (`RecipeModule.java:27`). Merge math (`AnvilMachineHandler.java:39-82`):
-  - Both items must carry Valmora enchants; material side must be non-empty (`AnvilMachineHandler.java:29-33`).
-  - **Enchanted-book inputs** (`base.getType() == ENCHANTED_BOOK`) are capped at `etable-max-level` and refuse inputs already above the ceiling (`AnvilMachineHandler.java:35-47`, `:66`, `:76`); non-book merges cap at `absolute-max-level` (`AnvilMachineHandler.java:60`).
-  - Conflicts are checked via `def.conflictsWith(existingId)`; conflicting enchants are skipped (`AnvilMachineHandler.java:49-58`).
-  - Same-level merge → `level + 1` (capped); different levels → `max(base, material)` (`AnvilMachineHandler.java:62-81`).
-  - Result is a clone of `base` written via `EnchantmentHelper.applyEnchantmentMap` (bypasses the type check) (`AnvilMachineHandler.java:87-88`).
-  - **Cost:** `10 coins × total merged level`, deducted by an `on-craft` script `variable add player.var.coins -<cost>` (`AnvilMachineHandler.java:90-97`).
+Every builtin `logic:` factory (`valmora:sharpness`, `valmora:growth`, `valmora:stat_bonus`,
+`valmora:damage_multiplier`, `valmora:defense_reduction`, and the seven per-enchant classes in
+`logic/`) stays registered in `EnchantModule.registerBuiltinLogics()` regardless of whether the
+shipped example file still references them — deleting a still-functional, if now-unreferenced, Java
+class is explicitly against the overhaul's hybrid-coexistence rule. A server admin who wrote their own
+`logic:`-only enchant before the overhaul needs to change nothing.
 
 ---
 
-## Configuration (YAML)
-
-Config lives in `plugins/Valmora/enchants/*.yml` (auto-extracted from the jar's `enchants/` folder by `Valmora.saveAllResources()`, `Valmora.java:469-479`, only if the file does not already exist). Each top-level key is the enchant **ID** (registry key, stored lowercase).
-
-### Schema
+## 11. Full YAML Schema
 
 ```yaml
 <enchant-id>:
   name: "<display name>"
-  logic: "<namespace:logic_key>"
   description:
     - "<MiniMessage lore line>"
-  targets:
-    - SWORD
-  conflicts:
-    - "other_enchant_id"
+  targets: [SWORD]
+  conflicts: ["other_enchant_id"]
   etable-max-level: 5
   absolute-max-level: 7
-  logic-params:            # only read by parameterized logic factories
-    stat: "strength"
-    per-level: 1.0
+
+  # Legacy Java escape hatch — optional, coexists with everything below.
+  logic: "valmora:sharpness"
+  logic-params: { }
+
+  # $level$-scoped formulas, evaluated once per dispatch, read back as $calc.<name>$.
+  variables:
+    bonus_multiplier: "1.0 + (0.25 * $level$)"
+
+  # Pre-hit numeric modifiers into DamageModifierContext — see §6.
+  combat:
+    modify-attack:
+      conditions: ["$target.hp_percent$ < 100"]
+      modifiers:
+        damage-multiplier: "1.0 + (0.002 * $level$ * $target.missing_hp_percent$)"
+    modify-defend:
+      modifiers:
+        damage-reduction-percent: "2 * $level$"
+
+  # Post-hit conditions -> actions/fail-actions, dispatched via the shared HookBus — see §7.
+  triggers:
+    ON_ATTACK_POST:
+      conditions: ["$enchant.state.combo_counter$ < 3"]
+      actions: ["enchant_state increment combo_counter"]
+    ON_KILL:
+      actions: ["heal @self 5"]
+
+  # Two independent counter tiers, both readable as $enchant.state.<key>$ — see §8.
+  state:
+    transient:
+      combo_counter: { type: HIT_COUNTER, reset-after-seconds: 10, reset-on-target-switch: true, max-stacks: 3 }
+    persistent:
+      kills: { type: INTEGER, default: 0 }
+
+  # Additive stat bonuses, applied alongside logic.applyStats — see §9.
+  stats:
+    health: "10 * $level$"
 ```
 
-### Field Reference
-
-| Field | Required | Default | Parser site | Explanation |
-|---|---|---|---|---|
-| *(top-level key)* | Yes | — | `EnchantModule.java:99` | Enchant ID; used in PDC, lore, GUI events, anvil, and registry lookups. Stored lowercase. |
-| `name` | No | the enchant ID | `EnchantModule.java:101` | Display name shown in the enchanting GUI and `/item info` (`ItemCommand.java:330`). **Not** used in item lore. |
-| `logic` | No* | `""` | `EnchantModule.java:116` | Handler key. Must match a registered direct logic or factory. Unknown keys silently produce `logic = null` (definition loads, no effect). |
-| `description` | No | `[]` | `EnchantModule.java:102-105` | MiniMessage lore lines rendered under the enchant line (only for items with < 4 enchants). |
-| `targets` | Yes | — | `EnchantModule.java:110`, `:140-151` | Compatible `ItemType`s. Case-insensitive; invalid entries silently dropped. `ALL` matches every type (`GuiVariableProvider.java:155-156`). |
-| `conflicts` | No | `[]` | `EnchantModule.java:111-114` | Enchant IDs this enchant cannot coexist with; enforced **only** by the anvil handler. |
-| `etable-max-level` | No | `5` | `EnchantModule.java:107` | Enchanting-Table ceiling: GUI level list range and anvil book caps. |
-| `absolute-max-level` | No | `10` | `EnchantModule.java:108` | Hard ceiling for non-book anvil merges. |
-| `logic-params` | No | empty section | `EnchantModule.java:117-118` | Parameter section consumed by the parameterized logic factories (below). |
-
-\* `logic` is effectively required for an enchant to *do* anything, but nothing validates it.
-
-### Registered logic keys and their parameters
-
-| `logic` | Params (under `logic-params`) | Effect |
-|---|---|---|
-| `valmora:sharpness` | — | +5% melee damage per level (pre-hit) |
-| `valmora:growth` | — | +10 max Health per level (passive, players) |
-| `valmora:fortune` | — | +10 Mining Fortune per level (passive, players) |
-| `valmora:efficiency` | — | +50 Mining Speed per level (passive, players) |
-| `valmora:stat_bonus` | `stat` (default `"strength"`), `per-level` (default `1.0`) | +`per-level`×level of any stat (passive) |
-| `valmora:damage_multiplier` | `type` (default `"MELEE"`; `ANY` or a `DamageType`), `percent-per-level` (default `5.0`) | +`percent-per-level`% damage per level for the given damage type (pre-hit) |
-| `valmora:defense_reduction` | `percent-per-level` (default `3.0`) | Reduce victim defense by `percent-per-level`%×level of its current value (pre-hit) |
-
-Registered in `EnchantModule.java:48-59`.
-
-### Shipped example file — `enchants/example_enchantments.yml`
-
-| ID | logic | targets | etable / absolute | Conflicts |
-|---|---|---|---|---|
-| `sharpness` | `valmora:sharpness` ✅ | `SWORD` | 5 / 7 | smite, bane_of_arthropods |
-| `growth` | `valmora:growth` ✅ | HELMET, CHESTPLATE, LEGGINGS, BOOTS | 3 / 5 | — |
-| `execute` | `valmora:execute` ❌ unregistered | `SWORD` | 5 / 6 | prosecute |
-| `first_strike` | `valmora:first_strike` ❌ | `SWORD` | 4 / 5 | triple_strike |
-| `life_steal` | `valmora:life_steal` ❌ | `SWORD` | 3 / 5 | syphon, mana_steal |
-| `lethality` | `valmora:lethality` ❌ | `SWORD` | 6 / 6 | — |
-| `protection` | `valmora:protection` ❌ | armor slots | 4 / 6 | blast/fire/projectile_protection |
-| `respite` | `valmora:respite` ❌ | armor slots | 5 / 5 | rejuvenate |
-| `thorns` | `valmora:thorns` ❌ | armor slots | 3 / 4 | — |
-| `fortune` | `valmora:fortune` ✅ | PICKAXE, AXE, SHOVEL, HOE, FISHING_ROD | 3 / 5 | — |
-| `efficiency` | `valmora:efficiency` ✅ | PICKAXE, AXE, SHOVEL, HOE | 5 / 7 | — |
-
-Six of the eleven shipped enchants (`execute`, `first_strike`, `life_steal`, `lethality`, `protection`, `respite`, `thorns`) reference **logic IDs that are not registered** — they display in GUIs and lore but have no runtime effect. `docs/todo.md:5` tracks "enchant: add all of the enchantments".
+Every block above is optional and independent — an enchant can use only `logic:`, only `stats:`,
+only `combat:`+`triggers:`+`state:`, or any mix. Loading is lenient the same way it always was: an
+unknown `logic:` id, unknown trigger name, or unknown `state:` `type:` logs a warning and skips just
+that piece rather than failing the whole enchant.
 
 ---
 
-## Data Model / Persistence
+## 12. GUI / Anvil / Enchanting-Table Integration
 
-There is **no database persistence** for enchantments — they are item-bound data that travels with the item.
-
-**PDC keys used** (all defined in `util/Keys.java`):
-
-| Key | NamespacedKey | Type | Written by | Read by |
-|---|---|---|---|---|
-| `ENCHANTS_CONTAINER_KEY` | `valmora_enchants_container` | STRING (`id:level,...`) | `EnchantmentHelper.saveEnchantMap` (`EnchantmentHelper.java:145`) | `EnchantmentHelper.loadEnchantMap` (`EnchantmentHelper.java:119-120`) |
-| `GENERIC_BASE_LORE_KEY` | `valmora_generic_base_lore` | STRING (MiniMessage lore, newline-joined) | `applyGlowAndLore` first-time snapshot (`EnchantmentHelper.java:206`) | `applyGlowAndLore` rebuild (`EnchantmentHelper.java:202-203`) |
-| `ITEM_TYPE_KEY` | `item_type` | STRING (ItemType name) | `ItemFactory.create` (`ItemFactory.java:34`) | `canApplyEnchantment` (`EnchantmentHelper.java:31-32`), `GuiVariableProvider.getItemType` (`GuiVariableProvider.java:216-217`) |
-| `ITEM_ID_KEY` | `valmora_item_id` | STRING | `ItemFactory.create` (`ItemFactory.java:31`) | `applyGlowAndLore` Valmora-vs-generic branch (`EnchantmentHelper.java:187`) |
-
-**Serialization format** — a single string under `valmora_enchants_container`, `"id1:level1,id2:level2"` (`EnchantmentHelper.java:137-146`). Levels are `int`s. IDs are stored lowercase. There is no ordering guarantee in storage; display ordering is re-derived by `formatEnchants`.
-
-**Vanilla mirror:** the enchanted glint is a fake vanilla `Enchantment.UNBREAKING` level 1 with `ItemFlag.HIDE_ENCHANTS` (`EnchantmentHelper.java:184-185`), so vanilla XP/table/anvil code sees an "enchanted" item but no enchant line leaks through.
+- **Enchanting Table GUI** (`guis/enchanting.yml`, machine id `enchanting_table`) — catalog + level
+  list, owned by the `gui` module. `EnchantApplyEventFactory` (`enchant_apply`, in
+  `module/gui/event/`) is the actual apply path: it now computes
+  `EtableCostCalculator.cost(level)` (2 XP levels per level requested), rejects the apply with a
+  message if the player can't afford it, applies via the 4-arg `applyEnchantment(..., true)`
+  overload (server-side etable-cap enforcement), and only then deducts the XP. Previously this event
+  charged nothing at all and only clamped to the *absolute* cap.
+- **Unified anvil** (`module.recipe.AnvilMachineHandler`, machine id `anvil`) — the standard
+  enchant+durability merge path needed **no functional change**: it already only calls
+  `EnchantmentHelper`'s unchanged public API (`getEnchantments`/`applyEnchantmentMap`), and its
+  book-vs-non-book level capping was already correct before this overhaul. See
+  `docs/modules/design/recipe.md` for the anvil's full evaluation order (explicit
+  `recipes/anvil/*.yml` recipes → the modifier framework's `APPLY_MODIFIER`/`REMOVE_MODIFIER` recipes
+  → this standard combination engine).
 
 ---
 
-## API Exposed
+## 13. Data Model / Persistence
 
-**Via `ValmoraAPI`** (`ValmoraAPI.java:43`, implemented at `Valmora.java:349-351`):
+No database persistence — enchant state is either item-bound (PDC) or, for the transient combo/
+stacking counters, deliberately non-persistent in-memory bookkeeping.
+
+**PDC keys** (`util/Keys.java`):
+
+| Key | Type | Written by | Read by |
+|---|---|---|---|
+| `ENCHANTS_STATE_CONTAINER_KEY` | `TAG_CONTAINER_ARRAY` | `EnchantStateStore.save` | `EnchantStateStore.load` |
+| `ENCHANT_INSTANCE_ID_KEY` / `ENCHANT_INSTANCE_LEVEL_KEY` / `ENCHANT_INSTANCE_STATE_KEY` | STRING / INTEGER / STRING | fields of each nested container above | same |
+| `ENCHANTS_CONTAINER_KEY` (legacy) | STRING (`id:level,...`) | nothing writes this anymore | `EnchantStateStore.load`'s fallback path only |
+
+---
+
+## 14. API Exposed
 
 ```java
 EnchantModule enchant = ValmoraAPI.getInstance().getEnchantModule();
+enchant.getRegistry();       // EnchantmentRegistry — case-insensitive, get()/values()/getKeys()
+enchant.getStateEngine();    // EnchantStateEngine — null before onEnable()/after onDisable()
+enchant.getLogic(id);        // legacy direct-instance lookup
+enchant.registerLogic(id, logic); // extension point; cleared on every onDisable(), must re-register after reload
 ```
 
-`EnchantModule` public surface:
+**Static helper (`EnchantmentHelper`)** — unchanged public surface:
+`canApplyEnchantment`, `applyEnchantment` (3-arg and 4-arg), `applyEnchantmentMap`,
+`getEnchantments`, `getEnchantLevel`, `removeEnchantment`, `hasValmoraEnchants`, `loadEnchantMap`,
+`updateItemLore`, `formatEnchants`, `createEnchantedBook`.
 
-- `EnchantmentRegistry getRegistry()` — `EnchantmentRegistry extends SimpleRegistry<EnchantmentDefinition>` (`EnchantmentRegistry.java:5`), a synchronized, case-insensitive registry (`SimpleRegistry.java:15-58`): `register`, `unregister`, `get → Optional`, `contains`, `getKeys`, `values`, `clear`, `size`.
-- `EnchantmentLogic getLogic(String id)` — direct handler lookup (`EnchantModule.java:83-85`).
-- `void registerLogic(String id, EnchantmentLogic logic)` — extension point for external plugins (`EnchantModule.java:87-89`). **Caveat:** `logicMap` is cleared in `onDisable()`, so externally-registered logics are dropped on every reload and must be re-registered after it.
-
-**Static helper (`EnchantmentHelper`)**: `canApplyEnchantment`, `applyEnchantment`, `applyEnchantmentMap`, `getEnchantments`, `getEnchantLevel`, `removeEnchantment`, `hasValmoraEnchants`, `loadEnchantMap`, `updateItemLore`, `formatEnchants`, `createEnchantedBook`. All are `public static` (`EnchantmentHelper.java:26-285`).
-
-There is no dedicated enchant command; admin/player entry points are `/item enchant` and `/item enchantbook` (registered in `Valmora.onEnable()`, `Valmora.java:237`).
+There is no dedicated enchant command; admin/player entry points remain `/item enchant` and
+`/item enchantbook`.
 
 ---
 
-## Dependencies & Consumers
+## 15. Dependencies & Consumers
 
 ### Dependencies (loads-after)
 
 | Dependency | Why |
 |---|---|
-| Items (`ItemManager`/`ItemFactory`) | `applyGlowAndLore` delegates lore rebuilds for Valmora items (`EnchantmentHelper.java:192`); `ItemType` enum for target matching; `ItemFactory` writes the PDC tags `canApplyEnchantment` reads. |
-| Stats (`StatModule`/`SystemStats`) | `GrowthLogic`/`FortuneLogic`/`EfficiencyLogic` resolve stat IDs through `SystemStats`; `StatManager` drives `applyStats`. |
-| GUI (`GuiModule`) | `GuiVariableProvider` and the enchant event factories run inside the GUI subsystem (registered by `GuiModule.onEnable()`, `GuiModule.java:45-48`). |
-| Recipe (`RecipeModule`) | `AnvilMachineHandler` is registered by the recipe module (`RecipeModule.java:27`). |
-| Script (`ScriptModule`) | GUI event factories are `EventFactory` implementations registered via `ScriptModule.registerEvent`. |
+| `script` | Every capability in §5-9 compiles through `ConditionParser`/`EventParser`/`ExpressionParser` and dispatches via `HookBus`, all owned by `ScriptModule`. |
+| `item` | `ItemType` for target matching; `ItemFactory` lore rebuild for Valmora items. |
+| `stat` | `StatManager.recalculateStats` drives both `logic.applyStats` and `stats:`. |
+| `gui` | `GuiVariableProvider` and the enchant event factories live in the `gui` module. |
+| `recipe` / `machine` / `modifier` | The anvil path (§12); no functional coupling beyond the unchanged public `EnchantmentHelper` API. |
 
-### Consumers (who calls the module)
+### Consumers
 
-| Consumer | How it uses enchants | Sites |
-|---|---|---|
-| Combat `DamageCalculator` | `modifyAttack` / `modifyDefend` / `onPostAttack` / `onPostDefend` hooks | `DamageCalculator.java:68-79`, `:81-94`, `:127-153` |
-| Stat `StatManager` | `applyStats` for equipped/held items | `StatManager.java:129-135` |
-| Item `ItemFactory` | Enchant lore section during Valmora lore rebuild | `ItemFactory.java:160-165` |
-| Item `ItemCommand` | `/item enchant`, `/item enchantbook`, held-item info, tab-completion | `ItemCommand.java:140-188`, `:322-334`, `:364-371` |
-| GUI `GuiVariableProvider` | Enchanting-table catalog + level lists | `GuiVariableProvider.java:121-251` |
-| GUI event factories | Apply/remove/select/back clicks in the enchanting GUI | `EnchantApplyEventFactory.java:50`, `EnchantRemoveEventFactory.java:46` |
-| Recipe `AnvilMachineHandler` | Anvil merge math + cost | `AnvilMachineHandler.java:29-97` |
-| Tests `DamageCalculatorTest` | Mocked `EnchantModule`/`EnchantmentRegistry` | `DamageCalculatorTest.java:41-54`, `:89`, `:196-197` |
+| Consumer | How it uses enchants |
+|---|---|
+| Combat `DamageCalculator` | Pre-hit `modifyAttack`/`modifyDefend`/`combat:` modifiers; post-hit `EnchantDispatcher` calls. |
+| Stat `StatManager` | `applyStats` + `stats:` per equipped/held item. |
+| GUI `EnchantApplyEventFactory`/`EnchantSelectEventFactory`/`EnchantRemoveEventFactory`/`EnchantBackEventFactory` | Enchanting-table apply/select/remove/navigation. |
+| Recipe `AnvilMachineHandler` | Anvil merge (unchanged). |
 
-**Non-consumer (related but separate):** the Quest module's `ENCHANT` objective tracks **vanilla** `EnchantItemEvent` (`QuestListener.java:219-227`), and the Enchanting **skill** gains XP from vanilla enchant actions (`skills/enchanting.yml:10-43`). Neither touches Valmora enchant definitions.
+**Non-consumers (related but separate):** the Quest module's `enchant` objective and the Enchanting
+skill both track **vanilla** enchant actions, not Valmora enchant definitions.
 
 ---
 
-## Unfinished Things / TODOs
+## 16. Testing
 
-- **The enchanting table GUI has no cost.** The `GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2 goal ("costing XP/Mana") is still not implemented — `EnchantApplyEventFactory` only applies the enchant. Deliberately deferred (2026-08-07): a mana-cost gate needs a cost-consumption event this GUI has no natural place to hook (mana isn't a `player.var.*` path the generic `variable` event can touch, unlike coins in the NPC-shop pattern), and real bookshelf-power detection needs a right-click-on-a-physical-enchanting-table interaction hook this GUI doesn't have (it's opened by command/machine only, no physical-block context to scan around). The bookshelf "power level" display is still hardcoded to `0 / 15`.
-- **External logics are reload-fragile.** `onDisable()` clears `logicMap`/`logicFactories`, so `registerLogic()` consumers must re-register after every `/valmora reload`.
+Every layer of this module has direct test coverage under `src/test/java/org/nakii/valmora/module/enchant/`:
+`EnchantStateStoreTest` (round-trip + legacy-CSV migration), `EnchantmentHelperTest`,
+`EnchantmentDefinitionBuilderTest`, `EnchantVariableProviderTest`/`HitVariableProviderTest`,
+`EnchantCombatHookTest`, `EnchantTriggerStageTest`/`EnchantDispatcherTest`,
+`state/TransientStateTrackerTest`/`state/EnchantStateEngineTest`,
+`event/EnchantStateEventFactoryTest`, `EtableCostCalculatorTest`, `EnchantContentMigrationTest`
+(loads the actual shipped `example_enchantments.yml` through a **real** `ScriptModule` — not a mock —
+so a typo'd condition/formula/trigger name in that file fails the test the same way it would fail on
+a real server), plus `module/gui/event/EnchantApplyEventFactoryTest` for the cost/cap enforcement.
 
-*(2026-08-07: the seven inert shipped enchants, level-cap enforcement, conflict enforcement,
-vanilla-item enchant blocking, the missing GUI `command:` key, the unused `modifyDefend`/
-`onPostAttack`/`onPostDefend` hooks, unknown-`logic:`-id silence, and the `$enchant.NAME.prop$` vs
-`$entry.*$` docs drift are all resolved — see `docs/IMPLEMENTATION_BACKLOG.md`'s Enchant module
-section for what changed in each case.)*
+One recurring gotcha worth knowing if you add more tests here: a bare Mockito `mock(Valmora.class)`
+does **not** satisfy whatever Paper's real `NamespacedKey(Plugin, String)` constructor needs
+internally, even with `getName()`/`getPluginMeta()` stubbed — it throws `NullPointerException:
+this.namespace is null`. Build `Keys.*` fields directly off a real `MockBukkit.createMockPlugin(...)`
+(`PluginMock`) instead of calling `Keys.init(mock(Valmora.class))` in any test touching PDC.
 
 ---
 
-## Possible Improvements / Changes
+## 17. Possible Improvements / Known Gaps
 
-- **Render the display name in lore.** `formatEnchants` prints the raw ID; switching to `def.getName()` (plus roman numerals, mirroring `GuiVariableProvider.toRoman`) would match the GUI presentation.
-- **Add costs to the enchanting table.** The plan's XP/mana/coin deduction (`GUI_MODULE_ENHANCEMENT_PLAN.md` Phase 2) and real bookshelf-power calculation would complete the machine — see the "Unfinished Things" note above for why this is nontrivial as-is.
-- **`modifyDefend` still has no real implementer.** The 7 newly-wired logic classes cover `applyStats`/`modifyAttack`/`onPostAttack`/`onPostDefend`, but none naturally fit a "modify the defense calculation live, from the defender's side" shape beyond what `protection`'s flat stat bonus already covers.
-- **Cache enchant-map parsing.** The GUI plan itself flags aggressive PDC string parsing on 0-tick slot updates; `getEnchantments` could be cached per item version.
-- **Deduplicate lore rendering.** The generic-item base-lore snapshot and `ItemFactory`'s full rebuild are two parallel lore pipelines; a single enchant-lore module consumed by both would prevent future drift.
-- **Persist reload-registered external logics.** A `registerLogic` consumer currently has to listen for its own re-enable and re-register; a small "pending external logics" registry surviving `EnchantModule`'s own clear could remove that burden.
+- **`stats:`'s hardcoded-stat-id caveat** (§9) could be closed by letting a `stats:` value name a
+  `StatRoleRegistry` role instead of a literal stat id, so a role rename doesn't strand a migrated
+  enchant on the wrong stat.
+- **`thorns` stays Java-only** (§7) — a non-recursive way to reflect damage through the real pipeline
+  (e.g. a one-shot "already reflecting" guard flag on the context) would let it migrate too, but
+  wasn't worth the added complexity for one enchant.
+- **Transient state is lost on `/valmora reload`.** This is by design (it's genuinely ephemeral
+  combat bookkeeping, not meant to survive a reload) but is worth calling out explicitly if it ever
+  surprises someone mid-fight during a live reload.
+- **External `registerLogic()` consumers are reload-fragile** — `logicMap` is cleared in
+  `onDisable()`, so a plugin registering its own `EnchantmentLogic` must re-register after every
+  `/valmora reload`. Same caveat as before the overhaul, unchanged.

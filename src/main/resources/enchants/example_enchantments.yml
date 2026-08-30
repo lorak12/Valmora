@@ -1,16 +1,12 @@
-# Phase 4 of the enchant overhaul (docs/modules/design/enchant.md — content migration) ports most
-# of these to the new YAML-driven capabilities (stats:/combat:/triggers:/state:) added in Phases
-# 2-3. Every old `logic:`/`logic-params:` Java class stays registered in
-# EnchantModule.registerBuiltinLogics() even where unreferenced below — hybrid coexistence is a
-# hard rule of the overhaul, not just a migration safety net.
+# This file is the best place to learn the enchant schema by example — every enchant below is
+# commented to explain not just WHAT it does, but WHY it's built the way it is. Read top to bottom;
+# later enchants build on ideas introduced by earlier ones. See docs/modules/user/enchant.md for the
+# full field reference and docs/modules/design/enchant.md for the underlying engine.
 #
-# Two enchants are deliberately left on their Java `logic:` unmigrated:
-#  - `thorns`: ThornsLogic reflects damage by directly mutating the attacker's health rather than
-#    routing back through DamageCalculator, specifically to avoid the attacker's own armor
-#    re-triggering this same ON_DEFEND_POST hook (infinite recursion). The new `damage` event
-#    always goes through the full pipeline, so migrating this would reintroduce that bug.
-#  - `respite`'s in-combat gating IS expressible via the new $player.in_combat$ variable + a
-#    ternary in `stats:` (see below) — it IS migrated. `thorns` is the only real holdout.
+# Every old `logic:`/`logic-params:` Java class (module/enchant/logic/*.java) stays registered
+# whether or not anything below still references it — the YAML capabilities here (`stats:`/
+# `combat:`/`triggers:`/`state:`) and the legacy `logic:` Java hook are meant to coexist, not replace
+# each other. Only `thorns` is deliberately left Java-only below, for a reason explained at its entry.
 
 sharpness:
   name: "Sharpness"
@@ -20,7 +16,10 @@ sharpness:
   conflicts: ["smite", "bane_of_arthropods"]
   etable-max-level: 5
   absolute-max-level: 7
-  # Full replacement of valmora:sharpness's fixed 5%/level MELEE multiplier.
+  # `combat.modify-attack` is the tool for "change a number in the damage formula before the hit
+  # lands". `damage-multiplier` is the FULL multiplicative factor, not a bonus percentage — so
+  # "+5% per level" is written as 1.0 (the unchanged baseline) plus 0.05 per level, not just "0.05".
+  # No `conditions:` here because this bonus always applies — see `execute` below for a gated example.
   combat:
     modify-attack:
       modifiers:
@@ -34,9 +33,12 @@ growth:
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 5
-  # Assumes the default "health" stat role — a server that renamed that role via StatRoleRegistry
-  # should keep `logic: valmora:growth` instead (it resolves the role at runtime; this literal id
-  # does not).
+  # `stats:` is the tool for "a flat passive bonus while this item is equipped/held" — it's re-applied
+  # every time StatManager recalculates stats, so it always reflects the current level with no extra
+  # bookkeeping. The key ("health") is a literal stat id, which is the one caveat of this block: a
+  # server that renamed the "health" role via StatRoleRegistry would need to keep this enchant on
+  # `logic: valmora:growth` instead, since that Java class resolves the role by name at runtime and
+  # this literal string can't. Every other `stats:` enchant below shares this same caveat.
   stats:
     health: "10 * $level$"
 
@@ -49,7 +51,11 @@ execute:
   conflicts: ["prosecute"]
   etable-max-level: 5
   absolute-max-level: 6
-  # Full replacement of valmora:execute.
+  # Unlike `sharpness`, this bonus depends on the TARGET's health, not just $level$ — so the formula
+  # reaches for $target.missing_hp_percent$ (0 at full health, 100 at 1 HP). The `conditions:` list
+  # is technically redundant here (the formula already multiplies out to exactly 1.0 at full health),
+  # but it's included anyway as a worked example of gating a combat modifier — see `first_strike`
+  # below for a case where the condition genuinely changes the outcome.
   combat:
     modify-attack:
       conditions:
@@ -66,7 +72,18 @@ first_strike:
   conflicts: ["triple_strike"]
   etable-max-level: 4
   absolute-max-level: 5
-  # Full replacement of valmora:first_strike — the worked example from the overhaul's design doc.
+  # This enchant needs FOUR blocks working together, each for a different job:
+  #  1. `variables:` names the per-level bonus once, so `combat:` doesn't repeat the same formula.
+  #  2. `state.transient` declares a per-attacker "how many of my first 3 hits have landed" counter —
+  #     transient because it's pure in-combat bookkeeping, not something that should ever be saved
+  #     to the item or survive a server restart.
+  #  3. `combat.modify-attack` reads that counter's CURRENT value in its `conditions:` — this runs
+  #     BEFORE the trigger below increments it, so the check is "have I already used up my first 3
+  #     hits", not "will this be within my first 3 hits after this one".
+  #  4. `triggers.ON_ATTACK_POST` is what actually increments the counter, once per landed hit.
+  # reset-on-target-switch: true means swapping targets restarts your combo against the new one —
+  # deliberately different from the old Java version, which is exactly the point: see `lethality`
+  # below for the concrete bug this state.transient design fixes.
   variables:
     bonus_multiplier: "1.0 + (0.25 * $level$)"
   combat:
@@ -83,9 +100,9 @@ first_strike:
     transient:
       combo_counter:
         type: HIT_COUNTER
-        reset-after-seconds: 10
-        reset-on-target-switch: true
-        max-stacks: 3
+        reset-after-seconds: 10       # combo forgotten after 10s without a hit
+        reset-on-target-switch: true  # combo also forgotten if you switch targets
+        max-stacks: 3                 # never counts past 3 — matches "first 3 hits"
 
 life_steal:
   name: "Life Steal"
@@ -96,7 +113,12 @@ life_steal:
   conflicts: ["syphon", "mana_steal"]
   etable-max-level: 3
   absolute-max-level: 5
-  # Full replacement of valmora:life_steal, using the generic `heal` event added in Phase 2.
+  # `triggers:` is the tool for "DO something after a hit lands", as opposed to `combat:`'s "CHANGE
+  # a number before the hit lands". Its `actions:` list is the exact same event DSL used by GUIs,
+  # abilities, and quests — `heal` here is one of the three generic events (heal/damage/
+  # strike_lightning) added specifically so enchant triggers had something to call.
+  # $hit.damage$ is only meaningful inside ON_ATTACK_POST/ON_DEFEND_POST — it's the just-computed
+  # damage of the hit that triggered this dispatch, used here to skip healing on a 0-damage/immune hit.
   variables:
     heal_percent: "0.5 * $level$"
   triggers:
@@ -116,11 +138,15 @@ lethality:
   conflicts: []
   etable-max-level: 6
   absolute-max-level: 6
-  # Full replacement of valmora:lethality — also the concrete demonstration of the per-attacker
-  # stacking bug fix (see TransientStateTracker's class doc): the old LethalityLogic keyed its
-  # stack map by victim UUID only, so two different attackers hitting the same mob shared (and
-  # polluted) each other's stacks. state.transient is keyed per-attacker, fixing this by
-  # construction.
+  # THE BUG THIS ENCHANT'S DESIGN FIXES: before the enchant overhaul, this stacking debuff was
+  # tracked in one Java map keyed only by the VICTIM's UUID — meaning if two different players both
+  # had Lethality and both hit the same mob, they shared (and could steal/reset) each other's stack
+  # count. `state.transient` is keyed per-ATTACKER instead, so your own stacks are always yours alone,
+  # no matter who else is also hitting the same target.
+  # Read order matters here too, same as `first_strike`: combat.modify-attack applies the shred using
+  # whatever stack count already exists BEFORE this hit, then ON_ATTACK_POST increments it — so a
+  # fresh Lethality hit (0 existing stacks) contributes no shred of its own; the first hit only
+  # starts building toward the second hit's bonus.
   variables:
     shred_per_stack: "0.2 * $level$"
   combat:
@@ -135,8 +161,8 @@ lethality:
     transient:
       stacks:
         type: HIT_COUNTER
-        reset-after-seconds: 4
-        reset-on-target-switch: true
+        reset-after-seconds: 4        # a stack expires 4s after your last hit on this target
+        reset-on-target-switch: true  # stacks don't carry over onto a different victim
         max-stacks: 4
 
 protection:
@@ -147,7 +173,8 @@ protection:
   conflicts: ["blast_protection", "fire_protection", "projectile_protection"]
   etable-max-level: 4
   absolute-max-level: 6
-  # Same default-role-id caveat as `growth` above.
+  # Same shape as `growth` — see its comment for why `stats:` is the right tool here and the
+  # role-id caveat that comes with it.
   stats:
     defense: "4 * $level$"
 
@@ -160,13 +187,24 @@ respite:
   conflicts: ["rejuvenate"]
   etable-max-level: 5
   absolute-max-level: 5
-  # Full replacement of valmora:respite — needed the new $player.in_combat$ variable (added
-  # alongside this migration; nothing previously exposed PlayerState.isInCombat() to scripts).
+  # `stats:` formulas aren't limited to flat multiplication — this one uses a ternary
+  # (condition ? value-if-true : value-if-false) to make the bonus conditional on
+  # $player.in_combat$, so the regen boost only applies while you're NOT fighting. That variable
+  # didn't exist before this enchant needed it; adding one new, reusable script variable was enough
+  # to express an entire enchant declaratively that previously required its own Java class.
   stats:
     health_regen: "$player.in_combat$ ? 0 : (0.5 * $level$)"
 
 thorns:
   name: "Thorns"
+  # DELIBERATELY left on `logic:` — not yet migrated, and not a good migration target. The
+  # ThornsLogic Java class reflects damage by directly subtracting from the attacker's health
+  # instead of routing back through the normal damage pipeline. That's on purpose: if it went
+  # through the pipeline (the way the new `damage` trigger event does), the attacker's OWN armor
+  # would see itself take a hit and fire ITS OWN ON_DEFEND_POST trigger — which, if that armor also
+  # has Thorns, immediately reflects again, which triggers again, forever. Don't migrate an
+  # armor-reflect enchant to `triggers.ON_DEFEND_POST` + `damage` without solving that recursion
+  # first (a one-shot "already reflecting" guard would do it, but wasn't worth adding for one enchant).
   logic: "valmora:thorns"
   description:
     - "Attacks that hit you have a <yellow>15%<gray> chance"
@@ -175,7 +213,6 @@ thorns:
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 4
-  # Deliberately NOT migrated — see the file-level comment above (recursion risk).
 
 fortune:
   name: "Fortune"
@@ -186,7 +223,7 @@ fortune:
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 5
-  # Same default-role-id caveat as `growth` above.
+  # Same shape as `growth` — see its comment.
   stats:
     mining_fortune: "10 * $level$"
 
@@ -198,6 +235,6 @@ efficiency:
   conflicts: []
   etable-max-level: 5
   absolute-max-level: 7
-  # Same default-role-id caveat as `growth` above.
+  # Same shape as `growth` — see its comment.
   stats:
     mining_speed: "50 * $level$"

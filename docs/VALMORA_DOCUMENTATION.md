@@ -106,12 +106,14 @@ onEnable()
  │
  ├── 8.  Instantiate all modules (fields in Valmora.java)
  ├── 9.  moduleManager.registerModule(...)  ← 29 modules in dependency order:
- │       script → time → stat → profile(playerManager) → economy → ui →
- │       ability → item → mob → skill → combat → gui → recipe → alchemy →
- │       enchant → zone → resource → fishing → npc → warp → quest → points →
- │       notify → collection → hud → calendar → reforge → pet → progression
- │       (authoritative source: the comment block at `Valmora.java:186-222` —
- │       this list drifts as modules are added/removed, that comment does not)
+ │       script → time → rarity → stat → profile(playerManager) → economy → ui →
+ │       ability → item → mob → skill → combat → gui → recipe → machine → modifier →
+ │       alchemy → enchant → zone → resource → fishing → npc → warp → points →
+ │       notify → quest → collection → hud → calendar → pet → progression
+ │       (authoritative source: the module-chain comment block in `Valmora.java`,
+ │       cross-checked against CLAUDE.md §5 — this list drifts as modules are
+ │       added/removed, that comment does not; corrected here 2026-08-30 to add
+ │       rarity/machine/modifier and drop the removed reforge/slayer modules)
  ├── 10. moduleManager.enableModules()      ← onEnable() called on all
  │
  └── 11. Register Commands
@@ -242,34 +244,41 @@ public MyFeatureModule getMyFeatureModule() {
 
 The `LinkedHashMap` in `ModuleManager` preserves insertion order. Your module's `onEnable()` will fire after all previously registered modules. If your module depends on `ItemManager`, register it after `ItemManager`. If `ScriptModule` must process your config, register after `ScriptModule`.
 
-**Current registration order:**
+**Current registration order** (corrected 2026-08-30 — the previous list here predated the
+rarity/machine/modifier modules and still listed the removed reforge/slayer modules; see CLAUDE.md
+§5 for the authoritative order):
 ```
 1.  ScriptModule      (script)
 2.  TimeModule        (time)
-3.  StatModule        (stat)
-4.  PlayerManager     (player)
-5.  EconomyModule     (economy)
-6.  UIManager         (ui)
-7.  AbilityManager    (ability)
-8.  ItemManager       (items)
-9.  MobManager        (mobs)
-10. SkillModule       (skills)
-11. CombatModule      (combat)
-12. GuiModule         (gui)
-13. RecipeModule      (recipe)
-14. AlchemyModule     (alchemy)
-15. EnchantModule     (enchants)
-16. ZoneModule        (zone)
-17. ResourceModule    (resource)
-18. FishingModule     (fishing)
-19. NpcModule         (npc)
-20. WarpModule        (warp)
-21. QuestModule       (quest)
-22. NotifyModule      (notify)
-23. CollectionModule  (collection)
-24. SlayerModule      (slayer)
-25. ReforgeModule     (reforge)
-26. PointsModule      (points)
+3.  RarityModule      (rarity)
+4.  StatModule        (stat)
+5.  PlayerManager     (player)
+6.  EconomyModule     (economy)
+7.  UIManager         (ui)
+8.  AbilityManager    (ability)
+9.  ItemManager       (items)
+10. MobManager        (mobs)
+11. SkillModule       (skills)
+12. CombatModule      (combat)
+13. GuiModule         (gui)
+14. RecipeModule      (recipe)
+15. MachineModule     (machine)
+16. ModifierModule    (modifier)
+17. AlchemyModule     (alchemy)
+18. EnchantModule     (enchants)
+19. ZoneModule        (zone)
+20. ResourceModule    (resource)
+21. FishingModule     (fishing)
+22. NpcModule         (npc)
+23. WarpModule        (warp)
+24. PointsModule      (points)
+25. NotifyModule      (notify)
+26. QuestModule       (quest)
+27. CollectionModule  (collection)
+28. HudModule         (hud)
+29. CalendarModule    (calendar)
+30. PetModule         (pet)
+31. ProgressionModule (progression)
 ```
 
 ---
@@ -1659,7 +1668,10 @@ Used in `on-update` scripts to finish time-based crafting. It finds the recipe m
 enchant_apply <slot> <enchant_id> <level>
 enchant_apply 10 sharpness 5
 ```
-Primarily used in enchanting table GUIs.
+Primarily used in enchanting table GUIs. As of the enchant overhaul this event enforces the target
+enchant's `etable-max-level` server-side (not just via which levels the GUI happened to render as
+buttons) and charges XP levels via `EtableCostCalculator` (2 XP levels per level requested) before
+applying — see `docs/modules/design/enchant.md` §12.
 
 **`sound`** — Plays a sound.
 ```
