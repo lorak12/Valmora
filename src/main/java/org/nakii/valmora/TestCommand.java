@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public class TestCommand implements TabExecutor {
 
-    private static final List<String> SCENARIOS = List.of("anvil", "crafting", "forge", "press");
+    private static final List<String> SCENARIOS = List.of("anvil", "crafting", "forge", "press", "enchant");
 
     private final Valmora plugin;
 
@@ -45,6 +45,7 @@ public class TestCommand implements TabExecutor {
             case "crafting" -> runCrafting(player);
             case "forge" -> runForge(player);
             case "press" -> runPress(player);
+            case "enchant" -> runEnchant(player);
             default -> sendUsage(player);
         }
         return true;
@@ -56,6 +57,7 @@ public class TestCommand implements TabExecutor {
         player.sendMessage(Formatter.format(" <gray>/test crafting <dark_gray>- crafting_table SHAPED + SHAPELESS"));
         player.sendMessage(Formatter.format(" <gray>/test forge <dark_gray>- forge EXACT_SLOT chain"));
         player.sendMessage(Formatter.format(" <gray>/test press <dark_gray>- press machine (block-open trigger)"));
+        player.sendMessage(Formatter.format(" <gray>/test enchant <dark_gray>- enchant overhaul: combo/stacking state, triggers, table cost/cap"));
         footer(player);
     }
 
@@ -137,6 +139,74 @@ public class TestCommand implements TabExecutor {
         player.sendMessage(Formatter.format(" <yellow>1. <gray>Place the lodestone and right-click it to open the press."));
         player.sendMessage(Formatter.format(" <yellow>2. <gray>Place the stick, string, and iron ingot left-to-right, in that"));
         player.sendMessage(Formatter.format("    <gray>exact order, across the 3-slot row to craft an <white>Iron Hoe<gray>."));
+        footer(player);
+    }
+
+    // ─── /test enchant ───
+
+    /**
+     * Exercises the enchant-overhaul content in {@code enchants/example_enchantments.yml} that
+     * genuinely needs a live player/mob/timer to verify — the combo-counter/per-attacker-stacking
+     * state engine, the ON_ATTACK_POST/ON_DEFEND_POST triggers, the out-of-combat stats: gating, and
+     * the enchanting table's XP cost/level-cap enforcement — none of which a unit test can observe
+     * (MockBukkit fakes entities/time; it can't fake "does this feel right mid-fight" or "does the
+     * XP bar actually go down"). {@code EnchantContentMigrationTest} already proves the file parses;
+     * this proves it plays correctly.
+     */
+    private void runEnchant(Player player) {
+        give(player, new ItemStack(Material.DIAMOND_SWORD, 1));
+        give(player, new ItemStack(Material.DIAMOND_SWORD, 1));
+        give(player, new ItemStack(Material.DIAMOND_CHESTPLATE, 1));
+
+        header(player, "TEST: ENCHANT OVERHAUL — state engine, triggers, table cost/cap");
+        player.sendMessage(Formatter.format(" <gray>You were given two <white>Diamond Swords <gray>and a <white>Diamond Chestplate<gray>."));
+
+        player.sendMessage(Formatter.format(" <yellow>1. <gray>Enchant sword #1: <white>/item enchant first_strike 3"));
+        player.sendMessage(Formatter.format("    <gray>then <white>/item enchant life_steal 2 <gray>(same sword, held in your hand for both)."));
+        player.sendMessage(Formatter.format(" <yellow>2. <gray>Switch hands, enchant sword #2: <white>/item enchant lethality 4"));
+        player.sendMessage(Formatter.format(" <yellow>3. <gray>Enchant the chestplate: <white>/item enchant respite 4"));
+        player.sendMessage(Formatter.format("    <gray>then <white>/item enchant thorns 3 <gray>(wear it while you do this)."));
+
+        player.sendMessage(Formatter.format(""));
+        player.sendMessage(Formatter.format(" <aqua><bold>Combo counter (First Strike) — hold sword #1:"));
+        player.sendMessage(Formatter.format(" <yellow>4. <gray>Hit ONE mob 4+ times quickly. Hits 1-3 should each show a noticeably"));
+        player.sendMessage(Formatter.format("    <gray>bigger damage number; hit 4+ should drop back to the un-boosted amount."));
+        player.sendMessage(Formatter.format(" <yellow>5. <gray>Now hit a DIFFERENT mob. The bonus should apply again from hit 1 —"));
+        player.sendMessage(Formatter.format("    <gray>the combo resets when you switch targets, it does not carry over."));
+        player.sendMessage(Formatter.format(" <yellow>6. <gray>Watch your health bar while attacking — it should tick up slightly"));
+        player.sendMessage(Formatter.format("    <gray>on every landed hit (Life Steal)."));
+
+        player.sendMessage(Formatter.format(""));
+        player.sendMessage(Formatter.format(" <aqua><bold>Per-attacker stacking (Lethality) — hold sword #2:"));
+        player.sendMessage(Formatter.format(" <yellow>7. <gray>Hit the SAME mob repeatedly without switching — later hits should land"));
+        player.sendMessage(Formatter.format("    <gray>harder as its effective defense drops (stacks build, capped at 4)."));
+        player.sendMessage(Formatter.format(" <yellow>8. <gray>If you have a second player/account with their own Lethality sword,"));
+        player.sendMessage(Formatter.format("    <gray>have them hit the same mob too — your stacks must NOT reset or share with"));
+        player.sendMessage(Formatter.format("    <gray>theirs (this is the exact per-attacker bug the overhaul fixed — before it,"));
+        player.sendMessage(Formatter.format("    <gray>two attackers on one target shared a single stack counter)."));
+        player.sendMessage(Formatter.format(" <yellow>9. <gray>Stop hitting for 5+ seconds, then hit again — stacks should have reset"));
+        player.sendMessage(Formatter.format("    <gray>to 0 (4-second expiry) rather than still being at their old count."));
+
+        player.sendMessage(Formatter.format(""));
+        player.sendMessage(Formatter.format(" <aqua><bold>Out-of-combat regen (Respite) + reflect (Thorns) — wear the chestplate:"));
+        player.sendMessage(Formatter.format(" <yellow>10. <gray>Stand still, undamaged, for 10+ seconds — your natural regen should"));
+        player.sendMessage(Formatter.format("     <gray>visibly speed up. Take a hit, then check again immediately — the bonus"));
+        player.sendMessage(Formatter.format("     <gray>should stop as soon as you're in combat."));
+        player.sendMessage(Formatter.format(" <yellow>11. <gray>Let a mob hit you several times — roughly 15% of hits should reflect"));
+        player.sendMessage(Formatter.format("     <gray>1 damage back to it, with no server lag/console errors (this enchant is"));
+        player.sendMessage(Formatter.format("     <gray>deliberately NOT routed through the normal damage pipeline, specifically"));
+        player.sendMessage(Formatter.format("     <gray>to avoid a reflect-triggers-reflect loop against another Thorns wearer)."));
+
+        player.sendMessage(Formatter.format(""));
+        player.sendMessage(Formatter.format(" <aqua><bold>Enchanting table cost + level cap:"));
+        player.sendMessage(Formatter.format(" <yellow>12. <gray>Get some XP levels (e.g. <white>/xp add " + player.getName() + " 50 levels</white>),"));
+        player.sendMessage(Formatter.format("     <gray>then open the table: <white>/enchanting"));
+        player.sendMessage(Formatter.format(" <yellow>13. <gray>Place a plain item, pick an enchant, pick a level. You should NOT be"));
+        player.sendMessage(Formatter.format("     <gray>able to select a level above its etable-max-level (check <white>/item info"));
+        player.sendMessage(Formatter.format("     <gray>while holding it, or the enchant's file, for that number)."));
+        player.sendMessage(Formatter.format(" <yellow>14. <gray>Apply a valid level — your XP bar/level count should drop by exactly"));
+        player.sendMessage(Formatter.format("     <gray>2 × the level you applied, and the click should be refused outright if"));
+        player.sendMessage(Formatter.format("     <gray>you don't have enough (drop your XP first with <white>/xp set " + player.getName() + " 0 levels</white> to check)."));
         footer(player);
     }
 
