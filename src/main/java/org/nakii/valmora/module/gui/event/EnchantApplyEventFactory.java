@@ -1,14 +1,17 @@
 package org.nakii.valmora.module.gui.event;
 
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.scripting.CompiledEvent;
+import org.nakii.valmora.module.enchant.EtableCostCalculator;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.gui.GuiExecutionContext;
 import org.nakii.valmora.module.gui.GuiSession;
 import org.nakii.valmora.module.gui.renderer.GuiRenderer;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
+import org.nakii.valmora.util.Formatter;
 
 import java.util.Map;
 
@@ -47,12 +50,27 @@ public class EnchantApplyEventFactory implements EventFactory {
                 String resolvedEnchantId = resolve(enchantId, guiContext);
                 int level = Integer.parseInt(resolve(levelStr, guiContext));
 
-                EnchantmentHelper.applyEnchantment(item, resolvedEnchantId, level);
+                Player player = guiContext.getPlayerCaster().orElse(null);
+                int cost = EtableCostCalculator.cost(level);
+                if (player != null && cost > 0 && player.getLevel() < cost) {
+                    player.sendMessage(Formatter.format("<red>You need <green>" + cost
+                            + " XP levels</green> to apply this enchant."));
+                    return;
+                }
+
+                // Enforces the etable-max-level cap server-side (previously the GUI only ever
+                // *offered* in-range levels — nothing stopped an out-of-range level reaching this
+                // event another way, e.g. a modified client).
+                EnchantmentHelper.applyEnchantment(item, resolvedEnchantId, level, true);
+
+                if (player != null && cost > 0) {
+                    player.setLevel(Math.max(0, player.getLevel() - cost));
+                }
 
                 // Return to enchant selection view
                 session.getProps().remove("selected_enchant");
                 session.setCurrentPage(0);
-                
+
                 // Force re-render
                 new GuiRenderer(plugin).render(session);
             } catch (Exception ignored) {}

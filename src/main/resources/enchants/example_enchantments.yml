@@ -1,26 +1,47 @@
+# Phase 4 of the enchant overhaul (docs/modules/design/enchant.md — content migration) ports most
+# of these to the new YAML-driven capabilities (stats:/combat:/triggers:/state:) added in Phases
+# 2-3. Every old `logic:`/`logic-params:` Java class stays registered in
+# EnchantModule.registerBuiltinLogics() even where unreferenced below — hybrid coexistence is a
+# hard rule of the overhaul, not just a migration safety net.
+#
+# Two enchants are deliberately left on their Java `logic:` unmigrated:
+#  - `thorns`: ThornsLogic reflects damage by directly mutating the attacker's health rather than
+#    routing back through DamageCalculator, specifically to avoid the attacker's own armor
+#    re-triggering this same ON_DEFEND_POST hook (infinite recursion). The new `damage` event
+#    always goes through the full pipeline, so migrating this would reintroduce that bug.
+#  - `respite`'s in-combat gating IS expressible via the new $player.in_combat$ variable + a
+#    ternary in `stats:` (see below) — it IS migrated. `thorns` is the only real holdout.
+
 sharpness:
   name: "Sharpness"
-  logic: "valmora:sharpness"
   description:
     - "Increases melee damage by +5% per level."
   targets: ["SWORD"]
   conflicts: ["smite", "bane_of_arthropods"]
   etable-max-level: 5
   absolute-max-level: 7
+  # Full replacement of valmora:sharpness's fixed 5%/level MELEE multiplier.
+  combat:
+    modify-attack:
+      modifiers:
+        damage-multiplier: "1.0 + (0.05 * $level$)"
 
 growth:
   name: "Growth"
-  logic: "valmora:growth"
   description:
     - "Grants +10 max health per level."
   targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 5
+  # Assumes the default "health" stat role — a server that renamed that role via StatRoleRegistry
+  # should keep `logic: valmora:growth` instead (it resolves the role at runtime; this literal id
+  # does not).
+  stats:
+    health: "10 * $level$"
 
 execute:
   name: "Execute"
-  logic: "valmora:execute"
   description:
     - "Increases damage dealt by <yellow>+0.2%<gray> for each"
     - "<yellow>1%<gray> of health missing on your target."
@@ -28,10 +49,16 @@ execute:
   conflicts: ["prosecute"]
   etable-max-level: 5
   absolute-max-level: 6
+  # Full replacement of valmora:execute.
+  combat:
+    modify-attack:
+      conditions:
+        - "$target.hp_percent$ < 100"
+      modifiers:
+        damage-multiplier: "1.0 + (0.002 * $level$ * $target.missing_hp_percent$)"
 
 first_strike:
   name: "First Strike"
-  logic: "valmora:first_strike"
   description:
     - "Increases damage dealt by <yellow>+25%<gray> per level"
     - "on the first <yellow>3<gray> hits on a mob."
@@ -39,10 +66,29 @@ first_strike:
   conflicts: ["triple_strike"]
   etable-max-level: 4
   absolute-max-level: 5
+  # Full replacement of valmora:first_strike — the worked example from the overhaul's design doc.
+  variables:
+    bonus_multiplier: "1.0 + (0.25 * $level$)"
+  combat:
+    modify-attack:
+      conditions:
+        - "$enchant.state.combo_counter$ < 3"
+      modifiers:
+        damage-multiplier: "$calc.bonus_multiplier$"
+  triggers:
+    ON_ATTACK_POST:
+      actions:
+        - "enchant_state increment combo_counter"
+  state:
+    transient:
+      combo_counter:
+        type: HIT_COUNTER
+        reset-after-seconds: 10
+        reset-on-target-switch: true
+        max-stacks: 3
 
 life_steal:
   name: "Life Steal"
-  logic: "valmora:life_steal"
   description:
     - "Heals for <red>+0.5%<gray> of your max health each"
     - "time you hit a mob."
@@ -50,10 +96,18 @@ life_steal:
   conflicts: ["syphon", "mana_steal"]
   etable-max-level: 3
   absolute-max-level: 5
+  # Full replacement of valmora:life_steal, using the generic `heal` event added in Phase 2.
+  variables:
+    heal_percent: "0.5 * $level$"
+  triggers:
+    ON_ATTACK_POST:
+      conditions:
+        - "$hit.damage$ > 0"
+      actions:
+        - "heal @self $player.max_hp$ * $calc.heal_percent$ / 100"
 
 lethality:
   name: "Lethality"
-  logic: "valmora:lethality"
   description:
     - "Reduces the armor of the target by <yellow>+0.2%<gray>"
     - "per level each time you hit them."
@@ -62,20 +116,43 @@ lethality:
   conflicts: []
   etable-max-level: 6
   absolute-max-level: 6
+  # Full replacement of valmora:lethality — also the concrete demonstration of the per-attacker
+  # stacking bug fix (see TransientStateTracker's class doc): the old LethalityLogic keyed its
+  # stack map by victim UUID only, so two different attackers hitting the same mob shared (and
+  # polluted) each other's stacks. state.transient is keyed per-attacker, fixing this by
+  # construction.
+  variables:
+    shred_per_stack: "0.2 * $level$"
+  combat:
+    modify-attack:
+      modifiers:
+        defense-shred-percent: "$calc.shred_per_stack$ * $enchant.state.stacks$"
+  triggers:
+    ON_ATTACK_POST:
+      actions:
+        - "enchant_state increment stacks"
+  state:
+    transient:
+      stacks:
+        type: HIT_COUNTER
+        reset-after-seconds: 4
+        reset-on-target-switch: true
+        max-stacks: 4
 
 protection:
   name: "Protection"
-  logic: "valmora:protection"
   description:
     - "Grants <green>+4 Defense<gray> per level."
   targets: ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"]
   conflicts: ["blast_protection", "fire_protection", "projectile_protection"]
   etable-max-level: 4
   absolute-max-level: 6
+  # Same default-role-id caveat as `growth` above.
+  stats:
+    defense: "4 * $level$"
 
 respite:
   name: "Respite"
-  logic: "valmora:respite"
   description:
     - "Increases your natural regeneration"
     - "by <red>+0.5<gray> per level while out of combat."
@@ -83,6 +160,10 @@ respite:
   conflicts: ["rejuvenate"]
   etable-max-level: 5
   absolute-max-level: 5
+  # Full replacement of valmora:respite — needed the new $player.in_combat$ variable (added
+  # alongside this migration; nothing previously exposed PlayerState.isInCombat() to scripts).
+  stats:
+    health_regen: "$player.in_combat$ ? 0 : (0.5 * $level$)"
 
 thorns:
   name: "Thorns"
@@ -94,10 +175,10 @@ thorns:
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 4
+  # Deliberately NOT migrated — see the file-level comment above (recursion risk).
 
 fortune:
   name: "Fortune"
-  logic: "valmora:fortune"
   description:
     - "Increases your <gold>Mining Fortune<gray> by <gold>+10<gray> per level,"
     - "multiplying resource block drop quantities."
@@ -105,13 +186,18 @@ fortune:
   conflicts: []
   etable-max-level: 3
   absolute-max-level: 5
+  # Same default-role-id caveat as `growth` above.
+  stats:
+    mining_fortune: "10 * $level$"
 
 efficiency:
   name: "Efficiency"
-  logic: "valmora:efficiency"
   description:
     - "Increases your <white>Mining Speed<gray> by <white>+50<gray> per level."
   targets: ["PICKAXE", "AXE", "SHOVEL", "HOE"]
   conflicts: []
   etable-max-level: 5
   absolute-max-level: 7
+  # Same default-role-id caveat as `growth` above.
+  stats:
+    mining_speed: "50 * $level$"

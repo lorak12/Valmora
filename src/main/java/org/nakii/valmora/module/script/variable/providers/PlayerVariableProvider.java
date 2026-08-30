@@ -171,6 +171,11 @@ public class PlayerVariableProvider implements VariableProvider {
             return profile.getVariables().get(path[1]);
         }
 
+        // Backs the enchant overhaul's `respite` migration (a stats: bonus gated on being out of
+        // combat) — no existing script-exposed condition/variable read PlayerState.isInCombat()
+        // before this.
+        if (key.equalsIgnoreCase("in_combat")) return profile.getPlayerState().isInCombat();
+
         return null;
     }
 }

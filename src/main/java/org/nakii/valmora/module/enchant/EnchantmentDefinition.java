@@ -1,6 +1,6 @@
 package org.nakii.valmora.module.enchant;
 
-import org.bukkit.configuration.ConfigurationSection;
+import org.nakii.valmora.api.scripting.Expression;
 import org.nakii.valmora.module.enchant.state.PersistentStateDefinition;
 import org.nakii.valmora.module.enchant.state.TransientStateDefinition;
 import org.nakii.valmora.module.item.ItemType;
@@ -16,9 +16,10 @@ import java.util.Map;
  * (Phase 2 of the enchant overhaul) into {@link EnchantCombatHook.CompiledCombatModifiers}/{@link
  * EnchantTriggerBlock}; {@code state.transient}/{@code state.persistent} are compiled (Phase 3) into
  * {@link TransientStateDefinition}/{@link PersistentStateDefinition} maps, consumed by {@link
- * org.nakii.valmora.module.enchant.state.EnchantStateEngine}. {@code stats} is still parsed as a raw
- * {@link ConfigurationSection} — an inert placeholder carried forward until it's wired into
- * {@code StatManager.recalculateStats}, so the YAML schema stays stable.
+ * org.nakii.valmora.module.enchant.state.EnchantStateEngine}. {@code stats} is compiled (Phase 4)
+ * into a {@code <statId> -> $level$-scoped formula} map, applied by
+ * {@code StatManager.recalculateStats} alongside the legacy {@link EnchantmentLogic#applyStats}
+ * hook — both run, matching every other tier's hybrid Java+YAML coexistence.
  */
 public class EnchantmentDefinition {
 
@@ -36,13 +37,13 @@ public class EnchantmentDefinition {
     private final Map<EnchantTrigger, EnchantTriggerBlock> triggers;
     private final Map<String, TransientStateDefinition> transientStates;
     private final Map<String, PersistentStateDefinition> persistentStates;
-    private final ConfigurationSection statsSection;
+    private final Map<String, Expression> statBonuses;
 
     public EnchantmentDefinition(String id, String name, List<String> description, int etableMaxLevel,
                               int absoluteMaxLevel, List<ItemType> targets, List<String> conflicts,
                               EnchantmentLogic logic) {
         this(id, name, description, etableMaxLevel, absoluteMaxLevel, targets, conflicts, logic,
-                Map.of(), null, null, Map.of(), Map.of(), Map.of(), null);
+                Map.of(), null, null, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     private EnchantmentDefinition(String id, String name, List<String> description, int etableMaxLevel,
@@ -53,7 +54,7 @@ public class EnchantmentDefinition {
                               Map<EnchantTrigger, EnchantTriggerBlock> triggers,
                               Map<String, TransientStateDefinition> transientStates,
                               Map<String, PersistentStateDefinition> persistentStates,
-                              ConfigurationSection statsSection) {
+                              Map<String, Expression> statBonuses) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -68,7 +69,7 @@ public class EnchantmentDefinition {
         this.triggers = triggers;
         this.transientStates = transientStates;
         this.persistentStates = persistentStates;
-        this.statsSection = statsSection;
+        this.statBonuses = statBonuses;
     }
 
     public String getId() {
@@ -134,9 +135,10 @@ public class EnchantmentDefinition {
         return persistentStates;
     }
 
-    /** Raw {@code stats:} section — inert until wired into {@code StatManager.recalculateStats}. */
-    public ConfigurationSection getStatsSection() {
-        return statsSection;
+    /** Compiled {@code stats:} entries — {@code statId -> $level$-scoped formula}, applied
+     *  additively by {@code StatManager.recalculateStats}. Empty if none declared. */
+    public Map<String, Expression> getStatBonuses() {
+        return statBonuses;
     }
 
     public boolean canApplyTo(ItemType type) {
@@ -168,7 +170,7 @@ public class EnchantmentDefinition {
         private Map<EnchantTrigger, EnchantTriggerBlock> triggers = new EnumMap<>(EnchantTrigger.class);
         private Map<String, TransientStateDefinition> transientStates = new LinkedHashMap<>();
         private Map<String, PersistentStateDefinition> persistentStates = new LinkedHashMap<>();
-        private ConfigurationSection statsSection;
+        private Map<String, Expression> statBonuses = new LinkedHashMap<>();
 
         private Builder(String id) {
             this.id = id;
@@ -194,12 +196,14 @@ public class EnchantmentDefinition {
         public Builder transientState(String key, TransientStateDefinition state) { this.transientStates.put(key, state); return this; }
         public Builder persistentStates(Map<String, PersistentStateDefinition> states) { this.persistentStates = states; return this; }
         public Builder persistentState(String key, PersistentStateDefinition state) { this.persistentStates.put(key, state); return this; }
-        public Builder statsSection(ConfigurationSection section) { this.statsSection = section; return this; }
+        public Builder statBonuses(Map<String, Expression> statBonuses) { this.statBonuses = statBonuses; return this; }
+        public Builder statBonus(String statId, Expression formula) { this.statBonuses.put(statId, formula); return this; }
 
         public EnchantmentDefinition build() {
             return new EnchantmentDefinition(id, name, description, etableMaxLevel, absoluteMaxLevel,
                     targets, conflicts, logic, Map.copyOf(variables), modifyAttack, modifyDefend,
-                    Map.copyOf(triggers), Map.copyOf(transientStates), Map.copyOf(persistentStates), statsSection);
+                    Map.copyOf(triggers), Map.copyOf(transientStates), Map.copyOf(persistentStates),
+                    Map.copyOf(statBonuses));
         }
     }
 }

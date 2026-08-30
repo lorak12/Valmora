@@ -5,6 +5,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.nakii.valmora.api.ValmoraAPI;
+import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.api.scripting.Expression;
 import org.nakii.valmora.module.item.AbilityDefinition;
 import org.nakii.valmora.module.item.AbilityTrigger;
 import org.nakii.valmora.module.item.ConfiguredMechanic;
@@ -191,8 +193,23 @@ public class StatManager {
             Map<String, Integer> enchants = EnchantmentHelper.getEnchantments(item);
             for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
                 var enchantDef = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
-                if (enchantDef != null && enchantDef.getLogic() != null) {
+                if (enchantDef == null) continue;
+                if (enchantDef.getLogic() != null) {
                     enchantDef.getLogic().applyStats(player, entry.getValue(), this);
+                }
+                // YAML-declared stats: block (Phase 4 of the enchant overhaul) — runs alongside the
+                // legacy Java hook above, not instead of it, matching every other tier's hybrid
+                // Java+YAML coexistence.
+                if (!enchantDef.getStatBonuses().isEmpty()) {
+                    var statCtx = new SimpleExecutionContext(player, null, null, null);
+                    statCtx.set("enchant:id", enchantDef.getId());
+                    statCtx.set("enchant:level", entry.getValue());
+                    for (Map.Entry<String, Expression> bonus : enchantDef.getStatBonuses().entrySet()) {
+                        Object value = bonus.getValue().evaluate(statCtx);
+                        if (value instanceof Number n) {
+                            addModifier(bonus.getKey(), n.doubleValue());
+                        }
+                    }
                 }
             }
         }

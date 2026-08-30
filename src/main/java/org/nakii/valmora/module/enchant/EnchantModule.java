@@ -280,6 +280,9 @@ public class EnchantModule implements ReloadableModule {
                 Map<String, PersistentStateDefinition> persistentStates = parsePersistentStates(
                         stateSection == null ? null : stateSection.getConfigurationSection("persistent"), id);
 
+                Map<String, Expression> statBonuses = parseStatBonuses(
+                        section.getConfigurationSection("stats"), expressionParser);
+
                 EnchantmentDefinition definition = EnchantmentDefinition.builder(id)
                         .name(name)
                         .description(description)
@@ -294,9 +297,7 @@ public class EnchantModule implements ReloadableModule {
                         .triggers(triggers)
                         .transientStates(transientStates)
                         .persistentStates(persistentStates)
-                        // Inert placeholder — stats is parsed but not yet wired into
-                        // StatManager.recalculateStats.
-                        .statsSection(section.getConfigurationSection("stats"))
+                        .statBonuses(statBonuses)
                         .build();
 
                 return LoadResult.success(definition);
@@ -416,6 +417,20 @@ public class EnchantModule implements ReloadableModule {
             }
 
             result.put(key, new PersistentStateDefinition(entry.getInt("default", 0)));
+        }
+        return result;
+    }
+
+    /** Compiles {@code stats:} entries (a plain {@code statId: "<formula>"} map, {@code $level$}-
+     *  scoped like {@code variables:}) into {@link Expression}s, applied additively by {@code
+     *  StatManager.recalculateStats}. */
+    private Map<String, Expression> parseStatBonuses(ConfigurationSection section, ExpressionParser expressionParser) {
+        Map<String, Expression> result = new LinkedHashMap<>();
+        if (section == null) return result;
+
+        for (String statId : section.getKeys(false)) {
+            String formula = section.getString(statId);
+            if (formula != null) result.put(statId, expressionParser.parse(formula));
         }
         return result;
     }
