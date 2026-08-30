@@ -14,6 +14,7 @@ import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.skill.SkillDefinition;
 import org.nakii.valmora.module.skill.SkillRegistry;
+import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
 import java.util.*;
@@ -22,8 +23,6 @@ import java.util.stream.Collectors;
 public class GuiVariableProvider implements VariableProvider {
 
     private final Valmora plugin;
-
-    private static final String[] ROMAN = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
 
     public GuiVariableProvider(Valmora plugin) {
         this.plugin = plugin;
@@ -203,8 +202,7 @@ public class GuiVariableProvider implements VariableProvider {
     }
 
     private String toRoman(int level) {
-        if (level >= 1 && level < ROMAN.length) return ROMAN[level];
-        return String.valueOf(level);
+        return Formatter.toRoman(level);
     }
 
     // ── Item type detection ─────────────────────────────────────────────

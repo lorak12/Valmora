@@ -313,16 +313,6 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
     }
 
     private String toRoman(int level) {
-        return switch (level) {
-            case 1 -> "I";
-            case 2 -> "II";
-            case 3 -> "III";
-            case 4 -> "IV";
-            case 5 -> "V";
-            case 6 -> "VI";
-            case 7 -> "VII";
-            case 8 -> "VIII";
-            default -> String.valueOf(level);
-        };
+        return Formatter.toRoman(level);
     }
 }

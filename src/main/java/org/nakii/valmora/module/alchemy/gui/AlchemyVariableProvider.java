@@ -9,6 +9,7 @@ import org.nakii.valmora.module.alchemy.AlchemyManager;
 import org.nakii.valmora.module.alchemy.effect.ActiveEffect;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.script.variable.VariableProvider;
+import org.nakii.valmora.util.Formatter;
 
 import java.util.List;
 import java.util.Optional;
@@ -87,9 +88,6 @@ public class AlchemyVariableProvider implements VariableProvider {
     }
 
     private String toRoman(int level) {
-        return switch (level) {
-            case 1 -> "I"; case 2 -> "II"; case 3 -> "III";
-            case 4 -> "IV"; case 5 -> "V"; default -> String.valueOf(level);
-        };
+        return Formatter.toRoman(level);
     }
 }

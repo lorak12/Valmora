@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.enchant;
 
-import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -9,7 +8,6 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.item.ItemType;
-import org.nakii.valmora.module.item.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
@@ -18,6 +16,7 @@ import org.nakii.valmora.util.Keys;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,35 +27,14 @@ public class EnchantmentHelper {
             return false;
         }
 
-        ItemType itemType = resolveItemType(item);
-        if (itemType == null) return false;
-
         EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(enchantId).orElse(null);
         if (def == null) {
             return false;
         }
-        return def.canApplyTo(itemType);
-    }
-
-    /**
-     * Resolves an item's {@link ItemType} for enchant-eligibility checks. Prefers the stored
-     * {@code ITEM_TYPE_KEY} PDC (set by {@code ItemTranslator}/{@code ItemFactory}), but falls
-     * back to classifying the raw vanilla {@link org.bukkit.Material} directly when it's absent
-     * (fixed 2026-08-07 — a raw vanilla item that was never routed through {@code
-     * ItemTranslator.translate()}, e.g. picked up fresh from the world/a mob/creative, previously
-     * had no PDC tag at all and silently failed every enchant check).
-     */
-    private static ItemType resolveItemType(ItemStack item) {
-        String itemTypeStr = item.getItemMeta().getPersistentDataContainer()
-                .get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-        if (itemTypeStr != null) {
-            try {
-                return ItemType.valueOf(itemTypeStr.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return null;
-            }
-        }
-        return ItemType.fromMaterial(item.getType());
+        // Resolves the item's ItemType via the canonical PDC-first/material-fallback resolver
+        // (ItemType.fromItemStack) rather than duplicating that fallback logic locally, as this
+        // method used to (fixed as part of the storage overhaul — see EnchantStateStore).
+        return def.canApplyTo(ItemType.fromItemStack(item));
     }
 
     /**
@@ -66,12 +44,31 @@ public class EnchantmentHelper {
     public static void applyEnchantmentMap(ItemStack item, Map<String, Integer> enchantMap) {
         if (item == null || !item.hasItemMeta() || enchantMap.isEmpty()) return;
         ItemMeta meta = item.getItemMeta();
-        saveEnchantMap(meta.getPersistentDataContainer(), enchantMap);
-        applyGlowAndLore(item, meta, enchantMap);
+        Map<String, EnchantStateStore.EnchantInstance> instances = mergeLevels(item, enchantMap);
+        EnchantStateStore.save(meta, instances);
+        applyGlowAndLore(item, meta, toLevelMap(instances));
         item.setItemMeta(meta);
     }
 
+    /** Clamps every level to {@link EnchantmentDefinition#getAbsoluteMaxLevel()} — the anvil/admin
+     *  path's historical behavior. Use {@link #applyEnchantment(ItemStack, String, int, boolean)}
+     *  with {@code enforceEtableCap=true} for the enchanting-table path. */
     public static void applyEnchantment(ItemStack item, String enchantId, int level) {
+        applyEnchantment(item, enchantId, level, false);
+    }
+
+    /**
+     * Applies (or raises the level of) one enchant on {@code item}.
+     *
+     * @param enforceEtableCap when {@code true}, clamps to {@link EnchantmentDefinition#getEtableMaxLevel()}
+     *                          instead of {@link EnchantmentDefinition#getAbsoluteMaxLevel()} — the
+     *                          enchanting-table apply path must pass {@code true} (previously it
+     *                          only clamped to the absolute cap, so a modified client/GUI wiring
+     *                          calling the same script event with an out-of-range level could
+     *                          silently exceed the etable cap; the etable GUI only ever *offered*
+     *                          in-range levels, it never enforced the cap server-side).
+     */
+    public static void applyEnchantment(ItemStack item, String enchantId, int level, boolean enforceEtableCap) {
         if (item == null || !item.hasItemMeta()) {
             return;
         }
@@ -84,26 +81,29 @@ public class EnchantmentHelper {
         if (def == null) return;
 
         ItemMeta meta = item.getItemMeta();
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        Map<String, Integer> enchantMap = loadEnchantMap(pdc);
+        Map<String, EnchantStateStore.EnchantInstance> instances = EnchantStateStore.load(meta);
 
-        // Conflict enforcement (added 2026-08-07) — previously unenforced anywhere at all, not
-        // just outside the anvil path; nothing in the codebase read EnchantmentDefinition's
-        // conflicts list before this. Checked both directions since a shipped conflicts: list
-        // isn't guaranteed to be declared symmetrically on both entries.
-        for (String existingId : enchantMap.keySet()) {
+        // Conflict enforcement — checked both directions since a shipped conflicts: list isn't
+        // guaranteed to be declared symmetrically on both entries.
+        for (String existingId : instances.keySet()) {
             if (existingId.equalsIgnoreCase(enchantId)) continue;
             if (def.conflictsWith(existingId)) return;
             EnchantmentDefinition existingDef = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(existingId).orElse(null);
             if (existingDef != null && existingDef.conflictsWith(enchantId)) return;
         }
 
-        // Level cap enforcement (added 2026-08-07) — previously accepted any level unclamped.
-        int clampedLevel = Math.max(1, Math.min(level, def.getAbsoluteMaxLevel()));
-        enchantMap.put(enchantId.toLowerCase(), clampedLevel);
+        int cap = enforceEtableCap ? def.getEtableMaxLevel() : def.getAbsoluteMaxLevel();
+        int clampedLevel = Math.max(1, Math.min(level, cap));
+        String key = enchantId.toLowerCase();
+        EnchantStateStore.EnchantInstance existing = instances.get(key);
+        if (existing != null) {
+            existing.setLevel(clampedLevel);
+        } else {
+            instances.put(key, new EnchantStateStore.EnchantInstance(enchantId, clampedLevel, Map.of()));
+        }
 
-        saveEnchantMap(pdc, enchantMap);
-        applyGlowAndLore(item, meta, enchantMap);
+        EnchantStateStore.save(meta, instances);
+        applyGlowAndLore(item, meta, toLevelMap(instances));
         item.setItemMeta(meta);
     }
 
@@ -111,7 +111,7 @@ public class EnchantmentHelper {
         if (item == null || !item.hasItemMeta()) {
             return new HashMap<>();
         }
-        return loadEnchantMap(item.getItemMeta().getPersistentDataContainer());
+        return toLevelMap(EnchantStateStore.load(item));
     }
 
     public static int getEnchantLevel(ItemStack item, String enchantId) {
@@ -122,56 +122,50 @@ public class EnchantmentHelper {
         if (item == null || !item.hasItemMeta()) return;
 
         ItemMeta meta = item.getItemMeta();
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        Map<String, Integer> enchantMap = loadEnchantMap(pdc);
-        enchantMap.remove(enchantId.toLowerCase());
+        Map<String, EnchantStateStore.EnchantInstance> instances = EnchantStateStore.load(meta);
+        instances.remove(enchantId.toLowerCase());
 
-        if (enchantMap.isEmpty()) {
-            pdc.remove(Keys.ENCHANTS_CONTAINER_KEY);
+        if (instances.isEmpty()) {
             meta.removeEnchant(Enchantment.UNBREAKING);
             meta.removeItemFlags(ItemFlag.HIDE_ENCHANTS);
-        } else {
-            saveEnchantMap(pdc, enchantMap);
         }
+        EnchantStateStore.save(meta, instances);
 
-        applyGlowAndLore(item, meta, enchantMap);
+        applyGlowAndLore(item, meta, toLevelMap(instances));
         item.setItemMeta(meta);
     }
 
     public static boolean hasValmoraEnchants(ItemStack item) {
-        return item != null && item.hasItemMeta() && !loadEnchantMap(item.getItemMeta().getPersistentDataContainer()).isEmpty();
+        return item != null && item.hasItemMeta() && !EnchantStateStore.load(item).isEmpty();
     }
 
+    /** Legacy id:level view over the structured store, kept for the many callers ({@code
+     *  StatManager}, {@code DamageCalculator}, {@code ItemFactory}, the anvil handler, ...) that
+     *  only need level lookups and never touch per-enchant state directly. */
     public static Map<String, Integer> loadEnchantMap(PersistentDataContainer pdc) {
-        Map<String, Integer> result = new HashMap<>();
+        return toLevelMap(EnchantStateStore.load(pdc));
+    }
 
-        if (pdc.has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING)) {
-            String serialized = pdc.get(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING);
-            if (serialized != null && !serialized.isEmpty()) {
-                String[] pairs = serialized.split(",");
-                for (String pair : pairs) {
-                    String[] parts = pair.split(":");
-                    if (parts.length == 2) {
-                        try {
-                            result.put(parts[0], Integer.parseInt(parts[1]));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    }
-                }
-            }
+    private static Map<String, Integer> toLevelMap(Map<String, EnchantStateStore.EnchantInstance> instances) {
+        Map<String, Integer> result = new LinkedHashMap<>();
+        for (EnchantStateStore.EnchantInstance instance : instances.values()) {
+            result.put(instance.getId(), instance.getLevel());
         }
         return result;
     }
 
-    private static void saveEnchantMap(PersistentDataContainer pdc, Map<String, Integer> enchantMap) {
-        StringBuilder sb = new StringBuilder();
+    private static Map<String, EnchantStateStore.EnchantInstance> mergeLevels(ItemStack item, Map<String, Integer> enchantMap) {
+        Map<String, EnchantStateStore.EnchantInstance> instances = EnchantStateStore.load(item);
         for (Map.Entry<String, Integer> entry : enchantMap.entrySet()) {
-            if (sb.length() > 0) {
-                sb.append(",");
+            String key = entry.getKey().toLowerCase();
+            EnchantStateStore.EnchantInstance existing = instances.get(key);
+            if (existing != null) {
+                existing.setLevel(entry.getValue());
+            } else {
+                instances.put(key, new EnchantStateStore.EnchantInstance(entry.getKey(), entry.getValue(), Map.of()));
             }
-            sb.append(entry.getKey()).append(":").append(entry.getValue());
         }
-        pdc.set(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING, sb.toString());
+        return instances;
     }
 
     private static String serializeLore(List<Component> lore) {
@@ -198,8 +192,7 @@ public class EnchantmentHelper {
         }
 
         ItemMeta meta = item.getItemMeta();
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
-        Map<String, Integer> enchantMap = loadEnchantMap(pdc);
+        Map<String, Integer> enchantMap = toLevelMap(EnchantStateStore.load(meta));
 
         if (enchantMap.isEmpty()) {
             return;
@@ -257,7 +250,7 @@ public class EnchantmentHelper {
             for (String id : sortedIds) {
                 int level = enchantMap.get(id);
                 EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(id).orElse(null);
-                lore.add(Formatter.format("<blue>" + displayName(id, def) + " " + level + "</blue>"));
+                lore.add(Formatter.format("<blue>" + displayName(id, def) + " " + Formatter.toRoman(level) + "</blue>"));
 
                 if (def != null && def.getDescription() != null) {
                     for (String descLine : def.getDescription()) {
@@ -272,7 +265,7 @@ public class EnchantmentHelper {
             for (String id : sortedIds) {
                 int level = enchantMap.get(id);
                 EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(id).orElse(null);
-                String enchantStr = displayName(id, def) + " " + level;
+                String enchantStr = displayName(id, def) + " " + Formatter.toRoman(level);
 
                 if (currentLine.length() + enchantStr.length() + 2 > 40) {
                     shortEnchants.add(Formatter.format("<blue>" + currentLine.toString().trim() + "</blue>"));
@@ -310,17 +303,14 @@ public class EnchantmentHelper {
         ItemMeta meta = book.getItemMeta();
 
         if (meta != null) {
-            // Level cap enforcement (added 2026-08-07) — previously accepted any level unclamped.
             EnchantmentDefinition def = ValmoraAPI.getInstance().getEnchantModule().getRegistry().get(enchantId).orElse(null);
             int clampedLevel = def != null ? Math.max(1, Math.min(level, def.getAbsoluteMaxLevel())) : level;
 
-            Map<String, Integer> enchantMap = new HashMap<>();
-            enchantMap.put(enchantId.toLowerCase(), clampedLevel);
+            Map<String, EnchantStateStore.EnchantInstance> instances = new LinkedHashMap<>();
+            instances.put(enchantId.toLowerCase(), new EnchantStateStore.EnchantInstance(enchantId, clampedLevel, Map.of()));
 
-            PersistentDataContainer pdc = meta.getPersistentDataContainer();
-            saveEnchantMap(pdc, enchantMap);
-
-            applyGlowAndLore(book, meta, enchantMap);
+            EnchantStateStore.save(meta, instances);
+            applyGlowAndLore(book, meta, toLevelMap(instances));
             book.setItemMeta(meta);
         }
 

@@ -10,6 +10,21 @@ public class Keys {
     public static NamespacedKey STATS_CONTAINER_KEY;
     public static NamespacedKey MOB_ID_KEY;
     public static NamespacedKey ENCHANTS_CONTAINER_KEY;
+    /** Structured successor to {@link #ENCHANTS_CONTAINER_KEY}'s flat CSV string — one
+     *  TAG_CONTAINER_ARRAY entry per enchant instance (id/level/optional nested state container).
+     *  See {@code module.enchant.EnchantStateStore} for the read (legacy-CSV-fallback) and write
+     *  (migrate-on-save) logic. */
+    public static NamespacedKey ENCHANTS_STATE_CONTAINER_KEY;
+    /** Fixed field keys inside each nested per-instance container under
+     *  {@link #ENCHANTS_STATE_CONTAINER_KEY} (see {@code module.enchant.EnchantStateStore}).
+     *  {@link #ENCHANT_INSTANCE_STATE_KEY} holds a single delimited STRING blob of persistent
+     *  state counters (e.g. {@code "kills=1542;combo=3"}) rather than one dynamic NamespacedKey
+     *  per declared state key — state keys are unbounded content, but this avoids needing a live
+     *  plugin instance to construct a NamespacedKey per key name, unlike the analogous per-group
+     *  dynamic keys {@code ModifierComponentStore} uses. */
+    public static NamespacedKey ENCHANT_INSTANCE_ID_KEY;
+    public static NamespacedKey ENCHANT_INSTANCE_LEVEL_KEY;
+    public static NamespacedKey ENCHANT_INSTANCE_STATE_KEY;
     public static NamespacedKey GENERIC_BASE_LORE_KEY;
     public static NamespacedKey FURNACE_OWNER_KEY;
 
@@ -52,6 +67,10 @@ public class Keys {
         STATS_CONTAINER_KEY = new NamespacedKey(plugin, "item_stats_container");
         MOB_ID_KEY = new NamespacedKey(plugin, "valmora_mob_id");
         ENCHANTS_CONTAINER_KEY = new NamespacedKey(plugin, "valmora_enchants_container");
+        ENCHANTS_STATE_CONTAINER_KEY = new NamespacedKey(plugin, "valmora_enchants_state_container");
+        ENCHANT_INSTANCE_ID_KEY = new NamespacedKey(plugin, "enchant_instance_id");
+        ENCHANT_INSTANCE_LEVEL_KEY = new NamespacedKey(plugin, "enchant_instance_level");
+        ENCHANT_INSTANCE_STATE_KEY = new NamespacedKey(plugin, "enchant_instance_state");
         GENERIC_BASE_LORE_KEY = new NamespacedKey(plugin, "valmora_generic_base_lore");
         FURNACE_OWNER_KEY = new NamespacedKey(plugin, "valmora_furnace_owner");
 

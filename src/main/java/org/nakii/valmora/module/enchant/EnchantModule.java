@@ -45,11 +45,6 @@ public class EnchantModule implements ReloadableModule {
     public void onEnable() {
         registerBuiltinLogics();
         loadEnchants();
-
-        if (plugin.getRecipeModule() != null) {
-            plugin.getRecipeModule().registerHandler("enchanting_table",
-                    new org.nakii.valmora.module.recipe.EnchantingTableMachineHandler(plugin));
-        }
     }
 
     private void registerBuiltinLogics() {
@@ -113,9 +108,6 @@ public class EnchantModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
-        if (plugin.getRecipeModule() != null) {
-            plugin.getRecipeModule().unregisterHandler("enchanting_table");
-        }
         registry.clear();
         logicMap.clear();
         logicFactories.clear();
@@ -187,10 +179,31 @@ public class EnchantModule implements ReloadableModule {
                             + logicId + "' — it will have no gameplay effect.");
                 }
 
-                EnchantmentDefinition definition = new EnchantmentDefinition(
-                        id, name, description, etableMaxLevel,
-                        absoluteMaxLevel, targets, conflicts, logic
-                );
+                Map<String, String> variables = new java.util.LinkedHashMap<>();
+                ConfigurationSection variablesSection = section.getConfigurationSection("variables");
+                if (variablesSection != null) {
+                    for (String key : variablesSection.getKeys(false)) {
+                        variables.put(key, variablesSection.getString(key));
+                    }
+                }
+
+                EnchantmentDefinition definition = EnchantmentDefinition.builder(id)
+                        .name(name)
+                        .description(description)
+                        .etableMaxLevel(etableMaxLevel)
+                        .absoluteMaxLevel(absoluteMaxLevel)
+                        .targets(targets)
+                        .conflicts(conflicts)
+                        .logic(logic)
+                        .variables(variables)
+                        // Inert placeholders (Phase 1) — combat/triggers/state/stats are parsed but
+                        // not yet compiled/executed; the script bridge and state engine phases
+                        // replace these raw sections' consumers without another schema change.
+                        .combatSection(section.getConfigurationSection("combat"))
+                        .triggersSection(section.getConfigurationSection("triggers"))
+                        .stateSection(section.getConfigurationSection("state"))
+                        .statsSection(section.getConfigurationSection("stats"))
+                        .build();
 
                 return LoadResult.success(definition);
             } catch (Exception e) {
