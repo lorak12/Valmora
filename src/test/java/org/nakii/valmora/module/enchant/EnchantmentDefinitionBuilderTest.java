@@ -59,7 +59,8 @@ class EnchantmentDefinitionBuilderTest {
         assertNull(def.getModifyAttack());
         assertNull(def.getModifyDefend());
         assertTrue(def.getTriggers().isEmpty());
-        assertNull(def.getStateSection());
+        assertTrue(def.getTransientStates().isEmpty());
+        assertTrue(def.getPersistentStates().isEmpty());
         assertNull(def.getStatsSection());
     }
 }

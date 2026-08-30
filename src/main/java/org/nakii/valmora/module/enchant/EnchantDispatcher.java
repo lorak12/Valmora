@@ -51,6 +51,10 @@ public class EnchantDispatcher {
         Map<String, EnchantStateStore.EnchantInstance> instances = EnchantStateStore.load(item);
         if (instances.isEmpty()) return;
 
+        // So a triggered `enchant_state` action (e.g. a persistent kill counter) can save its
+        // mutation back to the actual item — see EnchantStateEngine's persistent-write path.
+        context.set("enchant:item", item);
+
         var registry = ValmoraAPI.getInstance().getEnchantModule().getRegistry();
         for (EnchantStateStore.EnchantInstance instance : instances.values()) {
             EnchantmentDefinition def = registry.get(instance.getId()).orElse(null);

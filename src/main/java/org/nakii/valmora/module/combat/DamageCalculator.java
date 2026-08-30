@@ -214,6 +214,9 @@ public class DamageCalculator {
         formulaContext.set("hit:damage_type", damageType.getId());
 
         if (weapon != null) {
+            // So a triggered `enchant_state` action can save a persistent-state mutation back to
+            // this weapon (EnchantStateEngine's persistent-write path needs the live ItemStack).
+            formulaContext.set("enchant:item", weapon);
             for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(weapon).values()) {
                 EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
                 if (def != null) {
@@ -226,6 +229,9 @@ public class DamageCalculator {
             ItemStack[] armor = victimPlayer.getInventory().getArmorContents();
             for (ItemStack armorItem : armor) {
                 if (armorItem == null) continue;
+                // Re-set per armor piece — each piece's own enchants must save back to that piece,
+                // not whichever armor slot happened to be dispatched last.
+                defendContext.set("enchant:item", armorItem);
                 for (EnchantStateStore.EnchantInstance instance : EnchantStateStore.load(armorItem).values()) {
                     EnchantmentDefinition def = api.getEnchantModule().getRegistry().get(instance.getId()).orElse(null);
                     if (def != null) {

@@ -9,6 +9,13 @@ import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
+import org.bukkit.scheduler.BukkitTask;
+import org.nakii.valmora.module.enchant.event.EnchantStateEventFactory;
+import org.nakii.valmora.module.enchant.state.EnchantStateEngine;
+import org.nakii.valmora.module.enchant.state.EnchantStateType;
+import org.nakii.valmora.module.enchant.state.PersistentStateDefinition;
+import org.nakii.valmora.module.enchant.state.TransientStateDefinition;
+import org.nakii.valmora.module.enchant.state.TransientStateTracker;
 import org.nakii.valmora.module.enchant.logic.StatBonusLogic;
 import org.nakii.valmora.module.enchant.logic.DamageMultiplierLogic;
 import org.nakii.valmora.module.enchant.logic.DefenseReductionLogic;
@@ -41,6 +48,9 @@ public class EnchantModule implements ReloadableModule {
     private final Map<String, EnchantmentLogic> logicMap;
     private final Map<String, Function<ConfigurationSection, EnchantmentLogic>> logicFactories;
     private EnchantKillListener killListener;
+    private TransientStateTracker stateTracker;
+    private EnchantStateEngine stateEngine;
+    private BukkitTask stateCleanupTask;
 
     public EnchantModule(Valmora plugin) {
         this.plugin = plugin;
@@ -60,6 +70,17 @@ public class EnchantModule implements ReloadableModule {
         scriptModule.registerProvider(new EnchantVariableProvider());
         scriptModule.registerProvider(new EnchantCalcVariableProvider());
         scriptModule.registerProvider(new HitVariableProvider());
+
+        // State engine (Phase 3 of the enchant overhaul) — in-memory transient counters (combo
+        // hits, stacking debuffs) plus the persistent (PDC) tier's mutation path. Recreated fresh
+        // every onEnable (not just on first load): transient combat state is inherently session
+        // bookkeeping, not meant to survive a reload.
+        stateTracker = new TransientStateTracker();
+        stateEngine = new EnchantStateEngine(stateTracker);
+        scriptModule.registerEvent(new EnchantStateEventFactory());
+        // Sweeps stale transient entries every 5 minutes — the fix for the pre-overhaul logic
+        // classes' unbounded per-victim map growth (see TransientStateTracker's class doc).
+        stateCleanupTask = plugin.getServer().getScheduler().runTaskTimer(plugin, stateTracker::cleanup, 6000L, 6000L);
 
         loadEnchants();
 
@@ -132,6 +153,15 @@ public class EnchantModule implements ReloadableModule {
             org.bukkit.event.HandlerList.unregisterAll(killListener);
             killListener = null;
         }
+        if (stateCleanupTask != null) {
+            stateCleanupTask.cancel();
+            stateCleanupTask = null;
+        }
+        if (stateTracker != null) {
+            stateTracker.clear();
+            stateTracker = null;
+        }
+        stateEngine = null;
         plugin.getScriptModule().getHookBus().clearYamlStages("enchant:");
         registry.clear();
         logicMap.clear();
@@ -150,6 +180,12 @@ public class EnchantModule implements ReloadableModule {
 
     public EnchantmentRegistry getRegistry() {
         return registry;
+    }
+
+    /** The transient/persistent state facade — see {@link EnchantStateEngine}. Null before the
+     *  first {@link #onEnable()} (or after {@link #onDisable()}). */
+    public EnchantStateEngine getStateEngine() {
+        return stateEngine;
     }
 
     public EnchantmentLogic getLogic(String id) {
@@ -238,6 +274,12 @@ public class EnchantModule implements ReloadableModule {
                 Map<EnchantTrigger, EnchantTriggerBlock> triggers = parseTriggers(
                         section.getConfigurationSection("triggers"), conditionParser, eventParser);
 
+                ConfigurationSection stateSection = section.getConfigurationSection("state");
+                Map<String, TransientStateDefinition> transientStates = parseTransientStates(
+                        stateSection == null ? null : stateSection.getConfigurationSection("transient"), id);
+                Map<String, PersistentStateDefinition> persistentStates = parsePersistentStates(
+                        stateSection == null ? null : stateSection.getConfigurationSection("persistent"), id);
+
                 EnchantmentDefinition definition = EnchantmentDefinition.builder(id)
                         .name(name)
                         .description(description)
@@ -250,10 +292,10 @@ public class EnchantModule implements ReloadableModule {
                         .modifyAttack(modifyAttack)
                         .modifyDefend(modifyDefend)
                         .triggers(triggers)
-                        // Inert placeholders (Phase 1) — state/stats are parsed but not yet
-                        // compiled/executed; the state engine and stat-wiring phases replace these
-                        // raw sections' consumers without another schema change.
-                        .stateSection(section.getConfigurationSection("state"))
+                        .transientStates(transientStates)
+                        .persistentStates(persistentStates)
+                        // Inert placeholder — stats is parsed but not yet wired into
+                        // StatManager.recalculateStats.
                         .statsSection(section.getConfigurationSection("stats"))
                         .build();
 
@@ -322,6 +364,58 @@ public class EnchantModule implements ReloadableModule {
                     ? null : eventParser.parseList(failActionStrings);
 
             result.put(trigger, new EnchantTriggerBlock(conditions, actions, failActions));
+        }
+        return result;
+    }
+
+    /** Compiles {@code state.transient:} entries into {@link TransientStateDefinition}s, keyed by
+     *  state key. An unknown {@code type:} is warned about and the entry is skipped, mirroring the
+     *  unknown-{@code logic:}/unknown-trigger warnings above. */
+    private Map<String, TransientStateDefinition> parseTransientStates(ConfigurationSection section, String enchantId) {
+        Map<String, TransientStateDefinition> result = new LinkedHashMap<>();
+        if (section == null) return result;
+
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(key);
+            if (entry == null) continue;
+
+            String typeName = entry.getString("type", "HIT_COUNTER");
+            try {
+                EnchantStateType.valueOf(typeName.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("[Enchants] '" + enchantId + "' state.transient." + key
+                        + " has unknown type '" + typeName + "' — it will never resolve.");
+                continue;
+            }
+
+            long resetAfterSeconds = entry.getLong("reset-after-seconds", 0L);
+            boolean resetOnTargetSwitch = entry.getBoolean("reset-on-target-switch", false);
+            int maxStacks = entry.getInt("max-stacks", 0);
+            result.put(key, new TransientStateDefinition(resetAfterSeconds, resetOnTargetSwitch, maxStacks));
+        }
+        return result;
+    }
+
+    /** Compiles {@code state.persistent:} entries into {@link PersistentStateDefinition}s, keyed by
+     *  state key. Same unknown-{@code type:} warning behavior as {@link #parseTransientStates}. */
+    private Map<String, PersistentStateDefinition> parsePersistentStates(ConfigurationSection section, String enchantId) {
+        Map<String, PersistentStateDefinition> result = new LinkedHashMap<>();
+        if (section == null) return result;
+
+        for (String key : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(key);
+            if (entry == null) continue;
+
+            String typeName = entry.getString("type", "INTEGER");
+            try {
+                EnchantStateType.valueOf(typeName.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("[Enchants] '" + enchantId + "' state.persistent." + key
+                        + " has unknown type '" + typeName + "' — it will never resolve.");
+                continue;
+            }
+
+            result.put(key, new PersistentStateDefinition(entry.getInt("default", 0)));
         }
         return result;
     }

@@ -1,6 +1,8 @@
 package org.nakii.valmora.module.enchant;
 
 import org.bukkit.configuration.ConfigurationSection;
+import org.nakii.valmora.module.enchant.state.PersistentStateDefinition;
+import org.nakii.valmora.module.enchant.state.TransientStateDefinition;
 import org.nakii.valmora.module.item.ItemType;
 
 import java.util.ArrayList;
@@ -12,9 +14,11 @@ import java.util.Map;
 /**
  * Immutable enchant content definition. {@code combat}/{@code triggers} are compiled at load time
  * (Phase 2 of the enchant overhaul) into {@link EnchantCombatHook.CompiledCombatModifiers}/{@link
- * EnchantTriggerBlock}; {@code state}/{@code stats} are still parsed as raw {@link
- * ConfigurationSection}s — inert placeholders carried forward until Phase 3/4 wire them up, so the
- * YAML schema stays stable.
+ * EnchantTriggerBlock}; {@code state.transient}/{@code state.persistent} are compiled (Phase 3) into
+ * {@link TransientStateDefinition}/{@link PersistentStateDefinition} maps, consumed by {@link
+ * org.nakii.valmora.module.enchant.state.EnchantStateEngine}. {@code stats} is still parsed as a raw
+ * {@link ConfigurationSection} — an inert placeholder carried forward until it's wired into
+ * {@code StatManager.recalculateStats}, so the YAML schema stays stable.
  */
 public class EnchantmentDefinition {
 
@@ -30,14 +34,15 @@ public class EnchantmentDefinition {
     private final EnchantCombatHook.CompiledCombatModifiers modifyAttack;
     private final EnchantCombatHook.CompiledCombatModifiers modifyDefend;
     private final Map<EnchantTrigger, EnchantTriggerBlock> triggers;
-    private final ConfigurationSection stateSection;
+    private final Map<String, TransientStateDefinition> transientStates;
+    private final Map<String, PersistentStateDefinition> persistentStates;
     private final ConfigurationSection statsSection;
 
     public EnchantmentDefinition(String id, String name, List<String> description, int etableMaxLevel,
                               int absoluteMaxLevel, List<ItemType> targets, List<String> conflicts,
                               EnchantmentLogic logic) {
         this(id, name, description, etableMaxLevel, absoluteMaxLevel, targets, conflicts, logic,
-                Map.of(), null, null, Map.of(), null, null);
+                Map.of(), null, null, Map.of(), Map.of(), Map.of(), null);
     }
 
     private EnchantmentDefinition(String id, String name, List<String> description, int etableMaxLevel,
@@ -46,7 +51,9 @@ public class EnchantmentDefinition {
                               EnchantCombatHook.CompiledCombatModifiers modifyAttack,
                               EnchantCombatHook.CompiledCombatModifiers modifyDefend,
                               Map<EnchantTrigger, EnchantTriggerBlock> triggers,
-                              ConfigurationSection stateSection, ConfigurationSection statsSection) {
+                              Map<String, TransientStateDefinition> transientStates,
+                              Map<String, PersistentStateDefinition> persistentStates,
+                              ConfigurationSection statsSection) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -59,7 +66,8 @@ public class EnchantmentDefinition {
         this.modifyAttack = modifyAttack;
         this.modifyDefend = modifyDefend;
         this.triggers = triggers;
-        this.stateSection = stateSection;
+        this.transientStates = transientStates;
+        this.persistentStates = persistentStates;
         this.statsSection = statsSection;
     }
 
@@ -116,9 +124,14 @@ public class EnchantmentDefinition {
         return triggers;
     }
 
-    /** Raw {@code state:} section (transient/persistent) — inert until Phase 3's state engine. */
-    public ConfigurationSection getStateSection() {
-        return stateSection;
+    /** Compiled {@code state.transient:} entries, keyed by state key — empty if none declared. */
+    public Map<String, TransientStateDefinition> getTransientStates() {
+        return transientStates;
+    }
+
+    /** Compiled {@code state.persistent:} entries, keyed by state key — empty if none declared. */
+    public Map<String, PersistentStateDefinition> getPersistentStates() {
+        return persistentStates;
     }
 
     /** Raw {@code stats:} section — inert until wired into {@code StatManager.recalculateStats}. */
@@ -153,7 +166,8 @@ public class EnchantmentDefinition {
         private EnchantCombatHook.CompiledCombatModifiers modifyAttack;
         private EnchantCombatHook.CompiledCombatModifiers modifyDefend;
         private Map<EnchantTrigger, EnchantTriggerBlock> triggers = new EnumMap<>(EnchantTrigger.class);
-        private ConfigurationSection stateSection;
+        private Map<String, TransientStateDefinition> transientStates = new LinkedHashMap<>();
+        private Map<String, PersistentStateDefinition> persistentStates = new LinkedHashMap<>();
         private ConfigurationSection statsSection;
 
         private Builder(String id) {
@@ -176,13 +190,16 @@ public class EnchantmentDefinition {
         public Builder modifyDefend(EnchantCombatHook.CompiledCombatModifiers block) { this.modifyDefend = block; return this; }
         public Builder triggers(Map<EnchantTrigger, EnchantTriggerBlock> triggers) { this.triggers = triggers; return this; }
         public Builder trigger(EnchantTrigger trigger, EnchantTriggerBlock block) { this.triggers.put(trigger, block); return this; }
-        public Builder stateSection(ConfigurationSection section) { this.stateSection = section; return this; }
+        public Builder transientStates(Map<String, TransientStateDefinition> states) { this.transientStates = states; return this; }
+        public Builder transientState(String key, TransientStateDefinition state) { this.transientStates.put(key, state); return this; }
+        public Builder persistentStates(Map<String, PersistentStateDefinition> states) { this.persistentStates = states; return this; }
+        public Builder persistentState(String key, PersistentStateDefinition state) { this.persistentStates.put(key, state); return this; }
         public Builder statsSection(ConfigurationSection section) { this.statsSection = section; return this; }
 
         public EnchantmentDefinition build() {
             return new EnchantmentDefinition(id, name, description, etableMaxLevel, absoluteMaxLevel,
                     targets, conflicts, logic, Map.copyOf(variables), modifyAttack, modifyDefend,
-                    Map.copyOf(triggers), stateSection, statsSection);
+                    Map.copyOf(triggers), Map.copyOf(transientStates), Map.copyOf(persistentStates), statsSection);
         }
     }
 }

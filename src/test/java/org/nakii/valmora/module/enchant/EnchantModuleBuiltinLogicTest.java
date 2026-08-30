@@ -51,15 +51,17 @@ public class EnchantModuleBuiltinLogicTest {
         when(plugin.getDataFolder()).thenReturn(dataFolder);
         when(plugin.getLogger()).thenReturn(Logger.getLogger("EnchantModuleBuiltinLogicTest"));
 
-        // Phase 2 of the enchant overhaul: onEnable() now registers enchant variable providers and
-        // an EntityDeathEvent listener through the script module/Bukkit server — neither is
-        // exercised by these builtin-logic tests, so bare mocks are enough.
+        // Phase 2/3 of the enchant overhaul: onEnable() now registers enchant variable providers,
+        // an EntityDeathEvent listener, and a state-cleanup task through the script module/Bukkit
+        // server — none of that is exercised by these builtin-logic tests, so bare mocks are enough.
         ScriptModule scriptModule = mock(ScriptModule.class);
         when(plugin.getScriptModule()).thenReturn(scriptModule);
         org.bukkit.Server server = mock(org.bukkit.Server.class);
         PluginManager pluginManager = mock(PluginManager.class);
+        org.bukkit.scheduler.BukkitScheduler scheduler = mock(org.bukkit.scheduler.BukkitScheduler.class);
         when(plugin.getServer()).thenReturn(server);
         when(server.getPluginManager()).thenReturn(pluginManager);
+        when(server.getScheduler()).thenReturn(scheduler);
 
         EnchantModule module = new EnchantModule(plugin);
         module.onEnable();
