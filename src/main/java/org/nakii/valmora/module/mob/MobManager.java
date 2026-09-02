@@ -15,6 +15,8 @@ public class MobManager implements ReloadableModule {
     private final MobFactory mobFactory;
     private final MobLoader mobLoader;
     private final MobDeathListener deathListener;
+    private final MobTargetListener targetListener;
+    private final MobConversionListener conversionListener;
     private final BossController bossController;
     private final EntityCategoryRegistry entityCategoryRegistry;
     private MobPipelineLoader pipelineLoader;
@@ -28,6 +30,8 @@ public class MobManager implements ReloadableModule {
         this.mobRegistry = new MobRegistry();
         this.mobLoader = new MobLoader(plugin, mobRegistry);
         this.deathListener = new MobDeathListener(plugin);
+        this.targetListener = new MobTargetListener();
+        this.conversionListener = new MobConversionListener(this);
         this.entityCategoryRegistry = new EntityCategoryRegistry();
     }
 
@@ -35,6 +39,8 @@ public class MobManager implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Starting Mob Module...");
         Bukkit.getPluginManager().registerEvents(deathListener, plugin);
+        Bukkit.getPluginManager().registerEvents(targetListener, plugin);
+        Bukkit.getPluginManager().registerEvents(conversionListener, plugin);
         MobCategoryLoader.load(plugin);
         entityCategoryRegistry.load(plugin);
         mobLoader.loadMobs();
@@ -61,6 +67,8 @@ public class MobManager implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Stopping Mob Module...");
         org.bukkit.event.HandlerList.unregisterAll(deathListener);
+        org.bukkit.event.HandlerList.unregisterAll(targetListener);
+        org.bukkit.event.HandlerList.unregisterAll(conversionListener);
         bossController.stop();
         if (aiTask != null) { aiTask.cancel(); aiTask = null; }
         if (naturalSpawnTask != null) { naturalSpawnTask.cancel(); naturalSpawnTask = null; }

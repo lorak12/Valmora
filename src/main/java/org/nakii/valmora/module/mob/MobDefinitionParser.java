@@ -116,6 +116,10 @@ public class MobDefinitionParser {
         if (aiSection != null) {
             if (aiSection.contains("aggro-range")) builder.aggroRange(aiSection.getDouble("aggro-range"));
             if (aiSection.contains("leash-range")) builder.leashRange(aiSection.getDouble("leash-range"));
+            if (aiSection.contains("ignore-npcs")) builder.ignoreNpcs(aiSection.getBoolean("ignore-npcs"));
+            if (aiSection.contains("target-conditions")) {
+                builder.targetConditions(aiSection.getStringList("target-conditions"));
+            }
         }
         ConfigurationSection spawnSection = section.getConfigurationSection("natural-spawn");
         if (spawnSection != null) {

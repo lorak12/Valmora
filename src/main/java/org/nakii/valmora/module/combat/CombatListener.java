@@ -259,6 +259,8 @@ public class CombatListener implements Listener {
             case DRAGON_BREATH -> DamageType.DRAGON_BREATH;
             case SONIC_BOOM -> DamageType.SONIC_BOOM;
             case WORLD_BORDER -> DamageType.OUTSIDE_BORDER;
+            case LIGHTNING -> DamageType.LIGHTNING;
+            case FREEZE -> DamageType.FREEZE;
             default -> fallbackDamageType();
         };
     }

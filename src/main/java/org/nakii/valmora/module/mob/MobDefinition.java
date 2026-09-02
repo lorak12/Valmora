@@ -2,6 +2,7 @@ package org.nakii.valmora.module.mob;
 
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.combat.DamageType;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 
@@ -48,6 +49,14 @@ public class MobDefinition {
     // -1 on either means "leave vanilla behavior alone" (no FOLLOW_RANGE override / no leash reset).
     private final double aggroRange;
     private final double leashRange;
+    // VANILLA_CONTROL_AUDIT.md §18 gap fix: EntityTargetEvent listener (MobTargetListener) evaluates
+    // this against every candidate target — an empty/no-op condition (the default) means "allow
+    // vanilla's own target selection unchanged". Each string is the same condition-language used by
+    // GUI/machine/quest conditions (tag, health, zone, variable, or a raw expression), evaluated with
+    // the *candidate target* as the condition's caster.
+    private final List<String> targetConditionStrings;
+    private final Condition compiledTargetCondition;
+    private final boolean ignoreNpcs;
     // Natural spawning (zone-driven periodic spawn attempts — see NaturalSpawnTask).
     private final boolean naturalSpawn;
     private final double naturalSpawnChance;
@@ -85,6 +94,12 @@ public class MobDefinition {
         this.preventSunBurn = builder.preventSunBurn;
         this.aggroRange = builder.aggroRange;
         this.leashRange = builder.leashRange;
+        this.targetConditionStrings = builder.targetConditionStrings;
+        this.compiledTargetCondition = builder.targetConditionStrings.isEmpty()
+                ? null
+                : org.nakii.valmora.api.ValmoraAPI.getInstance().getScriptModule().getConditionParser()
+                        .parseList(builder.targetConditionStrings);
+        this.ignoreNpcs = builder.ignoreNpcs;
         this.naturalSpawn = builder.naturalSpawn;
         this.naturalSpawnChance = builder.naturalSpawnChance;
         this.naturalSpawnMaxNearby = builder.naturalSpawnMaxNearby;
@@ -121,6 +136,13 @@ public class MobDefinition {
     public boolean isPreventSunBurn() { return preventSunBurn; }
     public double getAggroRange() { return aggroRange; }
     public double getLeashRange() { return leashRange; }
+    public List<String> getTargetConditionStrings() { return targetConditionStrings; }
+    public boolean isIgnoreNpcs() { return ignoreNpcs; }
+
+    /** True if the candidate target passes this mob's configured target-conditions (always true if none configured). */
+    public boolean canTarget(org.nakii.valmora.api.execution.ExecutionContext candidateContext) {
+        return compiledTargetCondition == null || compiledTargetCondition.evaluate(candidateContext);
+    }
     public boolean isNaturalSpawn() { return naturalSpawn; }
     public double getNaturalSpawnChance() { return naturalSpawnChance; }
     public int getNaturalSpawnMaxNearby() { return naturalSpawnMaxNearby; }
@@ -205,6 +227,8 @@ public class MobDefinition {
         private boolean preventSunBurn = false;
         private double aggroRange = -1.0;
         private double leashRange = -1.0;
+        private List<String> targetConditionStrings = new ArrayList<>();
+        private boolean ignoreNpcs = true;
         private boolean naturalSpawn = false;
         private double naturalSpawnChance;
         private int naturalSpawnMaxNearby;
@@ -254,6 +278,8 @@ public class MobDefinition {
         public Builder preventSunBurn(boolean preventSunBurn) { this.preventSunBurn = preventSunBurn; return this; }
         public Builder aggroRange(double aggroRange) { this.aggroRange = aggroRange; return this; }
         public Builder leashRange(double leashRange) { this.leashRange = leashRange; return this; }
+        public Builder targetConditions(List<String> targetConditionStrings) { this.targetConditionStrings = targetConditionStrings; return this; }
+        public Builder ignoreNpcs(boolean ignoreNpcs) { this.ignoreNpcs = ignoreNpcs; return this; }
         public Builder naturalSpawn(boolean naturalSpawn) { this.naturalSpawn = naturalSpawn; return this; }
         public Builder naturalSpawnChance(double naturalSpawnChance) { this.naturalSpawnChance = naturalSpawnChance; return this; }
         public Builder naturalSpawnMaxNearby(int naturalSpawnMaxNearby) { this.naturalSpawnMaxNearby = naturalSpawnMaxNearby; return this; }
