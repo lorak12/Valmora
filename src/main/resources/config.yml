@@ -234,6 +234,18 @@ combat:
   # player's actual max-health stat, which can be much higher).
   visual-health-hearts: 10
 
+  # VANILLA_CONTROL_AUDIT.md §14: shields were purely cosmetic before this — the custom damage
+  # pipeline never consulted vanilla's own block state. See ShieldBlockService.
+  shield:
+    enabled: true
+    # Fraction of a blocked (non-axe) melee/projectile hit that's negated; the rest gets through as
+    # "chip" damage, mirroring vanilla's own partial-block behavior.
+    block-damage-reduction: 0.9
+    # Full frontal arc (degrees) within which an attacker counts as "in front of" a blocking victim.
+    block-arc-degrees: 100.0
+    # Ticks the victim's shield is put on cooldown for after being hit by an axe (vanilla: 5s = 100 ticks).
+    axe-disable-ticks: 100
+
   # How often (ticks) the passive health/mana regen tick runs. 20 = once per second.
   regen-interval-ticks: 20
   regen:

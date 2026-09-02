@@ -100,6 +100,23 @@ public class CombatListener implements Listener {
             debug("HIT CALCULATED: finalDamage=" + damageResult.getFinalDamage() + " crit=" + damageResult.isCritical()
                     + " immune=" + damageResult.isImmune() + " victimHealthBefore=" + victim.getHealth());
 
+            // Shield blocking (VANILLA_CONTROL_AUDIT.md §14) — see ShieldBlockService for why this
+            // has to run after the pipeline's own calculation rather than relying on vanilla's
+            // already-consumed block reduction on the raw event damage.
+            if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
+                ShieldBlockService.Result block = ShieldBlockService.resolve(victimPlayer, attacker, damageType);
+                if (block.blocked()) {
+                    damageResult = new DamageResult(damageResult.getFinalDamage() * block.damageMultiplier(),
+                            damageResult.getDamageType(), damageResult.isCritical(), attacker, victim);
+                    if (block.disablesShield()) {
+                        victimPlayer.setCooldown(org.bukkit.Material.SHIELD, ShieldBlockService.shieldDisableTicks());
+                    }
+                    debug("HIT BLOCKED by shield: victim=" + victimPlayer.getName() + " multiplier="
+                            + block.damageMultiplier() + " disablesShield=" + block.disablesShield()
+                            + " -> finalDamage=" + damageResult.getFinalDamage());
+                }
+            }
+
             if (pipelineActive) {
                 pipelineCtx.set("dmg:final_damage", damageResult.getFinalDamage());
                 pipelineCtx.set("dmg:is_critical", damageResult.isCritical());
