@@ -84,11 +84,11 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Crop growth (wheat/etc.) | Random-tick growth; bonemeal forces | `BlockGrowEvent` (cancel); bonemeal via `BlockFertilizeEvent` | Pitcher plant / torchflower (1.20) | ❌ GAP |
-| Sapling → tree, huge mushroom | Structure grows when space | `StructureGrowEvent` (`TreeType.CHERRY` etc.) | — | ❌ GAP |
-| Grass/mycelium spread | Random-tick, light > 9 | `BlockSpreadEvent` | — | ❌ GAP |
-| Mushroom spread / huge growth | Spread in dark; grow with bonemeal | `BlockSpreadEvent`; `StructureGrowEvent` (`TreeType.BROWN/RED_MUSHROOM`) | — | ❌ GAP |
-| Vine / cave-vine / twisting/weeping vine growth | Random-tick downward/sideways | `BlockSpreadEvent` | Cave vines carry glow berries | ❌ GAP |
+| Crop growth (wheat/etc.) | Random-tick growth; bonemeal forces | `BlockGrowEvent` (cancel); bonemeal via `BlockFertilizeEvent` | Pitcher plant / torchflower (1.20) | 🟡 `ZoneListener.onBlockGrow` gates by `blockPlacing`; `BlockFertilizeEvent` (bonemeal-specific) not separately hooked — bonemeal still routes through `BlockGrowEvent` so the zone gate applies either way |
+| Sapling → tree, huge mushroom | Structure grows when space | `StructureGrowEvent` (`TreeType.CHERRY` etc.) | — | 🟡 `ZoneListener.onStructureGrow` gates by `blockPlacing` (origin zone only, not every resulting block) |
+| Grass/mycelium spread | Random-tick, light > 9 | `BlockSpreadEvent` | — | 🟡 `ZoneListener.onBlockSpread` gates by `blockPlacing` |
+| Mushroom spread / huge growth | Spread in dark; grow with bonemeal | `BlockSpreadEvent`; `StructureGrowEvent` (`TreeType.BROWN/RED_MUSHROOM`) | — | 🟡 same `onBlockSpread`/`onStructureGrow` gates |
+| Vine / cave-vine / twisting/weeping vine growth | Random-tick downward/sideways | `BlockSpreadEvent` | Cave vines carry glow berries | 🟡 same `onBlockSpread` gate |
 | Sculk spreading | Catalyst blooms on mob death | `SculkCatalystBloomEvent` (Paper) | Partially data-driven in 1.21 | ❌ GAP |
 | Coral death | Dies without water | `BlockFadeEvent` | — | ❌ GAP |
 | Ice melting / snow decay | Melts with light > 11 | `BlockFadeEvent` | — | ❌ GAP |
@@ -101,10 +101,10 @@
 | Oxidation (copper) / copper bulb | 4 weathering stages; bulb output | `BlockFadeEvent` (oxidation), `BlockRedstoneEvent` (bulb) | `weathering`/`oxidation` props | ❌ GAP |
 | Amethyst / budding amethyst growth | Clusters grow from budding | `BlockGrowEvent` (`age` 0–3) | — | ❌ GAP |
 | Pointed dripstone drip / stalactite fall | Drips into cauldrons; falls as damage | `BlockFromToEvent`, `BlockGrowEvent` | Tick-based | ❌ GAP |
-| Piston extend/retract + slime/honey chain + destruction | Push/pull up to 12 blocks; destroy un-pushable | `BlockPistonExtendEvent` / `BlockPistonRetractEvent` (`getBlocks()`) | `MOVING_PISTON`/`PISTON_HEAD` technical blocks | ❌ GAP |
+| Piston extend/retract + slime/honey chain + destruction | Push/pull up to 12 blocks; destroy un-pushable | `BlockPistonExtendEvent` / `BlockPistonRetractEvent` (`getBlocks()`) | `MOVING_PISTON`/`PISTON_HEAD` technical blocks | 🟡 `ZoneListener.onPistonExtend`/`onPistonRetract` cancels the whole action if a moved block's zone disallows `blockBreaking` or its destination zone disallows `blockPlacing`; `resource.ResourceEnvironmentListener` separately protects tracked resource nodes regardless of zone |
 | General physics check | Adjacent support checks on removal | `BlockPhysicsEvent` (`getCause()`) | Some physics moved client-side | ❌ GAP |
 | Entity standing/collision effects | Pressure plates, sculk sensors, cobweb slow, honey/slime | `EntityMoveEvent` (Paper); no damage event for cactus/berry/powder | Block-contact damage has no Bukkit event | ❌ GAP |
-| Mob griefing (creeper/enderman/silverfish/wither/ravager) | Mobs place/break blocks | `EntityExplodeEvent`, `EntityChangeBlockEvent`, `EntityBreakBlockEvent` (Paper), `GameRule.MOB_GRIEFING` | `GameRule.WITHER_BREAK_BLOCKS` | ❌ GAP |
+| Mob griefing (creeper/enderman/silverfish/wither/ravager) | Mobs place/break blocks | `EntityExplodeEvent`, `EntityChangeBlockEvent`, `EntityBreakBlockEvent` (Paper), `GameRule.MOB_GRIEFING` | `GameRule.WITHER_BREAK_BLOCKS` | 🟡 `world_rules` config already passes `GameRule.MOB_GRIEFING`/`WITHER_BREAK_BLOCKS` through server/world-wide; `ZoneListener.onEntityChangeBlock` adds a per-zone `blockBreaking` override on top |
 
 ---
 
@@ -112,14 +112,14 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Water/lava flow breaking blocks | Flow replaces torches/crops/etc. (no `BlockBreakEvent`) | `BlockFromToEvent` (cancel) | `level` 1–8, `waterlogged` prop | ❌ GAP |
+| Water/lava flow breaking blocks | Flow replaces torches/crops/etc. (no `BlockBreakEvent`) | `BlockFromToEvent` (cancel) | `level` 1–8, `waterlogged` prop | 🟡 `ZoneListener.onBlockFromTo` gates by `blockBreaking`, skipping the zone lookup entirely when the flow target is air/water/lava |
 | Lava igniting / converting to obsidian/cobblestone | Contact mechanics | `BlockFormEvent`, `BlockIgniteEvent`, `BlockFromToEvent` | — | ❌ GAP |
 | Infinite water source creation | Two adjacent sources create a source | `BlockFormEvent` | — | ❌ GAP |
 | Bucket fill/empty (incl. fish/axolotl/powder snow) | Pick up and place fluids + entities | `PlayerBucketFillEvent` / `PlayerBucketEmptyEvent` (`getFluidBucket()`) | — | ❌ GAP |
 | Frost Walker freezing | Freezes water under boots | `EntityBlockFormEvent` + `BlockFadeEvent` (melt) | — | ❌ GAP |
 | Cauldron fill/empty (water/lava/powder snow) | Bucket + dripstone + rain fill | `PlayerBucketFillEvent`/`EmptyEvent`, `BlockFormEvent`, `BlockFromToEvent` | `level`/`fill_level` props | ❌ GAP |
-| Fire spread / block burn | Fire spreads to flammable, burns blocks | `BlockIgniteEvent` (`IgniteCause`), `BlockBurnEvent`, `BlockSpreadEvent` | Soul fire doesn't spread to non-soulammable | ❌ GAP |
-| TNT / creeper / wither / end-crystal explosions | Radius + block destruction | `EntitySpawnEvent` (TNT), `ExplosionPrimeEvent`, `EntityExplodeEvent` (`blockList()`), `BlockExplodeEvent` (bed/anchor) | `GameRule.EXPLOSION_DROP_RULE` (1.21) | 🟡 combat maps damage only; no block destruction control |
+| Fire spread / block burn | Fire spreads to flammable, burns blocks | `BlockIgniteEvent` (`IgniteCause`), `BlockBurnEvent`, `BlockSpreadEvent` | Soul fire doesn't spread to non-soulammable | 🟡 `ZoneListener.onBlockIgnite`/`onBlockBurn` gate ignition/consumption by `blockPlacing`/`blockBreaking`; `BlockSpreadEvent` for fire itself not separately distinguished from the vegetation-spread gate (same flag, same effect) |
+| TNT / creeper / wither / end-crystal explosions | Radius + block destruction | `EntitySpawnEvent` (TNT), `ExplosionPrimeEvent`, `EntityExplodeEvent` (`blockList()`), `BlockExplodeEvent` (bed/anchor) | `GameRule.EXPLOSION_DROP_RULE` (1.21) | 🟡 combat maps damage; `ZoneListener.onEntityExplode`/`onBlockExplode` now filter `blockList()` by `blockBreaking` for every explosion source, not just bed/anchor (§9); drop-content control (`EXPLOSION_DROP_RULE`) still not attempted |
 | Explosion drop override | `ExplosionDropRules` gamerule | Modify `EntityExplodeEvent`/`BlockExplodeEvent` block list | `GameRule.EXPLOSION_DROP_RULE` | ❌ GAP |
 | Resonance / charged-creeper head drops | Creature killed by charged creeper drops disc | `EntityDeathEvent`, `EntityExplodeEvent` | — | ❌ GAP |
 | Lightning strike + block conversion | Converts sand→glass, cobble→stone | `LightningStrikeEvent` (cancel) | — | ❌ GAP |
@@ -432,8 +432,14 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
 9. ~~**Attack-cooldown / swing charge integration**~~ — **done**, `AttackCooldownService` (§12/§14); sprint-attack/sweep/backstab modeling remains a separate, still-open item.
 10. **GameRules wholesale** — none set (keepInventory, doFireTick, doDaylightCycle, doWeatherCycle, naturalRegeneration, fall/fire/drowning damage, playersSleepingPercentage, doImmediateRespawn).
 11. **Weather & time manipulation lock** — time module is read-only by design; no `WeatherChangeEvent`/`ThunderChangeEvent`, no `setTime` freeze.
-12. **Block state change family** — `BlockFadeEvent`/`BlockFormEvent`/`BlockGrowEvent`/`BlockSpreadEvent`/`LeavesDecayEvent`/`BlockPhysicsEvent`/`BlockMultiPlaceEvent`/`BlockDropItemEvent`/`BlockExpEvent` entirely unimplemented.
-13. **Explosions & fire control** — no `ExplosionPrimeEvent`/`EntityExplodeEvent` block-destruction control; no fire spread/burn.
+12. ~~**Block state change family**~~ — **partially done** (see `VANILLA_CONTROL_AUDIT_PROGRESS.md`
+    third pass): `BlockGrowEvent`/`BlockSpreadEvent`/`StructureGrowEvent`/`LeavesDecayEvent` now
+    zone-gated. Still open: `BlockFadeEvent`/`BlockFormEvent` (deliberately skipped, cosmetic-only),
+    `BlockPhysicsEvent`, `BlockMultiPlaceEvent`, `BlockDropItemEvent`/`BlockExpEvent` (general, beyond
+    the resource-module Silk Touch fix).
+13. ~~**Explosions & fire control**~~ — **partially done**: `EntityExplodeEvent`/`BlockExplodeEvent`
+    block destruction and `BlockIgniteEvent`/`BlockBurnEvent` fire spread now zone-gated. Explosion
+    *drop*-content control (`GameRule.EXPLOSION_DROP_RULE`) still not attempted.
 14. ~~**Sleeping/beds/phantoms**~~ — **mostly done**: `death` module's `BedListener` (zone-gated
     `PlayerBedEnterEvent`) and `PhantomInsomniaListener` (global + zone-gated `PhantomPreSpawnEvent`).
     Night-skip detection and `Statistic.TIME_SINCE_REST` control remain untouched (vanilla already
@@ -472,4 +478,4 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
   4. All text through MiniMessage/Adventure only (§7.5/§11.3).
   5. Never store `ExecutionContext`; never touch Bukkit from async threads (§7.4).
 
-_Last updated: 2026-09-02. Generated from a multi-agent audit of vanilla Paper 1.21.11 mechanics vs. the current Valmora module set; coverage cells updated in place as gaps are closed — see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md` for what shipped on which branch._
+_Last updated: 2026-09-03. Generated from a multi-agent audit of vanilla Paper 1.21.11 mechanics vs. the current Valmora module set; coverage cells updated in place as gaps are closed — see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md` for what shipped on which branch._

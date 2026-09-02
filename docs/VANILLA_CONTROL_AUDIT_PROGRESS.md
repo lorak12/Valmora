@@ -31,6 +31,19 @@
 | §13/§15 #16 — `AttributeModifier` NamespacedKey | **Verification only, no code change needed.** `StatModule.recalculateAttributes`'s only two `new AttributeModifier(...)` call sites (`MINING_SPEED_MOD_KEY`, `ATTACK_SPEED_MOD_KEY`) already use the 1.21 `NamespacedKey` constructor. |
 | §5/§17 — vanilla monster-spawner interception | **Verification only, no code change needed.** `SpawnerSpawnEvent extends CreatureSpawnEvent` in this Paper version, so the existing `VanillaSpawnUpgradeListener` (shipped in the first pass) already upgrades spawner-produced entities the same as natural/egg spawns — no separate `SpawnerSpawnEvent` listener was needed. |
 
+## Done this branch (third pass — §3-5 zone-protection batch)
+
+| Audit item | What shipped |
+|---|---|
+| §4 — fire spread / block burn ignoring zone protection | `ZoneListener.onBlockIgnite`/`onBlockBurn` (`BlockIgniteEvent`, `BlockBurnEvent`) — starting a fire is gated by `blockPlacing`, fire consuming an existing block is gated by `blockBreaking`. No new `ZoneFlags` field — reuses the same two flags already enforced for player mining/building. |
+| §3 — piston push/pull across zone boundaries | `ZoneListener.onPistonExtend`/`onPistonRetract` (`BlockPistonExtendEvent`/`RetractEvent`) — cancels the whole piston action if any moved block sits in a `blockBreaking`-disabled zone, or its destination sits in a `blockPlacing`-disabled zone. Complements (does not replace) `resource.ResourceEnvironmentListener`'s pre-existing resource-node-specific piston protection, which is unrelated (node tracking, not zones) and keeps working unchanged. |
+| §4 — general explosion block destruction | `ZoneListener.onEntityExplode`/`onBlockExplode` (`EntityExplodeEvent`/`BlockExplodeEvent`) — filters `blockList()` by `blockBreaking`, same logic as `death.RespawnAnchorListener.filterProtectedBlocks` (§9, respawn-anchor/bed-specific) but now applied to every explosion source (TNT, creeper, wither, end crystal, etc.), not just anchors/beds. The two listeners overlap harmlessly on bed/anchor explosions (same idempotent `removeIf`, no double-counting). |
+| §3 — mob griefing (enderman/sheep/silverfish/ravager/wither block changes) | `ZoneListener.onEntityChangeBlock` (`EntityChangeBlockEvent`), gated by `blockBreaking`. `GameRule.MOB_GRIEFING`/`WITHER_BREAK_BLOCKS` already applied server/world-wide via the pre-existing generic `world_rules` config pass-through (verified, no code change needed) — this adds the finer-grained per-zone override on top. |
+| §3 — crop/vine/amethyst/mushroom growth and grass/mycelium spread ignoring zone protection | `ZoneListener.onBlockGrow`/`onBlockSpread`/`onStructureGrow` (`BlockGrowEvent`, `BlockSpreadEvent`, `StructureGrowEvent`), gated by `blockPlacing`. `StructureGrowEvent` is gated on the growth origin's zone only (a tree canopy can extend past a narrow boundary — same simplification other protection plugins make). `LeavesDecayEvent` was already covered by a pre-existing `ZoneFlags.leafDecay` flag (audit doc's ❌ for it was stale). |
+| §4 — water/lava flow destroying blocks (torches, crops, etc.) with no `BlockBreakEvent` | `ZoneListener.onBlockFromTo` (`BlockFromToEvent`), gated by `blockBreaking`. Early-returns before any zone lookup when the flow target is air or already water/lava, to avoid a zone lookup on every ordinary flow tick. |
+
+All six items land in the same file (`ZoneListener`) rather than new listener classes, following the existing pattern (`onLeavesDecay`, `onBlockBreak`, etc.) — no new `ZoneFlags` fields were added; every new gate reuses the existing `blockBreaking`/`blockPlacing` flags. Deliberately **not** attempted, as scoped when this batch was proposed: cosmetic-only mechanics with no protection angle (copper oxidation, dripstone drips, note blocks, redstone-torch burnout, sculk spread, snow-layer accumulation, coral death, ice melt, infinite-water-source formation) and `GameRule.EXPLOSION_DROP_RULE`-style drop-content control (only block *destruction* is gated, not what an explosion drops).
+
 ## Explicitly NOT done — still open
 
 Everything else in the audit, notably (see the audit doc for full detail):
@@ -49,14 +62,17 @@ Everything else in the audit, notably (see the audit doc for full detail):
   attribution specifically.
 - **§8 high — time/weather write-lock.** `time` module is explicitly documented as read-only by
   design elsewhere in the codebase; left untouched rather than silently reversing that decision.
-- **§3/§4/§5 high — the entire block-state-change family** (`BlockFadeEvent`, `BlockFormEvent`,
-  `BlockGrowEvent`, `BlockSpreadEvent`, `LeavesDecayEvent`, `BlockPhysicsEvent`,
-  `BlockMultiPlaceEvent`, piston chains, general explosion/fire control) — zero coverage, sizable
-  standalone effort. (Respawn-anchor/bed wrong-dimension explosions specifically now get narrow zone
-  block-protection filtering as part of §9, not this general system — see the `death` module entry
-  above. `BlockDropItemEvent`/`BlockExpEvent` got a narrow, resource-module-scoped fix — Silk Touch
-  on zone-tracked resource blocks, see the second-pass table above — not the general per-block-type
-  system this item still describes for arbitrary vanilla blocks.)
+- **§3/§4/§5 block-state-change family — partially done (third pass, see table above).**
+  `BlockGrowEvent`, `BlockSpreadEvent`, `StructureGrowEvent`, `LeavesDecayEvent` (pre-existing),
+  piston chains, general explosion block destruction, fire ignite/burn, `EntityChangeBlockEvent`
+  (mob griefing), and `BlockFromToEvent` (fluid flow) are now all zone-gated. Still zero coverage:
+  `BlockFadeEvent`/`BlockFormEvent` (ice/snow/coral/copper/cauldron/frost-walker — cosmetic-only, no
+  protection angle, deliberately skipped), `BlockPhysicsEvent` (support-chain breaks),
+  `BlockMultiPlaceEvent` (doors/beds/portals — same protection outcome already achieved indirectly
+  since the final block-count places still go through `BlockPlaceEvent`), and `GameRule.EXPLOSION_
+  DROP_RULE`-style explosion *drop* control (only destruction is gated, not loot).
+  `BlockDropItemEvent`/`BlockExpEvent` got a narrow, resource-module-scoped fix earlier — Silk Touch
+  on zone-tracked resource blocks (second-pass table above) — not a general per-block-type system.
 - **§9 — void-damage rescue/anti-void platform.** Explicitly declined (**user-confirmed**) as part of
   the death pass above — void damage kills exactly like vanilla, just with a proper custom death
   message.
