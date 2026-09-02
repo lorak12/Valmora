@@ -76,6 +76,9 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.zone.ZoneModule getZoneModule();
 
+    /** VANILLA_CONTROL_AUDIT.md §9 — owns PlayerDeathEvent/PlayerRespawnEvent, see docs/modules/design/death.md. */
+    org.nakii.valmora.module.death.DeathModule getDeathModule();
+
     org.nakii.valmora.module.npc.NpcModule getNpcModule();
 
     org.nakii.valmora.module.warp.WarpModule getWarpModule();

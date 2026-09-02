@@ -203,10 +203,16 @@ public class ZoneCommand implements TabExecutor {
         player.sendMessage(Formatter.format("<dark_gray><st>                                                        </st>"));
     }
 
+    private static final java.util.Set<String> TRISTATE_FLAGS =
+            java.util.Set.of("keep-inventory-on-death", "keep-experience-on-death");
+
     private void flag(Player player, String[] args) {
-        // /zone flag <zoneId> <flag> <true|false>
+        // /zone flag <zoneId> <flag> <true|false|default>  ("default" only valid on the two
+        // VANILLA_CONTROL_AUDIT.md §9 tri-state death flags — clears the override back to "inherit
+        // the server-wide death.* config default", see DeathPolicyResolver)
         if (args.length < 4) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone flag <id> <pvp|natural-mob-spawning|block-breaking|block-placing> <true|false>"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone flag <id> <flag> <true|false"
+                    + "|default>"));
             return;
         }
         ZoneDefinition zone = reg().get(args[1]).orElse(null);
@@ -214,31 +220,39 @@ public class ZoneCommand implements TabExecutor {
             player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + args[1] + "' not found."));
             return;
         }
-        boolean value;
+        String flagName = args[2].toLowerCase();
         String rawValue = args[3].toLowerCase();
-        if (rawValue.equals("true") || rawValue.equals("on") || rawValue.equals("yes") || rawValue.equals("1")) {
-            value = true;
+
+        Boolean value; // null only ever means "inherit", and only for TRISTATE_FLAGS
+        if (TRISTATE_FLAGS.contains(flagName) && (rawValue.equals("default") || rawValue.equals("inherit") || rawValue.equals("unset"))) {
+            value = null;
+        } else if (rawValue.equals("true") || rawValue.equals("on") || rawValue.equals("yes") || rawValue.equals("1")) {
+            value = Boolean.TRUE;
         } else if (rawValue.equals("false") || rawValue.equals("off") || rawValue.equals("no") || rawValue.equals("0")) {
-            value = false;
+            value = Boolean.FALSE;
         } else {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Invalid value. Use true or false."));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Invalid value. Use true, false"
+                    + (TRISTATE_FLAGS.contains(flagName) ? ", or default." : ".")));
             return;
         }
 
         ZoneFlags old = zone.getFlags();
-        ZoneFlags updated = switch (args[2].toLowerCase()) {
-            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay());
-            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay());
-            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay());
-            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value);
+        ZoneFlags updated = switch (flagName) {
+            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value, old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
+            case "sleeping" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), value);
+            case "keep-inventory-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), value, old.keepExperienceOnDeath(), old.sleeping());
+            case "keep-experience-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), value, old.sleeping());
             default -> null;
         };
         if (updated == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay, sleeping, keep-inventory-on-death, keep-experience-on-death"));
             return;
         }
         mgr().setZoneFlags(zone.getId(), updated);

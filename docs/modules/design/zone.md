@@ -160,33 +160,45 @@ Neither event exposes cancellation (enter/exit cannot be vetoed), and they are *
 
 ### 3.7 Region flags — `ZoneFlags.java`
 
-Immutable record (`ZoneFlags.java:3-12`) of eight booleans:
+Immutable record (`ZoneFlags.java`) of eight booleans plus three more fields added for the death
+system (VANILLA_CONTROL_AUDIT.md §9 — see `docs/modules/design/death.md`):
 
 | Field | Semantics |
 |---|---|
 | `pvp` | `true` = player-vs-player damage allowed |
-| `naturalMobSpawning` | `true` = `NATURAL`/`SLIME_SPLIT`/`SPAWNER` creature spawns allowed |
-| `blockBreaking` | `true` = players may break blocks |
+| `naturalMobSpawning` | `true` = `NATURAL`/`SLIME_SPLIT`/`SPAWNER` creature spawns allowed (also gates phantom insomnia spawns — see death.md) |
+| `blockBreaking` | `true` = players may break blocks (also gates respawn-anchor/bed wrong-dimension explosion block destruction — see death.md) |
 | `blockPlacing` | `true` = players may place blocks |
 | `hunger` | `true` = hunger depletes normally; `false` = cancel `FoodLevelChangeEvent` |
 | `entry` | `true` = open to all; `false` = players are pushed back on entry |
 | `teleportation` | `true` = teleport works; `false` = blocked (see caveat below) |
 | `leafDecay` | `true` = leaves decay normally; `false` = cancel `LeavesDecayEvent` |
+| `keepInventoryOnDeath` | `Boolean` (nullable) — `death` module override for a death in this zone; `null` = inherit `death.keep-inventory-default` |
+| `keepExperienceOnDeath` | `Boolean` (nullable) — same, for kept XP |
+| `sleeping` | `true` = beds usable normally; `false` = `PlayerBedEnterEvent` is cancelled |
 
-`defaults()` (`ZoneFlags.java:13-15`) = `(false, false, false, false, true, true, true, true)` — i.e. everything *disallowed* except hunger, entry, teleportation, and leaf decay. Note this is **not** "everything allowed": a freshly created zone has PvP, natural spawning, breaking, and placing all **off** (`ZoneManager.createZone` calls `ZoneFlags.defaults()`, `ZoneManager.java:289`).
+`defaults()` (`ZoneFlags.java`) = `(false, false, false, false, true, true, true, true, null, null, true)`
+— i.e. everything *disallowed* except hunger, entry, teleportation, leaf decay, and sleeping, with
+both death-policy overrides left unset (inherit the server default). Note this is **not** "everything
+allowed": a freshly created zone has PvP, natural spawning, breaking, and placing all **off**
+(`ZoneManager.createZone` calls `ZoneFlags.defaults()`).
 
-**Enforcement matrix** (`ZoneListener.java`):
+**Enforcement matrix** (`ZoneListener.java` unless noted):
 
-| Flag | Handler | Behavior | Lines |
-|---|---|---|---|
-| `entry` | `onMoveEntryCheck` | If the destination is a different zone with `entry() == false`, `event.setTo(from.clone())` pushes the player back | `ZoneListener.java:42-53` |
-| `pvp` | `onPvp` | Cancels `EntityDamageByEntityEvent` when both entities are players and the victim's zone has `pvp() == false` | `ZoneListener.java:95-102` |
-| `blockBreaking` | `onBlockBreak` | Cancels the break unless it is a configured resource block or a tracked intermediate stage | `ZoneListener.java:104-115` |
-| `blockPlacing` | `onBlockPlace` | Cancels placement | `ZoneListener.java:117-123` |
-| `naturalMobSpawning` | `onCreatureSpawn` | Cancels `NATURAL`, `SLIME_SPLIT`, `SPAWNER` spawns (`BLOCKED_SPAWN_REASONS`, `ZoneListener.java:30-32`) | `ZoneListener.java:125-132` |
-| `hunger` | `onHunger` | Cancels `FoodLevelChangeEvent` | `ZoneListener.java:134-140` |
-| `leafDecay` | `onLeavesDecay` | Cancels `LeavesDecayEvent` | `ZoneListener.java:142-147` |
-| `teleportation` | *(no Bukkit listener)* | Only honored by the script engine's `teleport` event factory — `TeleportEventFactory.java:44-48` refuses and sends `<red>Teleportation is disabled in this area.` Warps and plugin teleports are **not** blocked | — |
+| Flag | Handler | Behavior |
+|---|---|---|
+| `entry` | `onMoveEntryCheck` | If the destination is a different zone with `entry() == false`, `event.setTo(from.clone())` pushes the player back |
+| `pvp` | `onPvp` | Cancels `EntityDamageByEntityEvent` when both entities are players and the victim's zone has `pvp() == false` |
+| `blockBreaking` | `onBlockBreak` | Cancels the break unless it is a configured resource block or a tracked intermediate stage |
+| `blockPlacing` | `onBlockPlace` | Cancels placement |
+| `naturalMobSpawning` | `onCreatureSpawn` | Cancels `NATURAL`, `SLIME_SPLIT`, `SPAWNER` spawns (`BLOCKED_SPAWN_REASONS`) |
+| `hunger` | `onHunger` | Cancels `FoodLevelChangeEvent` |
+| `leafDecay` | `onLeavesDecay` | Cancels `LeavesDecayEvent` |
+| `teleportation` | *(no Bukkit listener)* | Only honored by the script engine's `teleport` event factory — `TeleportEventFactory.java` refuses and sends `<red>Teleportation is disabled in this area.` Warps and plugin teleports are **not** blocked |
+| `keepInventoryOnDeath` / `keepExperienceOnDeath` | `death` module's `DeathPolicyResolver`/`DeathListener` | Overrides the server-wide `death.keep-inventory-default`/`death.keep-experience-default` for a death inside this zone |
+| `sleeping` | `death` module's `BedListener.onBedEnter` | Cancels `PlayerBedEnterEvent` with a message when `false` |
+| `blockBreaking` (reused) | `death` module's `RespawnAnchorListener.onBlockExplode` | Filters a respawn-anchor/bed wrong-dimension `BlockExplodeEvent`'s destroyed-block list down to zones that allow breaking |
+| `naturalMobSpawning` (reused) | `death` module's `PhantomInsomniaListener` | Also cancels `PhantomPreSpawnEvent` when `false` |
 
 ### 3.8 Resource blocks — `Map<Material, ZoneResourceConfig>`
 
@@ -257,7 +269,10 @@ Particles are client-side `spawnParticle(Particle.DUST, ...)` with `DustOptions`
 
 Writes `plugins/Valmora/zones/<id>.yml` (`ZoneManager.java:341-392`):
 
-- Always: `display-name`, `world`, `min` (3-list), `max` (3-list), and all eight `allow.*` flags (`:347-359`).
+- Always: `display-name`, `world`, `min` (3-list), `max` (3-list), and all eight non-nullable `allow.*`
+  flags. `allow.keep-inventory-on-death`/`allow.keep-experience-on-death` are written only when set
+  (non-null — round-trips "unset" as absent rather than a literal `null`); `allow.sleeping` is
+  always written like the other eight.
 - `extra-boxes` as a list of `{min: [...], max: [...]}` maps, only if non-empty (`:361-370`).
 - `mob-spawners` as `<id> -> {mob, x, y, z, spawn-interval, max-alive, radius, spawn-radius}` (`:372-385`). Spawner IDs default to `spawner_<i>` when empty.
 - On `IOException` it logs `[Zones] Failed to save zone '<id>': ...` (`:387-391`).
@@ -288,6 +303,9 @@ Zones live in `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID**
     entry: true                    # players may enter
     teleportation: true            # teleports allowed
     leaf-decay: true               # leaves decay
+    sleeping: true                 # beds usable (VANILLA_CONTROL_AUDIT.md §9 — death.md)
+    keep-inventory-on-death: <unset>   # optional bool; unset = inherit death.keep-inventory-default
+    keep-experience-on-death: <unset>  # optional bool; unset = inherit death.keep-experience-default
 
   extra-boxes:                     # optional list of extra sub-regions
     - min: [x, y, z]
@@ -339,7 +357,10 @@ Zones live in `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID**
 | `allow.entry` | `true` | bool | If `false`, players whose move would enter this zone are pushed back to their previous position (`ZoneListener.java:42-53`). |
 | `allow.teleportation` | `true` | bool | If `false`, only the script engine's `teleport` event refuses to fire (`TeleportEventFactory.java:44-48`); warps and other teleports are **not** blocked. |
 | `allow.leaf-decay` | `true` | bool | If `false`, `LeavesDecayEvent` is cancelled (`ZoneListener.java:142-147`). |
-| *(legacy)* `pvp-enabled` | `false` | bool | Read only when the `allow:` section is absent, to preserve old configs; the other seven flags fall back to their defaults (`ZoneLoader.java:50`). |
+| `allow.sleeping` | `true` | bool | If `false`, `PlayerBedEnterEvent` is cancelled by the `death` module's `BedListener` (VANILLA_CONTROL_AUDIT.md §9). |
+| `allow.keep-inventory-on-death` | *(unset)* | bool (nullable) | Per-zone override for whether death drops are kept, consumed by `DeathPolicyResolver`; unset inherits `death.keep-inventory-default`. Set/clear via `/zone flag <id> keep-inventory-on-death <true\|false\|default>`. |
+| `allow.keep-experience-on-death` | *(unset)* | bool (nullable) | Same, for kept XP; `death.keep-experience-default`. |
+| *(legacy)* `pvp-enabled` | `false` | bool | Read only when the `allow:` section is absent, to preserve old configs; the other flags fall back to their defaults (`ZoneLoader.java:50`). |
 | `extra-boxes` | *(none)* | list of maps | Additional boxes to make non-rectangular shapes. Each entry needs `min: [x,y,z]` and `max: [x,y,z]` (3+ ints each); malformed entries are silently skipped (`ZoneLoader.java:62-81`). Membership is primary box OR any extra box (`ZoneDefinition.java:55-63`). |
 | `fishing-loot-table` | *(none)* | string | Table ID resolved by `FishingManager.getTableForPlayer` (`FishingManager.java:41-45`); absent ⇒ `"default"` fallback. |
 | `mob-spawners.<id>.mob` | `"zombie"` | string | Valmora mob ID. Unknown IDs are skipped each tick and by `/zone spawner add` validation (`ZoneManager.java:138-139`, `ZoneCommand.java:265-269`). |
@@ -466,6 +487,7 @@ Registered 16th (`Valmora.java:205`), after `enchant`, before `resource`/`fishin
 | `quest` (`QuestListener`) | `REACH_ZONE` objective triggered on `ZoneEnterEvent` (`QuestListener.java:108-112`). |
 | `ui` (`ScoreboardUI`) | "Zone:" scoreboard line from `getCurrentZone(...).getDisplayName()` (`ScoreboardUI.java:201-206`). |
 | `script` (`TeleportEventFactory`) | Blocks `teleport` DSL events when `teleportation()` is `false` (`TeleportEventFactory.java:44-48`). |
+| `death` (`DeathPolicyResolver`, `BedListener`, `RespawnAnchorListener`, `PhantomInsomniaListener`) | `keepInventoryOnDeath`/`keepExperienceOnDeath` (death policy), `sleeping` (bed entry gate), `blockBreaking` (respawn-anchor/bed explosion protection), `naturalMobSpawning` (phantom insomnia gate) — VANILLA_CONTROL_AUDIT.md §9, see `docs/modules/design/death.md`. |
 | `script` (`ZoneCondition`) | `zone <id>` condition, backed by `PlayerState.currentZoneId` (kept live by `ZoneListener` since 2026-08-07). |
 | `mob` (module docs) | Zone spawners are one of the four spawn callers; `MOB_HOME_KEY` behavior task complements the mob module's lack of AI (`docs/modules/design/mob.md:413`, `:432`). |
 | command layer | `/zone` executor + tab completer wired in `Valmora.java:246-248`, declared `plugin.yml:46-49`. |

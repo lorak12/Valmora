@@ -282,6 +282,9 @@ Each module must:
 | `InventoryClickEvent`           | gui              | item, enchant, modifier, storage components (accessory/backpack) |
 | `PlayerJoinEvent` / `QuitEvent` | profile          | hud, pet, quest, progression           |
 | `ChunkLoadEvent`                | zone             | resource, mob, npc                     |
+| `PlayerDeathEvent` / `PlayerRespawnEvent` | death   | economy (purse loss), hud (item strip), quest (DIE trigger), item (ON_DEATH/ON_RESPAWN abilities), stat (respawn heal-back) — VANILLA_CONTROL_AUDIT.md §9, see `docs/modules/design/death.md` |
+| `EntityResurrectEvent`          | combat (`TotemProtectionService`) | death (implicitly, via the fatal-damage path it interrupts) |
+| `PlayerBedEnterEvent`, `BlockExplodeEvent` (respawn anchor/bed), `PhantomPreSpawnEvent` | death | zone (`ZoneFlags.sleeping`/`blockBreaking`/`naturalMobSpawning`) |
 
 ### 5.2 Custom Events
 

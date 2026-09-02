@@ -130,6 +130,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.machine.MachineModule machineModule;
     private org.nakii.valmora.module.pack.PackModule packModule;
     private org.nakii.valmora.module.pack.PackFileIndex packFileIndex;
+    private org.nakii.valmora.module.death.DeathModule deathModule;
 
     @Override
     public void onEnable() {
@@ -199,6 +200,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
         this.zoneModule = new ZoneModule(this);
+        this.deathModule = new org.nakii.valmora.module.death.DeathModule(this);
         this.resourceModule = new ResourceModule(this);
         this.fishingModule = new FishingModule(this);
         this.npcModule = new NpcModule(this);
@@ -237,6 +239,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
         moduleManager.registerModule(zoneModule);
+        // Depends on stat/economy/combat/zone, all already enabled above; nothing later depends on
+        // it. VANILLA_CONTROL_AUDIT.md §9 — see docs/modules/design/death.md.
+        moduleManager.registerModule(deathModule);
         moduleManager.registerModule(resourceModule);
         moduleManager.registerModule(fishingModule);
         moduleManager.registerModule(npcModule);
@@ -491,6 +496,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public ZoneModule getZoneModule() {
         return zoneModule;
+    }
+
+    @Override
+    public org.nakii.valmora.module.death.DeathModule getDeathModule() {
+        return deathModule;
     }
 
     @Override

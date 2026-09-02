@@ -1,15 +1,19 @@
 package org.nakii.valmora.module.item;
 
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
@@ -85,6 +89,37 @@ public class AbilityTriggerListener implements Listener {
                     .ifPresent(def -> AbilityExecutor.fire(player, def, trigger, null, true));
         }
         AbilityExecutor.fireModifiersForItem(player, item, trigger, null, true);
+    }
+
+    /**
+     * VANILLA_CONTROL_AUDIT.md §9 — fires ON_DEATH for the victim's held item + armor. Runs at
+     * {@code HIGH} (after the {@code death} module's own {@code NORMAL}-priority handler resolves
+     * keepInventory/keepExperience, before {@code EconomyListener}'s {@code MONITOR} purse-loss
+     * penalty) so an ability reacting to death can still see/depend on the resolved drop policy.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        AbilityExecutor.fireHeld(player, AbilityTrigger.ON_DEATH, null, true);
+        AbilityExecutor.fireModifiersHeld(player, AbilityTrigger.ON_DEATH, null, true);
+        fireArmor(player, AbilityTrigger.ON_DEATH);
+    }
+
+    /**
+     * VANILLA_CONTROL_AUDIT.md §9 — fires ON_RESPAWN a tick after respawn, mirroring the stat
+     * module's own respawn heal-back delay (equipment/inventory isn't necessarily settled at
+     * event-fire time).
+     */
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        if (plugin == null) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            AbilityExecutor.fireHeld(player, AbilityTrigger.ON_RESPAWN, null, true);
+            AbilityExecutor.fireModifiersHeld(player, AbilityTrigger.ON_RESPAWN, null, true);
+            fireArmor(player, AbilityTrigger.ON_RESPAWN);
+        });
     }
 
     @EventHandler

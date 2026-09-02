@@ -16,5 +16,10 @@ public enum AbilityTrigger {
     // VANILLA_CONTROL_AUDIT.md §12 critical gap: PlayerInteractEntityEvent was never intercepted at
     // all, so no item could react to being used ON an entity (feeding, taming-style interactions,
     // custom "use on mob" effects). Fired for the item in whichever hand triggered the interaction.
-    ON_INTERACT_ENTITY
+    ON_INTERACT_ENTITY,
+    // VANILLA_CONTROL_AUDIT.md §9 death system — general extensibility hooks added alongside the
+    // Totem of Undying fix, so any item/modifier ability (not just the built-in totem) can react to
+    // its wielder dying or respawning. Fired for held items + armor; see AbilityTriggerListener.
+    ON_DEATH,
+    ON_RESPAWN
 }

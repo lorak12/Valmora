@@ -94,7 +94,9 @@ Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `
 2. **Left-click** a block to set **Pos1**, **right-click** a block to set **Pos2** (`ZoneWandListener.java:23-50`). A live preview shows Pos1 in blue, Pos2 in red, and the resulting box in green.
 3. Optionally fine-tune with `/zone pos1` / `/zone pos2` (set at your feet) or `/zone clear`.
 4. Run `/zone create my_area My Area` — the zone is registered and written to `plugins/Valmora/zones/my_area.yml`.
-5. Run `/zone flag my_area pvp true` (or any of the eight flags) to configure it.
+5. Run `/zone flag my_area pvp true` (or any of the eleven flags — `keep-inventory-on-death`/
+   `keep-experience-on-death` also accept `default` to clear an override back to inheriting the
+   server-wide setting) to configure it.
 6. Run `/zone visualize` to see the borders as yellow particles.
 7. Add mob spawners (below), extra boxes (Workflow 3), or hand-edit the file for resource blocks/fishing/actions, then `/valmora reload`.
 
@@ -221,6 +223,9 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
     entry: true                      # players may enter
     teleportation: true              # teleports allowed
     leaf-decay: true                 # leaves decay normally
+    sleeping: true                   # beds usable
+    keep-inventory-on-death: <unset> # optional; unset = inherit server death.keep-inventory-default
+    keep-experience-on-death: <unset> # optional; unset = inherit server death.keep-experience-default
 
   extra-boxes:                       # optional extra sub-regions
     - min: [x, y, z]
@@ -277,8 +282,11 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
 | `allow.entry` | `true` | If `false`, players are pushed back when they try to walk into the zone. |
 | `allow.teleportation` | `true` | If `false`, scripted `teleport` events are blocked (warps and other teleports are NOT affected). |
 | `allow.leaf-decay` | `true` | If `false`, leaves in the zone never decay. |
+| `allow.sleeping` | `true` | If `false`, players can't enter a bed in this zone (e.g. a boss arena or dungeon). See `docs/modules/user/death.md`. |
+| `allow.keep-inventory-on-death` | *(unset)* | Overrides the server's `death.keep-inventory-default` for a death in this zone. Set/clear with `/zone flag <id> keep-inventory-on-death <true\|false\|default>`. |
+| `allow.keep-experience-on-death` | *(unset)* | Same, for kept XP on death. |
 
-> Legacy: if the `allow:` section is omitted, a `pvp-enabled:` key is honored and the other seven flags fall back to their defaults.
+> Legacy: if the `allow:` section is omitted, a `pvp-enabled:` key is honored and the other flags fall back to their defaults.
 
 ### Shape
 

@@ -444,6 +444,16 @@ public class ZoneManager {
         config.set(sec + ".allow.entry", zone.getFlags().entry());
         config.set(sec + ".allow.teleportation", zone.getFlags().teleportation());
         config.set(sec + ".allow.leaf-decay", zone.getFlags().leafDecay());
+        // VANILLA_CONTROL_AUDIT.md §9 — null (inherit the server-wide death.* config default) is
+        // simply omitted rather than written as a literal null, so a hand-edited zone without an
+        // override still round-trips as "unset" rather than acquiring one.
+        if (zone.getFlags().keepInventoryOnDeath() != null) {
+            config.set(sec + ".allow.keep-inventory-on-death", zone.getFlags().keepInventoryOnDeath());
+        }
+        if (zone.getFlags().keepExperienceOnDeath() != null) {
+            config.set(sec + ".allow.keep-experience-on-death", zone.getFlags().keepExperienceOnDeath());
+        }
+        config.set(sec + ".allow.sleeping", zone.getFlags().sleeping());
 
         if (!zone.getExtraBoxes().isEmpty()) {
             List<Map<String, List<Integer>>> boxEntries = new ArrayList<>();
