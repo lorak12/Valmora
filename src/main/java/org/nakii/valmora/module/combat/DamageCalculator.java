@@ -241,6 +241,7 @@ public class DamageCalculator {
 
         DamageResult result = new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
         result.setImmune(immune);
+        result.setKnockbackMultiplier(context.getKnockbackMultiplier());
 
         damageType.fireOnHit(formulaContext);
 

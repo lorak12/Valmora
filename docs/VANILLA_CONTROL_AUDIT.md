@@ -55,7 +55,7 @@
 | Break completion / drop suppression | `BlockBreakEvent` (player-initiated only) | `BlockBreakEvent`; `setExpToDrop(0)`; cancel to keep block | Piston/explosion/fluid/fire breaks **do not** fire this event | ✅ resource covers drops; verify |
 | Drop distribution | Items spawn at block center with spread + XP orbs | `BlockDropItemEvent` (1.19.4+); modify/suppress the `List<Item>` | Do NOT spawn custom drops in `BlockBreakEvent` and suppress vanilla — use `BlockDropItemEvent` | 🟡 resource |
 | Experience drop from ores / sculk | Ores drop XP orbs | `BlockExpEvent` (`setExpToDrop(0)`); sculk XP via `SculkCatalystBloomEvent` | Sculk catalyst XP is a separate event | ❌ GAP |
-| Silk Touch / Fortune interaction | Final drop count/block-item computed server-side | Modify list in `BlockDropItemEvent` | `Enchantment.SILK_TOUCH` / `FORTUNE` names | ❌ GAP |
+| Silk Touch / Fortune interaction | Final drop count/block-item computed server-side | Modify list in `BlockDropItemEvent` | `Enchantment.SILK_TOUCH` / `FORTUNE` names | 🟡 `resource` — Silk Touch respected for zone-configured resource blocks (`ResourceManager`, `resource.silk-touch.enabled`); vanilla (non-tracked) blocks already get real vanilla Silk Touch/Fortune since their drops are never intercepted; generic `BlockDropItemEvent`/`BlockExpEvent` control for arbitrary blocks still not attempted |
 | Tile-entity (container) loot on break | Chest/barrel/shulker/furnace/hopper/dispenser/lectern/decorated-pot contents drop separately | Included in `BlockDropItemEvent` list | Decorated pots (1.20+) have inventories; shulker contents preserved via NBT | ❌ GAP (machine interaction) |
 | Tool durability deduction / Unbreaking / Mending | 1 durability per break (2 for axes on wood) | `PlayerItemDamageEvent` (Paper) — cancel/`setDamage` | `ItemMeta.getDamage()`/`setMaxDamage()` (not `setMaxDurability`) | ❌ GAP |
 | Adventure-mode `CanDestroy` | Only blocks matching the tool's tag break | No event; check `Tag.isTagged(Material)` — tags now data-driven | — | ❌ GAP |
@@ -195,14 +195,14 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Death message / custom death | Default localized message | `PlayerDeathEvent.deathMessage(Component)` (Adventure) | Needs `DamageSource` for localization keys, or block + inject MiniMessage | ❌ GAP (trivial read-only today) |
-| keepInventory / keepExperience | Vanilla drops armor/XP | `PlayerDeathEvent.setKeepInventory`/`setKeepLevel` | `setKeepInventory(true)` still populates `getDrops()` | 🟡 HUD items removed only |
-| Respawn location / bed vs anchor | `PlayerRespawnEvent.setRespawnLocation` | `setRespawnLocation`, `isBedSpawn`/`isAnchorSpawn`; `PlayerBedEnterEvent` | Death-screen duration client-side (Paper `PlayerDeathScreenEvent`) | 🟡 heal/respawn handled; location/screen ❌ |
-| Totem of undying trigger | Protects from lethal | `EntityResurrectEvent` (Paper) | — | ❌ GAP |
-| Respawn anchor explosion (wrong dim) | Explodes | `RespawnAnchorExplodeEvent` / `BlockExplodeEvent` | — | ❌ GAP |
-| End void death / platform | Drops through End | reposition / platform | — | ❌ GAP |
-| Bed enter/leave/wake + esc-kick | Sleep, respawn point, leave | `PlayerBedEnterEvent`, `PlayerBedLeaveEvent`, `PlayerWakeUpEvent`, `BedExplodeEvent` | — | ❌ GAP |
-| Phantom countdown (insomnia) | Spawns after 3 nights awake | `Statistic.TIME_SINCE_REST`, `PhantomPreSpawnEvent` (Paper) | Valmora controls time but not phantoms | ❌ GAP |
+| Death message / custom death | Default localized message | `PlayerDeathEvent.deathMessage(Component)` (Adventure) | Needs `DamageSource` for localization keys, or block + inject MiniMessage | ✅ `death` module (`DeathMessageService`) — built from Valmora's own DamageType/attacker/weapon resolution, not `DamageSource` (deliberate — see docs/modules/design/death.md §3.2) |
+| keepInventory / keepExperience | Vanilla drops armor/XP | `PlayerDeathEvent.setKeepInventory`/`setKeepLevel` | `setKeepInventory(true)` still populates `getDrops()` | ✅ `death` module (`DeathPolicyResolver`/`DeathListener`) — global config default + per-zone `ZoneFlags` override; the `getDrops()` pitfall is explicitly handled |
+| Respawn location / bed vs anchor | `PlayerRespawnEvent.setRespawnLocation` | `setRespawnLocation`, `isBedSpawn`/`isAnchorSpawn`; `PlayerBedEnterEvent` | Death-screen duration client-side (Paper `PlayerDeathScreenEvent`) | 🟡 heal/respawn handled (stat); optional per-zone `death.zone-respawn-overrides` location override added; vanilla bed/anchor/world-spawn resolution otherwise left untouched (already correct); **death-screen duration has no hook in this Paper version (1.21.11)** — `PlayerDeathScreenEvent` doesn't exist here, confirmed via the shipped API jar |
+| Totem of undying trigger | Protects from lethal | `EntityResurrectEvent` (Paper) | — | ✅ `TotemProtectionService` (`module/combat/`) — was silently non-functional (vanilla's own totem check never ran against this plugin's virtual-health damage pipeline); fixed by intercepting inside `DamageApplier` before the fatal `setHealth(0)`, firing a real `EntityResurrectEvent` for compatibility. Known limitation: the client's totem pop-up animation doesn't play (see design doc) |
+| Respawn anchor explosion (wrong dim) | Explodes | `RespawnAnchorExplodeEvent` / `BlockExplodeEvent` | This Paper version has no dedicated `RespawnAnchorExplodeEvent`/`BedExplodeEvent` — both fire as `BlockExplodeEvent` (confirmed via the shipped API jar) | 🟡 `death` module (`RespawnAnchorListener`) — zone block-protection filtering only (reuses `ZoneFlags.blockBreaking`); player damage already routed correctly via existing `BLOCK_EXPLOSION` → `DamageType.EXPLOSION` mapping; general explosion-control (§4) not attempted |
+| End void death / platform | Drops through End | reposition / platform | — | 🟡 death message added (`death.messages.VOID`); rescue-platform/reposition explicitly declined (user decision) — void kills exactly like vanilla |
+| Bed enter/leave/wake + esc-kick | Sleep, respawn point, leave | `PlayerBedEnterEvent`, `PlayerBedLeaveEvent`, `PlayerWakeUpEvent`, `BedExplodeEvent` | — | 🟡 `death` module (`BedListener`) — `PlayerBedEnterEvent` gated by new `ZoneFlags.sleeping`; wrong-dimension explosion handled by `RespawnAnchorListener` (same `BlockExplodeEvent`, see above); `PlayerBedLeaveEvent`/`PlayerWakeUpEvent` deliberately left alone (vanilla already correct) |
+| Phantom countdown (insomnia) | Spawns after 3 nights awake | `Statistic.TIME_SINCE_REST`, `PhantomPreSpawnEvent` (Paper) | Valmora controls time but not phantoms | ✅ `death` module (`PhantomInsomniaListener`) — global `death.phantoms-enabled` toggle + reused `ZoneFlags.naturalMobSpawning`; `Statistic.TIME_SINCE_REST` itself left vanilla |
 
 ---
 
@@ -240,7 +240,7 @@
 | Offhand ability trigger | Use in offhand | `getHand()==OFF_HAND` | **AbilityListener explicitly skips OFF_HAND** | ❌ GAP |
 | PHYSICAL (trampling) | Walk on farmland | `PlayerInteractEvent` `Action.PHYSICAL` (`getHand()==null`) | — | ✅ TrampleListener |
 | Per-player vanilla item cooldown bar | `Player.setCooldown(Material, ticks)` | Keyed by Material, not PDC. Valmora `CooldownManager` is ability-ID keyed → **no vanilla cooldown bar** | — | 🟡 (ability cooldowns only) |
-| Custom attack cooldown (1.9 swing charge) | Charge → damage scaling | `Attribute.ATTACK_SPEED`, `player.resetCooldown()`; no charge-progress event | `ATTACK_SPEED` name; `NamespacedKey` modifiers | ❌ GAP (stat has bonus_attack_speed but **unconsumed**) |
+| Custom attack cooldown (1.9 swing charge) | Charge → damage scaling | `Attribute.ATTACK_SPEED`, `player.resetCooldown()`; no charge-progress event | `ATTACK_SPEED` name; `NamespacedKey` modifiers | ✅ `AttackCooldownService` (`module/combat/`) — reproduces vanilla's charge->multiplier curve (`0.2 + progress²×0.8`) against `Attribute.ATTACK_SPEED`, applied post-calculation in `CombatListener` for player melee hits (`combat.attack-cooldown.*`); `player.resetCooldown()`/the client HUD indicator itself untouched (cosmetic only, already correct) |
 | Swing / arm-animation | `PlayerAnimationEvent` | Cancel to reuse click | — | ❌ GAP |
 | `getItemInUse()` / hold-to-charge | Bow/fishing rod/trident charge | `Player#getItemInUse()`, `PlayerUseItemEvent` (start, cancellable) | Distinct from `PlayerItemConsumeEvent` | ❌ GAP |
 | Eating/drinking animation & hold-time | ~1.6s eat; consume fires at completion | `PlayerItemConsumeEvent` (`getHand()` may be null); cancel `PlayerInteractEvent` to stop start | `FoodComponent` (item component), not `FoodMeta` | 🟡 alchemy consume only; ❌ custom food duration |
@@ -260,7 +260,7 @@
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Durability loss / unbreakable / Mending | Loss on use; `PlayerItemDamageEvent`/`PlayerItemMendEvent` | Cancel/`setDamage` | **Never hooked anywhere** | ❌ GAP |
-| Attribute modifiers on held/equipped | Apply while equipped | `AttributeModifier` (`NamespacedKey`, `Operation`) | OFF `UUID`/string name constructor | 🟡 stat recalc — verify ItemFactory uses `NamespacedKey` |
+| Attribute modifiers on held/equipped | Apply while equipped | `AttributeModifier` (`NamespacedKey`, `Operation`) | OFF `UUID`/string name constructor | ✅ verified — `StatModule.recalculateAttributes`'s only two `new AttributeModifier(...)` call sites both use the `NamespacedKey` constructor (`MINING_SPEED_MOD_KEY`/`ATTACK_SPEED_MOD_KEY`), removed and re-added on every recalc |
 | Anvil repair / combine / XP cost / enchant preserve | Upgrade + cost cap (40 levels) | `AnvilRepairEvent`, `PrepareAnvilEvent` | Smithing is separate (`SmithingTransformRecipe` 3-slot) | 🟡 modifier anvil step; ❌ full cost/preserve |
 | Item stacks / PDC / custom model data / components | PDC + (1.20.5+) components | `ItemStack#withType`, component access | Avoid `setType()`+full-meta rebuild | ✅ extensive PDC |
 | Shield block cooldown / axe-disable / damage | 0.6s cooldown; axe disables 5s | `EntityDamageBlockedEvent` (**never hooked**), `setCooldown(Material.SHIELD)` | — | ❌ GAP |
@@ -279,10 +279,10 @@
 | Resistance potion / absorption hearts | Flat % / shield layer | Absorption via `setAbsorptionAmount`; no pipeline layer | Absorption hearts sit **outside** virtual HP — not spent first | 🟡 |
 | Invulnerability i-frames / hurt resistance | `getNoDamageTicks` gate | `CombatListener` gate + `setNoDamageTicks(20)` | DoT/pipeline re-triggers gate | ✅ |
 | Shield blocking | Block/reduce damage | `EntityDamageBlockedEvent` — **never hooked** | — | ❌ GAP |
-| Knockback model | `Entity.knockback` accel; KB resistance | No attacker KB suppression/enchant-KB; mobs only resist | 1.21 uses acceleration not vector hacks | 🟡 abilities; ❌ vanilla KB model |
+| Knockback model | `Entity.knockback` accel; KB resistance | No attacker KB suppression/enchant-KB; mobs only resist | 1.21 uses acceleration not vector hacks | 🟡 `CombatKnockbackListener` (`EntityKnockbackEvent`, `Cause.ENTITY_ATTACK`) now lets an enchant `modify-attack`/`modify-defend` `knockback-multiplier` modifier suppress/scale a specific hit's knockback (`DamageModifierContext`/`EnchantCombatHook`/`KnockbackModifierTracker`); mob/player KB-resistance via vanilla attributes was already correct and untouched (`MobDefinition.knockback-resistance` → `KNOCKBACK_RESISTANCE`; any stat mapped to a vanilla attribute already flows through `StatModule`); no combat-pipeline `knockback_multiply` event yet — enchants only |
 | Critical / sprint attack / sweep / backstab | Jump crit, sprint bonus, sweep width | Valmora random-% crit; ❌ sprint/sweep/backstab not modeled | 21 sweep tag not consumed | 🟡 crit; ❌ others |
-| Attack cooldown integration | Charge scaling | `bonus_attack_speed` stat exists but **never consumed** | — | ❌ GAP |
-| Modern `DamageSource`/`DamageType` builder + death keys | Localized death/kill tags | `DamageSource.builder(DamageType.*)...build()` | **Never used anywhere** — blocks custom death messages | ❌ GAP |
+| Attack cooldown integration | Charge scaling | `bonus_attack_speed` stat exists but **never consumed** | — | ✅ see §12 row above — `AttackCooldownService` now consumes it (via the `Attribute.ATTACK_SPEED` value it already fed) for the actual damage-scaling behavior |
+| Modern `DamageSource`/`DamageType` builder + death keys | Localized death/kill tags | `DamageSource.builder(DamageType.*)...build()` | **Never used anywhere** | 🟡 deliberately still unused — custom death messages were the only concrete need for it and are now solved a different way (`death` module's `DeathMessageService`, built from Valmora's own DamageType/attacker resolution instead — see §9 and docs/modules/design/death.md §3.2). Vanilla `DamageSource`-based localization/attribution remains a real gap if some *other* feature needs it later |
 | Vanilla-enchant interception | Protection/Unbreaking/Mending/FireAspect/KB/Looting/Sweeping | **None — vanilla enchants outside the pipeline** | — | ❌ GAP |
 
 ---
@@ -328,7 +328,7 @@
 | Natural spawn rules + caps | Biome category caps, light/block checks | `CreatureSpawnEvent` (`SpawnReason.NATURAL`), `MobSpawnEvent` (Paper) | Light rules changed 1.18+ (surface ≤0, caves ≤15) | 🟡 zone can disable; ❌ custom spawn logic |
 | Spawn placement constraints (per-type) | 2×1×2 spider, sky access phantom, etc. | `SpawnPlacements` NMS-only; pre-validate in `CreatureSpawnEvent` | — | ❌ GAP |
 | Despawn distance / persistence | 128-block despawn; `removeWhenFarAway` | `EntityRemoveEvent` (Paper, `DESPAWN`), `Mob.setPersistent` | 128/32 hardcoded in NMS | 🟡 `MobDefinition.persistent`; ❌ custom distance/reaction |
-| Vanilla MobSpawner block | Timer + range + conditions | `SpawnerSpawnEvent` | — | 🟡 zone spawners separate; ❌ vanilla spawner interception |
+| Vanilla MobSpawner block | Timer + range + conditions | `SpawnerSpawnEvent` | — | ✅ verified — `SpawnerSpawnEvent extends CreatureSpawnEvent` in this Paper version, so `VanillaSpawnUpgradeListener`'s existing `CreatureSpawnEvent` handler already upgrades spawner-produced entities the same as natural/egg spawns; zone spawners remain a separate system |
 | Structure spawning / siege / reinforcements | Outposts, fortresses, zombie siege/reinforcements | `CreatureSpawnEvent` (`STRUCTURE`/`REINFORCEMENTS`) | — | ❌ GAP |
 | Spawn egg / command / plugin spawning of Valmora mobs | Applies stats/PDC | **No `CreatureSpawnEvent` listener to apply mob defs** — eggs produce vanilla mobs | — | 🟡 `/mob spawn` only; ❌ eggs |
 | Riding / passenger system | Skeletons ride spiders, piglins ride striders | `EntityAddPassengerEvent`/`EntityRemovePassengerEvent` (Paper) | — | ❌ GAP |
@@ -417,29 +417,43 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
 1. **`EntityTargetEvent`** listener — unlocks aggro range, targeting tables/factions, most custom mob AI. No module has it.
 2. **`PlayerInteractEntityEvent`** — no custom entity-interact-through-item mechanics at all (feeding/taming/saddling/custom shears).
 3. **Mob conversion interception** — `EntityTransformEvent`/`EntityConvertEvent` must carry over mob PDC, or custom mobs silently revert to vanilla on drown/burn/cure.
-4. **Modern `DamageSource`/`DamageType` + custom death messages** — §11.10 pattern is **unused**; required for localized death/kill keys and real death messages.
+4. ~~**Modern `DamageSource`/`DamageType` + custom death messages**~~ — **done**, via a different
+   route than originally scoped: the `death` module's `DeathMessageService` builds real custom death
+   messages from Valmora's own DamageType/attacker/weapon resolution rather than vanilla
+   `DamageSource` (a deliberate choice — see §9 and docs/modules/design/death.md §3.2). The
+   `DamageSource.builder(...)` API itself remains genuinely unused if some future feature needs
+   vanilla-localized attribution specifically.
 5. **Vanilla-enchant & durability interception** — no `PlayerItemDamageEvent`/`PlayerItemMendEvent`; Protection/Unbreaking/Mending/Fire Aspect/KB/Looting/Sweeping all outside the pipeline.
 6. **Shield system** — `EntityDamageBlockedEvent` never hooked; no block chance, cooldown, or axe-disable.
 
 ### High (essential for an RPG)
-7. **Natural spawning system** — `CreatureSpawnEvent` to apply mob defs to naturally/egg-spawned entities (zone only disables today).
-8. **Damage-type miscategorization** — `LIGHTNING` and `FREEZE` currently fall through to `MELEE` in `mapCauseToType`.
-9. **Attack-cooldown / swing charge integration** — `bonus_attack_speed` stat is unconsumed; sprint/sweep/backstab/modeling.
+7. ~~**Natural spawning system**~~ — **done**, `VanillaSpawnUpgradeListener` (§17); also covers vanilla monster spawners for free since `SpawnerSpawnEvent extends CreatureSpawnEvent`.
+8. ~~**Damage-type miscategorization**~~ — **done**, `LIGHTNING`/`FREEZE` explicitly mapped.
+9. ~~**Attack-cooldown / swing charge integration**~~ — **done**, `AttackCooldownService` (§12/§14); sprint-attack/sweep/backstab modeling remains a separate, still-open item.
 10. **GameRules wholesale** — none set (keepInventory, doFireTick, doDaylightCycle, doWeatherCycle, naturalRegeneration, fall/fire/drowning damage, playersSleepingPercentage, doImmediateRespawn).
 11. **Weather & time manipulation lock** — time module is read-only by design; no `WeatherChangeEvent`/`ThunderChangeEvent`, no `setTime` freeze.
 12. **Block state change family** — `BlockFadeEvent`/`BlockFormEvent`/`BlockGrowEvent`/`BlockSpreadEvent`/`LeavesDecayEvent`/`BlockPhysicsEvent`/`BlockMultiPlaceEvent`/`BlockDropItemEvent`/`BlockExpEvent` entirely unimplemented.
 13. **Explosions & fire control** — no `ExplosionPrimeEvent`/`EntityExplodeEvent` block-destruction control; no fire spread/burn.
-14. **Sleeping/beds/phantoms** — no bed handling, night-skip detection, or `Statistic.TIME_SINCE_REST` control.
+14. ~~**Sleeping/beds/phantoms**~~ — **mostly done**: `death` module's `BedListener` (zone-gated
+    `PlayerBedEnterEvent`) and `PhantomInsomniaListener` (global + zone-gated `PhantomPreSpawnEvent`).
+    Night-skip detection and `Statistic.TIME_SINCE_REST` control remain untouched (vanilla already
+    correct; `playersSleepingPercentage` is settable via the already-shipped `world_rules` GameRule
+    pass-through).
 15. **Custom pathfinder goals** — extend Paper `Pathfinder`/goal API beyond zone mob-home movement.
-16. **Held/equipped `AttributeModifier`** — verify ItemFactory emits `NamespacedKey`-based modifiers (1.21 §11.16) or it won't compile.
+16. ~~**Held/equipped `AttributeModifier`**~~ — **verified**, `StatModule` already uses the `NamespacedKey` constructor exclusively.
 
 ### Medium (RPG content depth)
 17. **Breeding / taming / baby growth** — pet/companion systems; "taming" skill is currently XP-only.
 18. **Villager trades / professions / raids** — `MerchantTradeEvent`, `VillagerReputationEvent`, `RaidSpawnWaveEvent`.
 19. **Item hold-to-charge / `getItemInUse()` / offhand triggers** — hold-charge abilities, cancel-ongoing-use.
-20. **Void platform / anti-void, respawn-location & death-screen** control.
+20. **Void platform / anti-void** control — still open, deliberately declined for this pass (see §9).
+    Respawn-location gained an optional per-zone override (`death.zone-respawn-overrides`); death-screen
+    duration has no hook to control it on in this Paper version (confirmed, not just undone).
 21. **Player XP curve / level abstractions** — `PlayerExpChangeEvent`/`PlayerLevelChangeEvent`; mending/bottle/o' enchanting.
-22. **Knockback model** — attacker KB suppression/enchant-KB; `EntityKnockbackEvent`.
+22. ~~**Knockback model**~~ — **partially done**: `CombatKnockbackListener` now lets enchant
+    `knockback-multiplier` modifiers suppress/scale a hit's knockback; mob/player KB-resistance was
+    already correct via vanilla attributes. A combat-pipeline knockback event (mirroring
+    `multiply_damage`) is not yet wired.
 23. **Armor toughness / material gating / trims** — only flat `defense`/`true_defense`.
 24. **Cross-world / portal events** — `PlayerPortalEvent`, `PortalCreateEvent`, `PlayerChangedWorldEvent`.
 
@@ -458,4 +472,4 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
   4. All text through MiniMessage/Adventure only (§7.5/§11.3).
   5. Never store `ExecutionContext`; never touch Bukkit from async threads (§7.4).
 
-_Last updated: 2026-08-31. Generated from a multi-agent audit of vanilla Paper 1.21.11 mechanics vs. the current Valmora module set._
+_Last updated: 2026-09-02. Generated from a multi-agent audit of vanilla Paper 1.21.11 mechanics vs. the current Valmora module set; coverage cells updated in place as gaps are closed — see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md` for what shipped on which branch._

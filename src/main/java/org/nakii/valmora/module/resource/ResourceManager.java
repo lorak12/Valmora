@@ -7,6 +7,7 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -105,13 +106,27 @@ public class ResourceManager {
         }
 
         ResourceStage stage = config.getStage(stageIndex);
-        double miningFortune = getPlayerMiningFortune(player);
 
-        for (ZoneResourceDrop drop : stage.getDrops()) {
-            if (Math.random() < drop.getChance()) {
-                int amount = applyFortune(drop.rollAmount(), miningFortune);
-                ItemStack item = createItem(drop.getItemId(), amount);
-                if (item != null) player.getInventory().addItem(item);
+        // Vanilla Silk Touch (VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction") — this
+        // resource system replaces vanilla's own drop calculation entirely (event.setDropItems(false)
+        // in ResourceListener), so a Silk Touch tool would otherwise still yield the configured loot
+        // table instead of the block itself. Mirrors vanilla: exactly 1 of the current-stage block,
+        // ignoring the loot table and Mining Fortune (vanilla Silk Touch ignores Fortune too).
+        // `resource.silk-touch.enabled` (default true) lets a server opt out entirely.
+        boolean silkTouch = plugin.getConfig().getBoolean("resource.silk-touch.enabled", true)
+                && player.getInventory().getItemInMainHand().containsEnchantment(Enchantment.SILK_TOUCH);
+
+        if (silkTouch) {
+            ItemStack item = createItem(originalMaterial.name(), 1);
+            if (item != null) player.getInventory().addItem(item);
+        } else {
+            double miningFortune = getPlayerMiningFortune(player);
+            for (ZoneResourceDrop drop : stage.getDrops()) {
+                if (Math.random() < drop.getChance()) {
+                    int amount = applyFortune(drop.rollAmount(), miningFortune);
+                    ItemStack item = createItem(drop.getItemId(), amount);
+                    if (item != null) player.getInventory().addItem(item);
+                }
             }
         }
 

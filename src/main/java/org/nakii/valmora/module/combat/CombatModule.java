@@ -10,6 +10,7 @@ public class CombatModule implements ReloadableModule {
     private final Valmora plugin;
     private final DamageIndicatorManager damageIndicatorManager;
     private final CombatListener combatListener;
+    private final CombatKnockbackListener combatKnockbackListener;
     private final DamageTypeLoader damageTypeLoader;
     private DamageFormulaRegistry damageFormulaRegistry;
     private CombatPipelineLoader combatPipelineLoader;
@@ -19,6 +20,7 @@ public class CombatModule implements ReloadableModule {
         this.plugin = plugin;
         this.damageIndicatorManager = new DamageIndicatorManager(plugin);
         this.combatListener = new CombatListener(plugin);
+        this.combatKnockbackListener = new CombatKnockbackListener();
         this.damageTypeLoader = new DamageTypeLoader(plugin);
     }
 
@@ -26,6 +28,7 @@ public class CombatModule implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Enabling Combat Module...");
         plugin.getServer().getPluginManager().registerEvents(combatListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(combatKnockbackListener, plugin);
 
         if (regenTask != null) {
             regenTask.cancel();
@@ -50,6 +53,7 @@ public class CombatModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Combat Module...");
         org.bukkit.event.HandlerList.unregisterAll(combatListener);
+        org.bukkit.event.HandlerList.unregisterAll(combatKnockbackListener);
         if (regenTask != null) {
             regenTask.cancel();
             regenTask = null;

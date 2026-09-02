@@ -257,6 +257,14 @@ combat:
   # i-frame double-hit (anti multi-hit/DoT-stacking guard). 0.5 = half of vanilla invulnerability.
   iframe-threshold-factor: 0.5
 
+  # VANILLA_CONTROL_AUDIT.md §12/§14 High #9 — vanilla attack-cooldown "swing charge" damage
+  # scaling for player melee hits (AttackCooldownService), driven by the Attribute.ATTACK_SPEED
+  # value (weapon base speed + the bonus_attack_speed stat).
+  attack-cooldown:
+    enabled: true
+    # Damage multiplier at 0 charge (spam-clicking). Vanilla's own value is 0.2.
+    min-multiplier: 0.2
+
   environment:
     # Environmental damage cause with no explicit mapping below falls back to this damage type.
     fallback-damage-type: MELEE
@@ -359,6 +367,12 @@ resource:
     # Floors a misconfigured resource's regen-delay so a typo (e.g. `regen-delay: 1`) can't
     # schedule a near-per-tick regen task.
     min-regen-delay-ticks: 20       # HC-241
+
+  # VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction" — a Silk Touch tool yields
+  # exactly 1 of the current-stage block instead of the configured loot table (vanilla behavior;
+  # Fortune is ignored too, matching vanilla). Set false to make Silk Touch a no-op on resource blocks.
+  silk-touch:
+    enabled: true
 
 # ========================================================== #
 #                      Quest Settings                        #
@@ -743,6 +757,57 @@ zones:
   messages:
     # HC-143: shown for $zone.current$/scoreboard "Zone:" line when the player isn't in any zone.
     wilderness-name: "<green>Wilderness"
+
+# ========================================================== #
+#                       Death Settings                       #
+# ========================================================== #
+# VANILLA_CONTROL_AUDIT.md §9 — see docs/modules/design/death.md / docs/modules/user/death.md.
+# Every toggle below ships matching vanilla's own default (nothing kept, phantoms on, vanilla
+# death-screen duration) — no game-design decision is made on your behalf beyond what's documented.
+death:
+  # Whether items/XP are kept on death, absent a per-zone override (ZoneFlags.keepInventoryOnDeath /
+  # keepExperienceOnDeath, settable via `/zone flag <id> keep-inventory-on-death <true|false|default>`
+  # — "default" clears the zone's override back to inheriting these).
+  keep-inventory-default: false
+  keep-experience-default: false
+
+  # Whether the custom death message below is broadcast server-wide (matches vanilla).
+  broadcast-enabled: true
+
+  # Note: this Paper version (1.21.11) has no PlayerDeathScreenEvent — the "death-screen duration"
+  # audit gap (VANILLA_CONTROL_AUDIT.md §9) has no Bukkit/Paper API hook to control it on and is
+  # left as pure vanilla; nothing here configures it.
+
+  # VANILLA_CONTROL_AUDIT.md §9 phantom-insomnia row — set false to disable phantom spawning
+  # entirely regardless of zone. A zone with `natural-mob-spawning: false` also blocks phantoms
+  # (reuses that existing flag) without needing this.
+  phantoms-enabled: true
+
+  # Death messages, built entirely from Valmora's own DamageType/attacker/weapon resolution (never
+  # vanilla DamageSource — see docs/modules/design/death.md for why). Keyed by damage-type id
+  # (damage_types/*.yml — MELEE, PROJECTILE, FALL, VOID, FIRE, LAVA, ... or your own custom type),
+  # falling back to `default` for any type without its own entry. Placeholders: %victim%,
+  # %attacker% (blank if none), %weapon% (attacker's held item display name, blank if none),
+  # %cause% (the damage-type id).
+  messages:
+    default: "<gray>%victim% died."
+    MELEE: "<gray>%victim% was slain by %attacker%."
+    PROJECTILE: "<gray>%victim% was shot by %attacker%."
+    FALL: "<gray>%victim% hit the ground too hard."
+    VOID: "<gray>%victim% fell into the void."
+    FIRE: "<gray>%victim% went up in flames."
+    LAVA: "<gray>%victim% tried to swim in lava."
+    DROWNING: "<gray>%victim% drowned."
+    STARVATION: "<gray>%victim% starved to death."
+    LIGHTNING: "<gray>%victim% was struck by lightning."
+    EXPLOSION: "<gray>%victim% blew up."
+
+  # Optional per-zone custom respawn point, used only if the player died inside that zone —
+  # otherwise vanilla's own bed/anchor/world-spawn resolution is left completely untouched. Format:
+  # "<world>,<x>,<y>,<z>[,<yaw>]". Empty by default — not a decision this plugin makes for you.
+  zone-respawn-overrides: {}
+  # example:
+  #   dungeon_arena: "world,100.5,64,200.5,180"
 
 # ========================================================== #
 #                       Warp Settings                        #

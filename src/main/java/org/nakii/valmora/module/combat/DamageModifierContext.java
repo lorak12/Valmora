@@ -16,6 +16,13 @@ public class DamageModifierContext {
     /** Additive defender-side flat damage reduction (0-100+), applied as an extra multiplicative
      *  step alongside defense mitigation. Added for {@code combat.modify-defend.modifiers.damage-reduction-percent}. */
     private double damageReductionPercent = 0.0;
+    /** Multiplicative knockback scaling for this hit (1.0 = vanilla knockback unchanged, 0 = fully
+     *  suppressed) — VANILLA_CONTROL_AUDIT.md §14 Medium #22. Composed the same way as
+     *  {@link #damageMultiplier}: each contributor multiplies the running total. Read by
+     *  {@code DamageResult#getKnockbackMultiplier()} after the hit is calculated and consumed by
+     *  {@code CombatKnockbackListener} against the {@code EntityKnockbackEvent} vanilla fires for
+     *  the same physical hit. */
+    private double knockbackMultiplier = 1.0;
     private final DamageType damageType;
 
     public DamageModifierContext(double baseDamage, double strength, double critChance, double critDamage, double defense, DamageType damageType) {
@@ -102,5 +109,13 @@ public class DamageModifierContext {
 
     public void addDamageReductionPercent(double amount) {
         this.damageReductionPercent += amount;
+    }
+
+    public double getKnockbackMultiplier() {
+        return knockbackMultiplier;
+    }
+
+    public void setKnockbackMultiplier(double knockbackMultiplier) {
+        this.knockbackMultiplier = knockbackMultiplier;
     }
 }

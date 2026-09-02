@@ -37,6 +37,9 @@ public class CombatListener implements Listener {
         // Evicts the per-UUID $player.last_damage$ tracker entry — otherwise it grows unbounded
         // across the server's lifetime as players come and go.
         org.nakii.valmora.module.item.CombatTracker.clear(event.getPlayer().getUniqueId());
+        DeathContextCache.clear(event.getPlayer().getUniqueId());
+        AttackCooldownService.clear(event.getPlayer().getUniqueId());
+        KnockbackModifierTracker.clear(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -100,14 +103,33 @@ public class CombatListener implements Listener {
             debug("HIT CALCULATED: finalDamage=" + damageResult.getFinalDamage() + " crit=" + damageResult.isCritical()
                     + " immune=" + damageResult.isImmune() + " victimHealthBefore=" + victim.getHealth());
 
+            // Attack-cooldown / swing-charge damage scaling (VANILLA_CONTROL_AUDIT.md §12/§14 High
+            // #9) — melee only; projectile damage has no vanilla swing-charge analogue. Charge is
+            // read from the *previous* recorded hit before recordAttack() below updates it to now.
+            if (!damageResult.isImmune() && damageType == DamageType.MELEE && AttackCooldownService.isEnabled()) {
+                double charge = AttackCooldownService.getChargeProgress(attacker);
+                double chargeMultiplier = AttackCooldownService.damageMultiplierFor(charge);
+                if (chargeMultiplier < 1.0) {
+                    double priorKnockbackMultiplier = damageResult.getKnockbackMultiplier();
+                    damageResult = new DamageResult(damageResult.getFinalDamage() * chargeMultiplier,
+                            damageResult.getDamageType(), damageResult.isCritical(), attacker, victim);
+                    damageResult.setKnockbackMultiplier(priorKnockbackMultiplier);
+                    debug("attack-cooldown scaling: charge=" + charge + " multiplier=" + chargeMultiplier
+                            + " -> finalDamage=" + damageResult.getFinalDamage());
+                }
+            }
+            AttackCooldownService.recordAttack(attacker);
+
             // Shield blocking (VANILLA_CONTROL_AUDIT.md §14) — see ShieldBlockService for why this
             // has to run after the pipeline's own calculation rather than relying on vanilla's
             // already-consumed block reduction on the raw event damage.
             if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
                 ShieldBlockService.Result block = ShieldBlockService.resolve(victimPlayer, attacker, damageType);
                 if (block.blocked()) {
+                    double priorKnockbackMultiplier = damageResult.getKnockbackMultiplier();
                     damageResult = new DamageResult(damageResult.getFinalDamage() * block.damageMultiplier(),
                             damageResult.getDamageType(), damageResult.isCritical(), attacker, victim);
+                    damageResult.setKnockbackMultiplier(priorKnockbackMultiplier);
                     if (block.disablesShield()) {
                         victimPlayer.setCooldown(org.bukkit.Material.SHIELD, ShieldBlockService.shieldDisableTicks());
                     }
@@ -128,7 +150,22 @@ public class CombatListener implements Listener {
                 }
             }
 
+            // VANILLA_CONTROL_AUDIT.md §9 — recorded before apply() so a death message built from
+            // PlayerDeathEvent (fired synchronously inside apply() if this hit is fatal) can read
+            // the attacker/weapon/type that actually caused it, independent of vanilla's own
+            // last-damage-cause bookkeeping (see DeathContextCache's class doc).
+            if (victim instanceof org.bukkit.entity.Player) {
+                DeathContextCache.record(victim.getUniqueId(), damageResult.getDamageType(), attacker);
+            }
+
             damageResult.apply();
+
+            // Hand off this hit's knockback multiplier (VANILLA_CONTROL_AUDIT.md §14 Medium #22) to
+            // CombatKnockbackListener, which observes the separate EntityKnockbackEvent vanilla
+            // fires for this same physical hit a few lines later in its own attack handling.
+            if (!damageResult.isImmune()) {
+                KnockbackModifierTracker.set(victim.getUniqueId(), damageResult.getKnockbackMultiplier());
+            }
 
             debug("HIT APPLIED: victim=" + victim.getName() + " healthAfter=" + victim.getHealth()
                     + " dealt=" + damageResult.getFinalDamage());
@@ -206,6 +243,11 @@ public class CombatListener implements Listener {
 
             DamageType customType = mapCauseToType(event.getCause());
             DamageResult damageResult = DamageCalculator.calculateDamage(victim, customType, baseDamage);
+
+            if (victim instanceof org.bukkit.entity.Player) {
+                DeathContextCache.record(victim.getUniqueId(), customType, null);
+            }
+
             damageResult.apply();
 
             debug("ENV HIT: victim=" + victim.getName() + " cause=" + event.getCause() + " mappedType=" + customType
