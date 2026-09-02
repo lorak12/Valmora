@@ -1,6 +1,7 @@
 package org.nakii.valmora.module.notify;
 
 import org.bukkit.entity.Player;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -51,6 +52,8 @@ public class NotifyManager {
                 : settings.getOrDefault("io", "chat");
 
         NotifyIO io = ioRegistry.getOrDefault(resolvedIO.toLowerCase(), ioRegistry.get("chat"));
+        DebugManager.log("notify", player.getName() + " <- io=" + resolvedIO + " category=" + category
+                + " message=\"" + message + "\"");
         if (io != null) io.send(player, message, Collections.unmodifiableMap(settings));
     }
 

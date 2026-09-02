@@ -13,6 +13,7 @@ import org.nakii.valmora.module.item.ConfiguredMechanic;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.stat.event.StatModifyEvent;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 import java.util.HashMap;
@@ -258,6 +259,9 @@ public class StatManager {
 
         // Apply vanilla attribute mappings (e.g. MOVEMENT_SPEED for the speed stat)
         if (statModule != null) statModule.recalculateAttributes(player, this);
+
+        DebugManager.log("stats", player.getName() + " recalculated (" + effectiveStats.size()
+                + " stats): " + effectiveStats);
 
         var session = api.getPlayerManager().getSession(player.getUniqueId());
         if (session == null) return;

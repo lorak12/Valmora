@@ -9,6 +9,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.persistence.PersistentDataType;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 public class NpcListener implements Listener {
@@ -26,6 +27,7 @@ public class NpcListener implements Listener {
                 .get(Keys.NPC_ID_KEY, PersistentDataType.STRING);
         if (npcId == null) return;
         event.setCancelled(true);
+        DebugManager.log("npc", event.getPlayer().getName() + " right-clicked npc '" + npcId + "'");
         npcManager.handleRightClick(event.getPlayer(), npcId);
     }
 

@@ -9,6 +9,7 @@ import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.Optional;
@@ -87,6 +88,7 @@ public class WarpManager {
         Location dest = new Location(world, warp.getX(), warp.getY(), warp.getZ(), warp.getYaw(), warp.getPitch());
 
         Runnable doTeleport = () -> player.teleportAsync(dest).thenAccept(success -> {
+            DebugManager.log("warp", player.getName() + " -> warp '" + warp.getId() + "' success=" + success);
             if (!success) return;
             if (warp.getCost() > 0) plugin.getEconomy().removeCoins(player, warp.getCost());
             if (warp.getCooldownSeconds() > 0) profile.getCooldownManager().setCooldown(cooldownKey, warp.getCooldownSeconds());

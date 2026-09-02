@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ public class PointsManager {
         ValmoraProfile profile = getProfile(playerUuid);
         if (profile == null) return;
         profile.getVariables().put(KEY_PREFIX + category.toLowerCase(), amount);
+        DebugManager.log("points", playerUuid + " points." + category + " = " + amount);
         var player = Bukkit.getPlayer(playerUuid);
         if (player != null)
             Bukkit.getPluginManager().callEvent(new PointsChangedEvent(player, category, amount));

@@ -10,6 +10,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.zone.event.ZoneEnterEvent;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.List;
 
@@ -40,6 +41,8 @@ public class MachineOpenListener implements Listener {
         if (machine == null) return;
 
         event.setCancelled(true);
+        DebugManager.log("machine", event.getPlayer().getName() + " opened machine '" + machine.getId()
+                + "' (gui=" + machine.getGui() + ") via interact");
         plugin.getGuiModule().openGui(event.getPlayer(), machine.getGui());
     }
 
@@ -49,6 +52,8 @@ public class MachineOpenListener implements Listener {
         MachineDefinition machine = matchingMachine(player);
         if (machine == null) return;
 
+        DebugManager.log("machine", player.getName() + " opened machine '" + machine.getId()
+                + "' (gui=" + machine.getGui() + ") via zone-enter");
         plugin.getGuiModule().openGui(player, machine.getGui());
     }
 

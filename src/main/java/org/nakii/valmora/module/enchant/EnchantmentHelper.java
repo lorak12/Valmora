@@ -11,6 +11,7 @@ import org.nakii.valmora.module.item.ItemType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -105,6 +106,8 @@ public class EnchantmentHelper {
         EnchantStateStore.save(meta, instances);
         applyGlowAndLore(item, meta, toLevelMap(instances));
         item.setItemMeta(meta);
+        DebugManager.log("enchants", "applied '" + enchantId + "' level=" + clampedLevel
+                + " (requested=" + level + ", cap=" + cap + ", enforceEtableCap=" + enforceEtableCap + ") to " + item.getType());
     }
 
     public static Map<String, Integer> getEnchantments(ItemStack item) {
@@ -133,6 +136,7 @@ public class EnchantmentHelper {
 
         applyGlowAndLore(item, meta, toLevelMap(instances));
         item.setItemMeta(meta);
+        DebugManager.log("enchants", "removed '" + enchantId + "' from " + item.getType());
     }
 
     public static boolean hasValmoraEnchants(ItemStack item) {

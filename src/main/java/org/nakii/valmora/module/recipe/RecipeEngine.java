@@ -8,6 +8,7 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 import java.util.ArrayList;
@@ -49,11 +50,22 @@ public class RecipeEngine {
 
     public Optional<CraftResult> craft(String machineId, Map<String, ItemStack> inputs, @Nullable Player player) {
         Optional<RecipeDefinition> matched = match(machineId, inputs, player);
-        if (matched.isEmpty()) return Optional.empty();
+        if (matched.isEmpty()) {
+            DebugManager.log("recipe", "craft(machine=" + machineId + ", player="
+                    + (player != null ? player.getName() : "none") + ") — NO MATCH, inputs=" + describeInputs(inputs));
+            return Optional.empty();
+        }
 
         RecipeDefinition recipe = matched.get();
         List<CraftOutput> outputs = buildOutputs(recipe);
-        if (outputs.isEmpty()) return Optional.empty();
+        if (outputs.isEmpty()) {
+            DebugManager.log("recipe", "craft(machine=" + machineId + ") matched recipe='" + recipe.getId()
+                    + "' but produced NO OUTPUTS — check outputs: block");
+            return Optional.empty();
+        }
+        DebugManager.log("recipe", "craft(machine=" + machineId + ", player="
+                + (player != null ? player.getName() : "none") + ") matched recipe='" + recipe.getId()
+                + "' outputs=" + outputs.size());
 
         // "keep-data-on-upgrade" (recipe-yaml rework note) — carry enchants/modifiers/durability/
         // name from the designated source ingredient onto the primary (first) output before it's
@@ -69,6 +81,19 @@ public class RecipeEngine {
 
         consume(recipe, inputs);
         return Optional.of(new CraftResult(outputs, recipe, recipe.getOnCraft()));
+    }
+
+    private static String describeInputs(Map<String, ItemStack> inputs) {
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
+            ItemStack item = entry.getValue();
+            if (item == null || item.getType() == Material.AIR) continue;
+            if (!first) sb.append(", ");
+            sb.append(entry.getKey()).append("=").append(item.getType()).append("x").append(item.getAmount());
+            first = false;
+        }
+        return sb.append("}").toString();
     }
 
     /** Builds every {@code outputs:} entry, not just the first — see {@link CraftResult}. */

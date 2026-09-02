@@ -199,6 +199,46 @@ class SQLDataStoreTest {
         }
     }
 
+    @Test
+    void packRecordRoundTrip(@TempDir Path dir) throws Exception {
+        HikariDataSource ds = newDataSource(dir.resolve("packs.db"));
+        SQLDataStore store = new SQLDataStore(ds, false, LOGGER);
+        try {
+            store.init();
+            assertTrue(columnExists(ds, "valmora_installed_packs", "shared_diff"), "v8 pack ledger table exists");
+            assertTrue(store.loadPackRecords().join().isEmpty());
+
+            org.nakii.valmora.module.pack.PackRecord record = new org.nakii.valmora.module.pack.PackRecord(
+                    "frostspire", "1.2.0", "sha256:abc",
+                    1_700_000_000_000L,
+                    java.util.List.of("items/frostspire/frost_blade.yml", "quests/frostspire/quest.yml"),
+                    Map.of("rarities.yml", Map.of("rarities", java.util.List.of("frostbound"))),
+                    java.util.List.of("base_rarities_pack"));
+
+            store.savePackRecord(record).join();
+            var loaded = store.loadPackRecords().join();
+            assertEquals(1, loaded.size());
+            assertEquals(record, loaded.get(0));
+
+            // Saving again with the same id must upsert, not duplicate.
+            org.nakii.valmora.module.pack.PackRecord updated = new org.nakii.valmora.module.pack.PackRecord(
+                    "frostspire", "1.3.0", "sha256:def",
+                    1_700_000_100_000L,
+                    java.util.List.of("items/frostspire/frost_blade.yml"),
+                    Map.of(),
+                    java.util.List.of());
+            store.savePackRecord(updated).join();
+            var afterUpdate = store.loadPackRecords().join();
+            assertEquals(1, afterUpdate.size());
+            assertEquals("1.3.0", afterUpdate.get(0).version());
+
+            store.deletePackRecord("frostspire").join();
+            assertTrue(store.loadPackRecords().join().isEmpty());
+        } finally {
+            store.close();
+        }
+    }
+
     // --- helpers ---
 
     private int readVersion(HikariDataSource ds) throws SQLException {

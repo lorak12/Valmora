@@ -21,6 +21,7 @@ import org.nakii.valmora.module.rarity.RarityDefinition;
 import org.nakii.valmora.module.rarity.RarityRegistry;
 import org.nakii.valmora.module.script.variable.providers.ItemAbilityVariableProvider;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 import java.util.ArrayList;
@@ -63,6 +64,13 @@ public class ModifierEngine {
     // ─── Application semantics ───
 
     public ApplyOutcome apply(ItemStack baseItem, String groupId, String modifierId, int tier) {
+        ApplyOutcome outcome = applyInternal(baseItem, groupId, modifierId, tier);
+        DebugManager.log("modifier", "apply(group=" + groupId + ", modifier=" + modifierId + ", tier=" + tier
+                + ") -> " + outcome.result());
+        return outcome;
+    }
+
+    private ApplyOutcome applyInternal(ItemStack baseItem, String groupId, String modifierId, int tier) {
         ModifierGroupDefinition group = groups.get(groupId).orElse(null);
         if (group == null) return new ApplyOutcome(ApplyResult.GROUP_UNKNOWN, baseItem);
 
@@ -143,6 +151,12 @@ public class ModifierEngine {
     }
 
     public ApplyOutcome remove(ItemStack baseItem, String groupId, String modifierId) {
+        ApplyOutcome outcome = removeInternal(baseItem, groupId, modifierId);
+        DebugManager.log("modifier", "remove(group=" + groupId + ", modifier=" + modifierId + ") -> " + outcome.result());
+        return outcome;
+    }
+
+    private ApplyOutcome removeInternal(ItemStack baseItem, String groupId, String modifierId) {
         ModifierGroupDefinition group = groups.get(groupId).orElse(null);
         if (group == null) return new ApplyOutcome(ApplyResult.GROUP_UNKNOWN, baseItem);
         if (!group.isRemovalAllowed()) return new ApplyOutcome(ApplyResult.REMOVAL_NOT_ALLOWED, baseItem);

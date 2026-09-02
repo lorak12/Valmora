@@ -8,6 +8,7 @@ import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.alchemy.effect.HardcodedAlchemyEffect;
 import org.nakii.valmora.module.alchemy.modifier.AlchemyModifier;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,6 +96,9 @@ public class AlchemyManager {
         HardcodedAlchemyEffect hardcoded = hardcodedEffects.get(effectId.toLowerCase());
         if (hardcoded != null) hardcoded.onApply(entity, level, durationSeconds);
 
+        DebugManager.log("alchemy", entity.getName() + " gained effect '" + effectId + "' level=" + level
+                + " duration=" + durationSeconds + "s");
+
         if (entity instanceof Player player) {
             recalculatePlayerStats(player);
         }
@@ -104,6 +108,7 @@ public class AlchemyManager {
         List<ActiveEffect> effects = activeEffects.get(entity.getUniqueId());
         if (effects == null) return;
         effects.removeIf(e -> e.effectId().equalsIgnoreCase(effectId));
+        DebugManager.log("alchemy", entity.getName() + " lost effect '" + effectId + "'");
         if (entity instanceof Player player) recalculatePlayerStats(player);
     }
 

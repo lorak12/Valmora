@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.util.DebugManager;
 
 public class HudItemListener implements Listener {
 
@@ -75,7 +76,10 @@ public class HudItemListener implements Listener {
 
         var ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
 
-        if (event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT) {
+        boolean isRight = event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT;
+        DebugManager.log("hud", player.getName() + " clicked hud item '" + def.getId() + "' click="
+                + event.getClick() + " (" + (isRight ? "right" : "left") + " action)");
+        if (isRight) {
             def.getOnRightClick().execute(ctx);
         } else {
             def.getOnLeftClick().execute(ctx);

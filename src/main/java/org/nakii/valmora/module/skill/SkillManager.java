@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -93,6 +94,8 @@ public class SkillManager {
 
         // Stop adding XP if they are already at the max level
         if (oldLevel >= skill.getMaxLevel()) {
+            DebugManager.log("skills", "addXp REJECTED — " + player.getName() + " already at max level "
+                    + skill.getMaxLevel() + " for skill=" + skillId);
             return;
         }
 
@@ -104,11 +107,14 @@ public class SkillManager {
         event.callEvent();
 
         int newLevel = registry.getLevelFromXp(skill.getXpCurve(), newXp);
-        
+
         // Cap to the skill's max level
         if (newLevel > skill.getMaxLevel()) {
             newLevel = skill.getMaxLevel();
         }
+
+        DebugManager.log("skills", player.getName() + " skill=" + skillId + " +" + amount + "xp ("
+                + currentXp + " -> " + newXp + ") level=" + oldLevel + (newLevel > oldLevel ? " -> " + newLevel : ""));
 
         if (newLevel > oldLevel) {
             // Call Level Up Event

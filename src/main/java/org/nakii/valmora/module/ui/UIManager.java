@@ -12,6 +12,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
+import org.nakii.valmora.util.DebugManager;
 
 import java.io.File;
 import java.util.List;
@@ -23,6 +24,11 @@ public class UIManager implements ReloadableModule {
     private final ScoreboardUI scoreboard;
     private BukkitTask uiClockTask;
     private Listener connectionListener;
+    // Clock ticks every 2 ticks (10x/sec) for every online player — logging every tick would drown
+    // the console, so only a periodic heartbeat is emitted (~ every 10s), same pattern as
+    // CombatModule's RegenTask.
+    private int clockRunCount = 0;
+    private static final int SUMMARY_INTERVAL_RUNS = 50;
 
     public UIManager(Valmora plugin) {
         this.plugin = plugin;
@@ -76,6 +82,11 @@ public class UIManager implements ReloadableModule {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 actionBar.tick(player);
                 scoreboard.tick(player);
+            }
+            clockRunCount++;
+            if (clockRunCount % SUMMARY_INTERVAL_RUNS == 0) {
+                DebugManager.log("ui", "clock tick #" + clockRunCount + " — ticked "
+                        + Bukkit.getOnlinePlayers().size() + " online player(s)");
             }
         }, 0L, 2L);
     }

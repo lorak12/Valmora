@@ -5,8 +5,10 @@ import org.nakii.valmora.api.ReloadableModule;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 
 /**
@@ -71,6 +73,52 @@ public class ModuleManager {
         // Here we'd ideally re-initialize things if needed, but for now we just call enable again
         enableModules();
         plugin.getLogger().info("Reload complete.");
+    }
+
+    /**
+     * Reloads only the named subset of modules, in the subsequence of registration order that
+     * includes them (i.e. respecting each module's normal position relative to the others being
+     * reloaded), disabling in reverse and re-enabling in forward order exactly like
+     * {@link #reloadModules()} does for the full set. Unknown ids are silently skipped. Used by the
+     * content pack manager to reload only the modules a pack's content actually touches, instead of
+     * tearing down the whole server.
+     * @param moduleIds the ids of the modules to reload
+     */
+    public void reloadModules(Set<String> moduleIds) {
+        if (moduleIds == null || moduleIds.isEmpty()) {
+            return;
+        }
+        Set<String> lower = new java.util.HashSet<>();
+        for (String id : moduleIds) {
+            lower.add(id.toLowerCase());
+        }
+        List<ReloadableModule> subset = new java.util.ArrayList<>();
+        for (ReloadableModule module : modules.values()) {
+            if (lower.contains(module.getId().toLowerCase())) {
+                subset.add(module);
+            }
+        }
+        if (subset.isEmpty()) {
+            return;
+        }
+        plugin.getLogger().info("Reloading modules: " + moduleIds);
+        List<ReloadableModule> reversed = new java.util.ArrayList<>(subset);
+        Collections.reverse(reversed);
+        for (ReloadableModule module : reversed) {
+            try {
+                module.onDisable();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+            }
+        }
+        for (ReloadableModule module : subset) {
+            try {
+                module.onEnable();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+            }
+        }
+        plugin.getLogger().info("Reload of " + moduleIds + " complete.");
     }
 
     public Map<String, ReloadableModule> getModules() {

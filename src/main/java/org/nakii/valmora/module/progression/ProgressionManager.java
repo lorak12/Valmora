@@ -12,6 +12,7 @@ import org.nakii.valmora.module.progression.event.ProgressionNodeLevelUpEvent;
 import org.nakii.valmora.module.progression.event.ProgressionTierUnlockedEvent;
 import org.nakii.valmora.module.progression.event.ProgressionTreeResetEvent;
 import org.nakii.valmora.module.quest.points.PointsManager;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.Map;
 import java.util.UUID;
@@ -118,6 +119,8 @@ public class ProgressionManager {
 
         player.sendMessage(org.nakii.valmora.util.Formatter.format(
                 "<green>✦ <white>" + node.getDisplayName() + " <green>leveled up to <yellow>" + newLevel + "<green>!"));
+        DebugManager.log("progression", player.getName() + " tree=" + treeId + " node=" + nodeId
+                + " level " + currentLevel + " -> " + newLevel + " (cost=" + cost + ")");
 
         if (!node.getOnLevelEvents().isEmpty()) {
             var ctx = new SimpleExecutionContext(player, player.getLocation(), new MemoryConfiguration());
@@ -148,6 +151,7 @@ public class ProgressionManager {
 
         player.sendMessage(org.nakii.valmora.util.Formatter.format(
                 "<gold>✦ <white>Tier " + nextTierIndex + " <gold>unlocked in <white>" + treeId + "<gold>!"));
+        DebugManager.log("progression", player.getName() + " unlocked tier " + nextTierIndex + " in tree=" + treeId);
 
         new ProgressionTierUnlockedEvent(player, treeId, nextTierIndex).callEvent();
     }

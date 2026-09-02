@@ -48,6 +48,10 @@ public class ValmoraCommand implements TabExecutor {
 
         if (args[0].equalsIgnoreCase("reload")) {
             sender.sendMessage(Formatter.format("<aqua>Reloading Valmora Engine..."));
+            // Re-read config.yml from disk first — modules read plugin.getConfig() live at point
+            // of use (no per-module caching), so without this a reload wouldn't pick up config.yml
+            // edits (e.g. items.lore) at all, only YAML content under resources/*.
+            plugin.reloadConfig();
             plugin.getModuleManager().reloadModules();
             sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
             return true;
@@ -65,8 +69,191 @@ public class ValmoraCommand implements TabExecutor {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("pack")) {
+            handlePack(sender, args);
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("debug")) {
+            handleDebug(sender, args);
+            return true;
+        }
+
         sendHelp(sender);
         return true;
+    }
+
+    /**
+     * {@code /valmora debug <module>} — toggles verbose logging for a module via
+     * {@link org.nakii.valmora.util.DebugManager}. {@code all} is a standing virtual target that
+     * turns on every module's debug logging at once (see {@code DebugManager.isEnabled}) regardless
+     * of which individual modules are separately toggled. Every registered {@code ReloadableModule}
+     * id is a valid target — {@link org.nakii.valmora.module.ModuleManager#getModules()} is the
+     * single source of truth, so this stays complete as modules are added/removed without needing
+     * its own maintained list.
+     */
+    private static final String DEBUG_ALL = "all";
+
+    private java.util.List<String> debuggableModules() {
+        return plugin.getModuleManager().getModules().keySet().stream().sorted().collect(Collectors.toList());
+    }
+
+    private void handleDebug(CommandSender sender, String[] args) {
+        List<String> available = debuggableModules();
+        if (args.length < 2) {
+            sender.sendMessage(Formatter.format("<yellow>/valmora debug <module|all> <gray>- Toggle verbose debug logging (available: "
+                    + DEBUG_ALL + ", " + String.join(", ", available) + ")"));
+            return;
+        }
+
+        String moduleId = args[1].toLowerCase();
+        if (!moduleId.equals(DEBUG_ALL) && !available.contains(moduleId)) {
+            sender.sendMessage(Formatter.format("<red>No such module '" + moduleId
+                    + "'. Available: " + DEBUG_ALL + ", " + String.join(", ", available)));
+            return;
+        }
+
+        boolean nowEnabled = org.nakii.valmora.util.DebugManager.toggle(moduleId);
+        String label = moduleId.equals(DEBUG_ALL) ? "ALL modules" : "'" + moduleId + "'";
+        if (nowEnabled) {
+            sender.sendMessage(Formatter.format("<green>Debug logging for " + label + " is now <bold>ON</bold>. Watch the console."));
+        } else {
+            sender.sendMessage(Formatter.format("<yellow>Debug logging for " + label + " is now <bold>OFF</bold>."));
+        }
+    }
+
+    /**
+     * {@code /valmora pack install|uninstall|list|rollback|inspect ...} — the content pack manager's
+     * command surface (docs/modules/design/pack.md §8). {@code install}/{@code inspect} currently
+     * take a local staged-pack directory path (containing {@code pack.yml} at its root) — fetching
+     * that directory from a URL/archive is {@code PackDownloader}'s job (Phase 4, not wired up yet).
+     */
+    private void handlePack(CommandSender sender, String[] args) {
+        var packModule = plugin.getPackModule();
+        var packManager = packModule != null ? packModule.getPackManager() : null;
+        if (packManager == null) {
+            sender.sendMessage(Formatter.format("<red>The content pack manager isn't enabled."));
+            return;
+        }
+        if (args.length < 2) {
+            sendPackHelp(sender);
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        switch (sub) {
+            case "install" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Formatter.format("<yellow>/valmora pack install <dir|url|github:owner/repo@tag> [--sha256 <hash>]"));
+                    return;
+                }
+                String source = args[2];
+                String sha256 = null;
+                for (int i = 3; i + 1 < args.length; i++) {
+                    if (args[i].equalsIgnoreCase("--sha256")) {
+                        sha256 = args[i + 1];
+                        break;
+                    }
+                }
+                if (source.startsWith("http://") || source.startsWith("https://") || source.startsWith("github:")) {
+                    sender.sendMessage(Formatter.format("<aqua>Downloading pack from '" + source + "'..."));
+                    packManager.installFromSource(source, sha256, result -> reportPackResult(sender, result));
+                } else {
+                    reportPackResult(sender, packManager.install(new java.io.File(source)));
+                }
+            }
+            case "inspect" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Formatter.format("<yellow>/valmora pack inspect <local-staged-pack-directory>"));
+                    return;
+                }
+                var manifestResult = org.nakii.valmora.module.pack.manifest.PackManifestParser.parseFile(
+                        new java.io.File(new java.io.File(args[2]), "pack.yml"));
+                if (!manifestResult.isSuccess()) {
+                    sender.sendMessage(Formatter.format("<red>" + manifestResult.getError()));
+                    return;
+                }
+                var report = org.nakii.valmora.module.pack.validate.PackValidator.validateManifest(
+                        manifestResult.getValue(), plugin.getDescription().getVersion(),
+                        name -> plugin.getServer().getPluginManager().getPlugin(name) != null);
+                sendValidationReport(sender, report, "Inspection of '" + manifestResult.getValue().id() + "'");
+            }
+            case "uninstall" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Formatter.format("<yellow>/valmora pack uninstall <pack-id>"));
+                    return;
+                }
+                reportPackResult(sender, packManager.uninstall(args[2]));
+            }
+            case "list" -> {
+                var installed = packManager.listInstalled();
+                if (installed.isEmpty()) {
+                    sender.sendMessage(Formatter.format("<gray>No content packs installed."));
+                    return;
+                }
+                sender.sendMessage(Formatter.format("<gold>--- Installed packs (" + installed.size() + ") ---"));
+                for (var record : installed) {
+                    sender.sendMessage(Formatter.format("<yellow>" + record.packId() + " <gray>v" + record.version()));
+                }
+            }
+            case "rollback" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Formatter.format("<yellow>/valmora pack rollback <pack-id> [timestamp]"));
+                    return;
+                }
+                Long timestamp = null;
+                if (args.length >= 4) {
+                    try {
+                        timestamp = Long.parseLong(args[3]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage(Formatter.format("<red>Invalid timestamp: '" + args[3] + "'"));
+                        return;
+                    }
+                }
+                reportPackResult(sender, packManager.rollback(args[2], timestamp));
+            }
+            default -> sendPackHelp(sender);
+        }
+    }
+
+    private void reportPackResult(CommandSender sender, org.nakii.valmora.module.pack.PackManager.OperationResult result) {
+        if (result.success()) {
+            sender.sendMessage(Formatter.format("<green>" + result.summary()));
+        } else {
+            sender.sendMessage(Formatter.format("<red>Pack operation failed:"));
+        }
+        if (result.report().hasWarnings()) {
+            for (String warning : result.report().getWarnings()) {
+                sender.sendMessage(Formatter.format("<yellow>- " + warning));
+            }
+        }
+        if (!result.success()) {
+            for (String error : result.report().getErrors()) {
+                sender.sendMessage(Formatter.format("<red>- " + error));
+            }
+        }
+    }
+
+    private void sendValidationReport(CommandSender sender, org.nakii.valmora.module.pack.validate.PackValidationReport report, String label) {
+        if (report.isValid()) {
+            sender.sendMessage(Formatter.format("<green>" + label + " passed with no errors."));
+        } else {
+            sender.sendMessage(Formatter.format("<red>" + label + " found " + report.getErrors().size() + " error(s):"));
+            for (String error : report.getErrors()) sender.sendMessage(Formatter.format("<red>- " + error));
+        }
+        if (report.hasWarnings()) {
+            sender.sendMessage(Formatter.format("<yellow>" + report.getWarnings().size() + " warning(s):"));
+            for (String warning : report.getWarnings()) sender.sendMessage(Formatter.format("<yellow>- " + warning));
+        }
+    }
+
+    private void sendPackHelp(CommandSender sender) {
+        sender.sendMessage(Formatter.format("<gold>--- Valmora Content Packs ---"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack install <dir|url|github:owner/repo@tag> [--sha256 <hash>] <gray>- Install a pack"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack inspect <dir> <gray>- Validate a pack without installing it"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack uninstall <id> <gray>- Uninstall an installed pack"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack list <gray>- List installed packs"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack rollback <id> [timestamp] <gray>- Restore a pack's backup snapshot"));
     }
 
     /**
@@ -139,8 +326,30 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "variable", "pipeline")
+            return Stream.of("reload", "variable", "pipeline", "pack", "debug")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("debug")) {
+            return Stream.concat(Stream.of(DEBUG_ALL), debuggableModules().stream())
+                    .filter(s -> s.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("pack")) {
+            return Stream.of("install", "inspect", "uninstall", "list", "rollback")
+                    .filter(s -> s.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("pack")
+                && (args[1].equalsIgnoreCase("uninstall") || args[1].equalsIgnoreCase("rollback"))) {
+            var packModule = plugin.getPackModule();
+            if (packModule == null || packModule.getPackManager() == null) return new ArrayList<>();
+            return packModule.getPackManager().listInstalled().stream()
+                    .map(org.nakii.valmora.module.pack.PackRecord::packId)
+                    .filter(id -> id.toLowerCase().startsWith(args[2].toLowerCase()))
                     .collect(Collectors.toList());
         }
 
@@ -178,5 +387,7 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora pack ... <gray>- Manage content packs (see /valmora pack)"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora debug <module|all> <gray>- Toggle verbose debug logging"));
     }
 }

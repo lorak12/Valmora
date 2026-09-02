@@ -15,11 +15,20 @@ import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.StatManager;
 import org.nakii.valmora.module.stat.SystemStats;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 import java.util.Map;
 
 public class DamageCalculator {
+
+    private static final String DEBUG_MODULE = "combat";
+
+    private static void debug(String msg) {
+        if (DebugManager.isEnabled(DEBUG_MODULE)) {
+            org.nakii.valmora.Valmora.getInstance().getLogger().info("[combat-debug] [calc] " + msg);
+        }
+    }
 
     public static DamageResult calculateDamage(LivingEntity attacker, LivingEntity victim, DamageType damageType, double baseDamageOverride) {
         return calculateDamage(attacker, victim, damageType, baseDamageOverride, null);
@@ -89,6 +98,11 @@ public class DamageCalculator {
             defense = victimMob.getDefense();
         }
 
+        debug("inputs: attacker=" + (attacker != null ? attacker.getName() : "null") + " victim="
+                + (victim != null ? victim.getName() : "null") + " damageType=" + damageType
+                + " baseDamage=" + baseDamage + " strength=" + strength + " critChance=" + critChance
+                + " critDamage=" + critDamage + " victimDefense=" + defense);
+
         DamageModifierContext context = new DamageModifierContext(baseDamage, strength, critChance, critDamage, defense, damageType);
 
         // Built here (moved up from after the pre-hit loops) so the enchant combat hook can attach
@@ -117,6 +131,9 @@ public class DamageCalculator {
                 }
                 attachEnchantVars(def, instance, formulaContext);
                 EnchantCombatHook.applyAttack(context, formulaContext, def.getModifyAttack());
+                debug("attacker enchant applied: " + def.getId() + " lvl=" + instance.getLevel()
+                        + " -> context.damageMultiplier=" + context.getDamageMultiplier()
+                        + " defenseShred%=" + context.getDefenseShredPercent());
             }
         }
 
@@ -132,11 +149,14 @@ public class DamageCalculator {
                     }
                     attachEnchantVars(def, instance, defendContext);
                     EnchantCombatHook.applyDefend(context, defendContext, def.getModifyDefend());
+                    debug("defender enchant applied: " + def.getId() + " lvl=" + instance.getLevel()
+                            + " -> context.damageReduction%=" + context.getDamageReductionPercent());
                 }
             }
         }
 
         boolean isCritical = Math.random() < (context.getCritChance() / 100.0);
+        debug("crit roll: chance=" + context.getCritChance() + "% -> critical=" + isCritical);
 
         // Phase 2.2 (docs/REFACTOR/PROGRESS.md): formulas are pre-compiled from damage_formula.yml
         // at CombatModule.onEnable() and evaluated here, not re-parsed. Falls back to the exact
@@ -148,19 +168,24 @@ public class DamageCalculator {
                 ? formulas.evaluate(DamageFormulaRegistry.DAMAGE_MULTIPLIER, formulaContext, 1 + context.getStrength() / 100.0)
                 : 1 + context.getStrength() / 100.0;
         double fullDamage = context.getBaseDamage() * damageMultiplier;
+        debug("damageMultiplier=" + damageMultiplier + " -> fullDamage(post-strength)=" + fullDamage);
 
         if (isCritical) {
             double critMultiplier = formulas != null
                     ? formulas.evaluate(DamageFormulaRegistry.CRIT_MULTIPLIER, formulaContext, 1 + context.getCritDamage() / 100.0)
                     : 1 + context.getCritDamage() / 100.0;
             fullDamage *= critMultiplier;
+            debug("critMultiplier=" + critMultiplier + " -> fullDamage(post-crit)=" + fullDamage);
         }
 
         fullDamage *= context.getDamageMultiplier();
+        debug("enchant damageMultiplier=" + context.getDamageMultiplier() + " -> fullDamage(post-enchant)=" + fullDamage);
 
         // Combat pipeline `multiply_damage` contribution — see this method's ordering-rule javadoc.
         if (pipelineContext != null) {
-            fullDamage *= (double) pipelineContext.get("dmg:pipeline_multiplier", 1.0);
+            double pipelineMultiplier = (double) pipelineContext.get("dmg:pipeline_multiplier", 1.0);
+            fullDamage *= pipelineMultiplier;
+            debug("pipeline multiplier=" + pipelineMultiplier + " -> fullDamage(post-pipeline)=" + fullDamage);
         }
 
         // Attacker-side enchant defense-shred (combat.modify-attack.modifiers.defense-shred-percent)
@@ -173,13 +198,18 @@ public class DamageCalculator {
             defenseMultiplier = formulas != null
                     ? formulas.evaluate(DamageFormulaRegistry.DEFENSE_MULTIPLIER, formulaContext, 100.0 / (effectiveDefense + 100.0))
                     : 100.0 / (effectiveDefense + 100.0);
+        } else {
+            debug("damageType " + damageType + " ignores defense — skipping mitigation");
         }
+        debug("effectiveDefense=" + effectiveDefense + " defenseMultiplier=" + defenseMultiplier);
 
         double mitigated = fullDamage * defenseMultiplier;
+        debug("mitigated(post-defense)=" + mitigated);
 
         // Defender-side enchant flat reduction (combat.modify-defend.modifiers.damage-reduction-percent).
         if (context.getDamageReductionPercent() > 0) {
             mitigated *= Math.max(0, 1.0 - context.getDamageReductionPercent() / 100.0);
+            debug("enchant damageReduction%=" + context.getDamageReductionPercent() + " -> mitigated=" + mitigated);
         }
 
         // Mob victim damage-type resistances (1.0 = full immunity)
@@ -189,6 +219,7 @@ public class DamageCalculator {
             if (resistance > 0) {
                 mitigated *= (1.0 - resistance);
                 immune = resistance >= 1.0;
+                debug("mob resistance to " + damageType + "=" + resistance + " -> mitigated=" + mitigated + " immune=" + immune);
             }
         }
 
@@ -198,9 +229,11 @@ public class DamageCalculator {
         if (pdcResistance > 0) {
             mitigated *= (1.0 - pdcResistance);
             immune = immune || pdcResistance >= 1.0;
+            debug("PDC resistance to " + damageType + "=" + pdcResistance + " -> mitigated=" + mitigated + " immune=" + immune);
         }
 
         double finalDamage = Math.floor(mitigated);
+        debug("RESULT: finalDamage=" + finalDamage + " (floored from " + mitigated + ") crit=" + isCritical + " immune=" + immune);
 
         DamageResult result = new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
         result.setImmune(immune);

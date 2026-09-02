@@ -14,12 +14,20 @@ Module registration order (see `Valmora.java`) enforces a strict layering. Lower
 script → time → rarity → stat → player → economy
        → ui → ability → item → mob → skill → combat → gui → recipe → machine → modifier
        → alchemy → enchant → zone → resource → fishing → npc → warp
-       → points → notify → quest → collection → hud → calendar → pet → progression
+       → points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
 
 > **Note:** `machine` (module id `machine`) sits between `recipe` and `modifier` — it loads the
 > `machines/*.yml` machine-definition layer (which GUI opens for which machine id, open-triggers,
 > input/output slot shapes) consulted by `MachineOpenListener`. See CLAUDE.md §5/§9.4.
+
+> **Note:** `pack` (module id `pack`) is registered **last**, deliberately — it only orchestrates
+> other modules' existing reload machinery (`ModuleManager.reloadModules(Set<String>)`, a new
+> targeted-subset overload — see §4.1) and must never be a dependency of anything else. Its
+> `YamlLoader` content-id-namespacing hook is **not** tied to its own `onEnable()`/`onDisable()` —
+> see `docs/modules/design/pack.md` §3 for why that would silently break on every `/valmora reload`,
+> and how `Valmora.onEnable()`/`onDisable()` install/uninstall it directly instead, at plugin
+> lifetime rather than module lifetime.
 
 > **Note:** `accessory`, `backpack`, `quiver`, and `slayer` are **no longer modules** — they were
 > removed and rebuilt as plain data (items + GUI `STORAGE` components, and quest packages). See
@@ -94,6 +102,7 @@ Slayer content is quest packages + a GUI, not a module — see `docs/modules/des
 | collection    | resource, fishing, stat, script   | progression                           |
 | calendar      | time, stat, script                | progression                           |
 | progression   | quest, stat, script               | (none — terminal)                     |
+| pack          | (none — reaches other modules only via `ModuleManager.reloadModules`, never a direct compile-time dependency) | (none — terminal, nothing may depend on it) |
 
 ---
 
@@ -228,13 +237,21 @@ YAML-defined or Java-registered logic at named points in their otherwise-hardcod
 1. **Disable phase** — All modules' `onDisable()` called in **reverse registration order** — the
    exact reverse of the Section 1 chain:
    ```
-   progression → pet → calendar → hud → collection → quest → notify → points
+   pack → progression → pet → calendar → hud → collection → quest → notify → points
    → warp → npc → fishing → resource → zone → enchant → alchemy → modifier → machine
    → recipe → gui → combat → skill → mob → item → ability → ui
    → economy → player → stat → rarity → time → script
    ```
 
 2. **Re-enable phase** — `ModuleManager.enableModules()` called in **forward registration order** (as listed in Section 1).
+
+**Targeted subset reload:** `ModuleManager.reloadModules(Set<String> moduleIds)` — added for the
+content pack manager (`docs/modules/design/pack.md`) — reloads only the named modules, still
+respecting the same reverse-disable/forward-enable ordering restricted to that subset. Installing a
+pack that only ships items and quests reloads only the `items` and `quest` modules, not the whole
+server. Unlike the no-arg `reloadModules()`, this overload is not currently exposed via
+`/valmora reload` (only `PackManager` calls it) — see `ModuleManager.reloadModule(String)` for the
+older single-module primitive this generalizes.
 
 ### 4.2 Reload Responsibilities
 

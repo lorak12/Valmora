@@ -14,6 +14,7 @@ import org.nakii.valmora.module.recipe.CraftResult;
 import org.nakii.valmora.module.recipe.RecipeEngine;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,11 @@ public class GuiForceCraftEventFactory implements EventFactory {
             if (session == null) return;
 
             // Dupe protection: reject concurrent craft attempts
-            if (session.isCraftingLocked()) return;
+            if (session.isCraftingLocked()) {
+                DebugManager.log("gui", "gui_force_craft REJECTED — craft already in progress for gui="
+                        + session.getDefinition().getId());
+                return;
+            }
             session.setCraftingLocked(true);
 
             try {
@@ -53,9 +58,15 @@ public class GuiForceCraftEventFactory implements EventFactory {
 
                 // Unified craft: match + consume + build output atomically
                 Optional<CraftResult> result = engine.craft(machineId, inputs, player);
-                if (result.isEmpty()) return;
+                if (result.isEmpty()) {
+                    DebugManager.log("gui", "gui_force_craft: no recipe matched for gui="
+                            + session.getDefinition().getId() + " machine=" + machineId + " player=" + player.getName());
+                    return;
+                }
 
                 CraftResult craft = result.get();
+                DebugManager.log("gui", "gui_force_craft: recipe='" + craft.recipe().getId() + "' crafted for gui="
+                        + session.getDefinition().getId() + " player=" + player.getName());
 
                 // Route each built output to the OUTPUT component slot it named (RecipeOutput.slot,
                 // matching a GUI's OUTPUT id — e.g. a 2-output "processor" machine's `primary`/

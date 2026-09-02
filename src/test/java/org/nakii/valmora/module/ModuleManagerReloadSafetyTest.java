@@ -154,4 +154,51 @@ class ModuleManagerReloadSafetyTest {
         assertEquals(0, moduleB.disableCount);
         assertEquals(2, countRegisteredFor(mockPlugin));
     }
+
+    @Test
+    void reloadingASubsetOfModulesByIdOnlyTouchesThatSubset() {
+        // Covers ModuleManager#reloadModules(Set<String>) — the content pack manager's targeted
+        // reload primitive: install/uninstall a pack should only reload the modules it actually
+        // touches, never the whole server.
+        PluginMock mockPlugin = MockBukkit.createMockPlugin("ValmoraTest");
+        Valmora loggerStub = mock(Valmora.class);
+        when(loggerStub.getLogger()).thenReturn(Logger.getLogger("ModuleManagerReloadSafetyTest"));
+
+        ModuleManager manager = new ModuleManager(loggerStub);
+        ListenerBackedModule moduleA = new ListenerBackedModule(mockPlugin, "module_a");
+        ListenerBackedModule moduleB = new ListenerBackedModule(mockPlugin, "module_b");
+        ListenerBackedModule moduleC = new ListenerBackedModule(mockPlugin, "module_c");
+        manager.registerModule(moduleA);
+        manager.registerModule(moduleB);
+        manager.registerModule(moduleC);
+        manager.enableModules();
+
+        manager.reloadModules(java.util.Set.of("module_a", "module_c"));
+
+        assertEquals(2, moduleA.enableCount);
+        assertEquals(1, moduleA.disableCount);
+        assertEquals(1, moduleB.enableCount, "module_b was not in the requested subset");
+        assertEquals(0, moduleB.disableCount);
+        assertEquals(2, moduleC.enableCount);
+        assertEquals(1, moduleC.disableCount);
+        assertEquals(3, countRegisteredFor(mockPlugin), "one listener per module, no duplicates");
+    }
+
+    @Test
+    void reloadingAnEmptyOrUnknownSubsetIsANoOp() {
+        PluginMock mockPlugin = MockBukkit.createMockPlugin("ValmoraTest");
+        Valmora loggerStub = mock(Valmora.class);
+        when(loggerStub.getLogger()).thenReturn(Logger.getLogger("ModuleManagerReloadSafetyTest"));
+
+        ModuleManager manager = new ModuleManager(loggerStub);
+        ListenerBackedModule moduleA = new ListenerBackedModule(mockPlugin, "module_a");
+        manager.registerModule(moduleA);
+        manager.enableModules();
+
+        manager.reloadModules(java.util.Set.of());
+        manager.reloadModules(java.util.Set.of("does_not_exist"));
+
+        assertEquals(1, moduleA.enableCount);
+        assertEquals(0, moduleA.disableCount);
+    }
 }

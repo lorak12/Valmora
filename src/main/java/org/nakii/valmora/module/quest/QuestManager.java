@@ -9,6 +9,7 @@ import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.notify.NotifyManager;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.List;
@@ -263,6 +264,10 @@ public class QuestManager {
 
                 sendProgressNotification(player, obj, newVal);
 
+                DebugManager.log("quest", player.getName() + " quest='" + quest.getId() + "' objective='" + key
+                        + "' (type=" + typeId + ", target=" + targets + ") progress " + current + " -> " + newVal
+                        + "/" + obj.getRequired());
+
                 if (newVal >= obj.getRequired()) {
                     if (obj.getId() != null)
                         profile.getVariables().put("objective." + obj.getId() + ".active", false);
@@ -327,6 +332,7 @@ public class QuestManager {
             profile.getVariables().put("quest." + quest.getId() + ".completed_at", System.currentTimeMillis());
         }
         player.sendMessage(Formatter.format("<gold><bold>Quest Completed: " + quest.getName()));
+        DebugManager.log("quest", player.getName() + " COMPLETED quest='" + quest.getId() + "' repeatable=" + quest.isRepeatable());
     }
 
     private long getCompletedAt(ValmoraProfile profile, String questId) {

@@ -11,6 +11,7 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.time.event.ValmoraDayChangeEvent;
 import org.nakii.valmora.module.time.event.ValmoraSeasonChangeEvent;
 import org.nakii.valmora.module.time.event.ValmoraTimeTickEvent;
+import org.nakii.valmora.util.DebugManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -151,6 +152,10 @@ public class TimeManager {
             TimeSnapshot daySnap = getSnapshot();
 
             plugin.getServer().getPluginManager().callEvent(new ValmoraDayChangeEvent(daySnap));
+            // Not per-tick: tick() runs once a second, but a day only rolls over here — this stays
+            // usable instead of spamming one line/second like the raw ValmoraTimeTickEvent would.
+            DebugManager.log("time", "day changed: " + daySnap.seasonName() + " " + daySnap.phaseName()
+                    + " Day " + daySnap.dayInPhase() + ", Year " + daySnap.year());
 
             if (daySnap.phase() != lastPhase || daySnap.season() != lastSeason) {
                 boolean isNewSeason = daySnap.season() != lastSeason;
@@ -160,6 +165,8 @@ public class TimeManager {
 
                 plugin.getServer().getPluginManager()
                         .callEvent(new ValmoraSeasonChangeEvent(daySnap, isNewSeason, isNewYear));
+                DebugManager.log("time", "season/phase changed -> " + daySnap.seasonName() + " " + daySnap.phaseName()
+                        + " (newSeason=" + isNewSeason + ", newYear=" + isNewYear + ")");
 
                 lastPhase = daySnap.phase();
                 lastSeason = daySnap.season();

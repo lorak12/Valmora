@@ -277,6 +277,11 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.pack.PackModule getPackModule() {
+        return module("pack", org.nakii.valmora.module.pack.PackModule.class);
+    }
+
+    @Override
     public ResourceModule getResourceModule() {
         return module("resource", ResourceModule.class);
     }

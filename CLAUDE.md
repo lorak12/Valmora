@@ -141,12 +141,14 @@ Valmora.onEnable()
 **Module registration order** (must be preserved — verified against `Valmora.java`, post
 modifier-framework refactor: the legacy `reforge` module was removed and replaced by `rarity` +
 `modifier`, see §Generic Modifier Framework below; `machine` was added after `recipe` for the
-machine-definition layer, see §Machine Definition Layer below):
+machine-definition layer, see §Machine Definition Layer below; `pack` was added last for the content
+pack manager, see `docs/modules/design/pack.md` — it must stay last, since it only orchestrates other
+modules' existing reload machinery and must never be a dependency of anything else):
 
 ```
 script → time → rarity → stat → player → economy → ui → ability → item → mob → skill → combat →
 gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc → warp →
-points → notify → quest → collection → hud → calendar → pet → progression
+points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
 
 Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).

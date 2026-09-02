@@ -27,6 +27,7 @@
 14. [Variables in Formulas](#14-variables-in-formulas)
 15. [Command Reference — `/item`](#15-command-reference--item)
 16. [Deferred & DESCRIPTION-ONLY Items](#16-deferred--description-only-items)
+17. [Item Lore Layout (config.yml)](#17-item-lore-layout-configyml)
 
 ---
 
@@ -247,14 +248,43 @@ Each entry under `abilities:` uses a unique key as the ability id:
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `name` | String | Yes | — | Human-readable name shown in item lore. |
+| `name` | String | No | ability's map key (id) | Human-readable name shown in the `FULL`-display lore header. Only used when `display: FULL` — never rendered, and thus never falls back to "null", when `display: SIMPLE`. |
 | `trigger` | String | Yes | — | An `AbilityTrigger` value. See [Triggers](#7-ability-triggers). |
 | `target-range` | Double | For `RIGHT_CLICK` | — | Max blocks to find a target via `player.getTargetEntity()`. |
 | `cooldown` | Double | No | `0` | Cooldown in **seconds**. `0` = no cooldown. |
 | `mana-cost` | Double | No | `0` | Mana units consumed per use. `0` = free. |
 | `description` | List of Strings | No | — | Lore lines describing the ability. Supports MiniMessage. |
+| `display` | String | No | `FULL` | Lore rendering mode — `FULL` or `SIMPLE`. See below. |
 | `conditions` | List of Strings | No | — | Script expression conditions (all must be true). |
 | `mechanics` | List of Maps | No | — | Ordered list of mechanic executions. |
+
+### Display Modes (`display:`)
+
+`ItemFactory.updateLore` renders each ability one of two ways:
+
+- **`FULL`** (default) — the classic ability block: a `Ability: <name> <TRIGGER>` header line,
+  then the `description` lines, then `Mana Cost:`/`Cooldown:` footer lines if either is set, then a
+  blank spacer line.
+- **`SIMPLE`** — just the (MiniMessage-formatted) `description` lines, with no header and no
+  Mana Cost/Cooldown footer. Use this for a passive/flavor ability where you want a single clean
+  stat-style lore line instead of a whole labeled ability block — e.g. a `description` of
+  `"<gray>Deals <green>+50%</green> more damage to undead mobs."` reads as a plain lore line rather
+  than announcing itself as `Ability: Undead Slayer ON HIT`.
+
+```yaml
+abilities:
+  undead_bane:
+    trigger: ON_HIT
+    display: SIMPLE
+    description:
+      - "<gray>Deals <green>+50%</green> more damage to undead mobs."
+    conditions:
+      - "$target.mob.category$ == UNDEAD"
+    mechanics:
+      - type: "DAMAGE"
+        params:
+          amount: "$player.stat.damage$*0.5"
+```
 
 ### Mechanic Entry Format
 
@@ -684,6 +714,63 @@ comments note that "damage-over-time is deferred; applies a single burst." In
 practice, the `runTaskTimer` implementation in `DamageMechanic` (line 44) and
 `HealMechanic` (line 35) **does** schedule repeated hits. Any YAML using
 `ticks`/`interval` will produce DoT behavior.
+
+---
+
+## 17. Item Lore Layout (config.yml)
+
+Every generated item's lore is assembled by `ItemFactory.updateLore` out of independent
+**blocks** (`ItemLoreLayout.Section`), which are stitched together in the order — and with the
+per-line formatting — declared in `config.yml` under `items.lore`. This is a **global default**
+that applies to every item; it is not per-item. Edit `config.yml`, then run `/valmora reload`
+(which now also calls `plugin.reloadConfig()`, so the edit takes effect immediately).
+
+### 17.1 Blocks
+
+| Block (`sections:` entry) | Content | Only appears when |
+|---|---|---|
+| `breaking-power` | `Breaking Power N` line | Item is a `PICKAXE`/`SHOVEL`/`AXE`/`HOE` type |
+| `base-lore` | The item's own `lore:` list (Item Schema §4) | `lore:` is non-empty |
+| `lore-template` | The item's own `lore-template:` list, `$item.stat.<id>$` tokens resolved | `lore-template:` is non-empty |
+| `stats` | `◈ Stat: +N` per stat — baked item stats **plus** live reforge/gemstone/trait bonuses | Item has any stats (baked or contributed) |
+| `modifiers` | `◆ <name>` per attached LORE-format modifier (e.g. gemstones) | Item has any LORE-format modifiers attached |
+| `enchantments` | The enchant list (`EnchantmentHelper.formatEnchants`) | Item has any enchants |
+| `abilities` | One block per ability — format depends on that ability's own `display:` (§5, "Display Modes"): `FULL` renders via the `abilities.*` formats below, `SIMPLE` is description-lines-only | Item definition has any `abilities:` |
+| `rarity-tag` | The `EPIC SWORD`-style line | Always (unless removed from `sections:`) |
+
+Removing a block's entry from `sections:` hides it entirely, for every item, until it's added
+back. An unrecognized entry is skipped with a warning logged at load time — check the console
+after a reload if a section you configured isn't showing up.
+
+### 17.2 Spacing and per-block formats
+
+`spacer-between-sections` (default `true`) inserts one blank line between any two consecutive
+**non-empty** blocks — an item with no enchants and no abilities just has that gap collapse, it
+doesn't leave an empty line behind. Set it `false` for a denser lore with no gaps at all.
+
+`breaking-power.format`, `stats.line-format`, `modifiers.line-format`, `abilities.header-format`,
+`abilities.mana-cost-format`, `abilities.cooldown-format`, and `rarity-tag.format` are each a
+MiniMessage string with `{placeholder}` tokens substituted in (see the commented defaults in
+`config.yml` for the exact placeholder list per format — e.g. `stats.line-format`'s `{stat}` is
+the stat's own already-colored `"<color>Name: +N"` text, so that format only controls the
+bullet/indent wrapped around it, not the stat's own color).
+
+### 17.3 Example — reordering and de-cluttering
+
+```yaml
+items:
+  lore:
+    sections:
+      - base-lore
+      - lore-template
+      - abilities      # abilities moved above stats
+      - stats
+      - enchantments
+      # modifiers and rarity-tag omitted — gemstone lines and the "EPIC SWORD" tag no
+      # longer render on any item
+    stats:
+      line-format: "<gray>• {stat}"   # plain bullet instead of ◈
+```
 
 ### 16.5 Zone-Conditional Effects
 

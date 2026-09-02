@@ -18,6 +18,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.zone.event.ZoneEnterEvent;
 import org.nakii.valmora.module.zone.event.ZoneExitEvent;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 import java.io.File;
@@ -96,6 +97,8 @@ public class ZoneManager {
         String newZoneId = newZone.map(ZoneDefinition::getId).orElse(null);
 
         if (Objects.equals(oldZoneId, newZoneId)) return;
+
+        DebugManager.log("zone", player.getName() + " transition: " + oldZoneId + " -> " + newZoneId);
 
         if (oldZoneId != null)
             registry.get(oldZoneId).ifPresent(z ->

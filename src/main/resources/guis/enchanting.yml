@@ -107,6 +107,8 @@ enchanting_table:
               - ""
               - "<gray>$entry.description$"
               - ""
+              - "<gray>Cost: <green>$entry.cost$</green> XP level(s)</gray>"
+              - ""
               - "<yellow>Click to apply!</yellow>"
           actions:
             left:

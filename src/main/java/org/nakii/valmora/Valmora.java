@@ -127,6 +127,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.rarity.RarityModule rarityModule;
     private org.nakii.valmora.module.modifier.ModifierModule modifierModule;
     private org.nakii.valmora.module.machine.MachineModule machineModule;
+    private org.nakii.valmora.module.pack.PackModule packModule;
+    private org.nakii.valmora.module.pack.PackFileIndex packFileIndex;
 
     @Override
     public void onEnable() {
@@ -169,6 +171,13 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.economyModule = new EconomyModule(this, dataStore);
         this.economyService = economyModule;
 
+        // Prime the content pack manager's YamlLoader namespacing hook now, before any content
+        // loader below runs — see PackModule's class doc for why this can't wait for PackModule's
+        // own onEnable() (registered/enabled last, but every module's onEnable() below needs the
+        // hook active while it loads its own content). Undone once, at actual plugin shutdown, in
+        // onDisable() — never torn down by /valmora reload, since it isn't tied to any module.
+        primePackNamespacing();
+
         // 2. Initialize Managers/Modules
         this.playerManager = new PlayerManager(this, dataStore);
         this.statModule = new StatModule(this);
@@ -200,6 +209,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.calendarEventModule = new CalendarEventModule(this);
         this.petModule = new PetModule(this);
         this.progressionModule = new org.nakii.valmora.module.progression.ProgressionModule(this);
+        this.packModule = new org.nakii.valmora.module.pack.PackModule(this, dataStore, packFileIndex);
 
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
@@ -238,6 +248,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(calendarEventModule); // Depends on scriptModule + timeModule
         moduleManager.registerModule(petModule);          // Depends on scriptModule + statModule
         moduleManager.registerModule(progressionModule);  // Depends on scriptModule + pointsModule (generic tree/skill-point engine)
+        // Registered last, deliberately: the content pack manager only orchestrates other modules'
+        // existing reload machinery (ModuleManager.reloadModules) and must never be a dependency of
+        // anything else (docs/modules/design/pack.md).
+        moduleManager.registerModule(packModule);
 
         // 4. Enable Modules
         moduleManager.enableModules();
@@ -311,6 +325,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         if (moduleManager != null) {
             moduleManager.disableModules();
         }
+        // Plugin-lifetime hook, not module-lifetime — see primePackNamespacing()/PackModule's class doc.
+        org.nakii.valmora.module.pack.PackNamespacer.uninstall();
 
         if (packetEventsLoaded) {
             try {
@@ -552,6 +568,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.pack.PackModule getPackModule() {
+        return packModule;
+    }
+
+    @Override
     public org.nakii.valmora.module.notify.NotifyManager getNotifyManager() {
         return notifyModule != null ? notifyModule.getNotifyManager() : null;
     }
@@ -559,6 +580,26 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public org.nakii.valmora.module.quest.pkg.QuestPackageManager getQuestPackageManager() {
         return questModule != null ? questModule.getPackageManager() : null;
+    }
+
+    /**
+     * Installs the content pack manager's {@code YamlLoader} namespacing hook and rebuilds
+     * {@link org.nakii.valmora.module.pack.PackFileIndex} from the pack ledger — see
+     * {@code PackModule}'s class doc for why this runs here (before {@code moduleManager.enableModules()})
+     * rather than in {@code PackModule.onEnable()} itself. The DB read here blocks the calling
+     * thread, same as {@code dataStore.init()} immediately above it — both are one-time,
+     * plugin-startup costs.
+     */
+    private void primePackNamespacing() {
+        this.packFileIndex = new org.nakii.valmora.module.pack.PackFileIndex();
+        org.nakii.valmora.module.pack.PackNamespacer.install(packFileIndex);
+        try {
+            for (var record : dataStore.loadPackRecords().join()) {
+                packFileIndex.reindexFromFileManifest(record.packId(), record.fileManifest());
+            }
+        } catch (Exception e) {
+            getLogger().warning("Failed to prime content pack namespacing from the pack ledger: " + e.getMessage());
+        }
     }
 
     private void saveAllResources() {

@@ -4,6 +4,7 @@ import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.module.item.set.SetBonusRegistry;
+import org.nakii.valmora.util.DebugManager;
 
 public class ItemManager implements ReloadableModule {
 
@@ -80,16 +81,20 @@ public class ItemManager implements ReloadableModule {
     public ItemStack createItemStack(String id){
         java.util.Optional<ItemStack> customItem = itemRegistry.createItemStack(id);
         if (customItem.isPresent()) {
+            DebugManager.log("items", "createItemStack('" + id + "') -> custom item");
             return customItem.get();
         }
 
         try {
             org.bukkit.Material material = org.bukkit.Material.matchMaterial(id);
             if (material == null) {
+                DebugManager.log("items", "createItemStack('" + id + "') -> FAILED, no custom item or vanilla material match");
                 return null;
             }
+            DebugManager.log("items", "createItemStack('" + id + "') -> vanilla material " + material);
             return itemTranslator.translate(new org.bukkit.inventory.ItemStack(material));
         } catch (Exception e) {
+            DebugManager.log("items", "createItemStack('" + id + "') -> EXCEPTION " + e);
             return null;
         }
     }

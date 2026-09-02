@@ -14,6 +14,7 @@ import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
 import org.nakii.valmora.module.zone.ZoneDefinition;
+import org.nakii.valmora.util.DebugManager;
 
 public class FishingManager {
 
@@ -73,6 +74,7 @@ public class FishingManager {
         if (pipelineActive) {
             bus.runPoint(FishingPipelineLoader.POST_CATCH, pipelineCtx);
         }
+        DebugManager.log("fishing", player.getName() + " caught (table=" + table.getId() + ") -> " + caught);
         return caught;
     }
 

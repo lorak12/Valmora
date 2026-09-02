@@ -101,7 +101,15 @@ public class ItemDefinitionParser {
                     AbilityDefinition.Builder abBuilder = new AbilityDefinition.Builder(abKey);
                     
                     if (abSec.contains("name")) abBuilder.name(abSec.getString("name"));
-                    
+
+                    if (abSec.contains("display")) {
+                        try {
+                            abBuilder.displayMode(AbilityDefinition.DisplayMode.valueOf(abSec.getString("display").toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            return LoadResult.failure("[" + fileName + "] Invalid display mode '" + abSec.getString("display") + "' in ability '" + abKey + "' (expected FULL or SIMPLE).");
+                        }
+                    }
+
                     if (abSec.contains("trigger")) {
                         try {
                             abBuilder.trigger(AbilityTrigger.valueOf(abSec.getString("trigger").toUpperCase()));

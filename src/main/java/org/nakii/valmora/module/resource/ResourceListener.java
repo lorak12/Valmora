@@ -7,6 +7,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.item.impl.AoeMineMechanic;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 
 public class ResourceListener implements Listener {
@@ -25,6 +26,10 @@ public class ResourceListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         ResourceManager.BreakResult result = resourceManager.handleBlockBreak(player, event.getBlock());
+        if (result != ResourceManager.BreakResult.NOT_TRACKED) {
+            DebugManager.log("resource", player.getName() + " broke tracked resource block "
+                    + event.getBlock().getType() + " at " + event.getBlock().getLocation() + " -> " + result);
+        }
 
         switch (result) {
             case NOT_TRACKED -> { /* vanilla handling applies */ }

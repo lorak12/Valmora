@@ -16,6 +16,7 @@ import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
@@ -76,6 +77,9 @@ public class MobDeathListener implements Listener {
             }
         }
 
+        DebugManager.log("mobs", "'" + mobId + "' (uuid=" + entity.getUniqueId() + ") died, killer="
+                + (killer != null ? killer.getName() : "none") + " luck=" + luck);
+
         LootTable lootTable = definition.getLootTable();
         if (lootTable != null) {
             List<LootEntry> entries = lootTable.getEntries();
@@ -85,6 +89,8 @@ public class MobDeathListener implements Listener {
                 if (Math.random() < effectiveChance) {
                     ItemStack drop = entry.createDroppedItem();
                     event.getDrops().add(drop);
+                    DebugManager.log("mobs", "'" + mobId + "' loot roll: " + drop.getType()
+                            + " x" + drop.getAmount() + " (chance=" + effectiveChance + ")");
                 }
             }
         }

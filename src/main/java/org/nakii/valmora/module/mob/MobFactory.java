@@ -11,6 +11,7 @@ import org.bukkit.entity.Mob;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -149,6 +150,10 @@ public class MobFactory {
         if (definition.isBoss() && bossController != null) {
             bossController.register(entity, definition);
         }
+        DebugManager.log("mobs", "spawned '" + definition.getId() + "' (entityType=" + definition.getEntityType()
+                + ", boss=" + definition.isBoss() + ") at " + location.getWorld().getName() + " "
+                + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ()
+                + " uuid=" + entity.getUniqueId());
         return entity;
     }
 }

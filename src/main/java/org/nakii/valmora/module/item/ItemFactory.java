@@ -67,6 +67,7 @@ public class ItemFactory {
     }
 
     public void updateLore(ItemStack item, ItemMeta meta) {
+        ItemLoreLayout layout = ItemLoreLayout.load(plugin);
         String itemId = meta.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
         
         // Try to get definition
@@ -116,10 +117,14 @@ public class ItemFactory {
             meta.displayName(Formatter.format(rarityColor + name));
         }
 
-        // Assemble Lore
-        List<Component> finalLore = new ArrayList<>();
+        // Assemble Lore — each block below is built independently into its own line list, keyed by
+        // ItemLoreLayout.Section, then stitched together in the configured order at the bottom
+        // (config.yml `items.lore` — ItemLoreLayout). This lets admins reorder, hide, or reformat
+        // any block without touching Java.
+        Map<ItemLoreLayout.Section, List<Component>> sections = new java.util.EnumMap<>(ItemLoreLayout.Section.class);
 
-        // 0. Breaking Power (first line for mining tools)
+        // BREAKING_POWER (first line for mining tools)
+        List<Component> breakingPowerLines = new ArrayList<>();
         String typeTagRaw = meta.getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
         if (typeTagRaw != null) {
             try {
@@ -127,103 +132,141 @@ public class ItemFactory {
                 if (itemType == ItemType.PICKAXE || itemType == ItemType.SHOVEL
                         || itemType == ItemType.AXE || itemType == ItemType.HOE) {
                     int bp = getBreakingPower(item.getType());
-                    finalLore.add(Formatter.format("<dark_gray>Breaking Power " + bp));
+                    breakingPowerLines.add(Formatter.format(layout.getBreakingPowerFormat().replace("{power}", String.valueOf(bp))));
                 }
             } catch (IllegalArgumentException ignored) {}
         }
+        sections.put(ItemLoreLayout.Section.BREAKING_POWER, breakingPowerLines);
 
-        // 1. Base Lore
+        // BASE_LORE
+        List<Component> baseLoreLines = new ArrayList<>();
         if (!baseLore.isEmpty()) {
-            if (!finalLore.isEmpty()) finalLore.add(Component.empty());
-            finalLore.addAll(Formatter.formatList(baseLore));
+            baseLoreLines.addAll(Formatter.formatList(baseLore));
         }
+        sections.put(ItemLoreLayout.Section.BASE_LORE, baseLoreLines);
 
-        // 1b. Lore template (resolved against item's own stats)
+        // LORE_TEMPLATE (resolved against item's own stats)
+        List<Component> loreTemplateLines = new ArrayList<>();
         if (definitionOpt.isPresent()) {
             List<String> loreTemplate = definitionOpt.get().getLoreTemplate();
             if (!loreTemplate.isEmpty()) {
                 Map<String, Double> itemStats = plugin.getStatModule().loadStats(meta);
-                if (!finalLore.isEmpty()) finalLore.add(Component.empty());
                 for (String line : loreTemplate) {
-                    String resolved = resolveItemStatTokens(line, itemStats);
-                    finalLore.add(Formatter.format(resolved));
+                    loreTemplateLines.add(Formatter.format(resolveItemStatTokens(line, itemStats)));
                 }
             }
         }
+        sections.put(ItemLoreLayout.Section.LORE_TEMPLATE, loreTemplateLines);
 
-        // 2. Stats Section — merges baked item stats with dynamically-resolved modifier STAT
-        // effects (reforges/gemstones/traits — docs/Valmora_Modifier_Framework_Design.docx), so a
+        // STATS — merges baked item stats with dynamically-resolved modifier STAT effects
+        // (reforges/gemstones/traits — docs/Valmora_Modifier_Framework_Design.docx), so a
         // reforge/gemstone's bonus shows in the same list rather than needing its own lore block.
+        List<Component> statsLines = new ArrayList<>();
         Map<String, Double> stats = new java.util.LinkedHashMap<>(plugin.getStatModule().loadStats(meta));
         if (modifierModule != null && modifierModule.getEngine() != null && item.hasItemMeta()) {
             modifierModule.getEngine().contributeStats(item, null, (statId, value) ->
                     stats.merge(statId, value, Double::sum));
         }
         if (!stats.isEmpty()) {
-            if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
             StatRegistry statRegistry = plugin.getStatModule().getStatRegistry();
             for (Map.Entry<String, Double> entry : stats.entrySet()) {
                 StatDefinition def = statRegistry.get(entry.getKey()).orElse(null);
-                String formatted = def != null
-                        ? "<gray> ◈ " + def.format(entry.getValue())
-                        : "<gray> ◈ <white>" + entry.getKey() + ": +" + entry.getValue().intValue();
-                finalLore.add(Formatter.format(formatted));
+                String statText = def != null
+                        ? def.format(entry.getValue())
+                        : "<white>" + entry.getKey() + ": +" + entry.getValue().intValue();
+                statsLines.add(Formatter.format(layout.getStatLineFormat().replace("{stat}", statText)));
             }
         }
+        sections.put(ItemLoreLayout.Section.STATS, statsLines);
 
-        // 2b. Attached LORE-format modifiers (e.g. gemstones) — one line per instance naming the
-        // modifier and its effective tier; the stat numbers themselves are already folded into the
-        // Stats Section above rather than repeated here.
+        // MODIFIERS — attached LORE-format modifiers (e.g. gemstones), one line per instance naming
+        // the modifier and its effective tier; the stat numbers themselves are already folded into
+        // the STATS block above rather than repeated here.
+        List<Component> modifierLines = new ArrayList<>();
         if (modifierModule != null && modifierModule.getEngine() != null && item.hasItemMeta()) {
             var loreEntries = modifierModule.getEngine().getLoreEntries(item);
-            if (!loreEntries.isEmpty()) {
-                if (!finalLore.isEmpty()) finalLore.add(Component.empty());
-                for (var entry : loreEntries) {
-                    var def = entry.getKey();
-                    int tier = entry.getValue();
-                    String label = def.getDisplayName(tier) != null ? def.getDisplayName(tier) : def.getId();
-                    finalLore.add(Formatter.format("<gray> ◆ " + label));
-                }
+            for (var entry : loreEntries) {
+                var def = entry.getKey();
+                int tier = entry.getValue();
+                String label = def.getDisplayName(tier) != null ? def.getDisplayName(tier) : def.getId();
+                modifierLines.add(Formatter.format(layout.getModifierLineFormat().replace("{label}", label)));
             }
         }
+        sections.put(ItemLoreLayout.Section.MODIFIERS, modifierLines);
 
-        // 3. Enchantments Section
+        // ENCHANTMENTS
+        List<Component> enchantLines = new ArrayList<>();
         Map<String, Integer> enchants = org.nakii.valmora.module.enchant.EnchantmentHelper.loadEnchantMap(meta.getPersistentDataContainer());
         if (!enchants.isEmpty()) {
-            if (!finalLore.isEmpty()) finalLore.add(Component.empty()); // Spacer
-            finalLore.addAll(org.nakii.valmora.module.enchant.EnchantmentHelper.formatEnchants(enchants));
+            enchantLines.addAll(org.nakii.valmora.module.enchant.EnchantmentHelper.formatEnchants(enchants));
         }
+        sections.put(ItemLoreLayout.Section.ENCHANTMENTS, enchantLines);
 
-        // 4. Abilities (Only if definition present)
+        // ABILITIES (only if definition present)
+        List<Component> abilityLines = new ArrayList<>();
         if (definitionOpt.isPresent()) {
             ItemDefinition definition = definitionOpt.get();
             if (definition.getAbilities() != null && !definition.getAbilities().isEmpty()) {
-                finalLore.add(Component.empty()); // Spacer
-                
                 for (AbilityDefinition ability : definition.getAbilities().values()) {
+                    if (ability.getDisplayMode() == AbilityDefinition.DisplayMode.SIMPLE) {
+                        // Clean, header-less display: just the description lines, nothing else
+                        // (no "Ability: <name> <TRIGGER>" banner, no Mana Cost/Cooldown footer).
+                        if (!ability.getDescription().isEmpty()) {
+                            abilityLines.addAll(Formatter.formatList(ability.getDescription()));
+                        }
+                        continue;
+                    }
+
+                    String abilityName = (ability.getName() != null && !ability.getName().isEmpty())
+                            ? ability.getName() : ability.getId();
                     String triggerText = ability.getTrigger().name().replace("_", " ");
-                    finalLore.add(Formatter.format("<gold>Ability: " + ability.getName() + " <yellow><bold>" + triggerText));
+                    abilityLines.add(Formatter.format(layout.getAbilityHeaderFormat()
+                            .replace("{name}", abilityName).replace("{trigger}", triggerText)));
                     if (!ability.getDescription().isEmpty()) {
-                        finalLore.addAll(Formatter.formatList(ability.getDescription()));
+                        abilityLines.addAll(Formatter.formatList(ability.getDescription()));
                     }
                     if (ability.getManaCost() > 0) {
-                        finalLore.add(Formatter.format("<dark_gray>Mana Cost: <aqua>" + (int) ability.getManaCost()));
+                        abilityLines.add(Formatter.format(layout.getAbilityManaCostFormat()
+                                .replace("{mana}", String.valueOf((int) ability.getManaCost()))));
                     }
                     if (ability.getCooldown() > 0) {
-                        finalLore.add(Formatter.format("<dark_gray>Cooldown: <green>" + ability.getCooldown() + "s"));
+                        abilityLines.add(Formatter.format(layout.getAbilityCooldownFormat()
+                                .replace("{cooldown}", String.valueOf(ability.getCooldown()))));
                     }
-                    finalLore.add(Component.empty());
+                    abilityLines.add(Component.empty()); // separator between multiple FULL abilities
                 }
+                trimTrailingBlank(abilityLines);
             }
         }
+        sections.put(ItemLoreLayout.Section.ABILITIES, abilityLines);
 
-        // 5. Rarity Tag (e.g. EPIC SWORD)
+        // RARITY_TAG (e.g. EPIC SWORD)
+        List<Component> rarityLines = new ArrayList<>();
         String typeName = meta.getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
         String typeDisplay = (typeName != null && !typeName.equalsIgnoreCase("NONE")) ? " " + typeName.toUpperCase() : "";
-        
-        finalLore.add(Formatter.format(rarityColor + "<bold>" + rarity.getName().toUpperCase() + typeDisplay));
+        rarityLines.add(Formatter.format(layout.getRarityTagFormat()
+                .replace("{color}", rarityColor).replace("{rarity}", rarity.getName().toUpperCase()).replace("{type}", typeDisplay)));
+        sections.put(ItemLoreLayout.Section.RARITY_TAG, rarityLines);
+
+        // Stitch sections together in configured order, inserting a spacer line between any two
+        // consecutive non-empty sections (unless items.lore.spacer-between-sections is false).
+        List<Component> finalLore = new ArrayList<>();
+        for (ItemLoreLayout.Section section : layout.getSectionOrder()) {
+            List<Component> lines = sections.get(section);
+            if (lines == null || lines.isEmpty()) continue;
+            if (layout.isSpacerBetweenSections() && !finalLore.isEmpty()) finalLore.add(Component.empty());
+            finalLore.addAll(lines);
+        }
 
         meta.lore(finalLore);
+    }
+
+    /** Strips trailing {@link Component#empty()} lines so a section never ends on a blank line —
+     *  spacing between sections is the assembly loop's job (items.lore.spacer-between-sections). */
+    private void trimTrailingBlank(List<Component> lines) {
+        while (!lines.isEmpty() && lines.get(lines.size() - 1).equals(Component.empty())) {
+            lines.remove(lines.size() - 1);
+        }
     }
 
     private String resolveItemStatTokens(String line, Map<String, Double> stats) {

@@ -16,6 +16,7 @@
 [] notify
 [] npc
 [*] pipeline (cross-cutting, docs/modules/design/pipeline.md — no user doc, admin-facing surface is YAML `*_pipeline.yml` files + `/valmora pipeline list`, documented inline)
+[] pack - content pack manager: install/uninstall/roll back self-contained content bundles at runtime (see docs/modules/design/pack.md, docs/modules/user/pack.md)
 [] pet
 [] profile
 [] progression

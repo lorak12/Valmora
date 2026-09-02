@@ -187,6 +187,7 @@ public class GuiVariableProvider implements VariableProvider {
             entry.put("level", level);
             entry.put("name", def.getName() + " " + toRoman(level));
             entry.put("description", String.join("\n", def.getDescription()));
+            entry.put("cost", org.nakii.valmora.module.enchant.EtableCostCalculator.cost(level));
 
             if (currentLevel > 0 && level < currentLevel) {
                 entry.put("type", "locked");

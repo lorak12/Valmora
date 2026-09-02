@@ -12,6 +12,7 @@ import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 /**
@@ -130,19 +131,28 @@ public final class AbilityExecutor {
         ExecutionContext context = new SimpleExecutionContext(player, resolvedTarget,
                 player.getLocation(), new MemoryConfiguration());
 
-        if (!conditionsPass(ability, context)) return;
+        if (!conditionsPass(ability, context)) {
+            DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
+                    + ") REJECTED by conditions for player=" + player.getName());
+            return;
+        }
 
         if (profile.getCooldownManager().isOnCooldown(ability.getId())) {
             if (!silent) {
                 double remaining = profile.getCooldownManager().getRemainingCooldown(ability.getId());
                 api.getUIManager().getActionBar().showTemporary(player, "<red>Ability on cooldown: " + remaining + "s", 10, 2);
             }
+            DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
+                    + ") REJECTED — on cooldown for player=" + player.getName());
             return;
         }
 
         if (ability.getManaCost() > 0) {
             if (state.getCurrentMana() < ability.getManaCost()) {
                 if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<aqua>Not enough Mana!", 10, 2);
+                DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
+                        + ") REJECTED — not enough mana (have=" + state.getCurrentMana()
+                        + " need=" + ability.getManaCost() + ") for player=" + player.getName());
                 return;
             }
             state.reduceMana(ability.getManaCost());
@@ -163,9 +173,15 @@ public final class AbilityExecutor {
             context.set("item:ability_id", ability.getId());
             context.set("item:ability_trigger", trigger.name());
             if (!bus.runPoint("item:pre_ability", context)) {
+                DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
+                        + ") INTERRUPTED at item:pre_ability for player=" + player.getName());
                 return; // cooldown/mana already consumed above — the attempt happened, effects didn't
             }
         }
+
+        DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger + ") FIRING for player="
+                + player.getName() + " target=" + (resolvedTarget != null ? resolvedTarget.getName() : "none")
+                + " mechanics=" + ability.getMechanics().size());
 
         for (ConfiguredMechanic mechanic : ability.getMechanics()) {
             mechanic.execute(player, resolvedTarget);

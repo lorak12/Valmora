@@ -4,6 +4,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
+import org.nakii.valmora.util.DebugManager;
 
 import java.io.File;
 import java.util.Locale;
@@ -68,6 +69,8 @@ public class RarityModule implements ReloadableModule {
 
                 registry.register(new RarityDefinition(key, id, name, color, rank, power, extra));
                 count++;
+                DebugManager.log("rarity", "loaded '" + key + "' (id=" + id + ", rank=" + rank
+                        + ", power=" + power + ", extra=" + extra.keySet() + ")");
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to parse rarity '" + key + "': " + e.getMessage());
             }

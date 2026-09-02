@@ -24,6 +24,7 @@ Modules group into logical families:
 | **Progression**   | collection, progression                  |
 | **User Interface**| gui, ui, hud, notify                     |
 | **Economy**       | economy                                  |
+| **Content Management** | pack                                |
 
 ### 1.2 Dependency Flow
 
@@ -40,6 +41,11 @@ Modules load in a strict order — earlier modules set up systems that later mod
 > **Note:** Accessories, backpacks, and slayer content are **not modules** — they're built from
 > existing primitives (items + GUI storage slots, and quest packages) rather than dedicated code.
 > See `docs/modules/user/backpack.md` and `docs/modules/user/slayer.md`. There is no quiver feature.
+
+> **Note:** **pack** loads last, after everything else, and doesn't sit in the dependency chain like
+> the modules above — it's an admin tool (`/valmora pack install|uninstall|list|rollback`, see
+> `docs/modules/user/pack.md`) that installs/removes content bundles spanning any of the other
+> modules, reusing their existing reload machinery rather than depending on them directly.
 
 ---
 
@@ -237,6 +243,7 @@ When an admin runs `/valmora reload`:
 | **Slayer**   | Boss hunting system (quest + GUI content, not a module) | quest, gui, mob, combat |
 | **UI**       | Menus, HUD, notifications            | gui, ui, hud, notify        |
 | **Economy**  | Currency and trading                 | economy, npc, quest         |
+| **Content Packs** | Install/uninstall/roll back content bundles | pack |
 
 ---
 

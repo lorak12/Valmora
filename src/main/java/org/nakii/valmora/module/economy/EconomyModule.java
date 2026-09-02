@@ -9,6 +9,7 @@ import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.economy.EconomyService;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.module.economy.event.*;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -270,11 +271,13 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     public void addPurse(UUID uuid, double amount) {
         getOrCreate(uuid).addPurse(amount);
         dirty.add(uuid);
+        DebugManager.log("economy", uuid + " purse +" + amount + " -> " + getPurse(uuid));
     }
 
     public void removePurse(UUID uuid, double amount) {
         getOrCreate(uuid).removePurse(amount);
         dirty.add(uuid);
+        DebugManager.log("economy", uuid + " purse -" + amount + " -> " + getPurse(uuid));
     }
 
     public boolean hasPurse(UUID uuid, double amount) { return getPurse(uuid) >= amount; }
@@ -284,11 +287,13 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     public void addBank(UUID uuid, double amount) {
         getOrCreate(uuid).addBank(amount);
         dirty.add(uuid);
+        DebugManager.log("economy", uuid + " bank +" + amount + " -> " + getBank(uuid));
     }
 
     public void removeBank(UUID uuid, double amount) {
         getOrCreate(uuid).removeBank(amount);
         dirty.add(uuid);
+        DebugManager.log("economy", uuid + " bank -" + amount + " -> " + getBank(uuid));
     }
 
     // --- Transfers ---
@@ -296,23 +301,31 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     public boolean deposit(UUID uuid, double amount) {
         boolean ok = getOrCreate(uuid).deposit(amount);
         if (ok) { dirty.add(uuid); recordTransaction(uuid, "DEPOSIT", amount); }
+        DebugManager.log("economy", uuid + " deposit(" + amount + ") ok=" + ok
+                + " purse=" + getPurse(uuid) + " bank=" + getBank(uuid));
         return ok;
     }
 
     public boolean withdraw(UUID uuid, double amount) {
         boolean ok = getOrCreate(uuid).withdraw(amount);
         if (ok) { dirty.add(uuid); recordTransaction(uuid, "WITHDRAW", amount); }
+        DebugManager.log("economy", uuid + " withdraw(" + amount + ") ok=" + ok
+                + " purse=" + getPurse(uuid) + " bank=" + getBank(uuid));
         return ok;
     }
 
     public void depositAll(UUID uuid) {
         double moved = getOrCreate(uuid).depositAll();
         if (moved > 0) { dirty.add(uuid); recordTransaction(uuid, "DEPOSIT", moved); }
+        DebugManager.log("economy", uuid + " depositAll() moved=" + moved
+                + " purse=" + getPurse(uuid) + " bank=" + getBank(uuid));
     }
 
     public void withdrawAll(UUID uuid) {
         double moved = getOrCreate(uuid).withdrawAll();
         if (moved > 0) { dirty.add(uuid); recordTransaction(uuid, "WITHDRAW", moved); }
+        DebugManager.log("economy", uuid + " withdrawAll() moved=" + moved
+                + " purse=" + getPurse(uuid) + " bank=" + getBank(uuid));
     }
 
     // --- Formatting ---

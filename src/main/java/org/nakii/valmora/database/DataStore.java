@@ -2,6 +2,7 @@ package org.nakii.valmora.database;
 
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.module.economy.EconomyLedgerEntry;
+import org.nakii.valmora.module.pack.PackRecord;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,15 @@ public interface DataStore {
 
     /** Returns up to {@code limit} most recent ledger rows for a player, newest first. */
     CompletableFuture<List<EconomyLedgerEntry>> loadRecentLedger(UUID uuid, int limit);
+
+    /** Persists (inserts or replaces) one installed content pack's ledger row. */
+    CompletableFuture<Void> savePackRecord(PackRecord record);
+
+    /** Returns every installed content pack's ledger row. */
+    CompletableFuture<List<PackRecord>> loadPackRecords();
+
+    /** Removes a pack's ledger row (does not touch its files — callers delete those separately). */
+    CompletableFuture<Void> deletePackRecord(String packId);
 
     void close();
 }

@@ -15,15 +15,56 @@ import java.util.Set;
 public class SimpleRegistry<T> implements Registry<T> {
 
     private final Map<String, T> entries = new HashMap<>();
+    // Parallel map: lowercased id -> owning source id (e.g. a content pack id). Absent/null entries
+    // are base/vanilla content with no owning source.
+    private final Map<String, String> sourceById = new HashMap<>();
 
     @Override
     public synchronized void register(String id, T entry) {
-        entries.put(id.toLowerCase(), entry);
+        register(id, entry, null);
+    }
+
+    @Override
+    public synchronized void register(String id, T entry, String sourceId) {
+        String key = id.toLowerCase();
+        entries.put(key, entry);
+        if (sourceId != null) {
+            sourceById.put(key, sourceId.toLowerCase());
+        } else {
+            sourceById.remove(key);
+        }
     }
 
     @Override
     public synchronized T unregister(String id) {
-        return entries.remove(id.toLowerCase());
+        String key = id.toLowerCase();
+        sourceById.remove(key);
+        return entries.remove(key);
+    }
+
+    @Override
+    public synchronized Set<String> getIdsBySource(String sourceId) {
+        if (sourceId == null) {
+            return Collections.emptySet();
+        }
+        String needle = sourceId.toLowerCase();
+        Set<String> result = new java.util.HashSet<>();
+        for (Map.Entry<String, String> e : sourceById.entrySet()) {
+            if (needle.equals(e.getValue())) {
+                result.add(e.getKey());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public synchronized int unregisterAllBySource(String sourceId) {
+        Set<String> ids = getIdsBySource(sourceId);
+        for (String id : ids) {
+            entries.remove(id);
+            sourceById.remove(id);
+        }
+        return ids.size();
     }
 
     @Override
@@ -49,6 +90,7 @@ public class SimpleRegistry<T> implements Registry<T> {
     @Override
     public synchronized void clear() {
         entries.clear();
+        sourceById.clear();
     }
 
     @Override

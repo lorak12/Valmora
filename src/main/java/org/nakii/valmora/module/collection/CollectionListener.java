@@ -18,6 +18,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 public class CollectionListener implements Listener {
@@ -100,6 +101,8 @@ public class CollectionListener implements Listener {
         for (CollectionDefinition def : registry.getCollectionsFor(eventType, identifier)) {
             manager.addCount(def.getId(), 1);
             int newStage = def.getStageForCount(manager.getCount(def.getId()));
+            DebugManager.log("collections", player.getName() + " collection '" + def.getId() + "' count="
+                    + manager.getCount(def.getId()) + " stage=" + newStage);
 
             // Idempotency (added 2026-08-07): gate on the persisted "already granted" floor, not
             // a re-derived before/after stage comparison — the latter can re-fire a stage's

@@ -170,6 +170,86 @@ anvil:
       percent-per-unit: 0.25          # % of max durability repaired per consumed repair-material unit
 
 # ========================================================== #
+#                  Content Pack Manager                      #
+# ========================================================== #
+# Guards for /valmora pack install <url|github:owner/repo@tag> (docs/modules/design/pack.md §4).
+pack:
+  # Refuses to extract a downloaded pack archive past this total uncompressed size — a zip-bomb
+  # guard, checked incrementally while extracting (not just the archive's own reported sizes).
+  max-extracted-size-mb: 200
+
+  # Refuses to extract a downloaded pack archive with more than this many entries — a second,
+  # independent zip-bomb guard (a huge count of tiny files can also exhaust disk/inodes).
+  max-entries: 5000
+
+  # Optional: base URL of a JSON pack index ({"packs":[{"id","latest_version","url","sha256"}]})
+  # letting admins run `/valmora pack install <id>` with a bare pack id instead of a full URL.
+  # Unused until the index feature is built — see docs/modules/design/pack.md §10.2.
+  index-url: ""
+
+# ========================================================== #
+#                    Item Lore Layout                        #
+# ========================================================== #
+# Controls how a generated item's lore is composed: which blocks appear, in what order, and
+# (for the blocks whose text isn't already driven by something else, like a stat's own color/name
+# or a modifier's own display name) exactly how each line is formatted. See docs/modules/user/item.md
+# §"Item Lore Layout" for the full block-by-block breakdown. Reload with `/valmora reload`.
+items:
+  lore:
+    # The blocks below, in the order they're appended. Delete an entry to hide that block
+    # entirely (e.g. remove `modifiers` to fold gemstone lines out of the lore completely).
+    # Unknown entries log a warning at load time and are skipped.
+    #   breaking-power  — "Breaking Power N" line on pickaxes/shovels/axes/hoes
+    #   base-lore       — the item's own `lore:` list from its item YAML
+    #   lore-template   — the item's own `lore-template:` list ($item.stat.<id>$ tokens resolved)
+    #   stats           — the "◈ Stat: +N" block (baked stats + live reforge/gemstone/trait bonuses)
+    #   modifiers       — one "◆ <name>" line per attached LORE-format modifier (e.g. gemstones)
+    #   enchantments    — the enchant list
+    #   abilities       — one block per ability (format depends on that ability's own `display:` —
+    #                     FULL renders via the abilities.* formats below, SIMPLE is description-only)
+    #   rarity-tag      — the "EPIC SWORD" line at the very bottom
+    sections:
+      - breaking-power
+      - base-lore
+      - lore-template
+      - stats
+      - modifiers
+      - enchantments
+      - abilities
+      - rarity-tag
+
+    # Insert a blank line between two consecutive non-empty blocks above. Turn off for a denser lore.
+    spacer-between-sections: true
+
+    breaking-power:
+      # Placeholder: {power}
+      format: "<dark_gray>Breaking Power {power}"
+
+    stats:
+      # One line per stat. Placeholder: {stat} — the stat's own formatted "<color>Name: +N" text
+      # (StatDefinition#format), so this only controls the bullet/indent around it.
+      line-format: "<gray> ◈ {stat}"
+
+    modifiers:
+      # One line per attached gemstone/trait. Placeholder: {label} — the modifier's display name.
+      line-format: "<gray> ◆ {label}"
+
+    abilities:
+      # Only used for an ability with `display: FULL` (the default) — a `display: SIMPLE` ability
+      # renders just its description lines, ignoring all three formats below.
+      # Placeholders: {name}, {trigger}
+      header-format: "<gold>Ability: {name} <yellow><bold>{trigger}"
+      # Placeholder: {mana} — only shown when the ability has a mana-cost > 0.
+      mana-cost-format: "<dark_gray>Mana Cost: <aqua>{mana}"
+      # Placeholder: {cooldown} — only shown when the ability has a cooldown > 0.
+      cooldown-format: "<dark_gray>Cooldown: <green>{cooldown}s"
+
+    rarity-tag:
+      # Placeholders: {color} (the rarity's own MiniMessage color tag), {rarity} (e.g. "EPIC"),
+      # {type} (e.g. " SWORD" — note the leading space baked into the value, empty for NONE).
+      format: "{color}<bold>{rarity}{type}"
+
+# ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
 alchemy:

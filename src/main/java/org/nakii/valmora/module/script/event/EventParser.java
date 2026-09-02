@@ -3,6 +3,7 @@ package org.nakii.valmora.module.script.event;
 import org.bukkit.Bukkit;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.script.ScriptModule;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,14 +81,28 @@ public class EventParser {
             event = compiled;
         }
 
+        // Single generic choke point for "debug for everything else": nearly every subsystem in
+        // this engine (GUI event blocks, skill rewards, item abilities, quest/mob triggers, ...)
+        // ultimately dispatches through a CompiledEvent parsed here — so logging every execution
+        // under the "script" debug channel gives broad coverage without hand-instrumenting each
+        // domain individually. Guarded by isEnabled() first so the string concat below is skipped
+        // entirely when the channel is off.
+        final CompiledEvent finalEventForDebug = event;
+        final CompiledEvent debuggedEvent = context -> {
+            if (DebugManager.isEnabled("script")) {
+                DebugManager.log("script", "event: \"" + raw + "\"");
+            }
+            finalEventForDebug.execute(context);
+        };
+
         if (finalDelay > 0) {
             return context -> Bukkit.getScheduler().runTaskLater(
                 module.getValmora(),
-                () -> event.execute(context),
+                () -> debuggedEvent.execute(context),
                 finalDelay
             );
         }
-        return event;
+        return debuggedEvent;
     }
 
     /**

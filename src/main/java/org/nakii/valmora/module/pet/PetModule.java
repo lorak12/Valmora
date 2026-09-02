@@ -17,6 +17,7 @@ import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -186,6 +187,8 @@ public class PetModule implements ReloadableModule {
             int level = getActivePetLevel(player);
             player.sendMessage(Formatter.format(
                     "<green>You summoned your <gold>" + def.getName() + " <green>(Lvl " + level + ")"));
+            DebugManager.log("pets", player.getName() + " summoned pet '" + petId + "' (level=" + level
+                    + ", instance=" + instanceId + ")");
             triggerStatRecalc(player);
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to spawn pet entity " + def.getEntityType() + ": " + e.getMessage());
@@ -204,6 +207,7 @@ public class PetModule implements ReloadableModule {
         activePetInstance.remove(uid);
         if (entity != null && entity.isValid()) entity.remove();
         player.sendMessage(Formatter.format("<yellow>Pet unsummoned."));
+        DebugManager.log("pets", player.getName() + " unsummoned pet");
         triggerStatRecalc(player);
     }
 

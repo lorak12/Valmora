@@ -10,6 +10,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.database.DataStore;
 import org.nakii.valmora.module.stat.StatManager;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -75,6 +76,8 @@ public class PlayerManager implements ReloadableModule {
                     applyPlayerInventory(bukkitPlayer, active);
                     active.getStatManager().recalculateAttributes(bukkitPlayer);
                     active.getStatManager().recalculateStats(bukkitPlayer);
+                    DebugManager.log("profiles", bukkitPlayer.getName() + " session loaded, active profile="
+                            + active.getId() + " (" + active.getName() + "), profiles=" + finalPlayer.getProfiles().size());
                 }
             };
 
@@ -134,6 +137,7 @@ public class PlayerManager implements ReloadableModule {
     }
 
     public void handleQuit(UUID uuid) {
+        DebugManager.log("profiles", "handleQuit " + uuid);
         Player player = Bukkit.getPlayer(uuid);
         ValmoraPlayer vp = activeSession.get(uuid);
         if (player != null && vp != null && vp.getActiveProfile() != null) {
@@ -180,6 +184,8 @@ public class PlayerManager implements ReloadableModule {
         // Persist the new active-profile id immediately — previously only saved on quit/disable,
         // so a crash right after switching would revert the selection on next join.
         dataStore.savePlayer(vp);
+        DebugManager.log("profiles", player.getName() + " switched profile: " + (current != null ? current.getId() : "none")
+                + " -> " + profileId);
     }
 
     public ValmoraPlayer getSession(UUID uuid) {

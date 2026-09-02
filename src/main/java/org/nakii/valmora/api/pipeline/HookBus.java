@@ -2,6 +2,7 @@ package org.nakii.valmora.api.pipeline;
 
 import org.bukkit.plugin.Plugin;
 import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.Iterator;
 import java.util.List;
@@ -95,8 +96,18 @@ public class HookBus {
      * @return false if a stage interrupted the pipeline, true otherwise.
      */
     public boolean runPoint(String point, ExecutionContext context) {
-        if (!runList(javaHooks.get(point), point, context)) return false;
-        return runList(yamlStages.get(point), point, context);
+        boolean debug = DebugManager.isEnabled("script");
+        if (debug && hasStages(point)) {
+            DebugManager.log("script", "runPoint '" + point + "': java=" + getJavaHookIds(point)
+                    + " yaml=" + getYamlStageIds(point));
+        }
+        if (!runList(javaHooks.get(point), point, context)) {
+            if (debug) DebugManager.log("script", "runPoint '" + point + "' INTERRUPTED by a java hook");
+            return false;
+        }
+        boolean result = runList(yamlStages.get(point), point, context);
+        if (debug && !result) DebugManager.log("script", "runPoint '" + point + "' INTERRUPTED by a yaml stage");
+        return result;
     }
 
     private boolean runList(List<PipelineStage> stages, String point, ExecutionContext context) {

@@ -6,6 +6,7 @@ import org.bukkit.event.Listener;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.module.time.TimeSnapshot;
 import org.nakii.valmora.module.time.event.ValmoraDayChangeEvent;
+import org.nakii.valmora.util.DebugManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +37,11 @@ public class CalendarEventListener implements Listener {
             } else if (wasActive && !isNowActive) {
                 ended.add(def.getId());
             }
+        }
+
+        if (!started.isEmpty() || !ended.isEmpty()) {
+            DebugManager.log("calendar", "day change (totalDays=" + snapshot.totalDays()
+                    + "): started=" + started + " ended=" + ended);
         }
 
         // Fire on-end for events that just ended

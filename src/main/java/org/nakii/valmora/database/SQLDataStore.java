@@ -6,6 +6,7 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.module.economy.EconomyLedgerEntry;
+import org.nakii.valmora.module.pack.PackRecord;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -48,7 +49,7 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 7;
+    static final int LATEST_SCHEMA_VERSION = 8;
 
     /** Ledger rows kept per player — see {@link #migrateToV7}. */
     private static final int LEDGER_RETENTION_PER_PLAYER = 10;
@@ -136,6 +137,30 @@ public class SQLDataStore implements DataStore {
             migrateToV7(conn);
             setSchemaVersion(conn, 7);
         }
+        if (from < 8) {
+            migrateToV8(conn);
+            setSchemaVersion(conn, 8);
+        }
+    }
+
+    /**
+     * v8 — adds the content pack manager's install ledger (docs/modules/design/pack.md). One row
+     * per installed pack; {@code file_manifest}/{@code shared_diff}/{@code depends_on} are JSON,
+     * matching the Gson-into-TEXT-column idiom used elsewhere in this class. This is the source of
+     * truth uninstall reads from to know exactly which files and shared-config keys to remove.
+     */
+    private void migrateToV8(Connection conn) throws SQLException {
+        conn.prepareStatement("""
+            CREATE TABLE IF NOT EXISTS valmora_installed_packs (
+                pack_id TEXT PRIMARY KEY,
+                version TEXT NOT NULL,
+                checksum TEXT,
+                installed_at BIGINT NOT NULL,
+                file_manifest TEXT NOT NULL,
+                shared_diff TEXT NOT NULL,
+                depends_on TEXT
+            )
+        """).execute();
     }
 
     /**
@@ -743,6 +768,80 @@ public class SQLDataStore implements DataStore {
                 logger.log(Level.SEVERE, "Failed to load economy ledger for " + uuid, e);
             }
             return results;
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> savePackRecord(PackRecord record) {
+        return CompletableFuture.runAsync(() -> {
+            String sql = isMySQL
+                    ? "INSERT INTO valmora_installed_packs (pack_id, version, checksum, installed_at, file_manifest, shared_diff, depends_on) " +
+                      "VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE version=?, checksum=?, installed_at=?, file_manifest=?, shared_diff=?, depends_on=?"
+                    : "INSERT INTO valmora_installed_packs (pack_id, version, checksum, installed_at, file_manifest, shared_diff, depends_on) " +
+                      "VALUES (?,?,?,?,?,?,?) ON CONFLICT(pack_id) DO UPDATE SET version=?, checksum=?, installed_at=?, file_manifest=?, shared_diff=?, depends_on=?";
+            String fileManifestJson = gson.toJson(record.fileManifest());
+            String sharedDiffJson = gson.toJson(record.sharedDiff());
+            String dependsOnJson = gson.toJson(record.dependsOn());
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, record.packId());
+                ps.setString(2, record.version());
+                ps.setString(3, record.checksum());
+                ps.setLong(4, record.installedAt());
+                ps.setString(5, fileManifestJson);
+                ps.setString(6, sharedDiffJson);
+                ps.setString(7, dependsOnJson);
+                ps.setString(8, record.version());
+                ps.setString(9, record.checksum());
+                ps.setLong(10, record.installedAt());
+                ps.setString(11, fileManifestJson);
+                ps.setString(12, sharedDiffJson);
+                ps.setString(13, dependsOnJson);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to save pack record for " + record.packId(), e);
+            }
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<List<PackRecord>> loadPackRecords() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<PackRecord> results = new ArrayList<>();
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT pack_id, version, checksum, installed_at, file_manifest, shared_diff, depends_on FROM valmora_installed_packs");
+                 ResultSet rs = ps.executeQuery()) {
+                Type stringListType = new TypeToken<List<String>>() {}.getType();
+                Type sharedDiffType = new TypeToken<Map<String, Map<String, List<String>>>>() {}.getType();
+                while (rs.next()) {
+                    List<String> fileManifest = gson.fromJson(rs.getString("file_manifest"), stringListType);
+                    Map<String, Map<String, List<String>>> sharedDiff = gson.fromJson(rs.getString("shared_diff"), sharedDiffType);
+                    List<String> dependsOn = gson.fromJson(rs.getString("depends_on"), stringListType);
+                    results.add(new PackRecord(
+                            rs.getString("pack_id"), rs.getString("version"), rs.getString("checksum"),
+                            rs.getLong("installed_at"),
+                            fileManifest != null ? fileManifest : List.of(),
+                            sharedDiff != null ? sharedDiff : Map.of(),
+                            dependsOn != null ? dependsOn : List.of()));
+                }
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to load pack records", e);
+            }
+            return results;
+        }, dbExecutor);
+    }
+
+    @Override
+    public CompletableFuture<Void> deletePackRecord(String packId) {
+        return CompletableFuture.runAsync(() -> {
+            try (Connection conn = hikari.getConnection();
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM valmora_installed_packs WHERE pack_id = ?")) {
+                ps.setString(1, packId);
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to delete pack record for " + packId, e);
+            }
         }, dbExecutor);
     }
 

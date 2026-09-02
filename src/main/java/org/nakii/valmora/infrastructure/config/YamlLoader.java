@@ -8,6 +8,7 @@ import org.nakii.valmora.api.config.LoadResult;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
@@ -16,6 +17,26 @@ import java.util.logging.Logger;
  * @param <T> the type of object being loaded
  */
 public class YamlLoader<T> {
+
+    /**
+     * Optional hook that rewrites {@code (id, filePath)} into the id actually handed to a loader's
+     * parser/registerAction — the content pack manager's namespacing choke point (see
+     * {@code org.nakii.valmora.module.pack.PackNamespacer}). {@code null} (the default, and the
+     * state whenever the pack module isn't enabled) means "pass ids through unchanged". Static and
+     * global by design: namespacing applies uniformly to every content type without any of their
+     * loader classes needing to know packs exist.
+     */
+    private static volatile BiFunction<String, String, String> idQualifier;
+
+    /** Installs (or clears, with {@code null}) the global id-qualifying hook described above. */
+    public static void setIdQualifier(BiFunction<String, String, String> qualifier) {
+        idQualifier = qualifier;
+    }
+
+    private static String qualify(String id, String filePath) {
+        BiFunction<String, String, String> q = idQualifier;
+        return q != null ? q.apply(id, filePath) : id;
+    }
 
     private final Valmora plugin;
     private final String folderName;
@@ -54,7 +75,7 @@ public class YamlLoader<T> {
                 for (String key : config.getKeys(false)) {
                     ConfigurationSection section = config.getConfigurationSection(key);
                     if (section != null) {
-                        LoadResult<T, String> result = parser.parse(key, section, relativePath);
+                        LoadResult<T, String> result = parser.parse(qualify(key, relativePath), section, relativePath);
                         if (result.isSuccess()) {
                             registerAction.accept(result.getValue());
                             loadedCount++;
@@ -104,8 +125,8 @@ public class YamlLoader<T> {
                     try {
                         String id = file.getName().replace(".yml", "");
                         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-                        
-                        LoadResult<T, String> result = parser.parse(id, (ConfigurationSection) config, relativePath);
+
+                        LoadResult<T, String> result = parser.parse(qualify(id, relativePath), (ConfigurationSection) config, relativePath);
                         if (result.isSuccess()) {
                             registerAction.accept(result.getValue());
                             loadedCount++;
