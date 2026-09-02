@@ -61,6 +61,11 @@ public class MobDefinition {
     private final boolean naturalSpawn;
     private final double naturalSpawnChance;
     private final int naturalSpawnMaxNearby;
+    // VANILLA_CONTROL_AUDIT.md §17 gap fix: opt-in flag marking this definition as the one applied
+    // (stats/equipment/visuals — never a re-spawn) to a *vanilla-originated* CreatureSpawnEvent of
+    // the same entity type (natural spawns, monster spawners, spawn eggs) by VanillaSpawnUpgradeListener.
+    // Distinct from `natural-spawn` above, which drives Valmora's own zone-scheduled spawn attempts.
+    private final boolean vanillaDefault;
 
     private MobDefinition(Builder builder) {
         this.id = builder.id;
@@ -103,6 +108,7 @@ public class MobDefinition {
         this.naturalSpawn = builder.naturalSpawn;
         this.naturalSpawnChance = builder.naturalSpawnChance;
         this.naturalSpawnMaxNearby = builder.naturalSpawnMaxNearby;
+        this.vanillaDefault = builder.vanillaDefault;
     }
 
     public String getId() { return id; }
@@ -146,6 +152,7 @@ public class MobDefinition {
     public boolean isNaturalSpawn() { return naturalSpawn; }
     public double getNaturalSpawnChance() { return naturalSpawnChance; }
     public int getNaturalSpawnMaxNearby() { return naturalSpawnMaxNearby; }
+    public boolean isVanillaDefault() { return vanillaDefault; }
 
     /** Resistance fraction (0..1) for a damage type; 0 if none configured. */
     public double getResistance(DamageType type) {
@@ -232,6 +239,7 @@ public class MobDefinition {
         private boolean naturalSpawn = false;
         private double naturalSpawnChance;
         private int naturalSpawnMaxNearby;
+        private boolean vanillaDefault = false;
 
         // HC-083: mobs.defaults.* — global fallback when a mob's own YAML omits these fields.
         public Builder(String id) {
@@ -283,6 +291,7 @@ public class MobDefinition {
         public Builder naturalSpawn(boolean naturalSpawn) { this.naturalSpawn = naturalSpawn; return this; }
         public Builder naturalSpawnChance(double naturalSpawnChance) { this.naturalSpawnChance = naturalSpawnChance; return this; }
         public Builder naturalSpawnMaxNearby(int naturalSpawnMaxNearby) { this.naturalSpawnMaxNearby = naturalSpawnMaxNearby; return this; }
+        public Builder vanillaDefault(boolean vanillaDefault) { this.vanillaDefault = vanillaDefault; return this; }
 
         public MobDefinition build() {
             return new MobDefinition(this);

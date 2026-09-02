@@ -38,6 +38,30 @@ database:
   #   use-ssl: false
 
 # ========================================================== #
+#                    World / GameRule Settings                #
+# ========================================================== #
+# VANILLA_CONTROL_AUDIT.md §8: none of these were ever touched by Valmora — vanilla defaults applied
+# everywhere. `world.gamerules` is a pure pass-through: only keys you uncomment/add here are ever
+# changed, applied to every currently-loaded world on enable/reload and to any world that loads
+# afterward (WorldRulesModule). Use the exact vanilla GameRule name (case-sensitive, camelCase).
+# The list below is commented-out common RPG-server defaults, not anything Valmora enables for you.
+world:
+  gamerules:
+    # keepInventory: false
+    # naturalRegeneration: true
+    # doFireTick: true
+    # doWeatherCycle: true
+    # doDaylightCycle: true
+    # doMobSpawning: true
+    # doMobLoot: true
+    # doImmediateRespawn: false
+    # fallDamage: true
+    # fireDamage: true
+    # drowningDamage: true
+    # playersSleepingPercentage: 100
+    # randomTickSpeed: 3
+
+# ========================================================== #
 #                    Permission Settings                     #
 # ========================================================== #
 # HC-006/HC-013: every admin command resolves its own key here (falling back to `admin` below,
@@ -260,7 +284,12 @@ mobs:
     # How often (ticks) the leash/AI task and the ambient natural-spawn task poll.
     ai-interval-ticks: 40           # HC-080
     natural-spawn-interval-ticks: 200
+  # VANILLA_CONTROL_AUDIT.md §17: when true (default), a mob whose `natural-spawn.vanilla-default: true`
+  # matches a vanilla-originated CreatureSpawnEvent's entity type (natural spawns, monster spawners,
+  # spawn eggs) gets that definition's stats/equipment/visuals applied — see VanillaSpawnUpgradeListener.
+  # Set false to keep vanilla spawns of those types purely vanilla regardless of mob YAML flags.
   natural-spawn:
+    vanilla-upgrade-enabled: true
     # Radius (blocks) searched for existing same-mob nearby entities before allowing another spawn.
     search-radius: 32.0             # HC-086
     # Minimum/maximum distance (blocks) from the player a candidate spawn point is picked at.

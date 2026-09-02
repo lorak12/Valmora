@@ -100,6 +100,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private CombatModule combatModule;
     private ScriptModule scriptModule;
     private TimeModule timeModule;
+    private org.nakii.valmora.module.worldrules.WorldRulesModule worldRulesModule;
 
     private UIManager uiManager;
     private org.nakii.valmora.module.gui.GuiModule guiModule;
@@ -188,6 +189,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.combatModule = new CombatModule(this);
         this.scriptModule = new ScriptModule(this);
         this.timeModule = new TimeModule(this);
+        this.worldRulesModule = new org.nakii.valmora.module.worldrules.WorldRulesModule(this);
         this.rarityModule = new org.nakii.valmora.module.rarity.RarityModule(this);
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this, dataStore);
@@ -214,6 +216,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
         moduleManager.registerModule(scriptModule);
+        moduleManager.registerModule(worldRulesModule); // No dependencies; purely config-driven GameRule application (VANILLA_CONTROL_AUDIT.md §8)
         moduleManager.registerModule(timeModule);    // No dependencies; scoreboard and scripts read from it
         moduleManager.registerModule(rarityModule);  // No dependencies; item stats/lore and the modifier engine read rarity metadata
         moduleManager.registerModule(statModule);

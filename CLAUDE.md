@@ -146,10 +146,13 @@ pack manager, see `docs/modules/design/pack.md` — it must stay last, since it 
 modules' existing reload machinery and must never be a dependency of anything else):
 
 ```
-script → time → rarity → stat → player → economy → ui → ability → item → mob → skill → combat →
-gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc → warp →
-points → notify → quest → collection → hud → calendar → pet → progression → pack
+script → world_rules → time → rarity → stat → player → economy → ui → ability → item → mob → skill →
+combat → gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc →
+warp → points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
+
+`world_rules` (`WorldRulesModule`, VANILLA_CONTROL_AUDIT.md §8) was added right after `script` — no
+dependencies, purely applies `world.gamerules.*` from config.yml to every loaded/loading world.
 
 Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).
 

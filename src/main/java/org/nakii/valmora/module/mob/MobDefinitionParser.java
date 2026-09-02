@@ -126,6 +126,7 @@ public class MobDefinitionParser {
             builder.naturalSpawn(spawnSection.getBoolean("enabled", true));
             if (spawnSection.contains("chance")) builder.naturalSpawnChance(spawnSection.getDouble("chance"));
             if (spawnSection.contains("max-nearby")) builder.naturalSpawnMaxNearby(spawnSection.getInt("max-nearby"));
+            if (spawnSection.contains("vanilla-default")) builder.vanillaDefault(spawnSection.getBoolean("vanilla-default"));
         }
 
         // Level
