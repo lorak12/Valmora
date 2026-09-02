@@ -101,6 +101,13 @@ public class HudItemModule implements ReloadableModule {
                 return LoadResult.failure("[" + filePath + "] HUD item '" + id + "' missing 'item' section.");
             }
 
+            // HC-172 fix: a silent "STONE" fallback when `material:` is omitted hides a real
+            // authoring mistake (the player sees a plain stone block instead of the intended
+            // icon) — warn instead of guessing, same as other components in this codebase already
+            // warn on a missing required field.
+            if (!itemSec.contains("material")) {
+                return LoadResult.failure("[" + filePath + "] HUD item '" + id + "': missing required 'item.material'.");
+            }
             String materialStr = itemSec.getString("material", "STONE");
             Material material = Material.matchMaterial(materialStr);
             if (material == null) {

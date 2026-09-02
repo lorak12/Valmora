@@ -6,6 +6,7 @@ import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 
 /**
  * Teleports the caster forward along their facing direction (e.g. Aspect of the End). Uses a
@@ -23,7 +24,7 @@ public class TeleportMechanic implements AbilityMechanic {
     public void execute(ExecutionContext context) {
         if (!(context.getCaster() instanceof Player player)) return;
 
-        double distance = context.resolveDouble("distance", 8.0);
+        double distance = context.resolveDouble("distance", MechanicDefaults.getDouble("teleport", "distance-default", 8.0));
         Location eye = player.getEyeLocation();
         Vector dir = eye.getDirection().normalize();
 

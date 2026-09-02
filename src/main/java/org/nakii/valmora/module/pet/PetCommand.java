@@ -60,7 +60,7 @@ public class PetCommand implements TabExecutor {
     }
 
     private void handleGive(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "pet")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -109,7 +109,7 @@ public class PetCommand implements TabExecutor {
     private void sendUsage(CommandSender sender) {
         sender.sendMessage(Formatter.format("<gold><bold>PET COMMANDS:"));
         sender.sendMessage(Formatter.format(" <gray>/pet list"));
-        if (sender.hasPermission("valmora.admin")) {
+        if (org.nakii.valmora.util.PermissionResolver.has(sender, "pet")) {
             sender.sendMessage(Formatter.format(" <gray>/pet give <player> <petId> [level]"));
         }
     }

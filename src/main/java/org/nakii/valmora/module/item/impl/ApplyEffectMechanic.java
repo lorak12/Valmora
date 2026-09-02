@@ -8,6 +8,7 @@ import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.alchemy.AlchemyManager;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.TargetResolver;
 
 import java.util.List;
@@ -24,9 +25,9 @@ public class ApplyEffectMechanic implements AbilityMechanic {
         String effectStr = context.getString("effect", "").toLowerCase();
         if (effectStr.isEmpty()) return;
 
-        double durationSeconds = context.resolveDouble("duration", 5.0);
+        double durationSeconds = context.resolveDouble("duration", MechanicDefaults.getDouble("apply-effect", "duration-default", 5.0));
         // Amplifier in YAML is 1-based (matches AlchemyManager's 1-based "level").
-        int level = context.resolveInt("amplifier", 1);
+        int level = context.resolveInt("amplifier", MechanicDefaults.getInt("apply-effect", "amplifier-default", 1));
         if (level < 1) level = 1;
 
         List<LivingEntity> targets = TargetResolver.resolve(context.getString("target", "@target"), context);
@@ -61,7 +62,7 @@ public class ApplyEffectMechanic implements AbilityMechanic {
         // Bukkit's PotionEffect amplifier is 0-based.
         int amplifier = Math.max(0, level - 1);
 
-        boolean hideParticles = context.getBoolean("hide-particles", false);
+        boolean hideParticles = context.getBoolean("hide-particles", MechanicDefaults.getBoolean("apply-effect", "hide-particles", false));
 
         for (LivingEntity target : targets) {
             PotionEffect effect = new PotionEffect(effectType, durationTicks, amplifier, false, !hideParticles, true);

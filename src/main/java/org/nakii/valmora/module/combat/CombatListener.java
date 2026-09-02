@@ -47,7 +47,7 @@ public class CombatListener implements Listener {
              return;
         }
 
-        if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() / 2.0F) {
+        if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() * iframeThresholdFactor()) {
              debug("HIT REJECTED (i-frames): victim=" + victim.getName() + " noDamageTicks="
                      + victim.getNoDamageTicks() + " max=" + victim.getMaximumNoDamageTicks());
              event.setCancelled(true);
@@ -66,9 +66,10 @@ public class CombatListener implements Listener {
             double rawEventDamage = event.getDamage(); // captured before zeroing — see debug line below
             event.setDamage(0);
 
-            DamageType damageType = event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.ARROW) ||
-                                    event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.MOB_PROJECTILE) ?
-                                    DamageType.PROJECTILE : DamageType.MELEE;
+            // HC-030 fix: the old heuristic only checked the vanilla ARROW/MOB_PROJECTILE damage
+            // types, so tridents/snowballs/fireballs/other projectiles silently became MELEE.
+            // `event.getDamager() instanceof Projectile` covers every projectile entity type.
+            DamageType damageType = event.getDamager() instanceof Projectile ? DamageType.PROJECTILE : DamageType.MELEE;
 
             debug("HIT START: attacker=" + attacker.getName() + " victim=" + victim.getName()
                     + " damager=" + event.getDamager().getType() + " damageType=" + damageType
@@ -176,9 +177,9 @@ public class CombatListener implements Listener {
         }
 
         if (event.getEntity() instanceof LivingEntity victim) {
-            if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() / 2.0F) {
+            if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() * iframeThresholdFactor()) {
                  event.setCancelled(true);
-                 return; 
+                 return;
             }
 
             double baseDamage = event.getDamage();
@@ -227,7 +228,20 @@ public class CombatListener implements Listener {
         }
     }
 
+    /**
+     * HC-031: {@code combat.cause-mapping.<BUKKIT_CAUSE>: <valmora-damage-type-id>} lets a server
+     * remap or add a cause->type mapping without a code change; checked before the built-in
+     * switch below, which stays as the shipped default set.
+     */
     private DamageType mapCauseToType(EntityDamageEvent.DamageCause cause) {
+        Valmora plugin = Valmora.getInstance();
+        if (plugin != null) {
+            String configured = plugin.getConfig().getString("combat.cause-mapping." + cause.name());
+            if (configured != null && !configured.isBlank()) {
+                var found = DamageType.find(configured);
+                if (found.isPresent()) return found.get();
+            }
+        }
         return switch (cause) {
             case FALL -> DamageType.FALL;
             case FIRE, FIRE_TICK -> DamageType.FIRE;
@@ -245,7 +259,24 @@ public class CombatListener implements Listener {
             case DRAGON_BREATH -> DamageType.DRAGON_BREATH;
             case SONIC_BOOM -> DamageType.SONIC_BOOM;
             case WORLD_BORDER -> DamageType.OUTSIDE_BORDER;
-            default -> DamageType.MELEE;
+            default -> fallbackDamageType();
         };
+    }
+
+    /** {@code combat.environment.fallback-damage-type} — HC-033. */
+    private static DamageType fallbackDamageType() {
+        Valmora plugin = Valmora.getInstance();
+        String id = plugin != null ? plugin.getConfig().getString("combat.environment.fallback-damage-type", "MELEE") : "MELEE";
+        try {
+            return DamageType.valueOf(id.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return DamageType.MELEE;
+        }
+    }
+
+    /** {@code combat.iframe-threshold-factor} — HC-029 (fraction of maxNoDamageTicks under which a repeat hit is rejected). */
+    private static float iframeThresholdFactor() {
+        Valmora plugin = Valmora.getInstance();
+        return plugin != null ? (float) plugin.getConfig().getDouble("combat.iframe-threshold-factor", 0.5) : 0.5F;
     }
 }

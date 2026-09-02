@@ -32,7 +32,7 @@ public class ModifierCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "modifier")) {
             sender.sendMessage(Formatter.format("<red>You don't have permission to use this command."));
             return true;
         }

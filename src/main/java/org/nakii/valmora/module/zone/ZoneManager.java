@@ -45,6 +45,8 @@ public class ZoneManager {
     // Spawner timing: key = "zoneId:spawnerId", value = tick count at last spawn
     private final Map<String, Long> spawnerLastSpawnTick = new HashMap<>();
     private long tickCount = 0;
+    /** Actual configured spawner-task interval — tickCount advances by this each run, not a hardcoded 20. */
+    private long spawnerTickIntervalTicks = 20L;
 
     // Player wand selections
     private final Map<UUID, int[]> selectionPos1 = new HashMap<>();
@@ -116,7 +118,9 @@ public class ZoneManager {
 
     public void startSpawnerTask() {
         if (spawnerTask != null) { spawnerTask.cancel(); spawnerTask = null; }
-        spawnerTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickSpawners, 20L, 20L);
+        // HC-130: 1s polling is arbitrary; large servers may want to spread this out (2-5s).
+        spawnerTickIntervalTicks = plugin.getConfig().getLong("zones.spawner-tick-interval-ticks", 20L);
+        spawnerTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickSpawners, spawnerTickIntervalTicks, spawnerTickIntervalTicks);
     }
 
     public void stopSpawnerTask() {
@@ -124,7 +128,7 @@ public class ZoneManager {
     }
 
     private void tickSpawners() {
-        tickCount += 20;
+        tickCount += spawnerTickIntervalTicks;
         for (ZoneDefinition zone : registry.values()) {
             for (ZoneMobSpawner spawner : zone.getMobSpawners()) {
                 String key = zone.getId() + ":" + spawner.getId();
@@ -144,8 +148,11 @@ public class ZoneManager {
                 Location spawnLoc = findSafeSpawnLocation(world, spawner.getX(), spawner.getY(), spawner.getZ(), spawner.getSpawnRadius());
                 LivingEntity entity = plugin.getMobManager().spawnMob(def, spawnLoc);
                 if (entity != null) {
-                    // Tag with home and wander radius so the behavior task can use them
-                    int wanderRadius = Math.max(spawner.getSpawnRadius() * 2, 4);
+                    // Tag with home and wander radius so the behavior task can use them.
+                    // HC-135: multiplier/min-radius are configurable (tight leash vs. roam).
+                    double wanderMultiplier = plugin.getConfig().getDouble("zones.mob-wander-radius-multiplier", 2.0);
+                    int wanderMinRadius = plugin.getConfig().getInt("zones.mob-wander-min-radius", 4);
+                    int wanderRadius = Math.max((int) Math.round(spawner.getSpawnRadius() * wanderMultiplier), wanderMinRadius);
                     entity.getPersistentDataContainer().set(Keys.MOB_HOME_KEY, PersistentDataType.STRING,
                         spawner.getX() + "," + spawner.getY() + "," + spawner.getZ()
                             + "," + wanderRadius + "," + world.getName());
@@ -170,7 +177,9 @@ public class ZoneManager {
     private Location findSafeSpawnLocation(World world, int cx, int cy, int cz, int spawnRadius) {
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         int range = Math.max(spawnRadius, 1);
-        for (int attempt = 0; attempt < 20; attempt++) {
+        // HC-136: retry-attempt count — reliability (more attempts on jagged terrain) vs. CPU.
+        int maxAttempts = plugin.getConfig().getInt("zones.spawn-search-attempts", 20);
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             int ox = rng.nextInt(range * 2 + 1) - range;
             int oz = rng.nextInt(range * 2 + 1) - range;
             int x = cx + ox, z = cz + oz;
@@ -187,8 +196,10 @@ public class ZoneManager {
                 if (feet.getType() != Material.AIR) continue;
                 if (head.getType() != Material.AIR) continue;
                 Location loc = new Location(world, x + 0.5, y, z + 0.5);
-                // Skip if another living entity is already occupying this spot
-                if (world.getNearbyEntities(loc, 0.8, 0.8, 0.8).stream()
+                // Skip if another living entity is already occupying this spot.
+                // HC-137: occupancy check radius — too small allows stacking, too large blocks spawns in tight spaces (caves).
+                double occupancyRadius = plugin.getConfig().getDouble("zones.spawn-occupancy-radius", 0.8);
+                if (world.getNearbyEntities(loc, occupancyRadius, occupancyRadius, occupancyRadius).stream()
                         .anyMatch(e -> e instanceof LivingEntity && !(e instanceof Player))) continue;
                 return loc;
             }
@@ -201,7 +212,9 @@ public class ZoneManager {
 
     public void startMobHomeTask() {
         if (mobHomeTask != null) { mobHomeTask.cancel(); mobHomeTask = null; }
-        mobHomeTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickMobHomes, 40L, 40L);
+        // HC-131: getLivingEntities() scan cost vs. leash responsiveness.
+        long interval = plugin.getConfig().getLong("zones.mob-home-interval-ticks", 40L);
+        mobHomeTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickMobHomes, interval, interval);
     }
 
     public void stopMobHomeTask() {
@@ -507,7 +520,9 @@ public class ZoneManager {
 
     public void startVisualizationTask() {
         if (visualizationTask != null) { visualizationTask.cancel(); visualizationTask = null; }
-        visualizationTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickVisualization, 40L, 40L);
+        // HC-132: particle spam risk when many players have zone-border visualization toggled on.
+        long interval = plugin.getConfig().getLong("zones.visualization-interval-ticks", 40L);
+        visualizationTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickVisualization, interval, interval);
     }
 
     public void stopVisualizationTask() {
@@ -531,11 +546,12 @@ public class ZoneManager {
             String world = player.getWorld().getName();
             for (ZoneDefinition zone : registry.values()) {
                 if (!zone.getWorldName().equals(world)) continue;
-                // Only render if player is within 200 blocks of the primary box center
+                // Only render if player is within range of the primary box center — HC-134.
                 double cx = (zone.getMinX() + zone.getMaxX()) / 2.0;
                 double cy = (zone.getMinY() + zone.getMaxY()) / 2.0;
                 double cz = (zone.getMinZ() + zone.getMaxZ()) / 2.0;
-                if (player.getLocation().distanceSquared(new Location(player.getWorld(), cx, cy, cz)) > 200 * 200) continue;
+                double maxDistance = plugin.getConfig().getDouble("zones.visualization-max-distance", 200);
+                if (player.getLocation().distanceSquared(new Location(player.getWorld(), cx, cy, cz)) > maxDistance * maxDistance) continue;
                 for (int[] b : zone.getAllBoxes()) {
                     drawBox(player, b[0], b[1], b[2], b[3], b[4], b[5], Color.YELLOW);
                 }
@@ -547,7 +563,9 @@ public class ZoneManager {
 
     public void startSelectionTask() {
         if (selectionTask != null) { selectionTask.cancel(); selectionTask = null; }
-        selectionTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickSelectionVisualization, 10L, 10L);
+        // HC-133: selection wireframe refresh rate — only runs while an admin is drawing a zone.
+        long interval = plugin.getConfig().getLong("zones.selection-visualization-interval-ticks", 10L);
+        selectionTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tickSelectionVisualization, interval, interval);
     }
 
     public void stopSelectionTask() {

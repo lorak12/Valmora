@@ -7,6 +7,7 @@ import org.nakii.valmora.module.combat.DamageCalculator;
 import org.nakii.valmora.module.combat.DamageResult;
 import org.nakii.valmora.module.combat.DamageType;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.TargetResolver;
 
 import java.util.List;
@@ -21,18 +22,20 @@ public class DamageMechanic implements AbilityMechanic {
     @Override
     public void execute(ExecutionContext context) {
         // Accept the new schema ("damage"/"damage-type") and the legacy keys ("amount"/"type").
+        double defaultAmount = MechanicDefaults.getDouble("damage", "default-amount", 1.0);
         double amount = context.getParams().contains("damage")
-                ? context.resolveDouble("damage", 1.0)
-                : context.resolveDouble("amount", 1.0);
+                ? context.resolveDouble("damage", defaultAmount)
+                : context.resolveDouble("amount", defaultAmount);
 
+        String defaultType = MechanicDefaults.getString("damage", "default-type", "MAGIC");
         String damageTypeStr = context.getParams().contains("damage-type")
-                ? context.getString("damage-type", "MAGIC")
-                : context.getString("type", "MAGIC");
+                ? context.getString("damage-type", defaultType)
+                : context.getString("type", defaultType);
         DamageType damageType = mapType(damageTypeStr);
         String selector = context.getString("target", "@target");
 
-        int ticks = Math.max(1, context.getInt("ticks", 1));
-        double intervalSeconds = context.getDouble("interval", 1.0);
+        int ticks = Math.max(1, context.getInt("ticks", MechanicDefaults.getInt("damage", "default-ticks", 1)));
+        double intervalSeconds = context.getDouble("interval", MechanicDefaults.getDouble("damage", "default-interval-seconds", 1.0));
 
         // First burst happens immediately; remaining bursts (for damage-over-time) are scheduled.
         applyOnce(context, selector, damageType, amount);

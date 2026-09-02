@@ -14,8 +14,9 @@ import java.util.UUID;
 
 public class ProgressionModule implements ReloadableModule {
 
-    private static final long DAILY_BONUS_WINDOW_MILLIS = 24L * 60 * 60 * 1000;
-    private static final long DAILY_CHECK_INTERVAL_TICKS = 20L * 60 * 5; // every 5 minutes
+    // HC-250: progression.daily-bonus.{window-hours,check-interval-minutes}.
+    private long dailyBonusWindowMillis = 24L * 60 * 60 * 1000;
+    private long dailyCheckIntervalTicks = 20L * 60 * 5; // every 5 minutes
 
     private final Valmora plugin;
     private final ProgressionRegistry registry;
@@ -39,8 +40,10 @@ public class ProgressionModule implements ReloadableModule {
         plugin.getScriptModule().registerProvider(new ProgressionVariableProvider());
         new ProgressionEventFactory().all().forEach(plugin.getScriptModule()::registerEvent);
 
+        dailyBonusWindowMillis = plugin.getConfig().getLong("progression.daily-bonus.window-hours", 24) * 60 * 60 * 1000;
+        dailyCheckIntervalTicks = plugin.getConfig().getLong("progression.daily-bonus.check-interval-minutes", 5) * 20 * 60;
         this.dailyBonusTask = plugin.getServer().getScheduler().runTaskTimer(
-                plugin, this::processDailyBonuses, DAILY_CHECK_INTERVAL_TICKS, DAILY_CHECK_INTERVAL_TICKS);
+                plugin, this::processDailyBonuses, dailyCheckIntervalTicks, dailyCheckIntervalTicks);
 
         // Join-triggered catch-up: previously a player only ever got their daily bonus on the next
         // 5-minute poll after joining, which could be a long wait right after login.
@@ -91,7 +94,7 @@ public class ProgressionModule implements ReloadableModule {
                 Object lastClaimObj = vars.get(claimKey);
                 long lastClaim = lastClaimObj instanceof Number n ? n.longValue() : 0L;
 
-                if (now - lastClaim < DAILY_BONUS_WINDOW_MILLIS) continue;
+                if (now - lastClaim < dailyBonusWindowMillis) continue;
 
                 PointsManager pm = plugin.getPointsManager();
                 if (pm != null) {

@@ -48,7 +48,11 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class ConversationPacketManager extends PacketListenerAbstract {
 
-    private static final int HISTORY_SIZE = 100;
+    /** HC-218: {@code dialogue.history-size} — per-player chat history kept for intercept. */
+    private static int historySize() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getInt("dialogue.history-size", 100) : 100;
+    }
     // Y-offset for the fake ArmorStand seat position (1.20.2+ value from BQ reference).
     private static final double MOUNT_Y_OFFSET = -1.375;
 
@@ -117,7 +121,7 @@ public class ConversationPacketManager extends PacketListenerAbstract {
         Deque<Component> hist = history.get(uuid);
         if (hist != null && !hist.isEmpty()) {
             synchronized (hist) {
-                int blanks = Math.max(0, HISTORY_SIZE - hist.size());
+                int blanks = Math.max(0, historySize() - hist.size());
                 for (int i = 0; i < blanks; i++)
                     user.sendPacketSilently(new WrapperPlayServerSystemChatMessage(false, Component.newline()));
                 for (Component line : hist)
@@ -227,10 +231,10 @@ public class ConversationPacketManager extends PacketListenerAbstract {
 
             // Record the message in the history ring-buffer.
             Component msg = wrapper.getMessage();
-            Deque<Component> hist = history.computeIfAbsent(uuid, k -> new ArrayDeque<>(HISTORY_SIZE + 1));
+            Deque<Component> hist = history.computeIfAbsent(uuid, k -> new ArrayDeque<>(historySize() + 1));
             synchronized (hist) {
                 hist.addLast(msg);
-                if (hist.size() > HISTORY_SIZE) hist.removeFirst();
+                if (hist.size() > historySize()) hist.removeFirst();
             }
 
             // Queue the message instead of delivering it now.

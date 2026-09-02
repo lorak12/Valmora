@@ -146,7 +146,7 @@ public class RecipeEngine {
         // 3. Check Vanilla Recipes — scoped to the crafting-table passthrough machine only.
         // Previously machine-agnostic, so e.g. an anvil/forge/alchemy GUI would silently also
         // match a vanilla crafting recipe if the same items happened to sit in numbered slots.
-        if (VANILLA_FALLBACK_MACHINES.contains(machineId.toLowerCase())) {
+        if (vanillaFallbackMachines().contains(machineId.toLowerCase())) {
             Optional<RecipeDefinition> vanillaMatch = matchVanillaRecipe(inputs);
             if (vanillaMatch.isPresent()) {
                 return vanillaMatch;
@@ -156,8 +156,16 @@ public class RecipeEngine {
         return Optional.empty();
     }
 
-    /** Machine ids that fall through to vanilla crafting-table recipes when nothing else matches. */
-    private static final java.util.Set<String> VANILLA_FALLBACK_MACHINES = java.util.Set.of("crafting_table");
+    /** HC-104: {@code recipes.vanilla-fallback-machines} — machine ids that fall through to
+     *  vanilla crafting-table recipes when nothing else matches. */
+    private java.util.Set<String> vanillaFallbackMachines() {
+        if (plugin == null || plugin.getConfig() == null) return java.util.Set.of("crafting_table");
+        java.util.List<String> configured = plugin.getConfig().getStringList("recipes.vanilla-fallback-machines");
+        if (configured.isEmpty()) return java.util.Set.of("crafting_table");
+        java.util.Set<String> set = new java.util.HashSet<>();
+        for (String id : configured) set.add(id.toLowerCase());
+        return set;
+    }
 
     private boolean matches(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
         return switch (recipe.getType()) {

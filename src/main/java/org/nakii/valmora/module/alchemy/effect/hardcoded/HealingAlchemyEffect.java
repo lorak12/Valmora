@@ -13,7 +13,7 @@ import org.nakii.valmora.module.profile.ValmoraProfile;
  */
 public class HealingAlchemyEffect implements HardcodedAlchemyEffect {
 
-    private static final double[] HEAL_VALUES = {20, 50, 100, 150, 200, 250, 300, 350};
+    private static final double[] DEFAULT_HEAL_VALUES = {20, 50, 100, 150, 200, 250, 300, 350};
 
     @Override
     public String getEffectId() { return "healing"; }
@@ -33,9 +33,16 @@ public class HealingAlchemyEffect implements HardcodedAlchemyEffect {
     @Override
     public void onExpire(LivingEntity entity, int level) {}
 
+    /** HC-190: {@code alchemy.effects.healing.values} — per-level curve, falls back to the
+     *  original hardcoded values when unset. */
     private double getHealAmount(int level) {
-        int idx = Math.max(0, Math.min(level - 1, HEAL_VALUES.length - 1));
-        return HEAL_VALUES[idx];
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        java.util.List<Double> configured = plugin != null
+                ? plugin.getConfig().getDoubleList("alchemy.effects.healing.values") : java.util.List.of();
+        double[] values = configured.isEmpty() ? DEFAULT_HEAL_VALUES
+                : configured.stream().mapToDouble(Double::doubleValue).toArray();
+        int idx = Math.max(0, Math.min(level - 1, values.length - 1));
+        return values[idx];
     }
 
     private void healPlayer(Player player, double amount) {

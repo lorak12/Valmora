@@ -48,7 +48,7 @@ public class ZoneCommand implements TabExecutor {
             sender.sendMessage("Only players can use this command.");
             return true;
         }
-        if (!player.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(player, "zone")) {
             player.sendMessage(Formatter.format(PREFIX + "<red>No permission."));
             return true;
         }
@@ -78,14 +78,19 @@ public class ZoneCommand implements TabExecutor {
 
     // ── Sub-command implementations ──────────────────────────────────────────
 
+    // HC-141: wand material/name/lore — texture-pack servers may want a different tool.
     private void giveWand(Player player) {
-        ItemStack wand = new ItemStack(Material.GOLDEN_AXE);
+        var cfg = plugin.getConfig();
+        Material wandMaterial = Material.matchMaterial(cfg.getString("zones.wand.material", "GOLDEN_AXE"));
+        if (wandMaterial == null) wandMaterial = Material.GOLDEN_AXE;
+        ItemStack wand = new ItemStack(wandMaterial);
         ItemMeta meta = wand.getItemMeta();
-        meta.displayName(Formatter.format("<gold><bold>Zone Wand"));
-        meta.lore(List.of(
-                Formatter.format("<gray>Left-click block: <white>Set Pos1"),
-                Formatter.format("<gray>Right-click block: <white>Set Pos2")
-        ));
+        meta.displayName(Formatter.format(cfg.getString("zones.wand.name", "<gold><bold>Zone Wand")));
+        List<String> loreLines = cfg.getStringList("zones.wand.lore");
+        if (loreLines.isEmpty()) {
+            loreLines = List.of("<gray>Left-click block: <white>Set Pos1", "<gray>Right-click block: <white>Set Pos2");
+        }
+        meta.lore(loreLines.stream().map(Formatter::format).toList());
         meta.getPersistentDataContainer().set(Keys.ZONE_WAND_KEY, PersistentDataType.BOOLEAN, true);
         wand.setItemMeta(meta);
         player.getInventory().addItem(wand);
@@ -500,7 +505,7 @@ public class ZoneCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player player) || !player.hasPermission("valmora.admin"))
+        if (!(sender instanceof Player player) || !org.nakii.valmora.util.PermissionResolver.has(player, "zone"))
             return List.of();
 
         List<String> completions = new ArrayList<>();

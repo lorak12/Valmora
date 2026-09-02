@@ -30,7 +30,8 @@ public class CombatModule implements ReloadableModule {
         if (regenTask != null) {
             regenTask.cancel();
         }
-        regenTask = Bukkit.getScheduler().runTaskTimer(plugin, new RegenTask(plugin), 0L, 20L);
+        long regenIntervalTicks = plugin.getConfig().getLong("combat.regen-interval-ticks", 20L); // HC-020
+        regenTask = Bukkit.getScheduler().runTaskTimer(plugin, new RegenTask(plugin), 0L, regenIntervalTicks);
 
         // Phase 2 of the generic-engine refactor — see docs/REFACTOR/PROGRESS.md.
         damageTypeLoader.load();

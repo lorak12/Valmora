@@ -59,7 +59,9 @@ public class PetModule implements ReloadableModule {
 
         if (followTask != null) followTask.cancel();
         if (plugin.getServer() != null && plugin.getServer().getScheduler() != null) {
-            followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), 5L, 5L);
+            // HC-231: follow-poll rate — CPU vs. smoothness.
+            long followIntervalTicks = plugin.getConfig().getLong("pets.follow.tick-interval-ticks", 5L);
+            followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), followIntervalTicks, followIntervalTicks);
         }
     }
 
@@ -278,6 +280,15 @@ public class PetModule implements ReloadableModule {
      */
     private void loadPetDefaultsConfig() {
         java.io.File file = new java.io.File(plugin.getDataFolder(), "pets/defaults.yml");
+        // HC-232 fix: this bundled resource previously only got read if an admin happened to
+        // create it themselves — nothing ever extracted the shipped default onto disk, so
+        // defaultXpFormula/defaultMaxLevel above (this class's own copy of the same numbers) was
+        // silently the only source of truth in practice. Extract it like every other bundled
+        // single-file config in this codebase (ui.yml, config.yml, etc.) so the documented,
+        // editable file actually exists after first launch.
+        if (!file.exists()) {
+            plugin.saveResource("pets/defaults.yml", false);
+        }
         if (!file.exists()) return;
         var config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         ConfigurationSection section = config.getConfigurationSection("pet_defaults");

@@ -76,7 +76,9 @@ public class QuiverListener implements Listener {
     }
 
     private boolean isArrow(Material material) {
-        return material == Material.ARROW || material == Material.SPECTRAL_ARROW || material == Material.TIPPED_ARROW;
+        // HC-048 fix: use the vanilla arrow tag instead of an enumerated list, so any future
+        // arrow variant (added by a data pack or a Minecraft update) is picked up automatically.
+        return org.bukkit.Tag.ITEMS_ARROWS.isTagged(material);
     }
 
     private ValmoraProfile getActiveProfile(Player player) {

@@ -13,11 +13,22 @@ import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Formatter;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class WarpManager {
 
     private final Valmora plugin;
     private final Registry<WarpDefinition> registry = new SimpleRegistry<>();
+
+    /** Players currently mid-warmup — HC-152: lets {@link WarpListener} cancel on damage, which
+     *  the old warmup implementation's own comment claimed happened but never actually wired up. */
+    private final Set<UUID> activeWarmups = ConcurrentHashMap.newKeySet();
+    /** Warmups flagged for cancellation by {@link #cancelWarmupOnDamage}, checked by the delayed
+     *  teleport task before it actually fires (removing from {@link #activeWarmups} alone doesn't
+     *  stop the already-scheduled task). */
+    private final Set<UUID> cancelledWarmups = ConcurrentHashMap.newKeySet();
 
     public WarpManager(Valmora plugin) {
         this.plugin = plugin;
@@ -100,20 +111,37 @@ public class WarpManager {
             return;
         }
 
-        // Warmup: cancel if the player moves (block-level) or takes damage before it completes.
+        // Warmup: cancel if the player moves past the configured tolerance, or (HC-152, newly
+        // implemented — the old comment here claimed this but nothing ever checked it) takes
+        // damage before it completes.
         player.sendMessage(Formatter.format("<yellow>Teleporting to <white>" + warp.getDisplayName()
                 + "<yellow> in " + warp.getWarmupSeconds() + "s. Don't move!"));
         Location warmupStart = player.getLocation();
+        double moveDistance = plugin.getConfig().getDouble("warps.warmup.cancel-on-move-distance", 1.0);
+        UUID playerId = player.getUniqueId();
+        activeWarmups.add(playerId);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            activeWarmups.remove(playerId);
+            if (cancelledWarmups.remove(playerId)) return; // already messaged by cancelWarmupOnDamage
             if (!player.isOnline()) return;
             Location now = player.getLocation();
-            if (now.getBlockX() != warmupStart.getBlockX() || now.getBlockY() != warmupStart.getBlockY()
-                    || now.getBlockZ() != warmupStart.getBlockZ()) {
+            if (now.getWorld() != warmupStart.getWorld() || now.distance(warmupStart) > moveDistance) {
                 player.sendMessage(Formatter.format("<red>Warp cancelled — you moved."));
                 return;
             }
             doTeleport.run();
         }, warp.getWarmupSeconds() * 20L);
+    }
+
+    /** Called by {@link WarpListener} on {@code EntityDamageEvent} — cancels an in-progress
+     *  warmup for this player if {@code warps.warmup.cancel-on-damage} is enabled. */
+    public void cancelWarmupOnDamage(Player player) {
+        UUID playerId = player.getUniqueId();
+        if (!activeWarmups.contains(playerId)) return;
+        if (!plugin.getConfig().getBoolean("warps.warmup.cancel-on-damage", false)) return;
+        cancelledWarmups.add(playerId);
+        activeWarmups.remove(playerId);
+        player.sendMessage(Formatter.format("<red>Warp cancelled — you took damage."));
     }
 
     public Optional<WarpDefinition> getWarpByPad(String worldName, int bx, int by, int bz) {

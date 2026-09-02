@@ -145,9 +145,17 @@ public class StatManager {
         effectiveStats.clear();
         effectiveStats.putAll(baseStats);
 
-        for (PotionEffect effect : player.getActivePotionEffects()) {
-            if (effect.getDuration() > 20 * 60 * 60) {
-                player.removePotionEffect(effect.getType());
+        // HC-060: purge threshold for absurdly-long potion durations (previously a hardcoded 1h).
+        // 0 disables the purge entirely, for servers whose alchemy content intentionally grants
+        // multi-hour buffs that would otherwise get incorrectly stripped.
+        int maxDurationTicks = org.nakii.valmora.Valmora.getInstance() != null
+                ? org.nakii.valmora.Valmora.getInstance().getConfig().getInt("stats.potion-cleanup.max-duration-ticks", 20 * 60 * 60)
+                : 20 * 60 * 60;
+        if (maxDurationTicks > 0) {
+            for (PotionEffect effect : player.getActivePotionEffects()) {
+                if (effect.getDuration() > maxDurationTicks) {
+                    player.removePotionEffect(effect.getType());
+                }
             }
         }
 

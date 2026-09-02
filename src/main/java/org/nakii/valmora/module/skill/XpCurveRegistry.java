@@ -90,7 +90,11 @@ public class XpCurveRegistry {
     private int[] fromFormula(ConfigurationSection section, ExpressionParser parser) {
         String formula = section.getString("formula");
         if (formula == null || formula.isBlank()) return null;
-        int maxLevel = Math.max(1, section.getInt("max-level", 60));
+        // HC-072: skills.curves.default-max-level — a central tunable for the fallback used when
+        // an individual curve's own YAML omits max-level.
+        int defaultMaxLevel = Valmora.getInstance() != null
+                ? Valmora.getInstance().getConfig().getInt("skills.curves.default-max-level", 60) : 60;
+        int maxLevel = Math.max(1, section.getInt("max-level", defaultMaxLevel));
 
         Expression expression = parser.parse(formula); // pre-compiled once, not per level
         int[] thresholds = new int[maxLevel];

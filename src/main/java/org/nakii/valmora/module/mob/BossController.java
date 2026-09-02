@@ -37,10 +37,10 @@ import java.util.UUID;
  */
 public class BossController {
 
-    /** How often (ticks) the controller ticks. Timer-ability granularity is this period. */
-    private static final long TICK_PERIOD = 10L;
-    /** Radius (blocks) used to broadcast ability announcements. */
-    private static final double ANNOUNCE_RADIUS = 40.0;
+    /** How often (ticks) the controller ticks. Timer-ability granularity is this period. HC-084: {@code mobs.boss.tick-period-ticks}. */
+    private final long tickPeriod;
+    /** Radius (blocks) used to broadcast ability announcements. HC-084: {@code mobs.boss.announce-radius}. */
+    private final double announceRadius;
 
     private final Valmora plugin;
     private final Map<UUID, BossInstance> instances = new HashMap<>();
@@ -48,11 +48,13 @@ public class BossController {
 
     public BossController(Valmora plugin) {
         this.plugin = plugin;
+        this.tickPeriod = plugin.getConfig().getLong("mobs.boss.tick-period-ticks", 10L);
+        this.announceRadius = plugin.getConfig().getDouble("mobs.boss.announce-radius", 40.0);
     }
 
     public void start() {
         if (task != null) return;
-        this.task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, TICK_PERIOD, TICK_PERIOD);
+        this.task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, tickPeriod, tickPeriod);
     }
 
     public void stop() {
@@ -138,7 +140,7 @@ public class BossController {
                 continue;
             }
 
-            instance.ticksAlive += TICK_PERIOD;
+            instance.ticksAlive += tickPeriod;
 
             for (MobAbility ability : instance.definition.getAbilities()) {
                 switch (ability.getTrigger()) {
@@ -188,7 +190,7 @@ public class BossController {
         }
 
         if (ability.getAnnounce() != null && !ability.getAnnounce().isEmpty()) {
-            for (Player p : nearbyPlayers(instance.entity, ANNOUNCE_RADIUS)) {
+            for (Player p : nearbyPlayers(instance.entity, announceRadius)) {
                 p.sendMessage(Formatter.format(ability.getAnnounce()));
             }
         }

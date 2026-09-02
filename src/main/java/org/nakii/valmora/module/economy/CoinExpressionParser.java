@@ -10,17 +10,34 @@ public final class CoinExpressionParser {
     public static double parse(String input) {
         if (input == null || input.isBlank()) return 0.0;
         try {
-            return new CoinExpressionParser(input.trim()).parseExpr();
+            return new CoinExpressionParser(input.trim(), suffixes()).parseExpr();
         } catch (Exception e) {
             return 0.0;
         }
     }
 
+    /** HC-015: {@code economy.coin-suffixes} — add a custom suffix (e.g. "t" for trillion)
+     *  without a code change. Falls back to the built-in k/m/b map when unset. */
+    private static java.util.Map<Character, Double> suffixes() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        var section = plugin != null ? plugin.getConfig().getConfigurationSection("economy.coin-suffixes") : null;
+        if (section == null) {
+            return java.util.Map.of('k', 1_000.0, 'm', 1_000_000.0, 'b', 1_000_000_000.0);
+        }
+        java.util.Map<Character, Double> map = new java.util.HashMap<>();
+        for (String key : section.getKeys(false)) {
+            if (key.length() == 1) map.put(Character.toLowerCase(key.charAt(0)), section.getDouble(key));
+        }
+        return map.isEmpty() ? java.util.Map.of('k', 1_000.0, 'm', 1_000_000.0, 'b', 1_000_000_000.0) : map;
+    }
+
     private final String src;
+    private final java.util.Map<Character, Double> suffixes;
     private int pos;
 
-    private CoinExpressionParser(String src) {
+    private CoinExpressionParser(String src, java.util.Map<Character, Double> suffixes) {
         this.src = src;
+        this.suffixes = suffixes;
         this.pos = 0;
     }
 
@@ -73,11 +90,10 @@ public final class CoinExpressionParser {
 
         // optional suffix
         if (pos < src.length()) {
-            char suffix = src.charAt(pos);
-            switch (Character.toLowerCase(suffix)) {
-                case 'k' -> { value *= 1_000; pos++; }
-                case 'm' -> { value *= 1_000_000; pos++; }
-                case 'b' -> { value *= 1_000_000_000; pos++; }
+            Double multiplier = suffixes.get(Character.toLowerCase(src.charAt(pos)));
+            if (multiplier != null) {
+                value *= multiplier;
+                pos++;
             }
         }
 

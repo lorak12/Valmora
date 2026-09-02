@@ -23,7 +23,7 @@ import org.nakii.valmora.util.Keys;
  * &lt;warp id&gt;
  * </pre>
  *
- * Creating one requires {@code valmora.admin} (anyone could otherwise place a sign that
+ * Creating one requires the {@code permissions.warp} node (defaults to {@code valmora.admin}; anyone could otherwise place a sign that
  * impersonates a warp trigger). The warp id is stored in the sign block's PDC — never parsed
  * back out of the display text at trigger time (CLAUDE.md §13's item-name-forgery caution
  * applies to signs too: a player could otherwise edit an existing sign's *text* without
@@ -45,7 +45,7 @@ public class WarpSignListener implements Listener {
     public void onSignChange(SignChangeEvent event) {
         if (!HEADER.equalsIgnoreCase(plainLine(event, 0))) return;
 
-        if (!event.getPlayer().hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(event.getPlayer(), "warp")) {
             event.getPlayer().sendMessage(Formatter.format("<red>You don't have permission to create a warp sign."));
             event.line(0, net.kyori.adventure.text.Component.empty());
             return;

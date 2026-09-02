@@ -93,7 +93,9 @@ public class ZoneListener implements Listener {
     public void onZoneEnter(ZoneEnterEvent event) {
         Player player = event.getPlayer();
         ZoneDefinition zone = event.getZone();
-        plugin.getUIManager().getActionBar().showTemporary(player, zone.getDisplayName(), 60);
+        // HC-140: zone-enter popup duration (ticks) — snappy vs. readable.
+        int enterTitleDurationTicks = plugin.getConfig().getInt("zones.enter-title-duration-ticks", 60);
+        plugin.getUIManager().getActionBar().showTemporary(player, zone.getDisplayName(), enterTitleDurationTicks);
         setPlayerStateZoneId(player, zone.getId());
         if (!zone.getEnterActions().isEmpty()) {
             SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);

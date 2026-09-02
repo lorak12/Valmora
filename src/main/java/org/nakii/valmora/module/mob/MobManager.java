@@ -48,10 +48,13 @@ public class MobManager implements ReloadableModule {
         }
 
         // Basic AI (leash range) and ambient natural spawning — see MobAiTask/NaturalSpawnTask.
+        // HC-080: poll rates are configurable — leash responsiveness vs. spawn density vs. CPU.
+        long aiIntervalTicks = plugin.getConfig().getLong("mobs.tasks.ai-interval-ticks", 40L);
+        long naturalSpawnIntervalTicks = plugin.getConfig().getLong("mobs.tasks.natural-spawn-interval-ticks", 200L);
         if (aiTask != null) aiTask.cancel();
-        aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), 40L, 40L);
+        aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), aiIntervalTicks, aiIntervalTicks);
         if (naturalSpawnTask != null) naturalSpawnTask.cancel();
-        naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), 200L, 200L);
+        naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), naturalSpawnIntervalTicks, naturalSpawnIntervalTicks);
     }
 
     @Override

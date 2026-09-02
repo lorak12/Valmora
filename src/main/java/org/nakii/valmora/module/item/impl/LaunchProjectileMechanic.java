@@ -11,6 +11,7 @@ import org.bukkit.entity.WitherSkull;
 import org.bukkit.util.Vector;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.ProjectileAbilityService;
 
 import java.util.List;
@@ -35,20 +36,21 @@ public class LaunchProjectileMechanic implements AbilityMechanic {
         LivingEntity caster = context.getCaster();
         if (caster == null) return;
 
-        Class<? extends Projectile> type = mapProjectile(context.getString("projectile", "ARROW"));
-        double velocity = context.resolveDouble("velocity", 2.0);
-        int count = Math.max(1, context.getInt("count", 1));
-        double spread = context.getDouble("spread", 0.0);
+        Class<? extends Projectile> type = mapProjectile(context.getString("projectile", MechanicDefaults.getString("launch-projectile", "projectile", "ARROW")));
+        double velocity = context.resolveDouble("velocity", MechanicDefaults.getDouble("launch-projectile", "velocity", 2.0));
+        int count = Math.max(1, context.getInt("count", MechanicDefaults.getInt("launch-projectile", "count", 1)));
+        double spread = context.getDouble("spread", MechanicDefaults.getDouble("launch-projectile", "spread", 0.0));
 
         // Nested mechanics + direct damage carried to the impact handler.
         List<Map<?, ?>> onHit = context.getParams().getMapList("on-hit");
         if (onHit.isEmpty()) onHit = context.getParams().getMapList("on-impact");
         if (onHit.isEmpty()) onHit = context.getParams().getMapList("on-land");
-        double damage = context.getParams().contains("damage") ? context.resolveDouble("damage", 0.0) : 0.0;
+        double damage = context.getParams().contains("damage")
+                ? context.resolveDouble("damage", MechanicDefaults.getDouble("launch-projectile", "damage", 0.0)) : 0.0;
         String damageType = context.getString("damage-type", "MAGIC");
         // Lets one thrown projectile hit every entity along its path (e.g. a thrown axe/spear
         // "damaging all enemies in its path") instead of stopping dead after the first hit.
-        boolean pierce = context.getBoolean("pierce", false);
+        boolean pierce = context.getBoolean("pierce", MechanicDefaults.getBoolean("launch-projectile", "pierce", false));
 
         Vector base = caster.getLocation().getDirection().normalize();
         for (int i = 0; i < count; i++) {

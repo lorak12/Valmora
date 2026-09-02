@@ -36,17 +36,23 @@ public class ValmoraCommand implements TabExecutor {
             return true;
         }
 
-        if (!sender.hasPermission("valmora.admin")) {
-            sender.sendMessage(Formatter.format("<red>No permission!"));
-            return true;
-        }
-
+        // HC-006/HC-013: each subcommand now checks its own permission key (falling back to
+        // permissions.admin / "valmora.admin" by default — see PermissionResolver) instead of one
+        // blanket gate, so a server can hand out e.g. reload without pack-install access.
         if (args.length == 0) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             sendHelp(sender);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("reload")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "reload")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             sender.sendMessage(Formatter.format("<aqua>Reloading Valmora Engine..."));
             // Re-read config.yml from disk first — modules read plugin.getConfig() live at point
             // of use (no per-module caching), so without this a reload wouldn't pick up config.yml
@@ -58,6 +64,10 @@ public class ValmoraCommand implements TabExecutor {
         }
 
         if (args[0].equalsIgnoreCase("variable") && args.length >= 3) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             if (args[1].equalsIgnoreCase("get")) {
                 handleVariableGet(sender, args[2]);
                 return true;
@@ -65,20 +75,36 @@ public class ValmoraCommand implements TabExecutor {
         }
 
         if (args[0].equalsIgnoreCase("pipeline")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handlePipeline(sender, args);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("pack")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "pack")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handlePack(sender, args);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("debug")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handleDebug(sender, args);
             return true;
         }
 
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+            sender.sendMessage(Formatter.format("<red>No permission!"));
+            return true;
+        }
         sendHelp(sender);
         return true;
     }

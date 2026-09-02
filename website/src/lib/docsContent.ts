@@ -1717,96 +1717,43 @@ conditions:
     slug: "config-yml",
     title: "Server Configuration (config.yml)",
     category: "Core Systems",
-    summary: "Every key in the shipped config.yml, block by block — what it defaults to and what it actually changes.",
+    summary: "Every field in the shipped config.yml, one by one — what it defaults to and what it actually changes.",
     sections: [
       {
-        heading: "The full file",
+        heading: "How to read this page",
         body: [
-          "This is the complete, unedited config.yml shipped inside the plugin jar. It's copied to plugins/Valmora/config.yml on first run and never overwritten after that — every key below is safe to change in place, then reload with /valmora reload.",
+          "config.yml is copied to plugins/Valmora/config.yml on first run and never overwritten after that — every key below is safe to change in place, then reload with /valmora reload. Nothing here needs a restart.",
+          "This page lists every top-level section in the file, in file order, one table per section. Where a field only matters together with siblings (a stat-id indirection block, a format map), the table row after it explains the group instead of repeating the same sentence per key.",
         ],
-        code: {
-          lang: "yaml",
-          content: `database:
-  type: sqlite
-  # mysql:
-  #   host: "127.0.0.1"
-  #   port: 3306
-  #   database: "valmora"
-  #   username: "root"
-  #   password: "password123"
-  #   use-ssl: false
-
-economy:
-  autosave-interval-seconds: 60
-  death-loss-percent: 50.0
-  bank-interest-percent: 0.5
-  bank-interest-interval-seconds: 60
-
-profiles:
-  max-profiles: 4
-  default-name: Earth
-  planet-names: [Mars, Venus, Jupiter, Saturn, Mercury, Neptune, Uranus, Pluto, "Kepler-22b", "Proxima b", Titan, Europa]
-
-time:
-  world: world
-  start-year: 1
-  start-season: SPRING
-  start-phase: EARLY
-  start-day: 1
-  season-names: [Spring, Summer, Autumn, Winter]
-  phase-names: [Early, Mid, Late]
-  scoreboard-enabled: true
-
-progression:
-  refund-percent: 100.0
-
-combat:
-  health-stat: health
-  mana-stat: mana
-  damage-stat: damage
-  strength-stat: strength
-  defense-stat: defense
-  crit-chance-stat: crit_chance
-  crit-damage-stat: crit_damage
-  speed-stat: speed
-  health-regen-stat: health_regen
-  mana-regen-stat: mana_regen
-  luck-stat: luck
-  environment-damage-multiplier: 5.0
-  damage-indicator-rate-limit-ms: 400
-  damage-indicator-lifetime-ticks: 20
-  post-hit-no-damage-ticks: 20
-  combat-window-ms: 3000
-  visual-health-hearts: 10
-
-mining:
-  mining-fortune-stat: mining_fortune
-  mining-speed-stat: mining_speed
-  breaking-power-stat: breaking_power
-  mining-spread-stat: mining_spread
-
-npc-skin-server:
-  enabled: false
-  port: 2525
-  # host: ""
-
-alchemy:
-  splash-radius: 4.0
-  tick-interval: 20
-  max-active-effects: 10`,
-        },
       },
       {
         heading: "database:",
         body: [
-          "Picks the persistence engine. SQLite needs zero setup and stores everything in plugins/Valmora/database.db — the right default for almost every server. Switch to mysql for a network syncing player data across multiple backend servers, then uncomment and fill in the mysql: sub-block.",
+          "Picks the persistence engine and its pool/thread sizing. SQLite needs zero setup and stores everything in plugins/Valmora/database.db — the right default for almost every server. Switch to mysql for a network syncing player data across multiple backend servers, then uncomment and fill in the mysql: connection block.",
         ],
         table: {
           headers: ["Key", "Default", "What it does"],
           rows: [
             ["type", "sqlite", "sqlite or mysql."],
+            ["pool.maximum-pool-size", "10", "Max HikariCP connections. Raise on large/high-concurrency networks; lower on tiny servers to save RAM/handles."],
+            ["worker-threads", "4", "Size of the dedicated async executor all database calls run on."],
+            ["shutdown-timeout-seconds", "10", "How long the plugin waits for in-flight DB work to finish during shutdown/reload before giving up."],
+            ["mysql.prep-cache-size / prep-cache-sql-limit", "250 / 2048", "MySQL JDBC prepared-statement cache tuning. Only read when type: mysql."],
             ["mysql.host / port / database / username / password", "commented out", "Connection details, only read when type: mysql."],
             ["mysql.use-ssl", "false", "Enable if your MySQL server requires/serves over SSL/TLS."],
+          ],
+        },
+      },
+      {
+        heading: "permissions:",
+        body: [
+          "One node per admin command, each falling back to admin and then the literal valmora.admin if left as-is — set an individual key to hand a staff role one admin command (e.g. /eco) without granting every other one. Leaving this whole section untouched keeps the original single-permission behavior exactly as it was.",
+        ],
+        table: {
+          headers: ["Key", "Default", "Gates"],
+          rows: [
+            ["admin", "valmora.admin", "Fallback used by every command below that isn't individually overridden."],
+            ["reload / pack / eco / calendar / collection / alchemy / modifier / zone / npc / warp / pet / stat / quest / time / skill", "valmora.admin (each)", "/valmora reload, /valmora pack, /eco, /calendar, /collection, /potion, /modifier, /zone, /npc, /warp, /pet, /stat, /quest, /time, /skill — respectively."],
           ],
         },
       },
@@ -1816,12 +1763,20 @@ alchemy:
           headers: ["Key", "Default", "What it does"],
           rows: [
             ["autosave-interval-seconds", "60", "How often dirty balances are batch-flushed to the database. Balances live in memory between flushes and are always safe to use; only an unclean crash inside this window can lose progress."],
-            ["death-loss-percent", "50.0", "Percentage of a player's purse (not bank) removed on death. There is currently no way to disable this — set 0 to effectively turn it off."],
-            ["bank-interest-percent", "0.5", "Flat-rate interest applied to every bank balance each interval. 0 disables interest entirely (no task is even scheduled)."],
-            ["bank-interest-interval-seconds", "60", "How often bank interest is applied."],
+            ["death-loss-percent", "50.0", "Percentage of a player's purse (not bank) removed on death. Set 0 to effectively turn it off."],
+            ["bank-interest-percent / bank-interest-interval-seconds", "0.5 / 60", "Flat-rate interest applied to every bank balance each interval. 0 percent disables interest entirely (no task is even scheduled)."],
+            ["ledger-retention-per-player", "10", "How many ledger rows are actually kept in the database per player — distinct from ledger-display-limit below, which only controls the GUI's display window."],
+            ["ledger-display-limit", "5", "How many recent transactions the bank GUI's \"Recent Transactions\" list shows."],
+            ["format.thousand / million / billion", "\"%.1fk\" / \"%.2fm\" / \"%.2fb\"", "Java format patterns for compact-suffix number display."],
+            ["format.coin-symbol", "\"🪙 \"", "Prefix/branding symbol shown before formatted coin amounts."],
+            ["format.thousands-separator", "\".\"", "Separator used in the exact/dot-separated display form (e.g. 10.000)."],
+            ["messages.no-transactions / deposit-verb / withdraw-verb", "see file", "Localizable bank-GUI and confirmation-message text."],
+            ["bank-messages.prefix", "\"<dark_gray>[<gold>Bank<dark_gray>] \"", "Chat prefix on bank-related messages."],
+            ["deposit-halving", "floor", "Rounding mode (floor | ceil | round) used when a player deposits/withdraws \"half\" their balance."],
+            ["tab-complete-amounts", "[\"1000\",\"1k\",\"10k\",\"100k\",\"1m\"]", "Suggestions offered when tab-completing an amount argument on /eco-family commands."],
+            ["coin-suffixes", "{k:1000, m:1000000, b:1000000000}", "Suffix → multiplier map used when parsing a typed coin expression like 2.5k. Add e.g. t: 1000000000000 for trillions."],
           ],
         },
-        body: [],
       },
       {
         heading: "profiles:",
@@ -1833,7 +1788,6 @@ alchemy:
             ["planet-names", "Mars, Venus, Jupiter, Saturn, Mercury, Neptune, Uranus, Pluto, Kepler-22b, Proxima b, Titan, Europa", "Pool of names randomly assigned to a player's additional profiles — only unused names are picked."],
           ],
         },
-        body: [],
       },
       {
         heading: "time:",
@@ -1844,33 +1798,78 @@ alchemy:
             ["start-year / start-season / start-phase / start-day", "1 / SPRING / EARLY / 1", "Calendar starting position — applied once on first launch, then persisted to plugins/Valmora/time.yml and ignored on every later start."],
             ["season-names / phase-names", "Spring/Summer/Autumn/Winter, Early/Mid/Late", "Display strings used in the scoreboard and $time.season$/$time.phase$."],
             ["scoreboard-enabled", "true", "Whether the sidebar scoreboard shows the two time lines at all."],
+            ["calendar.days-per-phase", "30", "Days per phase — safe to retune (e.g. 28 for a \"28-day month\" calendar). phases-per-season (3) and seasons-per-year (4) are fixed by the Phase/Season enums, not independently configurable; days-per-year derives from this one value."],
           ],
         },
-        body: [],
       },
       {
         heading: "progression:",
         table: {
           headers: ["Key", "Default", "What it does"],
-          rows: [["refund-percent", "100.0", "Percentage of every point ever spent on a progression tree that's refunded when a player runs /progression reset."]],
+          rows: [
+            ["refund-percent", "100.0", "Percentage of every point ever spent on a progression tree that's refunded when a player runs /progression reset."],
+            ["daily-bonus.window-hours", "24", "Cadence of the daily progression-node bonus window."],
+            ["daily-bonus.check-interval-minutes", "5", "How often the daily-bonus task polls to see if the window has rolled over."],
+          ],
         },
-        body: [],
       },
       {
-        heading: "combat:",
+        heading: "combat: — stat mapping",
         body: [
           "The first eleven keys are a stat-ID indirection layer, not raw numbers — they tell the combat engine which stats/*.yml entry plays the role of health, mana, damage, and so on. Rename or replace a core stat and update the pointer here instead of touching Java.",
         ],
         table: {
+          headers: ["Key", "Default"],
+          rows: [["health-stat … luck-stat (11 keys)", "health, mana, damage, strength, defense, crit_chance, crit_damage, speed, health_regen, mana_regen, luck"]],
+        },
+      },
+      {
+        heading: "combat: — damage & regen tuning",
+        table: {
           headers: ["Key", "Default", "What it does"],
           rows: [
-            ["health-stat … luck-stat (11 keys)", "health, mana, damage, strength, defense, crit_chance, crit_damage, speed, health_regen, mana_regen, luck", "Points each engine role at a stat ID defined in stats/core.yml."],
             ["environment-damage-multiplier", "5.0", "Multiplies raw vanilla environmental damage (fall/fire/lava/drowning/etc.) before defense mitigation, so it stays meaningful against the RPG stat curve."],
             ["damage-indicator-rate-limit-ms", "400", "Minimum time between floating damage-indicator spawns per victim — stops indicator spam from fast DoT ticks."],
             ["damage-indicator-lifetime-ticks", "20", "How long a floating damage indicator stays visible."],
             ["post-hit-no-damage-ticks", "20", "Vanilla invulnerability ticks applied after a hit, preventing overlapping DoT ticks from double-counting."],
             ["combat-window-ms", "3000", "How long a player is considered \"in combat\" after dealing or taking damage."],
             ["visual-health-hearts", "10", "How many vanilla hearts the health bar is visually scaled to, independent of the player's real max-health stat."],
+            ["regen-interval-ticks", "20", "How often the passive health/mana regen tick runs. 20 = once per second."],
+            ["regen.health-in-combat / mana-in-combat", "false / true", "Whether health/mana regen is blocked while \"in combat\" (see combat-window-ms)."],
+            ["iframe-threshold-factor", "0.5", "Fraction of a victim's max no-damage-ticks under which a second hit is rejected as an i-frame double-hit — an anti multi-hit/DoT-stacking guard."],
+            ["environment.fallback-damage-type", "MELEE", "Damage-type id used for an environmental damage cause with no explicit mapping."],
+            ["fallback-base-damage", "1.0", "Base damage for an attacker that's neither a player nor a registered mob definition (plain vanilla mobs)."],
+            ["cause-mapping", "{}", "Bukkit DamageCause → Valmora damage-type-id overrides, checked before the built-in mapping. Example: NECRO_ATTACK: poison."],
+            ["damage-indicator.offset / crit-format / normal-format / show-as-int", "0.5, styled MiniMessage strings, true", "Floating damage-indicator position and text styling. Placeholders: {color}, {damage}."],
+          ],
+        },
+      },
+      {
+        heading: "skills:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["defaults.max-level", "60", "Central fallback used when a skill's own skills/*.yml omits max-level."],
+            ["defaults.xp-curve", "\"default\"", "Fallback XP-curve id."],
+            ["curves.default-max-level", "60", "Fallback max-level for a formula-based XP curve whose own entry omits max-level."],
+          ],
+        },
+      },
+      {
+        heading: "mobs:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["tasks.ai-interval-ticks / natural-spawn-interval-ticks", "40 / 200", "How often the leash/AI task and the ambient natural-spawn task poll. Direct CPU knobs on populated servers."],
+            ["natural-spawn.search-radius / min-distance / max-distance", "32.0 / 8.0 / 24.0", "How natural spawns find room: radius searched for existing same-mob entities, and the min/max distance from the player a candidate point is picked at."],
+            ["boss.tick-period-ticks / announce-radius", "10 / 40.0", "Boss-logic tick rate and the radius within which players are announced a boss's presence/actions."],
+            ["boss-bar.default-range", "40.0", "Default boss-bar visibility range when a boss's own definition doesn't set one."],
+            ["damage-scaling / xp-reward-formula", "\"\" (blank = built-in linear default)", "Optional Expression for damage-per-level ($mob.base_damage$/$mob.level$) and XP-per-level ($mob.base_xp$/$mob.level$) scaling."],
+            ["combat-skill-id", "\"combat\"", "Which skill id mob kills grant XP to."],
+            ["defaults.natural-spawn-chance / natural-spawn-max-nearby / base-damage / base-xp / gold-reward", "0.1 / 3 / 5.0 / 2 / 0", "Global fallbacks used when a mob's own YAML omits these fields."],
+            ["ai.leash-return-speed", "1.0", "Pathfinder speed multiplier used when a mob returns toward its leash/home point."],
+            ["loot.luck-divisor", "100.0", "Divisor applied to the luck stat for loot-chance bonuses. 100.0 = 1 luck point gives +1% loot chance."],
+            ["abilities.defaults.interval / chance / health-percent", "100 / 1.0 / 50.0", "Global fallbacks for a mob-ability YAML that omits these fields."],
           ],
         },
       },
@@ -1888,16 +1887,255 @@ alchemy:
         },
       },
       {
-        heading: "npc-skin-server: and alchemy:",
+        heading: "resource:",
         table: {
           headers: ["Key", "Default", "What it does"],
           rows: [
-            ["npc-skin-server.enabled", "false", "Turns on a tiny built-in HTTP server so /npc skin <id> file <filename.png> can apply skins from plugins/Valmora/skins/."],
-            ["npc-skin-server.port", "2525", "Port that tiny server listens on."],
-            ["npc-skin-server.host", "auto-detect", "Set to your public IP if clients connect from outside the local network."],
-            ["alchemy.splash-radius", "4.0", "Block radius for a splash potion's area of effect."],
-            ["alchemy.tick-interval", "20", "Ticks between active-effect expiry checks (20 = once a second)."],
-            ["alchemy.max-active-effects", "10", "Max concurrent active potion effects tracked per player."],
+            ["autosave-interval-seconds", "30", "How often mid-progress resource-block state (mining node depletion, regen timers) is flushed to disk for crash recovery."],
+            ["limits.min-regen-delay-ticks", "20", "Floors a misconfigured resource node's regen-delay so a typo (e.g. regen-delay: 1) can't schedule a near-per-tick regen task."],
+          ],
+        },
+      },
+      {
+        heading: "quests:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["poll.timer-interval-ticks / npcrange-interval-ticks", "20 / 20", "How often TIMER and NPCRANGE objectives are polled. Cost scales O(players × active quests) — raise on large servers with many concurrent timer objectives."],
+            ["limits.delay-min-interval-ticks", "20", "Floors a DELAY objective's interval: so a typo can't schedule a near-per-tick task for the whole delay duration."],
+          ],
+        },
+      },
+      {
+        heading: "scripting:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [["limits.max-expression-depth", "100", "Max recursion/nesting depth the expression parser accepts before rejecting a formula as malformed — protects the main thread from a stack overflow caused by a malformed or malicious content-pack expression."]],
+        },
+      },
+      {
+        heading: "npc-skin-server:",
+        body: ["A tiny built-in HTTP server so /npc skin <id> file <filename.png> can apply skins from plugins/Valmora/skins/."],
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["enabled", "false", "Turns the server on."],
+            ["port", "2525", "Port it listens on."],
+            ["host", "auto-detect", "Set to your public IP if clients connect from outside the local network."],
+          ],
+        },
+      },
+      {
+        heading: "anvil:",
+        body: ["Unified anvil tunables. Costs are all in XP levels; a \"prior work\" penalty (2^work-1, clamped) is charged on top of these automatically."],
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["templates.merge.cost-per-level / base-cost", "2 / 0", "XP levels charged per enchant level merged/transferred, plus a flat cost on every gear+gear/book merge."],
+            ["templates.merge.durability-bonus-percent", "0.12", "Gear+gear durability-merge bonus, as a fraction of max durability."],
+            ["templates.repair.base-cost / percent-per-unit", "0 / 0.25", "Flat repair cost, plus % of max durability repaired per consumed repair-material unit."],
+            ["repair-materials", "{}", "Tool-material substring → repair material, checked before the built-in hint map (NETHERITE/DIAMOND/GOLD/IRON/STONE/LEATHER/TURTLE). Add entries for custom tool tiers without a code change."],
+            ["prior-work.max-work-clamp", "30", "Overflow-safety clamp on the 2^work-1 penalty curve. The curve shape itself mirrors vanilla's own anvil escalation math and isn't meant to be retuned lightly."],
+          ],
+        },
+      },
+      {
+        heading: "recipes:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [["vanilla-fallback-machines", "[\"crafting_table\"]", "Machine ids that fall through to standard Bukkit/vanilla recipes when nothing else matches — scoped so e.g. an anvil/forge/alchemy GUI never silently matches a vanilla recipe."]],
+        },
+      },
+      {
+        heading: "pack:",
+        body: ["Guards for /valmora pack install <url|github:owner/repo@tag>."],
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["max-extracted-size-mb", "200", "Refuses to extract a downloaded pack archive past this total uncompressed size — a zip-bomb guard, checked incrementally while extracting."],
+            ["max-entries", "5000", "Refuses to extract an archive with more than this many entries — a second, independent zip-bomb guard."],
+            ["index-url", "\"\" (blank)", "Optional base URL of a JSON pack index, letting admins run /valmora pack install <id> with a bare pack id instead of a full URL."],
+            ["download.user-agent", "\"Valmora-PackManager/1.0\"", "User-Agent header sent on outbound pack-download HTTP requests."],
+          ],
+        },
+      },
+      {
+        heading: "items:",
+        body: ["Item-translation/stat-scaling plus lore layout — which blocks a generated item's lore shows, in what order, and how each is formatted."],
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["breaking-power.<tier>", "netherite:5, diamond:4, iron:3, stone:2, wood:1", "Tool-tier substring → breaking power (which blocks a tool can mine)."],
+            ["vanilla-rarity-mapping.<material>", "NETHERITE:MYTHIC, DIAMOND:EPIC, GOLDEN:RARE, IRON:UNCOMMON", "Vanilla material substring → rarity, used the first time a plain vanilla item is translated into a Valmora item."],
+            ["target-resolver.defaults.enemies-radius / cone-range / cone-angle", "5.0 / 8.0 / 45.0", "Default radius/range/angle for the @enemies_in_radius, @allies_in_radius, and @cone target selectors, used only when an ability's own selector args don't set one."],
+            ["vanilla-stats.mining-speed / weapon-damage / bow-damage / crossbow-damage / armor-base / armor-multiplier", "see file", "Stat scaling by tool/armor tier, applied to translated vanilla items."],
+            ["lore.sections", "[breaking-power, base-lore, lore-template, stats, modifiers, enchantments, abilities, rarity-tag]", "Ordered list of lore blocks to render. Remove an entry to hide that block entirely (e.g. remove modifiers to fold gemstone lines out of the lore)."],
+            ["lore.spacer-between-sections", "true", "Whether a blank line is inserted between two consecutive non-empty blocks."],
+            ["lore.breaking-power.format / stats.line-format / modifiers.line-format", "styled MiniMessage strings", "Per-line format for the breaking-power line, each stat line, and each attached modifier line."],
+            ["lore.abilities.header-format / mana-cost-format / cooldown-format", "styled MiniMessage strings", "Ability lore formatting (FULL-display abilities only — a SIMPLE ability just shows its description)."],
+            ["lore.rarity-tag.format", "\"{color}<bold>{rarity}{type}\"", "The bottom \"EPIC SWORD\" line."],
+            ["trample.protected-block", "\"FARMLAND\"", "Which block PHYSICAL-interact trample protection (CANCEL_TRAMPLE boots) applies to."],
+          ],
+        },
+      },
+      {
+        heading: "mechanics:",
+        body: [
+          "Server-wide fallback values for item-ability mechanic params, consulted only when an individual ability YAML's own params: omits that field — every ability can still override any of these per-instance. Each default below reproduces the mechanic's original hardcoded literal, so leaving this section untouched changes no behavior.",
+        ],
+        table: {
+          headers: ["Mechanic", "Fields", "Defaults"],
+          rows: [
+            ["damage", "default-amount / default-type / default-ticks / default-interval-seconds", "1.0 / MAGIC / 1 / 1.0"],
+            ["heal", "target / interval", "@player / 1.0"],
+            ["launch-projectile", "projectile / velocity / count / spread / pierce / damage", "ARROW / 2.0 / 1 / 0.0 / false / 0.0"],
+            ["aoe-mine", "radius", "1"],
+            ["pull-entities", "period-ticks / strength-default / range-default / duration-default / target-default", "4 / 1.0 / 20.0 / 2.0 / @enemies_in_radius{r=10}"],
+            ["push-entities", "force-default / y-clamp / y-factor", "1.0 / 0.3 / 0.4"],
+            ["ignite", "duration-default", "3.0"],
+            ["apply-effect", "duration-default / amplifier-default / hide-particles", "5.0 / 1 / false"],
+            ["modify-stat", "amount-default / duration-default", "0.0 / -1.0 (permanent)"],
+            ["launch-player", "y-force-default / forward-force-default / no-fall-damage-default", "1.0 / 1.0 / false"],
+            ["charge-jump", "max-charge-ms / min-y-force / max-y-force", "2000 / 0.4 / 2.2"],
+            ["teleport", "distance-default", "8.0"],
+          ],
+        },
+      },
+      {
+        heading: "enchants:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["etable.cost-per-level", "2", "XP levels charged per level of an enchant applied at the enchanting table."],
+            ["defaults.<logic-id>.percent-per-level", "sharpness 5.0, growth 10.0, fortune 10.0, efficiency 50.0, stat_bonus 1.0, damage_multiplier 5.0, defense_reduction 3.0, protection 4.0, execute 0.2, first_strike 25.0, life_steal 0.5, lethality 0.2, respite 0.5, thorns 15.0", "Power-curve default for each built-in logic id, used when an enchant's own YAML doesn't set logic-params.percent-per-level."],
+            ["defaults.first_strike.max-hits / reset-window-ms", "3 / 10000", "First-strike combo window tuning."],
+            ["defaults.lethality.max-stacks / stack-duration-ms", "4 / 4000", "Lethality stacking tuning."],
+            ["defaults.etable-max-level / absolute-max-level", "5 / 10", "Global level caps used when an individual enchant's own YAML omits these."],
+            ["transient.cleanup-interval-ticks / idle-purge-millis", "6000 / 900000", "Transient (combat-only) enchant-state cleanup: sweep interval and idle-purge timeout."],
+          ],
+        },
+      },
+      {
+        heading: "pets:",
+        body: ["Pet leveling (xp-formula/max-level) lives in its own pets/defaults.yml; this section is server-operator feel/perf tuning instead."],
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["follow.follow-distance / teleport-distance / step", "2.5 / 12.0 / 0.35", "Follow feel: how close before it stops closing distance, how far before it snaps (teleports) to catch up, and how far it steps toward the owner each tick."],
+            ["follow.tick-interval-ticks", "5", "Follow-poll rate — CPU vs. smoothness."],
+          ],
+        },
+      },
+      {
+        heading: "modifiers:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["group-defaults.application-mode / max / replacement / removal", "MULTIPLE / 2147483647 / false / true", "Server-wide policy fallback used when a modifier group's own YAML omits an application: field. Every group can still override individually."],
+            ["tier-source.formula", "\"\" (blank = built-in rank+1)", "Expression evaluated with $rarity.rank$ for RARITY_RANK groups (e.g. reforges)."],
+          ],
+        },
+      },
+      {
+        heading: "alchemy:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["splash-radius", "4.0", "Block radius for a splash potion's area of effect."],
+            ["tick-interval", "20", "Ticks between active-effect expiry checks (20 = once a second)."],
+            ["max-active-effects", "10", "Max concurrent active alchemy effects tracked per player."],
+            ["effects.healing.values / effects.absorption.values", "[20,50,100,150,200,250,300,350] / [20,40,60,80,100,150,200,300]", "Per-level curves for the two hardcoded (non-vanilla-potion) alchemy effects."],
+            ["effects.vanilla.<id>", "unset (example commented)", "Additional vanilla-potion-backed alchemy effects beyond the built-in jump_boost/night_vision/invisibility/fire_resistance."],
+          ],
+        },
+      },
+      {
+        heading: "fishing:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [["loot.default-weight", "10", "Fallback loot-table weight for a fishing-loot entry that omits its own weight."]],
+        },
+      },
+      {
+        heading: "notify:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [["categories.info.io / categories.error.io", "chat / actionbar", "Output channel each notification category routes to."]],
+        },
+      },
+      {
+        heading: "zones:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["spawner-tick-interval-ticks", "20", "How often the mob-spawner task polls. Large servers with many zone spawners may want to spread this to 40–100 ticks (2–5s)."],
+            ["mob-home-interval-ticks", "40", "How often the \"return home if too far from a zone spawner\" task scans living entities."],
+            ["visualization-interval-ticks / selection-visualization-interval-ticks", "40 / 10", "Refresh rate for zone-border particles and the admin-only pos1/pos2 selection wireframe."],
+            ["visualization-max-distance", "200", "Beyond this distance (blocks) from a zone's center, its border stops rendering to a viewer."],
+            ["mob-wander-radius-multiplier / mob-wander-min-radius", "2.0 / 4", "Spawner spawn-radius → spawned-mob wander-radius conversion, with a floor."],
+            ["spawn-search-attempts", "20", "Retry attempts when searching for a safe natural-spawn location."],
+            ["spawn-occupancy-radius", "0.8", "Radius checked for an already-occupying entity before spawning at a candidate spot."],
+            ["enter-title-duration-ticks", "60", "How long the zone-enter actionbar popup stays."],
+            ["wand.material / name / lore", "GOLDEN_AXE, \"<gold><bold>Zone Wand\", []", "The zone-selection wand's item, name, and lore. Empty lore falls back to the built-in \"Left-click: Set Pos1 / Right-click: Set Pos2\" lines."],
+            ["messages.wilderness-name", "\"<green>Wilderness\"", "Shown for $zone.current$/the scoreboard \"Zone:\" line when a player isn't inside any zone."],
+          ],
+        },
+      },
+      {
+        heading: "warps:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["defaults.world / y / unlock-condition / cost / cooldown / warmup", "\"world\" / 64 / \"always\" / 0.0 / 0 / 0", "Fallbacks used only when an individual warp's own YAML omits these fields. y: 64 is unsafe on a void world or a build well above/below y=64 — a load-time warning is logged for a warp relying on it."],
+            ["warmup.cancel-on-move-distance", "1.0", "How far (blocks) a player can drift during a warp warmup before it's cancelled as \"moved\"."],
+            ["warmup.cancel-on-damage", "false", "Whether taking damage during a warmup cancels the warp."],
+          ],
+        },
+      },
+      {
+        heading: "gui:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["defaults.title / update-interval-ticks / machine / command-permission", "\"Inventory\" / 0 / (falls back to the GUI's own id) / unset", "Fallbacks used only when a GUI's own YAML omits these fields. command-permission stays permissive (unset) by default, matching the original hardcoded behavior."],
+            ["max-lore-lines", "0", "Guards against a runaway dynamic/looped lore list exceeding the client's line cap. 0 disables the check."],
+            ["crafting.max-mass-crafts", "64", "Cap on how many crafts a single mass-craft action can perform at once — an anti-dupe/anti-bulk-exploit lever."],
+          ],
+        },
+      },
+      {
+        heading: "ui:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["tick-interval-ticks", "2", "Scoreboard/actionbar clock tick rate — the hottest loop in the UI module (ticks every online player). 2 = 10 Hz; large servers may want 4–10 (5–2 Hz)."],
+            ["chat.prefix", "\"<dark_gray>[<gold>Valmora<dark_gray>] <white>\"", "Chat-message prefix branding."],
+          ],
+        },
+      },
+      {
+        heading: "hud:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [["respawn-restore-delay-ticks", "1", "How long after respawn HUD items are re-given. Can be fragile with lag or keepInventory interactions — raise slightly if items aren't reliably restored."]],
+        },
+      },
+      {
+        heading: "npc: and dialogue:",
+        table: {
+          headers: ["Key", "Default", "What it does"],
+          rows: [
+            ["npc.look-range", "10.0", "Distance within which an NPC turns to look at a nearby player."],
+            ["npc.hologram.origin-y", "2.0", "Vertical offset for an NPC's nameplate/hologram."],
+            ["npc.tasks.respawn-interval / look-interval", "1200 / 5", "How often despawned NPCs are checked for respawn, and how often the look-at-player task runs."],
+            ["npc.messages.prefix", "\"<dark_gray>[<gold>NPC<dark_gray>] \"", "Chat prefix on NPC-related messages."],
+            ["npc.skin.urls.profile / session / mineskin", "official Mojang/MineSkin endpoints", "Point at a self-hosted proxy if running one."],
+            ["npc.skin.user-agent", "\"Valmora-NPC/1.0 (contact: server-admin)\"", "User-Agent header sent on outbound skin-related HTTP requests."],
+            ["dialogue.auto-advance.ticks-per-char / min-ticks / max-ticks", "3 / 40 / 200", "NPC-to-NPC auto-advance reading speed: ticks held per character, with a floor and ceiling regardless of text length."],
+            ["dialogue.chat-clear-lines", "20", "Blank lines sent to \"clear\" chat before opening a dialogue."],
+            ["dialogue.hint-interval-ticks", "40", "How often the \"press to continue\" hint is re-sent during a dialogue."],
+            ["dialogue.stop-check-interval-ticks", "5", "How often the dialogue system polls for a stop/cancel condition."],
+            ["dialogue.history-size", "100", "Max dialogue lines retained in a player's conversation history buffer."],
           ],
         },
       },

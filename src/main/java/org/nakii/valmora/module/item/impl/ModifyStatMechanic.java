@@ -5,6 +5,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.TemporaryStatService;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -27,8 +28,8 @@ public class ModifyStatMechanic implements AbilityMechanic {
         String stat = context.getString("stat", "");
         if (stat.isBlank()) return;
 
-        double amount = context.resolveDouble("amount", 0.0);
-        double duration = context.resolveDouble("duration", -1.0);
+        double amount = context.resolveDouble("amount", MechanicDefaults.getDouble("modify-stat", "amount-default", 0.0));
+        double duration = context.resolveDouble("duration", MechanicDefaults.getDouble("modify-stat", "duration-default", -1.0));
 
         ValmoraProfile profile = ValmoraAPI.getInstance().getPlayerManager()
                 .getSession(player.getUniqueId()).getActiveProfile();

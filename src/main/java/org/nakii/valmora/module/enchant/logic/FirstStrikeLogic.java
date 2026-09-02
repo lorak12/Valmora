@@ -18,16 +18,25 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class FirstStrikeLogic implements EnchantmentLogic {
 
-    private static final int MAX_HITS = 3;
-    private static final long RESET_WINDOW_MS = 10_000;
+    private static final int DEFAULT_MAX_HITS = 3;
+    private static final long DEFAULT_RESET_WINDOW_MS = 10_000;
 
     private final double percentPerLevel;
+    // HC-115: per-enchant window balance, overridable via `logic-params: {max-hits, reset-window-ms}`.
+    private final int maxHits;
+    private final long resetWindowMs;
     // victim uuid -> attacker uuid -> [hitCount, lastHitMillis]. A plain long[2] mutable cell
     // avoids a small record/class just for this internal bookkeeping.
     private final Map<UUID, Map<UUID, long[]>> hitState = new ConcurrentHashMap<>();
 
     public FirstStrikeLogic(double percentPerLevel) {
+        this(percentPerLevel, DEFAULT_MAX_HITS, DEFAULT_RESET_WINDOW_MS);
+    }
+
+    public FirstStrikeLogic(double percentPerLevel, int maxHits, long resetWindowMs) {
         this.percentPerLevel = percentPerLevel;
+        this.maxHits = maxHits;
+        this.resetWindowMs = resetWindowMs;
     }
 
     @Override
@@ -36,10 +45,10 @@ public class FirstStrikeLogic implements EnchantmentLogic {
         long[] state = perAttacker.computeIfAbsent(attacker.getUniqueId(), k -> new long[]{0, 0});
 
         long now = System.currentTimeMillis();
-        if (now - state[1] > RESET_WINDOW_MS) state[0] = 0;
+        if (now - state[1] > resetWindowMs) state[0] = 0;
         state[1] = now;
 
-        if (state[0] < MAX_HITS) {
+        if (state[0] < maxHits) {
             context.setDamageMultiplier(context.getDamageMultiplier() * (1.0 + (percentPerLevel / 100.0) * level));
             state[0]++;
         }

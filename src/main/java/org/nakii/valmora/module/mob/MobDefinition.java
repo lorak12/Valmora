@@ -135,11 +135,41 @@ public class MobDefinition {
         return (abilities != null && !abilities.isEmpty()) || (bossBar != null && bossBar.isEnabled());
     }
 
+    /**
+     * HC-081: damage-per-level curve, configurable via {@code mobs.damage-scaling} (an
+     * {@code Expression} evaluated with {@code $mob.base_damage$}/{@code $mob.level$}) — falls
+     * back to the original hardcoded {@code baseDamage + (level-1)} linear curve when unset or
+     * when the script module isn't available (e.g. unit tests).
+     */
     public double getScaledDamage() {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("mobs.damage-scaling", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("mob:base_damage", baseDamage);
+            ctx.set("mob:level", (double) level);
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.doubleValue();
+        }
         return baseDamage + (level - 1);
     }
 
+    /**
+     * HC-082: XP-reward curve, configurable via {@code mobs.xp-reward-formula} — falls back to the
+     * original hardcoded {@code baseXp * level} linear curve when unset.
+     */
     public int getXpReward() {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("mobs.xp-reward-formula", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("mob:base_xp", (double) baseXp);
+            ctx.set("mob:level", (double) level);
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.intValue();
+        }
         return baseXp * level;
     }
 
@@ -176,15 +206,20 @@ public class MobDefinition {
         private double aggroRange = -1.0;
         private double leashRange = -1.0;
         private boolean naturalSpawn = false;
-        private double naturalSpawnChance = 0.1;
-        private int naturalSpawnMaxNearby = 3;
+        private double naturalSpawnChance;
+        private int naturalSpawnMaxNearby;
 
+        // HC-083: mobs.defaults.* — global fallback when a mob's own YAML omits these fields.
         public Builder(String id) {
             this.id = id;
-            this.baseDamage = 5.0;
+            var plugin = org.nakii.valmora.Valmora.getInstance();
+            var cfg = plugin != null ? plugin.getConfig() : null;
+            this.baseDamage = cfg != null ? cfg.getDouble("mobs.defaults.base-damage", 5.0) : 5.0;
             this.level = 1;
-            this.baseXp = 2;
-            this.goldReward = 0;
+            this.baseXp = cfg != null ? cfg.getInt("mobs.defaults.base-xp", 2) : 2;
+            this.goldReward = cfg != null ? cfg.getInt("mobs.defaults.gold-reward", 0) : 0;
+            this.naturalSpawnChance = cfg != null ? cfg.getDouble("mobs.defaults.natural-spawn-chance", 0.1) : 0.1;
+            this.naturalSpawnMaxNearby = cfg != null ? cfg.getInt("mobs.defaults.natural-spawn-max-nearby", 3) : 3;
             this.damageType = DamageType.MELEE;
             this.lootTable = LootTable.empty();
         }

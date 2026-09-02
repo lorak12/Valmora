@@ -285,8 +285,20 @@ public class ItemFactory {
         return result.toString();
     }
 
+    /** HC-040: {@code items.breaking-power} — tool tier substring -> breaking power, so a custom
+     *  tool tier added by a content pack doesn't need a recompile to get a matching power value. */
     private int getBreakingPower(Material material) {
         String name = material.name();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        org.bukkit.configuration.ConfigurationSection section = plugin != null
+                ? plugin.getConfig().getConfigurationSection("items.breaking-power") : null;
+        if (section != null) {
+            if (name.contains("NETHERITE")) return section.getInt("netherite", 5);
+            if (name.contains("DIAMOND")) return section.getInt("diamond", 4);
+            if (name.contains("IRON")) return section.getInt("iron", 3);
+            if (name.contains("STONE")) return section.getInt("stone", 2);
+            return section.getInt("wood", 1);
+        }
         if (name.contains("NETHERITE")) return 5;
         if (name.contains("DIAMOND")) return 4;
         if (name.contains("IRON")) return 3;

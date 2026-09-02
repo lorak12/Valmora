@@ -35,7 +35,9 @@ public class FishingLoader {
             List<Map<?, ?>> entryList = sec.getMapList("entries");
             for (Map<?, ?> m : entryList) {
                 String item = m.containsKey("item") ? m.get("item").toString() : "COD";
-                int weight = m.containsKey("weight") ? ((Number) m.get("weight")).intValue() : 10;
+                // HC-200: fishing.loot.default-weight — used when an entry omits its own weight.
+                int defaultWeight = plugin.getConfig().getInt("fishing.loot.default-weight", 10);
+                int weight = m.containsKey("weight") ? ((Number) m.get("weight")).intValue() : defaultWeight;
                 int min = m.containsKey("min") ? ((Number) m.get("min")).intValue() : 1;
                 int max = m.containsKey("max") ? ((Number) m.get("max")).intValue() : 1;
                 entries.add(new FishingLootEntry(item, weight, min, max));

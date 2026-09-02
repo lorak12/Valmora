@@ -56,17 +56,17 @@ public final class TargetResolver {
             }
             case "@target" -> ctx.getTarget().ifPresent(result::add);
             case "@enemies_in_radius" -> {
-                double r = parse(args, "r", 5.0);
+                double r = parse(args, "r", defaultDouble("enemies-radius", 5.0));
                 result.addAll(nearby(caster, center, r, false));
             }
             case "@allies_in_radius" -> {
-                double r = parse(args, "r", 5.0);
+                double r = parse(args, "r", defaultDouble("enemies-radius", 5.0));
                 if (caster instanceof Player) result.add(caster);
                 result.addAll(nearby(caster, center, r, true));
             }
             case "@cone" -> {
-                double range = parse(args, "range", 8.0);
-                double angle = parse(args, "angle", 45.0);
+                double range = parse(args, "range", defaultDouble("cone-range", 8.0));
+                double angle = parse(args, "angle", defaultDouble("cone-angle", 45.0));
                 result.addAll(cone(caster, center, range, angle));
             }
             default -> ctx.getTarget().ifPresent(result::add);
@@ -108,6 +108,12 @@ public final class TargetResolver {
         // Treat any non-player living entity as a valid combat target. Monster check keeps the
         // intent clear; the broader fallback covers custom mobs that don't extend Monster.
         return !(le instanceof Player);
+    }
+
+    /** HC-047: {@code items.target-resolver.defaults.*} — global default when a selector's own {@code r=}/{@code range=}/{@code angle=} arg is omitted. */
+    private static double defaultDouble(String key, double fallback) {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getDouble("items.target-resolver.defaults." + key, fallback) : fallback;
     }
 
     private static double parse(Map<String, String> args, String key, double def) {

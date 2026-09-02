@@ -3,6 +3,7 @@ package org.nakii.valmora.module.item.impl;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 
 /**
  * Begins a "charge your jump by sneaking" cycle (e.g. Spring Boots' "To the Moon!"). Bind this to
@@ -23,9 +24,9 @@ public class ChargeJumpMechanic implements AbilityMechanic {
     public void execute(ExecutionContext context) {
         if (!(context.getCaster() instanceof Player player)) return;
 
-        long maxChargeMs = (long) context.resolveDouble("max-charge-ms", 2000.0);
-        double minYForce = context.resolveDouble("min-y-force", 0.4);
-        double maxYForce = context.resolveDouble("max-y-force", 2.2);
+        long maxChargeMs = (long) context.resolveDouble("max-charge-ms", MechanicDefaults.getDouble("charge-jump", "max-charge-ms", 2000.0));
+        double minYForce = context.resolveDouble("min-y-force", MechanicDefaults.getDouble("charge-jump", "min-y-force", 0.4));
+        double maxYForce = context.resolveDouble("max-y-force", MechanicDefaults.getDouble("charge-jump", "max-y-force", 2.2));
 
         ChargeJumpTracker.startCharge(player.getUniqueId(),
                 new ChargeJumpTracker.ChargeParams(maxChargeMs, minYForce, maxYForce));

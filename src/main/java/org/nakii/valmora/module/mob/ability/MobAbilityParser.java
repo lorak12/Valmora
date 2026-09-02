@@ -45,9 +45,13 @@ public final class MobAbilityParser {
             }
             builder.trigger(trigger);
 
-            builder.intervalTicks(abSec.getInt("interval", 100));
-            builder.chance(abSec.getDouble("chance", 1.0));
-            builder.healthPercent(abSec.getDouble("health-percent", 50.0));
+            // HC-090: mobs.abilities.defaults.* — server-wide balance fallback when a mob's own
+            // ability YAML omits these fields.
+            var plugin = org.nakii.valmora.Valmora.getInstance();
+            var cfg = plugin != null ? plugin.getConfig() : null;
+            builder.intervalTicks(abSec.getInt("interval", cfg != null ? cfg.getInt("mobs.abilities.defaults.interval", 100) : 100));
+            builder.chance(abSec.getDouble("chance", cfg != null ? cfg.getDouble("mobs.abilities.defaults.chance", 1.0) : 1.0));
+            builder.healthPercent(abSec.getDouble("health-percent", cfg != null ? cfg.getDouble("mobs.abilities.defaults.health-percent", 50.0) : 50.0));
             builder.targetRange(abSec.getDouble("target-range", 0.0));
             builder.cooldownSeconds(abSec.getDouble("cooldown", 0.0));
             if (abSec.contains("announce")) builder.announce(abSec.getString("announce"));

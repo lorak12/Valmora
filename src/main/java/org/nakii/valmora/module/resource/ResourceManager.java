@@ -129,12 +129,15 @@ public class ResourceManager {
         final Material finalOriginal = originalMaterial;
         plugin.getServer().getScheduler().runTask(plugin, () -> block.setType(nextMat, false));
 
-        long regenAtMillis = System.currentTimeMillis() + config.getRegenDelayTicks() * 50L;
+        // HC-241: guards a malformed resource config (e.g. `regen-delay: 1`) from scheduling a
+        // near-per-tick task storm on every mined block of that type.
+        long regenDelayTicks = clampRegenDelay(config.getRegenDelayTicks());
+        long regenAtMillis = System.currentTimeMillis() + regenDelayTicks * 50L;
         BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             block.setType(finalOriginal, false);
             trackedBlocks.remove(key);
             playRegenFeedback(block.getLocation(), finalOriginal);
-        }, config.getRegenDelayTicks());
+        }, regenDelayTicks);
 
         int depletedIndex = config.getStageCount(); // past end = depleted sentinel
         int nextStageIndex = isLastStage ? depletedIndex : stageIndex + 1;
@@ -165,6 +168,12 @@ public class ResourceManager {
         World world = loc.getWorld();
         if (world == null) return;
         world.playSound(loc, Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
+    }
+
+    /** HC-241: floors a configured regen delay to {@code resource.limits.min-regen-delay-ticks}. */
+    private long clampRegenDelay(long configuredTicks) {
+        long minTicks = plugin.getConfig().getLong("resource.limits.min-regen-delay-ticks", 20L);
+        return Math.max(minTicks, configuredTicks);
     }
 
     private void playRegenFeedback(Location loc, Material restoredMaterial) {

@@ -21,8 +21,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TransientStateTracker {
 
     /** Entries idle longer than this are purged by {@link #cleanup()}, independent of any one
-     *  enchant's own (usually much shorter) {@code reset-after-seconds}. */
-    private static final long CLEANUP_IDLE_MILLIS = 15 * 60 * 1000L;
+     *  enchant's own (usually much shorter) {@code reset-after-seconds}. HC-113:
+     *  {@code enchants.transient.idle-purge-millis}. */
+    private static long cleanupIdleMillis() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getLong("enchants.transient.idle-purge-millis", 15 * 60 * 1000L) : 15 * 60 * 1000L;
+    }
 
     private record TrackerKey(UUID attacker, String enchantId, String stateKey) {
     }
@@ -91,7 +95,7 @@ public class TransientStateTracker {
      *  pre-overhaul unbounded memory leak. */
     public void cleanup() {
         long now = System.currentTimeMillis();
-        entries.entrySet().removeIf(e -> now - e.getValue().lastMutateMillis > CLEANUP_IDLE_MILLIS);
+        entries.entrySet().removeIf(e -> now - e.getValue().lastMutateMillis > cleanupIdleMillis());
     }
 
     /** Drops every tracked entry — called from {@code EnchantModule.onDisable()} since this state

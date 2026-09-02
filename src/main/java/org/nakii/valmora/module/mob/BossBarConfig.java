@@ -20,7 +20,17 @@ public class BossBarConfig {
     }
 
     public static BossBarConfig disabled() {
-        return new BossBarConfig(false, BossBar.Color.RED, BossBar.Overlay.PROGRESS, 40.0);
+        return new BossBarConfig(false, BossBar.Color.RED, BossBar.Overlay.PROGRESS, defaultRange());
+    }
+
+    /**
+     * {@code mobs.boss-bar.default-range} (HC-085) — single source of truth for the boss-bar
+     * visibility-range default, consumed here and by {@code MobDefinitionParser} so the two no
+     * longer carry independent {@code 40.0} literals that could silently drift apart.
+     */
+    public static double defaultRange() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getDouble("mobs.boss-bar.default-range", 40.0) : 40.0;
     }
 
     public boolean isEnabled() { return enabled; }

@@ -28,7 +28,11 @@ import java.util.stream.Collectors;
 
 public class NpcCommand implements TabExecutor {
 
-    private static final String PREFIX = "<dark_gray>[<gold>NPC<dark_gray>] ";
+    /** HC-217: {@code npc.messages.prefix} — branding. */
+    private static String prefix() {
+        Valmora plugin = Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getString("npc.messages.prefix", "<dark_gray>[<gold>NPC<dark_gray>] ") : "<dark_gray>[<gold>NPC<dark_gray>] ";
+    }
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "list", "info", "tp", "move",
             "rename", "settype", "setyaw", "conversation", "clearconv",
@@ -45,8 +49,8 @@ public class NpcCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>No permission."));
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "npc")) {
+            sender.sendMessage(Formatter.format(prefix() + "<red>No permission."));
             return true;
         }
         if (args.length == 0) {
@@ -56,7 +60,7 @@ public class NpcCommand implements TabExecutor {
 
         NpcManager nm = plugin.getNpcManager();
         if (nm == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC module is not loaded."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC module is not loaded."));
             return true;
         }
 
@@ -85,18 +89,18 @@ public class NpcCommand implements TabExecutor {
     // ── Subcommand implementations ────────────────────────────────────────────
 
     private void cmdCreate(CommandSender sender, String[] args, NpcManager nm) {
-        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(PREFIX + "<red>Only players can use this.")); return; }
-        if (args.length < 3) { player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc create <id> <entity_type>")); return; }
+        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(prefix() + "<red>Only players can use this.")); return; }
+        if (args.length < 3) { player.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc create <id> <entity_type>")); return; }
 
         String id = args[1].toLowerCase();
         if (nm.getRegistry().contains(id)) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' already exists."));
+            player.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' already exists."));
             return;
         }
 
         EntityType type = parseEntityType(args[2]);
         if (type == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown entity type: <white>" + args[2]));
+            player.sendMessage(Formatter.format(prefix() + "<red>Unknown entity type: <white>" + args[2]));
             return;
         }
 
@@ -116,26 +120,26 @@ public class NpcCommand implements TabExecutor {
         nm.registerAndSpawn(def);
         saveNpc(def, false);
 
-        player.sendMessage(Formatter.format(PREFIX + "<green>Created NPC '<white>" + id + "<green>' (" + type.name() + ") at your location."));
-        player.sendMessage(Formatter.format(PREFIX + "<gray>Tip: use <white>/npc rename " + id + " <MiniMessage name> <gray>to set a display name."));
+        player.sendMessage(Formatter.format(prefix() + "<green>Created NPC '<white>" + id + "<green>' (" + type.name() + ") at your location."));
+        player.sendMessage(Formatter.format(prefix() + "<gray>Tip: use <white>/npc rename " + id + " <MiniMessage name> <gray>to set a display name."));
     }
 
     private void cmdDelete(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc delete <id>")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc delete <id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
         nm.removeNpc(id);
         boolean removed = deleteFromFile(def);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Deleted NPC '<white>" + id + "<green>'."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Deleted NPC '<white>" + id + "<green>'."));
         if (!removed) {
-            sender.sendMessage(Formatter.format(PREFIX + "<yellow>Note: this NPC is defined in <white>" + def.getSourceFile()
+            sender.sendMessage(Formatter.format(prefix() + "<yellow>Note: this NPC is defined in <white>" + def.getSourceFile()
                     + "<yellow> — remove it there to prevent it coming back on reload."));
         }
     }
@@ -160,11 +164,11 @@ public class NpcCommand implements TabExecutor {
     }
 
     private void cmdInfo(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc info <id>")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc info <id>")); return; }
 
         NpcDefinition def = nm.getRegistry().get(args[1].toLowerCase()).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + args[1] + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + args[1] + "<red>' not found."));
             return;
         }
 
@@ -190,34 +194,34 @@ public class NpcCommand implements TabExecutor {
     }
 
     private void cmdTp(CommandSender sender, String[] args, NpcManager nm) {
-        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(PREFIX + "<red>Only players can use this.")); return; }
-        if (args.length < 2) { player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc tp <id>")); return; }
+        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(prefix() + "<red>Only players can use this.")); return; }
+        if (args.length < 2) { player.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc tp <id>")); return; }
 
         NpcDefinition def = nm.getRegistry().get(args[1].toLowerCase()).orElse(null);
         if (def == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + args[1] + "<red>' not found."));
+            player.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + args[1] + "<red>' not found."));
             return;
         }
 
         World world = Bukkit.getWorld(def.getWorldName());
         if (world == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>World '<white>" + def.getWorldName() + "<red>' is not loaded."));
+            player.sendMessage(Formatter.format(prefix() + "<red>World '<white>" + def.getWorldName() + "<red>' is not loaded."));
             return;
         }
 
         Location dest = new Location(world, def.getX(), def.getY(), def.getZ(), def.getYaw(), 0f);
         player.teleportAsync(dest);
-        player.sendMessage(Formatter.format(PREFIX + "<green>Teleported to NPC '<white>" + def.getId() + "<green>'."));
+        player.sendMessage(Formatter.format(prefix() + "<green>Teleported to NPC '<white>" + def.getId() + "<green>'."));
     }
 
     private void cmdMove(CommandSender sender, String[] args, NpcManager nm) {
-        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(PREFIX + "<red>Only players can use this.")); return; }
-        if (args.length < 2) { player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc move <id>")); return; }
+        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(prefix() + "<red>Only players can use this.")); return; }
+        if (args.length < 2) { player.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc move <id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            player.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -226,17 +230,17 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        player.sendMessage(Formatter.format(PREFIX + "<green>Moved NPC '<white>" + id + "<green>' to your position."));
+        player.sendMessage(Formatter.format(prefix() + "<green>Moved NPC '<white>" + id + "<green>' to your position."));
         warnIfSpawnFailed(player, spawned, id);
     }
 
     private void cmdRename(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 3) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc rename <id> <name...>")); return; }
+        if (args.length < 3) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc rename <id> <name...>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -245,23 +249,23 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Renamed NPC '<white>" + id + "<green>' to: " + newName));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Renamed NPC '<white>" + id + "<green>' to: " + newName));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdSetType(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 3) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc settype <id> <entity_type>")); return; }
+        if (args.length < 3) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc settype <id> <entity_type>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
         EntityType type = parseEntityType(args[2]);
         if (type == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>Unknown entity type: <white>" + args[2]));
+            sender.sendMessage(Formatter.format(prefix() + "<red>Unknown entity type: <white>" + args[2]));
             return;
         }
 
@@ -269,17 +273,17 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Changed type of '<white>" + id + "<green>' to <white>" + type.name() + "<green>."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Changed type of '<white>" + id + "<green>' to <white>" + type.name() + "<green>."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdSetYaw(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc setyaw <id> [yaw]")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc setyaw <id> [yaw]")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -287,13 +291,13 @@ public class NpcCommand implements TabExecutor {
         if (args.length >= 3) {
             try { yaw = Float.parseFloat(args[2]); }
             catch (NumberFormatException e) {
-                sender.sendMessage(Formatter.format(PREFIX + "<red>Invalid yaw value."));
+                sender.sendMessage(Formatter.format(prefix() + "<red>Invalid yaw value."));
                 return;
             }
         } else if (sender instanceof Player player) {
             yaw = round2f(player.getLocation().getYaw());
         } else {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>Provide a yaw value when running from console."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>Provide a yaw value when running from console."));
             return;
         }
 
@@ -301,17 +305,17 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Set yaw of '<white>" + id + "<green>' to <white>" + yaw + "<green>."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Set yaw of '<white>" + id + "<green>' to <white>" + yaw + "<green>."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdConversation(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 3) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc conversation <id> <dialogue_id>")); return; }
+        if (args.length < 3) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc conversation <id> <dialogue_id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -320,17 +324,17 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Bound conversation '<white>" + convId + "<green>' to NPC '<white>" + id + "<green>'."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Bound conversation '<white>" + convId + "<green>' to NPC '<white>" + id + "<green>'."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdClearConv(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc clearconv <id>")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc clearconv <id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -338,22 +342,22 @@ public class NpcCommand implements TabExecutor {
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
 
-        sender.sendMessage(Formatter.format(PREFIX + "<green>Cleared conversation binding from NPC '<white>" + id + "<green>'."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>Cleared conversation binding from NPC '<white>" + id + "<green>'."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdSkin(CommandSender sender, String[] args, NpcManager nm) {
-        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(PREFIX + "<red>Only players can use this.")); return; }
+        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(prefix() + "<red>Only players can use this.")); return; }
         if (args.length < 3) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc skin <id> <player|url|file|reset> [value]"));
+            player.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc skin <id> <player|url|file|reset> [value]"));
             return;
         }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
-        if (def == null) { player.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found.")); return; }
+        if (def == null) { player.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found.")); return; }
         if (def.getEntityType() != org.bukkit.entity.EntityType.MANNEQUIN) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Skins only apply to <white>MANNEQUIN<red>-type NPCs."));
+            player.sendMessage(Formatter.format(prefix() + "<red>Skins only apply to <white>MANNEQUIN<red>-type NPCs."));
             return;
         }
 
@@ -366,7 +370,7 @@ public class NpcCommand implements TabExecutor {
         }
 
         if (args.length < 4) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc skin <id> " + type + " <value>"));
+            player.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc skin <id> " + type + " <value>"));
             return;
         }
         String value = args[3];
@@ -374,25 +378,25 @@ public class NpcCommand implements TabExecutor {
         switch (type) {
             // ── player <name> ─────────────────────────────────────────────────
             case "player" -> {
-                player.sendMessage(Formatter.format(PREFIX + "<gray>Fetching skin for <white>" + value + "<gray>..."));
+                player.sendMessage(Formatter.format(prefix() + "<gray>Fetching skin for <white>" + value + "<gray>..."));
                 SkinResolver.fetch(value, plugin, new SkinResolver.Callback() {
                     @Override public void onSuccess(String tex, String sig) {
                         applySkin(player, nm, def, tex, sig, "Applied skin of <white>" + value + "<green>.");
                     }
                     @Override public void onFailure(String reason) {
-                        player.sendMessage(Formatter.format(PREFIX + "<red>Failed: <white>" + reason));
+                        player.sendMessage(Formatter.format(prefix() + "<red>Failed: <white>" + reason));
                     }
                 });
             }
             // ── url <url> ─────────────────────────────────────────────────────
             case "url" -> {
-                player.sendMessage(Formatter.format(PREFIX + "<gray>Uploading to Mineskin.org — this may take a few seconds..."));
+                player.sendMessage(Formatter.format(prefix() + "<gray>Uploading to Mineskin.org — this may take a few seconds..."));
                 SkinResolver.fetchFromUrl(value, plugin, new SkinResolver.Callback() {
                     @Override public void onSuccess(String tex, String sig) {
                         applySkin(player, nm, def, tex, sig, "Applied skin from URL.");
                     }
                     @Override public void onFailure(String reason) {
-                        player.sendMessage(Formatter.format(PREFIX + "<red>Failed: <white>" + reason));
+                        player.sendMessage(Formatter.format(prefix() + "<red>Failed: <white>" + reason));
                     }
                 });
             }
@@ -400,29 +404,29 @@ public class NpcCommand implements TabExecutor {
             case "file" -> {
                 SkinFileServer fileServer = plugin.getNpcModule().getSkinFileServer();
                 if (fileServer == null) {
-                    player.sendMessage(Formatter.format(PREFIX + "<red>Skin file server is not enabled. "
+                    player.sendMessage(Formatter.format(prefix() + "<red>Skin file server is not enabled. "
                             + "Set <white>npc-skin-server.enabled: true<red> in config.yml and reload."));
                     return;
                 }
                 java.io.File skinFile = new java.io.File(fileServer.getSkinsDir(), value);
                 if (!skinFile.exists()) {
-                    player.sendMessage(Formatter.format(PREFIX + "<red>File not found: <white>" + value
+                    player.sendMessage(Formatter.format(prefix() + "<red>File not found: <white>" + value
                             + "<red>. Place the PNG in <white>" + fileServer.getSkinsDir().getPath()));
                     return;
                 }
                 String url = fileServer.urlFor(value);
-                player.sendMessage(Formatter.format(PREFIX + "<gray>Applying skin from file: <white>" + value));
+                player.sendMessage(Formatter.format(prefix() + "<gray>Applying skin from file: <white>" + value));
                 SkinResolver.fetchFromUrl(url, plugin, new SkinResolver.Callback() {
                     @Override public void onSuccess(String tex, String sig) {
                         applySkin(player, nm, def, tex, sig, "Applied skin from file <white>" + value + "<green>.");
                     }
                     @Override public void onFailure(String reason) {
-                        player.sendMessage(Formatter.format(PREFIX + "<red>Failed: <white>" + reason));
+                        player.sendMessage(Formatter.format(prefix() + "<red>Failed: <white>" + reason));
                     }
                 });
             }
             default -> player.sendMessage(Formatter.format(
-                    PREFIX + "<red>Unknown skin type '<white>" + type + "<red>'. Use: player, url, file, reset"));
+                    prefix() + "<red>Unknown skin type '<white>" + type + "<red>'. Use: player, url, file, reset"));
         }
     }
 
@@ -431,12 +435,12 @@ public class NpcCommand implements TabExecutor {
         NpcDefinition updated = def.withSkin(texture, signature);
         boolean spawned = nm.updateAndRespawn(updated);
         saveNpc(updated, true);
-        player.sendMessage(Formatter.format(PREFIX + "<green>" + successMsg));
+        player.sendMessage(Formatter.format(prefix() + "<green>" + successMsg));
         warnIfSpawnFailed(player, spawned, def.getId());
     }
 
     private void cmdNear(CommandSender sender, String[] args, NpcManager nm) {
-        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(PREFIX + "<red>Only players can use this.")); return; }
+        if (!(sender instanceof Player player)) { sender.sendMessage(Formatter.format(prefix() + "<red>Only players can use this.")); return; }
 
         double radius = 32.0;
         if (args.length >= 2) {
@@ -457,11 +461,11 @@ public class NpcCommand implements TabExecutor {
         }
 
         if (nearby.isEmpty()) {
-            player.sendMessage(Formatter.format(PREFIX + "<gray>No NPCs within " + (int) radius + " blocks."));
+            player.sendMessage(Formatter.format(prefix() + "<gray>No NPCs within " + (int) radius + " blocks."));
             return;
         }
 
-        player.sendMessage(Formatter.format(PREFIX + "<gold>" + nearby.size() + " NPC(s) within " + (int) radius + " blocks:"));
+        player.sendMessage(Formatter.format(prefix() + "<gold>" + nearby.size() + " NPC(s) within " + (int) radius + " blocks:"));
         for (NpcDefinition def : nearby) {
             double dist = Math.sqrt(Math.pow(def.getX() - origin.getX(), 2)
                     + Math.pow(def.getY() - origin.getY(), 2)
@@ -475,12 +479,12 @@ public class NpcCommand implements TabExecutor {
     }
 
     private void cmdLook(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc look <id>")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc look <id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -489,17 +493,17 @@ public class NpcCommand implements TabExecutor {
         saveNpc(updated, true);
 
         String state = updated.isLookAtPlayer() ? "<green>enabled" : "<red>disabled";
-        sender.sendMessage(Formatter.format(PREFIX + "<white>" + id + " <gray>look-at-player " + state + "<gray>."));
+        sender.sendMessage(Formatter.format(prefix() + "<white>" + id + " <gray>look-at-player " + state + "<gray>."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdShowName(CommandSender sender, String[] args, NpcManager nm) {
-        if (args.length < 2) { sender.sendMessage(Formatter.format(PREFIX + "<red>Usage: /npc showname <id>")); return; }
+        if (args.length < 2) { sender.sendMessage(Formatter.format(prefix() + "<red>Usage: /npc showname <id>")); return; }
 
         String id = args[1].toLowerCase();
         NpcDefinition def = nm.getRegistry().get(id).orElse(null);
         if (def == null) {
-            sender.sendMessage(Formatter.format(PREFIX + "<red>NPC '<white>" + id + "<red>' not found."));
+            sender.sendMessage(Formatter.format(prefix() + "<red>NPC '<white>" + id + "<red>' not found."));
             return;
         }
 
@@ -508,18 +512,18 @@ public class NpcCommand implements TabExecutor {
         saveNpc(updated, true);
 
         String state = updated.isShowName() ? "<green>shown" : "<red>hidden";
-        sender.sendMessage(Formatter.format(PREFIX + "<white>" + id + " <gray>name tag is now " + state + "<gray>."));
+        sender.sendMessage(Formatter.format(prefix() + "<white>" + id + " <gray>name tag is now " + state + "<gray>."));
         warnIfSpawnFailed(sender, spawned, id);
     }
 
     private void cmdReload(CommandSender sender) {
-        sender.sendMessage(Formatter.format(PREFIX + "<aqua>Reloading NPC module..."));
+        sender.sendMessage(Formatter.format(prefix() + "<aqua>Reloading NPC module..."));
         // Fixed 2026-08-07 — was plugin.getModuleManager().reloadModules(), which reloads every
         // module in the plugin (disabling/re-enabling all of them) for a command whose usage line
         // says "Reload all modules" but whose name and intent is npc-scoped. ModuleManager already
         // had a single-module reload primitive that nothing used.
         plugin.getModuleManager().reloadModule("npc");
-        sender.sendMessage(Formatter.format(PREFIX + "<green>NPC module reloaded."));
+        sender.sendMessage(Formatter.format(prefix() + "<green>NPC module reloaded."));
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
@@ -608,7 +612,7 @@ public class NpcCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) return List.of();
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "npc")) return List.of();
 
         List<String> completions = new ArrayList<>();
         NpcManager nm = plugin.getNpcManager();
@@ -731,7 +735,7 @@ public class NpcCommand implements TabExecutor {
     }
 
     private void warnIfSpawnFailed(CommandSender sender, boolean spawned, String id) {
-        if (!spawned) sender.sendMessage(Formatter.format(PREFIX + "<yellow>Warning: NPC '<white>" + id + "<yellow>' could not be spawned. Check entity type and world name."));
+        if (!spawned) sender.sendMessage(Formatter.format(prefix() + "<yellow>Warning: NPC '<white>" + id + "<yellow>' could not be spawned. Check entity type and world name."));
     }
 
     private static List<String> sorted(List<String> list) {

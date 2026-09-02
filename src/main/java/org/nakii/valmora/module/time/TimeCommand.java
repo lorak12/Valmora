@@ -21,7 +21,7 @@ public class TimeCommand implements CommandExecutor {
             return true;
         }
 
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "time")) {
             sender.sendMessage(Formatter.format("<red>You don't have permission to use this command."));
             return true;
         }

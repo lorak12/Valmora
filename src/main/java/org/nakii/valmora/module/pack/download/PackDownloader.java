@@ -23,7 +23,13 @@ import java.time.Duration;
  */
 public class PackDownloader {
 
-    private static final String USER_AGENT = "Valmora-PackManager/1.0";
+    /** HC-287: {@code pack.download.user-agent} — self-hosted proxy identification. */
+    private static String userAgent() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null && plugin.getConfig() != null
+                ? plugin.getConfig().getString("pack.download.user-agent", "Valmora-PackManager/1.0")
+                : "Valmora-PackManager/1.0";
+    }
 
     private final HttpClient httpClient;
 
@@ -54,7 +60,7 @@ public class PackDownloader {
 
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(120))
-                .header("User-Agent", USER_AGENT)
+                .header("User-Agent", userAgent())
                 .GET()
                 .build();
         HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());

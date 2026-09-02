@@ -48,7 +48,9 @@ public class MobAiTask implements Runnable {
 
                 if (entity.getLocation().distanceSquared(home) > def.getLeashRange() * def.getLeashRange()) {
                     if (!mob.getPathfinder().hasPath()) {
-                        mob.getPathfinder().moveTo(home, 1.0);
+                        // HC-087: leash-return speed — slow vs. fast boss leash-back feel.
+                        double speed = plugin.getConfig().getDouble("mobs.ai.leash-return-speed", 1.0);
+                        mob.getPathfinder().moveTo(home, speed);
                     }
                 }
             }

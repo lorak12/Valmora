@@ -229,7 +229,7 @@ public class MobDefinitionParser {
             if (overlay == null) {
                 return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar style '" + barSection.getString("style") + "'.");
             }
-            double range = barSection.getDouble("range", 40.0);
+            double range = barSection.getDouble("range", BossBarConfig.defaultRange());
             builder.bossBar(new BossBarConfig(true, color, overlay, range));
         }
 

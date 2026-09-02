@@ -41,10 +41,15 @@ public class TimerObjectiveHandler implements ObjectiveHandler {
         String taskKey = player.getUniqueId() + ":" + objective.getId();
         if (activeTasks.containsKey(taskKey)) return;
 
+        // HC-260: poll interval configurable for CPU tuning on servers with many concurrent timer
+        // objectives; the progress increment scales with it so "1 unit = 1 real second" still
+        // holds regardless of poll rate (e.g. a 40-tick interval reports 2 units per fire).
+        long intervalTicks = plugin.getConfig().getLong("quests.poll.timer-interval-ticks", 20L);
+        int amountPerTick = (int) Math.max(1, Math.round(intervalTicks / 20.0));
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             if (!player.isOnline()) return;
-            qm.trigger(player, QuestObjectiveTypes.TIMER, objective.getId(), 1);
-        }, 20L, 20L);
+            qm.trigger(player, QuestObjectiveTypes.TIMER, objective.getId(), amountPerTick);
+        }, intervalTicks, intervalTicks);
 
         activeTasks.put(taskKey, task);
     }
