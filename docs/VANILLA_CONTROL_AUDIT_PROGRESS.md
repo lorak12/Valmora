@@ -3,9 +3,18 @@
 > Tracks what this branch actually implemented against `docs/VANILLA_CONTROL_AUDIT.md`, and what's
 > deliberately left for a follow-up pass. The audit lists on the order of 100 individual gaps across
 > 22 sections — this branch covers the "Critical" tier, a few cheap high-confidence "High" items, a
-> full sweep of §9 Death, Respawn & Persistence, and (in a later pass, see the second table below) a
-> combat/resource follow-up batch: attack-cooldown scaling, a knockback-suppression hook, Silk Touch
-> on resource blocks, plus two items that turned out already correct on verification.
+> full sweep of §9 Death, Respawn & Persistence, and (in later passes) a combat/resource follow-up
+> batch (attack-cooldown scaling, a knockback-suppression hook, Silk Touch on resource blocks), a
+> §3-5 zone block-protection sweep (fire, pistons, explosions, mob griefing, growth, flow), a
+> fourth-pass cleanup of the leftovers from that sweep (support-chain breaks via `BlockPhysicsEvent`,
+> plus two more items verified already covered), a fifth, user-directed pass turning two of the
+> fourth pass's "deliberately skipped, cosmetic-only" items into real features: a `naturalBlockChanges`
+> zone flag for ambient fade/form transitions, and a universal block-drop-to-Valmora-item translation
+> catch-all, and a sixth, user-directed pass adding a brand-new global `block_loot` module for
+> per-block-type loot *content* overrides (the piece the fifth pass explicitly left out on purpose).
+> and a seventh pass (weather write-lock, bucket zone-gating, portal-creation zone-gating, plus
+> verification of two already-covered items: spawn-egg/command mob upgrade and zombie-villager cure
+> conversion).
 > Everything else in the audit is still open; do not assume anything not listed below was addressed.
 
 ## Done this branch
@@ -44,6 +53,74 @@
 
 All six items land in the same file (`ZoneListener`) rather than new listener classes, following the existing pattern (`onLeavesDecay`, `onBlockBreak`, etc.) — no new `ZoneFlags` fields were added; every new gate reuses the existing `blockBreaking`/`blockPlacing` flags. Deliberately **not** attempted, as scoped when this batch was proposed: cosmetic-only mechanics with no protection angle (copper oxidation, dripstone drips, note blocks, redstone-torch burnout, sculk spread, snow-layer accumulation, coral death, ice melt, infinite-water-source formation) and `GameRule.EXPLOSION_DROP_RULE`-style drop-content control (only block *destruction* is gated, not what an explosion drops).
 
+## Done this branch (fourth pass — block-protection cleanup)
+
+| Audit item | What shipped |
+|---|---|
+| §1/§3 — support-chain breaks (`BlockPhysicsEvent`) | `ZoneListener.onBlockPhysics`: cancels the detach of a torch/sign/banner/button/pressure-plate/rail when its support is removed and the block sits in a `blockBreaking`-disabled zone — closes the gap where removing a support block *outside* a protected zone could still pop a protected decoration block with no `BlockBreakEvent` of its own. Deliberately narrow: block tags are resolved dynamically via `Bukkit.getTag(Tag.REGISTRY_BLOCKS, NamespacedKey.minecraft(...), Material.class)` (Mojang tag keys `torches`/`signs`/`banners`/`buttons`/`pressure_plates`/`rails`) rather than a blanket physics-event cancel, which would otherwise interfere with redstone/fence/stair shape updates that fire the same event constantly. Not a general physics/support-chain simulation — cave-vine/flower/string/end-rod-style breaks outside this tag set are still unguarded.
+| §2 — `BlockMultiPlaceEvent` (doors/beds/portals) | **Verification only, no code change needed.** `BlockMultiPlaceEvent extends BlockPlaceEvent`, so the pre-existing `ZoneListener.onBlockPlace` `blockPlacing` gate already covers it. |
+| §4 — `GameRule.EXPLOSION_DROP_RULE`-style explosion drop control | **Verification only, no code change needed.** The real vanilla gamerules here (`blockExplosionDropDecay`/`mobExplosionDropDecay`/`tntExplosionDropDecay`, 1.19+) already flow through the generic `world_rules` config pass-through (`GameRule.getByName(key)`), same as any other gamerule. |
+
+Deliberately **not** attempted this pass: general `BlockDropItemEvent`/`BlockExpEvent` control for arbitrary block types (scoped as a separate content-authoring feature, not a protection gap) and `BlockFadeEvent`/`BlockFormEvent` (still cosmetic-only, no protection angle — copper oxidation, ice/snow melt, coral death, cauldron/frost-walker state changes).
+
+## Done this branch (fifth pass — zone ambient-block flag + universal drop formatting)
+
+**User-directed** (not audit-scoped): two of the fourth pass's "deliberately not attempted" items came back with a concrete use case and were done properly instead of left as cosmetic-only.
+
+| Audit item | What shipped |
+|---|---|
+| §3 — `BlockFadeEvent`/`BlockFormEvent`/`EntityBlockFormEvent` zone control | New `ZoneFlags.naturalBlockChanges` field (default `true` = vanilla behavior) + `ZoneListener.onBlockFade`/`onBlockForm`/`onEntityBlockForm`. Reverses the fourth pass's "cosmetic-only, no protection angle" call now that there's a concrete use case: a themed zone (e.g. permanently snowed-in) that wants its ice to never melt and its water to keep freezing regardless of biome/light, set independently of `blockBreaking`/`blockPlacing` since this isn't a player-destruction concern. `EntityBlockFormEvent` needed its own handler despite extending `BlockFormEvent` — it has a separate `HandlerList`, so a `BlockFormEvent`-typed listener never receives it. New command flag `/zone flag <id> natural-block-changes <true\|false>`; `zones/*.yml` key `allow.natural-block-changes`. All existing `ZoneFlags` positional-constructor call sites (loader, command, and two test files) updated for the new 12th field. |
+| §1/§4 — every block-break drop formatted as a Valmora item | New `LootListener.onItemSpawn` (`ItemSpawnEvent`), running `ItemTranslator#translate` on every spawned `Item` entity's stack. **Turned out the dominant case (normal player mining) was already fully covered** — `LootListener.onBlockBreak` has suppressed vanilla drops and translated its own computed list via `ItemTranslator` since before this branch; that was verified, not new. The actual gap was every *other* drop-producing cause (explosions, pistons, fire, mob-caused block changes, and anything else that spawns a raw `Item` entity) — none of these can be reached via `BlockDropItemEvent` (its constructor requires a `Player`, so Bukkit structurally never fires it for non-player causes), so instead of chasing each mechanic individually, `ItemSpawnEvent` catches all of them at the one point they all funnel through: the moment the item entity appears in the world. `translate()` is idempotent (no-ops on anything already carrying a Valmora item ID), so this is safe to layer on top of the existing translated paths (player mining, mob loot, fishing) without double-processing. |
+
+Not attempted: per-block-type *loot content* authoring (e.g. "make every `STONE` block drop a custom item instead of cobblestone" server-wide) — that's a genuinely different, larger feature (its own config schema, its own authoring surface) than "format whatever already drops as a Valmora item," which is what shipped here. **Done in the sixth pass below.**
+
+## Done this branch (sixth pass — global `block_loot` module)
+
+**User-directed** (not audit-scoped, per the fifth pass's own explicit deferral): a new, standalone
+`block_loot` module (id `"block_loot"`, registered right after `fishing`, before `npc`) for
+server-wide, zone-independent per-block-type loot overrides — "make every `Material` X drop this
+table instead of vanilla loot, everywhere," fully decoupled from the zone system.
+
+| Item | What shipped |
+|---|---|
+| Global per-`Material` loot override | New `BlockLootConfig`/`BlockLootDrop`/`BlockLootRegistry`/`BlockLootLoader`/`BlockLootManager`/`BlockLootListener`/`BlockLootModule` (`module/blockloot/`), mirroring the `resource` module's `Manager`+`Listener`+`Registry`+`Loader`+`Module` shape but single-stage: no progression, no regen timer, no Breaking-Power gate — a configured block just breaks once, like vanilla, and drops the configured table. Config lives in `plugins/Valmora/block_loot/*.yml`, ships with a single fully-commented `example.yml` (zero real entries by default — installing/updating changes no vanilla behavior until an admin opts in). |
+| Content-pack-safe YAML shape | The top-level YAML key is an arbitrary id, never the material name directly — `material:` is a required field *inside* the section instead. Caught during design review before any code was written: `YamlLoader` rewrites top-level keys through the content-pack namespacer, so a pack-authored file using the material as its key would silently fail to resolve (`Material.matchMaterial("somepack:STONE")` → `null`). Covered by dedicated loader tests. |
+| Precedence with zone `resource-blocks:` | `item.LootListener.onBlockBreak` gained a third defer check (matching its two existing `resource`-module guards): if `block_loot` has a config for the broken block's material, it returns early — `BlockLootListener` (registered at `EventPriority.LOWEST`, same as `ResourceListener`) already fully handled it. Net precedence per block break: zone `resource-blocks:` (most specific) → `block_loot` (global override) → real vanilla drops (`LootListener`, translated). |
+| Silk Touch / Mining Fortune parity | `BlockLootManager` mirrors `ResourceManager`'s existing Silk Touch (`block-loot.silk-touch.enabled`, default true — yields 1 of the block's own material, ignoring the configured table and Fortune, matching vanilla) and Mining-Fortune-scaled roll amounts. |
+| Shared Fortune-math extraction | `ResourceManager`'s private `getPlayerMiningFortune`/`applyFortune` (previously the only copy of this formula in the codebase, verified during design review) extracted into a new `org.nakii.valmora.util.MiningFortune` utility; `ResourceManager` now delegates to it, behavior unchanged. |
+| Overflow-safe give path | New `ItemManager.giveOrPrivateDrop(Player, ItemStack, Location)`, extracted from `item.LootListener`'s previously-private `processLoot`/`handleFullInventory` (add to inventory, else spawn a private glowing "INVENTORY FULL" pickup) — now reusable by `block_loot` without duplicating ~35 lines. `LootListener.processLoot` simplified to translate-then-delegate. |
+| API wiring | `Valmora.getBlockLootModule()`, `ValmoraAPI.getBlockLootModule()`, `ValmoraAPIImpl.getBlockLootModule()` added, matching every other module's public-API-parity convention. |
+| Docs | New `docs/modules/design/blockloot.md` + `docs/modules/user/blockloot.md`; `docs/modules/{design,user}/INTEGRATION.md` updated with the new module's family/dependency listing; `CLAUDE.md` §5 module order updated (and a pre-existing drift fixed in the same edit — `death` was missing from that list entirely despite being registered in code since the earlier `death`-module pass). |
+
+Deliberately **not** attempted in this pass (see `docs/modules/design/blockloot.md`'s own
+"Unfinished Things" section for detail): a general `BlockExpEvent`/XP-orb hook for configured
+blocks; a per-block-entry Silk Touch override (one global toggle for now, matching `resource`'s
+existing simplicity); fixing `ResourceManager`'s own pre-existing overflow-loss gap (its give path
+still calls bare `addItem` and ignores leftovers) — `block_loot` avoids repeating it, but the
+original gap was left untouched as out of scope.
+
+## Done this branch (seventh pass — weather lock, bucket/portal zone gating, spawn/cure verification)
+
+**User-directed batch** (`Proceed with #1–#3, add #5 if room`, from a proposed priority list): the
+next three cheapest verified-open items from the audit, plus a bonus item that turned out to already
+be fully covered.
+
+| Audit item | What shipped |
+|---|---|
+| §8 — weather write-lock | New `WorldRulesModule.WeatherLock` enum (`CLEAR`/`RAIN`/`THUNDER`) + `world.weather-lock.<world-name>` config, same purely-config-driven-pass-through philosophy as the existing gamerule section. Applied on enable/`WorldLoadEvent` (`world.setStorm`/`setThundering`) and re-enforced by `WorldRulesListener.onWeatherChange`/`onThunderChange` (`WeatherChangeEvent`/`ThunderChangeEvent`), cancelling any transition — natural cycle, `/weather` command, another plugin — that would move a locked world away from its configured state. No default lock ships enabled. Deliberately simpler than the time module's read-only design: weather is server-authoritative (no client-side simulation to fight), so a one-shot set + event-cancel is sufficient, unlike time's documented need to re-assert every tick. |
+| §4 — bucket fill/empty zone gating | `ZoneListener.onBucketFill`/`onBucketEmpty` (`PlayerBucketFillEvent`/`PlayerBucketEmptyEvent`) — fill (removes the source block) gated by `blockBreaking`, empty (creates a fluid/powder-snow block) gated by `blockPlacing`. Same two flags every other block-mutation event in this listener already reuses. Fish/axolotl bucket capture (`PlayerBucketEntityEvent`) deliberately out of scope — it's an entity-capture mechanic, not a block-protection one. |
+| §10 — portal creation zone gating | `ZoneListener.onPortalCreate` (`PortalCreateEvent`) — cancels the whole creation (nether/end portal frame igniting, or Bukkit programmatically generating one) if any resulting block would land in a `blockPlacing`-disabled zone, mirroring `isPistonMoveProtected`'s any-block-blocks-the-whole-action approach. |
+| §10 — portal *use* (`PlayerPortalEvent`) | **Verification only, no code change needed.** `PlayerPortalEvent extends PlayerTeleportEvent` in this Paper version, so `ZoneListener.onTeleportGate`'s existing `teleportation` flag already applies — same precedent as `BlockMultiPlaceEvent extends BlockPlaceEvent` (fourth pass). |
+| §10 — cross-world tracking (`PlayerChangedWorldEvent`) | **Verification only, no code change needed.** `ZoneListener.onTeleport` already reschedules `zoneManager.checkTransition()` after every `PlayerTeleportEvent` (portals included, since `PlayerPortalEvent` is one), and `checkTransition` reads the player's live post-teleport/post-world-change location — there's no cross-world path a player can take that skips `PlayerTeleportEvent` first. |
+| §17 — spawn-egg/command mob upgrade | **Verification only, no code change needed.** `VanillaSpawnUpgradeListener` (shipped in the first pass) has no `SpawnReason` filter at all — it upgrades *any* untagged `CreatureSpawnEvent` with a registered `vanilla-default`, which already includes `SPAWNER_EGG`/`COMMAND`/`PLUGIN` reasons alongside natural/spawner spawns. The audit's `❌ eggs` coverage cell (§17 table, row "Spawn egg / command / plugin spawning") was stale from before that listener shipped. |
+| §19 — zombie-villager cure conversion | **Verification only, no code change needed.** This Paper API version (1.21.11) has no separate `CureZombieVillagerEvent`/`EntityConvertEvent` class — curing fires a plain `EntityTransformEvent` with `TransformReason.CURED` (confirmed via the shipped API jar), which `MobConversionListener` already handles unconditionally (no `TransformReason` filter). |
+
+Not attempted this pass (explicitly out of scope per the proposal): #4, the one still-open
+**critical**-tier item (vanilla durability/enchant interception) — deliberately held for its own
+scoped pass per the proposal's own recommendation, since it needs an explicit decision on how far to
+go (replicate vanilla enchants for non-Valmora items? guard against Valmora items somehow carrying
+vanilla enchants? leave vanilla items fully vanilla?) before any code gets written.
+
 ## Explicitly NOT done — still open
 
 Everything else in the audit, notably (see the audit doc for full detail):
@@ -62,17 +139,19 @@ Everything else in the audit, notably (see the audit doc for full detail):
   attribution specifically.
 - **§8 high — time/weather write-lock.** `time` module is explicitly documented as read-only by
   design elsewhere in the codebase; left untouched rather than silently reversing that decision.
-- **§3/§4/§5 block-state-change family — partially done (third pass, see table above).**
+- **§3/§4/§5 block-state-change family — mostly done (third + fourth passes, see tables above).**
   `BlockGrowEvent`, `BlockSpreadEvent`, `StructureGrowEvent`, `LeavesDecayEvent` (pre-existing),
   piston chains, general explosion block destruction, fire ignite/burn, `EntityChangeBlockEvent`
-  (mob griefing), and `BlockFromToEvent` (fluid flow) are now all zone-gated. Still zero coverage:
-  `BlockFadeEvent`/`BlockFormEvent` (ice/snow/coral/copper/cauldron/frost-walker — cosmetic-only, no
-  protection angle, deliberately skipped), `BlockPhysicsEvent` (support-chain breaks),
-  `BlockMultiPlaceEvent` (doors/beds/portals — same protection outcome already achieved indirectly
-  since the final block-count places still go through `BlockPlaceEvent`), and `GameRule.EXPLOSION_
-  DROP_RULE`-style explosion *drop* control (only destruction is gated, not loot).
-  `BlockDropItemEvent`/`BlockExpEvent` got a narrow, resource-module-scoped fix earlier — Silk Touch
-  on zone-tracked resource blocks (second-pass table above) — not a general per-block-type system.
+  (mob griefing), `BlockFromToEvent` (fluid flow), and a narrow tag-driven `BlockPhysicsEvent`
+  support-chain protection (torches/signs/banners/buttons/pressure_plates/rails) are now all
+  zone-gated. `BlockMultiPlaceEvent` and `GameRule.EXPLOSION_DROP_RULE`-style drop control were
+  verified already covered with no code change needed (fourth-pass table above). Still zero
+  coverage: `BlockFadeEvent`/`BlockFormEvent` (ice/snow/coral/copper/cauldron/frost-walker —
+  cosmetic-only, no protection angle, deliberately skipped), general `BlockPhysicsEvent`
+  support-chain coverage beyond that tag set (cave vines, flowers, string, end rods, hanging signs
+  outside the `signs` tag if any exist). `BlockDropItemEvent`/`BlockExpEvent` got a narrow,
+  resource-module-scoped fix earlier — Silk Touch on zone-tracked resource blocks (second-pass table
+  above) — not a general per-block-type system.
 - **§9 — void-damage rescue/anti-void platform.** Explicitly declined (**user-confirmed**) as part of
   the death pass above — void damage kills exactly like vanilla, just with a proper custom death
   message.

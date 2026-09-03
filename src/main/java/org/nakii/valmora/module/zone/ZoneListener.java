@@ -1,8 +1,12 @@
 package org.nakii.valmora.module.zone;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -10,13 +14,17 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.block.BlockFromToEvent;
 import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.block.BlockPhysicsEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.block.EntityBlockFormEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
@@ -24,10 +32,13 @@ import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
@@ -35,6 +46,7 @@ import org.nakii.valmora.module.resource.ResourceModule;
 import org.nakii.valmora.module.zone.event.ZoneEnterEvent;
 import org.nakii.valmora.module.zone.event.ZoneExitEvent;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -44,8 +56,18 @@ public class ZoneListener implements Listener {
         SpawnReason.NATURAL, SpawnReason.SLIME_SPLIT, SpawnReason.SPAWNER
     );
 
+    /**
+     * Vanilla block tags (Mojang keys, resolved dynamically via {@link Bukkit#getTag} rather than
+     * static {@code Tag} constants — some of these aren't exposed as Bukkit `Tag.*` fields) for the
+     * small set of attached-decoration block types that can silently detach/pop when their support
+     * is removed, with no {@link BlockBreakEvent} of their own. See {@link #onBlockPhysics}.
+     */
+    private static final String[] ATTACHED_DECORATION_TAGS =
+            {"torches", "signs", "banners", "buttons", "pressure_plates", "rails"};
+
     private final Valmora plugin;
     private final ZoneManager zoneManager;
+    private List<Tag<Material>> attachedDecorationTags;
 
     public ZoneListener(Valmora plugin, ZoneManager zoneManager) {
         this.plugin = plugin;
@@ -325,5 +347,116 @@ public class ZoneListener implements Listener {
         zoneManager.getZoneAt(event.getLocation()).ifPresent(zone -> {
             if (!zone.getFlags().blockPlacing()) event.setCancelled(true);
         });
+    }
+
+    /**
+     * Ambient block-state transitions (ice/snow melting, coral dying, redstone-ore glow fading,
+     * water freezing, snow-layer forming, Frost Walker ice, concrete solidifying, etc.) — previously
+     * completely outside zone control, unlike every other block-change mechanic in this listener.
+     * Gated by the new {@code naturalBlockChanges} flag rather than reusing blockBreaking/
+     * blockPlacing: this isn't "can a player destroy/build here", it's "should ambient world
+     * processes touch blocks here at all" — e.g. a snow zone that wants its ice to stay frozen
+     * regardless of biome temperature or light level.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBlockFade(BlockFadeEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().naturalBlockChanges()) event.setCancelled(true);
+        });
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().naturalBlockChanges()) event.setCancelled(true);
+        });
+    }
+
+    /**
+     * {@link EntityBlockFormEvent} (Frost Walker ice, snow golem trail) has its own separate
+     * {@code HandlerList} — it does NOT get delivered to a plain {@link BlockFormEvent} handler even
+     * though it extends it, so it needs a listener of its own to fall under the same flag.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onEntityBlockForm(EntityBlockFormEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().naturalBlockChanges()) event.setCancelled(true);
+        });
+    }
+
+    /**
+     * Support-chain breaks (§3/§1 audit gap): removing the block a torch/sign/banner/button/
+     * pressure-plate/rail is attached to detaches it via {@link BlockPhysicsEvent}, not
+     * {@link BlockBreakEvent} — so it previously bypassed zone protection entirely even though the
+     * block doing the detaching could sit outside the protected zone (e.g. mining the wall behind a
+     * protected torch from an adjacent, unprotected area). Deliberately narrow: only the physical
+     * block actually being checked matters (not every physics tick), and only for this small,
+     * tag-driven set of attachable decoration types — a blanket cancel would break redstone/fence/
+     * stair shape updates. Gated by blockBreaking, same semantic as every other "protect existing
+     * blocks" check in this listener.
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBlockPhysics(BlockPhysicsEvent event) {
+        Block block = event.getBlock();
+        if (!isAttachedDecoration(block.getType())) return;
+        zoneManager.getZoneAt(block.getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().blockBreaking()) event.setCancelled(true);
+        });
+    }
+
+    private boolean isAttachedDecoration(Material type) {
+        if (attachedDecorationTags == null) {
+            List<Tag<Material>> resolved = new ArrayList<>();
+            for (String key : ATTACHED_DECORATION_TAGS) {
+                Tag<Material> tag = Bukkit.getTag(Tag.REGISTRY_BLOCKS, NamespacedKey.minecraft(key), Material.class);
+                if (tag != null) resolved.add(tag);
+            }
+            attachedDecorationTags = resolved;
+        }
+        for (Tag<Material> tag : attachedDecorationTags) {
+            if (tag.isTagged(type)) return true;
+        }
+        return false;
+    }
+
+    // ── VANILLA_CONTROL_AUDIT.md §4/§10 batch: buckets and portal creation, the two remaining
+    // fluid/dimension mechanics that bypassed zone protection entirely. Portal *use* (walking
+    // through one) is verified already covered — PlayerPortalEvent extends PlayerTeleportEvent, so
+    // it already goes through onTeleportGate's existing `teleportation` flag, same precedent as
+    // BlockMultiPlaceEvent extending BlockPlaceEvent (fourth pass). Cross-world tracking
+    // (PlayerChangedWorldEvent) is likewise already covered — onTeleport reschedules
+    // zoneManager.checkTransition() after every PlayerTeleportEvent, portals included, and
+    // checkTransition reads the player's live (post-teleport, post-world-change) location. ────────
+
+    /** Filling a bucket removes the source block — treated as "breaking". */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().blockBreaking()) event.setCancelled(true);
+        });
+    }
+
+    /** Emptying a bucket creates a fluid/powder-snow block — treated as "placing". */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        zoneManager.getZoneAt(event.getBlock().getLocation()).ifPresent(zone -> {
+            if (!zone.getFlags().blockPlacing()) event.setCancelled(true);
+        });
+    }
+
+    /**
+     * Nether/end portal frame igniting into an actual portal — creates new blocks, so treated as
+     * "placing", same as {@link #onBlockIgnite}. Cancels the whole creation if any resulting block
+     * would land in a blockPlacing-disabled zone (mirrors {@link #isPistonMoveProtected}'s
+     * any-block-blocks-the-whole-action approach).
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPortalCreate(PortalCreateEvent event) {
+        for (BlockState state : event.getBlocks()) {
+            if (zoneManager.getZoneAt(state.getLocation()).map(z -> !z.getFlags().blockPlacing()).orElse(false)) {
+                event.setCancelled(true);
+                return;
+            }
+        }
     }
 }

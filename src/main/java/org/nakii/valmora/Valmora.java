@@ -131,6 +131,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.pack.PackModule packModule;
     private org.nakii.valmora.module.pack.PackFileIndex packFileIndex;
     private org.nakii.valmora.module.death.DeathModule deathModule;
+    private org.nakii.valmora.module.blockloot.BlockLootModule blockLootModule;
 
     @Override
     public void onEnable() {
@@ -203,6 +204,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.deathModule = new org.nakii.valmora.module.death.DeathModule(this);
         this.resourceModule = new ResourceModule(this);
         this.fishingModule = new FishingModule(this);
+        this.blockLootModule = new org.nakii.valmora.module.blockloot.BlockLootModule(this);
         this.npcModule = new NpcModule(this);
         this.warpModule = new WarpModule(this);
         this.questModule = new QuestModule(this);
@@ -244,6 +246,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(deathModule);
         moduleManager.registerModule(resourceModule);
         moduleManager.registerModule(fishingModule);
+        // Depends on itemManager (ItemManager.createItemStack/giveOrPrivateDrop) at event time only
+        // — item.LootListener already reaches into the even-later resourceModule the same way, so
+        // this is a proven-safe pattern. Grouped with resource/fishing as the other loot-source
+        // modules. VANILLA_CONTROL_AUDIT.md §1/§4 — see docs/modules/design/blockloot.md.
+        moduleManager.registerModule(blockLootModule);
         moduleManager.registerModule(npcModule);
         moduleManager.registerModule(warpModule);
         moduleManager.registerModule(pointsModule);
@@ -511,6 +518,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public FishingModule getFishingModule() {
         return fishingModule;
+    }
+
+    @Override
+    public org.nakii.valmora.module.blockloot.BlockLootModule getBlockLootModule() {
+        return blockLootModule;
     }
 
     @Override

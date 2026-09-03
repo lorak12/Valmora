@@ -94,7 +94,7 @@ Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `
 2. **Left-click** a block to set **Pos1**, **right-click** a block to set **Pos2** (`ZoneWandListener.java:23-50`). A live preview shows Pos1 in blue, Pos2 in red, and the resulting box in green.
 3. Optionally fine-tune with `/zone pos1` / `/zone pos2` (set at your feet) or `/zone clear`.
 4. Run `/zone create my_area My Area` — the zone is registered and written to `plugins/Valmora/zones/my_area.yml`.
-5. Run `/zone flag my_area pvp true` (or any of the eleven flags — `keep-inventory-on-death`/
+5. Run `/zone flag my_area pvp true` (or any of the twelve flags — `keep-inventory-on-death`/
    `keep-experience-on-death` also accept `default` to clear an override back to inheriting the
    server-wide setting) to configure it.
 6. Run `/zone visualize` to see the borders as yellow particles.
@@ -224,6 +224,7 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
     teleportation: true              # teleports allowed
     leaf-decay: true                 # leaves decay normally
     sleeping: true                   # beds usable
+    natural-block-changes: true      # ambient fade/form changes (ice/snow melt, water freeze, etc.)
     keep-inventory-on-death: <unset> # optional; unset = inherit server death.keep-inventory-default
     keep-experience-on-death: <unset> # optional; unset = inherit server death.keep-experience-default
 
@@ -283,6 +284,7 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
 | `allow.teleportation` | `true` | If `false`, scripted `teleport` events are blocked (warps and other teleports are NOT affected). |
 | `allow.leaf-decay` | `true` | If `false`, leaves in the zone never decay. |
 | `allow.sleeping` | `true` | If `false`, players can't enter a bed in this zone (e.g. a boss arena or dungeon). See `docs/modules/user/death.md`. |
+| `allow.natural-block-changes` | `true` | If `false`, ambient block-state transitions are frozen in the zone: ice/snow won't melt, coral won't die, water won't freeze into ice (including Frost Walker), redstone-ore glow won't fade, etc. Useful for e.g. keeping a themed "always frozen" zone frozen regardless of biome/light. Does not affect player mining/building (`block-breaking`/`block-placing` cover that). |
 | `allow.keep-inventory-on-death` | *(unset)* | Overrides the server's `death.keep-inventory-default` for a death in this zone. Set/clear with `/zone flag <id> keep-inventory-on-death <true\|false\|default>`. |
 | `allow.keep-experience-on-death` | *(unset)* | Same, for kept XP on death. |
 

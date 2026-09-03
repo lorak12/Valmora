@@ -320,17 +320,11 @@ public class ResourceManager {
     }
 
     private double getPlayerMiningFortune(Player player) {
-        ValmoraPlayer session = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
-        if (session == null) return 0.0;
-        var profile = session.getActiveProfile();
-        if (profile == null) return 0.0;
-        return profile.getStatManager().getStat(ValmoraAPI.getInstance().getSystemStats().getMiningFortune());
+        return org.nakii.valmora.util.MiningFortune.getPlayerMiningFortune(player);
     }
 
     private int applyFortune(int baseAmount, double miningFortune) {
-        if (miningFortune <= 0) return baseAmount;
-        double multiplier = 1.0 + miningFortune / 100.0;
-        return (int) Math.max(baseAmount, Math.round(baseAmount * multiplier));
+        return org.nakii.valmora.util.MiningFortune.applyFortune(baseAmount, miningFortune);
     }
 
     private ItemStack createItem(String itemId, int amount) {

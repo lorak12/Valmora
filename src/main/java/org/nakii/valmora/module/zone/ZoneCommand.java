@@ -23,7 +23,8 @@ public class ZoneCommand implements TabExecutor {
     private static final String PREFIX = "<dark_gray>[<gold>Zone<dark_gray>] ";
     private static final List<String> FLAGS = List.of(
             "pvp", "natural-mob-spawning", "block-breaking", "block-placing",
-            "hunger", "entry", "teleportation", "leaf-decay");
+            "hunger", "entry", "teleportation", "leaf-decay", "sleeping",
+            "natural-block-changes", "keep-inventory-on-death", "keep-experience-on-death");
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "info", "list", "wand", "pos1", "pos2", "clear",
             "flag", "spawner", "box", "resource", "visualize");
@@ -238,21 +239,22 @@ public class ZoneCommand implements TabExecutor {
 
         ZoneFlags old = zone.getFlags();
         ZoneFlags updated = switch (flagName) {
-            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value, old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping());
-            case "sleeping" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), value);
-            case "keep-inventory-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), value, old.keepExperienceOnDeath(), old.sleeping());
-            case "keep-experience-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), value, old.sleeping());
+            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value, old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "sleeping" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), value, old.naturalBlockChanges());
+            case "natural-block-changes" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), value);
+            case "keep-inventory-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), value, old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "keep-experience-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), value, old.sleeping(), old.naturalBlockChanges());
             default -> null;
         };
         if (updated == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay, sleeping, keep-inventory-on-death, keep-experience-on-death"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay, sleeping, natural-block-changes, keep-inventory-on-death, keep-experience-on-death"));
             return;
         }
         mgr().setZoneFlags(zone.getId(), updated);

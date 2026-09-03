@@ -147,12 +147,20 @@ modules' existing reload machinery and must never be a dependency of anything el
 
 ```
 script → world_rules → time → rarity → stat → player → economy → ui → ability → item → mob → skill →
-combat → gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc →
-warp → points → notify → quest → collection → hud → calendar → pet → progression → pack
+combat → gui → recipe → machine → modifier → alchemy → enchant → zone → death → resource → fishing →
+block_loot → npc → warp → points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
 
 `world_rules` (`WorldRulesModule`, VANILLA_CONTROL_AUDIT.md §8) was added right after `script` — no
 dependencies, purely applies `world.gamerules.*` from config.yml to every loaded/loading world.
+
+`death` (`DeathModule`, VANILLA_CONTROL_AUDIT.md §9) was previously missing from this list despite
+already being registered right after `zone` in code — corrected here to match `Valmora.java`.
+
+`block_loot` (`BlockLootModule`, see `docs/modules/design/blockloot.md`/`docs/modules/user/blockloot.md`)
+was added right after `fishing` and before `npc` — a global per-block-type loot override, with no
+`onEnable()`-time dependency on `item` (it reaches `ItemManager` only at event time, the same
+already-proven-safe pattern `item`'s own `LootListener` uses to reach the later `resource` module).
 
 Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).
 

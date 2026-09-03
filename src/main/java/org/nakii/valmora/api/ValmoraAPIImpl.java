@@ -297,6 +297,11 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.blockloot.BlockLootModule getBlockLootModule() {
+        return module("block_loot", org.nakii.valmora.module.blockloot.BlockLootModule.class);
+    }
+
+    @Override
     public CollectionModule getCollectionModule() {
         return module("collections", CollectionModule.class);
     }

@@ -94,7 +94,7 @@ public class ZoneDefinitionTest {
     @Test
     void withFlagsReturnsNewInstanceWithUpdatedFlags() {
         ZoneDefinition zone = zone(List.of());
-        ZoneFlags newFlags = new ZoneFlags(true, false, false, false, false, false, false, false, null, null, true);
+        ZoneFlags newFlags = new ZoneFlags(true, false, false, false, false, false, false, false, null, null, true, true);
         ZoneDefinition updated = zone.withFlags(newFlags);
 
         assertNotSame(zone, updated);

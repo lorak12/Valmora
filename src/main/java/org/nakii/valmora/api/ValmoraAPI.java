@@ -93,6 +93,8 @@ public interface ValmoraAPI {
 
     org.nakii.valmora.module.fishing.FishingModule getFishingModule();
 
+    org.nakii.valmora.module.blockloot.BlockLootModule getBlockLootModule();
+
     org.nakii.valmora.module.collection.CollectionModule getCollectionModule();
 
     org.nakii.valmora.module.hud.HudItemModule getHudItemModule();

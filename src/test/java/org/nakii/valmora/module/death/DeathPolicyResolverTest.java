@@ -66,7 +66,7 @@ public class DeathPolicyResolverTest {
 
     private ZoneDefinition zoneWithOverride(Boolean keepInventory, Boolean keepExperience) {
         ZoneFlags flags = new ZoneFlags(false, false, false, false, true, true, true, true,
-                keepInventory, keepExperience, true);
+                keepInventory, keepExperience, true, true);
         // A real ZoneDefinition, not a mock — matches ZoneDefinitionTest/ZoneManagerResourceBlockTest's
         // own convention (this concrete class' fields make it awkward to mock cleanly).
         return new ZoneDefinition("test-zone", "<green>Test Zone", "world",

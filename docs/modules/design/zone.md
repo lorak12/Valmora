@@ -176,12 +176,19 @@ system (VANILLA_CONTROL_AUDIT.md §9 — see `docs/modules/design/death.md`):
 | `keepInventoryOnDeath` | `Boolean` (nullable) — `death` module override for a death in this zone; `null` = inherit `death.keep-inventory-default` |
 | `keepExperienceOnDeath` | `Boolean` (nullable) — same, for kept XP |
 | `sleeping` | `true` = beds usable normally; `false` = `PlayerBedEnterEvent` is cancelled |
+| `naturalBlockChanges` | `true` = ambient `BlockFadeEvent`/`BlockFormEvent`/`EntityBlockFormEvent` state changes (ice/snow melt, water freeze, coral death, Frost Walker, redstone-ore glow fade, etc.) happen normally; `false` = all three cancelled |
 
-`defaults()` (`ZoneFlags.java`) = `(false, false, false, false, true, true, true, true, null, null, true)`
-— i.e. everything *disallowed* except hunger, entry, teleportation, leaf decay, and sleeping, with
-both death-policy overrides left unset (inherit the server default). Note this is **not** "everything
-allowed": a freshly created zone has PvP, natural spawning, breaking, and placing all **off**
-(`ZoneManager.createZone` calls `ZoneFlags.defaults()`).
+`defaults()` (`ZoneFlags.java`) = `(false, false, false, false, true, true, true, true, null, null, true, true)`
+— i.e. everything *disallowed* except hunger, entry, teleportation, leaf decay, sleeping, and
+natural block changes, with both death-policy overrides left unset (inherit the server default).
+Note this is **not** "everything allowed": a freshly created zone has PvP, natural spawning,
+breaking, and placing all **off** (`ZoneManager.createZone` calls `ZoneFlags.defaults()`).
+
+> **Doc drift note:** the enforcement matrix below predates the VANILLA_CONTROL_AUDIT.md §3-5
+> zone-protection passes (piston/explosion/fire/growth/spread/physics handlers added to
+> `ZoneListener` across three later batches — see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md`) and was
+> not caught up for those; only the `naturalBlockChanges` row below reflects the current code. Read
+> `ZoneListener.java` directly for the full up-to-date handler list.
 
 **Enforcement matrix** (`ZoneListener.java` unless noted):
 
@@ -199,6 +206,7 @@ allowed": a freshly created zone has PvP, natural spawning, breaking, and placin
 | `sleeping` | `death` module's `BedListener.onBedEnter` | Cancels `PlayerBedEnterEvent` with a message when `false` |
 | `blockBreaking` (reused) | `death` module's `RespawnAnchorListener.onBlockExplode` | Filters a respawn-anchor/bed wrong-dimension `BlockExplodeEvent`'s destroyed-block list down to zones that allow breaking |
 | `naturalMobSpawning` (reused) | `death` module's `PhantomInsomniaListener` | Also cancels `PhantomPreSpawnEvent` when `false` |
+| `naturalBlockChanges` | `onBlockFade` / `onBlockForm` / `onEntityBlockForm` | Cancels `BlockFadeEvent`, `BlockFormEvent`, and `EntityBlockFormEvent` (registered separately — it has its own `HandlerList` despite extending `BlockFormEvent`) when `false` |
 
 ### 3.8 Resource blocks — `Map<Material, ZoneResourceConfig>`
 
@@ -304,6 +312,7 @@ Zones live in `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID**
     teleportation: true            # teleports allowed
     leaf-decay: true               # leaves decay
     sleeping: true                 # beds usable (VANILLA_CONTROL_AUDIT.md §9 — death.md)
+    natural-block-changes: true    # ambient fade/form changes (VANILLA_CONTROL_AUDIT.md §3)
     keep-inventory-on-death: <unset>   # optional bool; unset = inherit death.keep-inventory-default
     keep-experience-on-death: <unset>  # optional bool; unset = inherit death.keep-experience-default
 
@@ -358,6 +367,7 @@ Zones live in `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID**
 | `allow.teleportation` | `true` | bool | If `false`, only the script engine's `teleport` event refuses to fire (`TeleportEventFactory.java:44-48`); warps and other teleports are **not** blocked. |
 | `allow.leaf-decay` | `true` | bool | If `false`, `LeavesDecayEvent` is cancelled (`ZoneListener.java:142-147`). |
 | `allow.sleeping` | `true` | bool | If `false`, `PlayerBedEnterEvent` is cancelled by the `death` module's `BedListener` (VANILLA_CONTROL_AUDIT.md §9). |
+| `allow.natural-block-changes` | `true` | bool | If `false`, `BlockFadeEvent`/`BlockFormEvent`/`EntityBlockFormEvent` are all cancelled in the zone — ice/snow don't melt, water doesn't freeze (including Frost Walker), coral doesn't die, etc. (`ZoneListener.onBlockFade`/`onBlockForm`/`onEntityBlockForm`, VANILLA_CONTROL_AUDIT.md §3). |
 | `allow.keep-inventory-on-death` | *(unset)* | bool (nullable) | Per-zone override for whether death drops are kept, consumed by `DeathPolicyResolver`; unset inherits `death.keep-inventory-default`. Set/clear via `/zone flag <id> keep-inventory-on-death <true\|false\|default>`. |
 | `allow.keep-experience-on-death` | *(unset)* | bool (nullable) | Same, for kept XP; `death.keep-experience-default`. |
 | *(legacy)* `pvp-enabled` | `false` | bool | Read only when the `allow:` section is absent, to preserve old configs; the other flags fall back to their defaults (`ZoneLoader.java:50`). |

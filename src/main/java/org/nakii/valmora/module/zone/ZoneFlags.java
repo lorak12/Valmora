@@ -13,9 +13,14 @@ public record ZoneFlags(
     // below means "inherit the server-wide death.* config default", resolved by DeathPolicyResolver.
     Boolean keepInventoryOnDeath,
     Boolean keepExperienceOnDeath,
-    boolean sleeping        // true = beds usable normally; false = PlayerBedEnterEvent is cancelled
+    boolean sleeping,       // true = beds usable normally; false = PlayerBedEnterEvent is cancelled
+    // VANILLA_CONTROL_AUDIT.md §3 BlockFadeEvent/BlockFormEvent — true = ambient state changes
+    // (ice/snow melt, water freezing, coral dying, etc.) happen normally; false = both events are
+    // cancelled in the zone, e.g. to keep a snow zone's ice permanently frozen regardless of biome/
+    // light conditions.
+    boolean naturalBlockChanges
 ) {
     public static ZoneFlags defaults() {
-        return new ZoneFlags(false, false, false, false, true, true, true, true, null, null, true);
+        return new ZoneFlags(false, false, false, false, true, true, true, true, null, null, true, true);
     }
 }

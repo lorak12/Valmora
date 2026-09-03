@@ -61,6 +61,14 @@ world:
     # playersSleepingPercentage: 100
     # randomTickSpeed: 3
 
+  # VANILLA_CONTROL_AUDIT.md §8: locks a world's weather to a fixed state, re-enforced against any
+  # WeatherChangeEvent/ThunderChangeEvent that would move it away — the natural cycle, a /weather
+  # command, or another plugin (doWeatherCycle:false above only stops the *natural* cycle, nothing
+  # else). Unlisted worlds are untouched — no lock is the default everywhere. Valid values: CLEAR,
+  # RAIN, THUNDER.
+  # weather-lock:
+  #   world: CLEAR
+
 # ========================================================== #
 #                    Permission Settings                     #
 # ========================================================== #
@@ -371,6 +379,21 @@ resource:
   # VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction" — a Silk Touch tool yields
   # exactly 1 of the current-stage block instead of the configured loot table (vanilla behavior;
   # Fortune is ignored too, matching vanilla). Set false to make Silk Touch a no-op on resource blocks.
+  silk-touch:
+    enabled: true
+
+# ========================================================== #
+#                  Block Loot Overrides                      #
+# ========================================================== #
+# Global (server-wide, zone-independent) per-block-type loot overrides — VANILLA_CONTROL_AUDIT.md
+# §1/§4. Distinct from a zone's `resource-blocks:` (that's zone-scoped, with regen/progression);
+# this is a plain "every <material> block anywhere drops this instead" table, defined under
+# plugins/Valmora/block_loot/*.yml. See docs/modules/user/blockloot.md.
+block-loot:
+  enabled: true
+  # Silk Touch on a block-loot-configured block yields exactly 1 of the block's own material
+  # instead of the configured loot table (vanilla Silk Touch semantics — Fortune is ignored too,
+  # matching resource.silk-touch's behavior above). Set false to make Silk Touch a no-op here.
   silk-touch:
     enabled: true
 
