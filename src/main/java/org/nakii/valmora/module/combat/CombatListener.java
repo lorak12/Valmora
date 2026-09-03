@@ -258,6 +258,15 @@ public class CombatListener implements Listener {
             if (damageResult.isImmune() && (customType == DamageType.FIRE || customType == DamageType.LAVA)) {
                 victim.setFireTicks(0);
             }
+            // VANILLA_CONTROL_AUDIT.md §7 — same parity fix for FREEZE (powder snow): a fully
+            // freeze-immune entity would otherwise keep re-accumulating freeze ticks and re-triggering
+            // this same immune (no-op) damage every interval. No dedicated freeze-tick event exists in
+            // this Paper API version to intercept accumulation itself (there is no `EntityFreezeEvent`
+            // here, unlike the audit doc's listed hook), so resetting on the immune hit is the
+            // equivalent fix.
+            if (damageResult.isImmune() && customType == DamageType.FREEZE) {
+                victim.setFreezeTicks(0);
+            }
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
 

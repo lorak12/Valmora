@@ -14,7 +14,8 @@
 > per-block-type loot *content* overrides (the piece the fifth pass explicitly left out on purpose).
 > and a seventh pass (weather write-lock, bucket zone-gating, portal-creation zone-gating, plus
 > verification of two already-covered items: spawn-egg/command mob upgrade and zombie-villager cure
-> conversion).
+> conversion), and an eighth pass (FREEZE-immunity parity fix, a real vehicle-mounted zone-entry-bypass
+> fix, and a round of stale-doc-row cleanup for gamerule-coverable line items).
 > Everything else in the audit is still open; do not assume anything not listed below was addressed.
 
 ## Done this branch
@@ -120,6 +121,24 @@ Not attempted this pass (explicitly out of scope per the proposal): #4, the one 
 scoped pass per the proposal's own recommendation, since it needs an explicit decision on how far to
 go (replicate vanilla enchants for non-Valmora items? guard against Valmora items somehow carrying
 vanilla enchants? leave vanilla items fully vanilla?) before any code gets written.
+
+## Done this branch (eighth pass — freeze-immunity parity, vehicle zone-entry bypass, gamerule stale-row cleanup)
+
+**Self-directed batch** (`Propose next batch and do it`): the cheapest remaining verified-open items,
+surfaced by re-reading the audit doc end to end for anything the earlier passes' generic mechanisms
+(`world_rules` gamerule pass-through, the fire/lava-immunity parity fix) already close for free but
+never got marked, plus one newly-found real gap.
+
+| Audit item | What shipped |
+|---|---|
+| §7 — FREEZE-immunity parity | `CombatListener.onEntityDamage` now resets `victim.setFreezeTicks(0)` on a fully freeze-immune entity's (no-op) hit, mirroring the pre-existing fire/lava-immunity parity fix directly above it. The audit's originally-listed hook, `EntityFreezeEvent`, does not actually exist in this Paper API version (1.21.11, confirmed via the shipped jar) — there is no way to intercept freeze-tick *accumulation* itself, only to react on the damage tick, which is what shipped. |
+| §6 — vehicle-mounted zone-entry bypass | New `ZoneListener.onVehicleMove` (`VehicleMoveEvent`) — a real, previously-unnoticed gap: `PlayerMoveEvent` never fires for a mounted passenger (position updates go through `VehicleMoveEvent` on the vehicle entity instead), so a boat/minecart/horse could ride straight through a zone's `entry` restriction and past the `ZoneEnterEvent`/`ZoneExitEvent` script hooks entirely. Mirrors `onMoveEntryCheck`+`onMove` combined: since `VehicleMoveEvent` isn't cancellable, a denied entry teleports the vehicle back to `from` (same soft-push-back philosophy `onMoveEntryCheck` already uses for walking players); otherwise re-runs `zoneManager.checkTransition()` for every player passenger. Skips entirely for passengerless/non-player-piloted vehicles. |
+| §8/§11/§22 — gamerule-coverable stale rows | **Verification-only, no code needed** (5 rows): `playersSleepingPercentage`, `naturalRegeneration`, `spawnChunkRadius`, `randomTickSpeed`, and the §8 "GameRules wholesale" table row itself (already fixed in the priority summary during the seventh pass, but the table row it summarizes was never updated to match) are all standard named `GameRule`s already covered by the generic `world_rules` config pass-through shipped in the first pass — they were just never marked as such. `config.yml`'s commented gamerule examples gained a `spawnChunkRadius` entry to match (the other three were already listed). |
+
+Not attempted this pass: everything else flagged `❌ GAP` in the audit remains open — this was
+explicitly a cleanup-and-cheap-wins pass, not a new-feature pass. `PlayerVehicleEnterEvent`/`ExitEvent`
+(mount/dismount ability triggers) and `VehicleEntityCollisionEvent` remain open — only the zone-entry
+bypass specifically was fixed.
 
 ## Explicitly NOT done — still open
 

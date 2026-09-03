@@ -7,6 +7,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -38,6 +39,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.vehicle.VehicleMoveEvent;
 import org.bukkit.event.world.PortalCreateEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.nakii.valmora.Valmora;
@@ -93,6 +95,42 @@ public class ZoneListener implements Listener {
                 && event.getFrom().getBlockY() == event.getTo().getBlockY()
                 && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) return;
         zoneManager.checkTransition(event.getPlayer());
+    }
+
+    /**
+     * VANILLA_CONTROL_AUDIT.md §6 gap: {@link PlayerMoveEvent} does NOT fire for a player riding a
+     * vehicle — its position updates are delivered separately via {@link VehicleMoveEvent}, keyed to
+     * the vehicle entity, not the passenger. Without this handler, a boat/minecart/horse could ride
+     * straight through a zone's {@code entry} restriction and past the enter/exit script hooks
+     * ({@link ZoneEnterEvent}/{@link ZoneExitEvent}) entirely — both of which
+     * {@link #onMoveEntryCheck}/{@link #onMove} only ever see for players moving on foot. Mirrors both
+     * of those handlers combined: soft push-back (teleport the vehicle back to {@code from}, since
+     * {@code VehicleMoveEvent} isn't cancellable, same non-cancel-but-revert approach
+     * {@code onMoveEntryCheck} already uses) when entry is denied, otherwise re-run zone tracking for
+     * every player passenger. Non-player-piloted/passengerless vehicle drift is skipped entirely.
+     */
+    @EventHandler(priority = EventPriority.NORMAL)
+    public void onVehicleMove(VehicleMoveEvent event) {
+        List<Player> playerPassengers = new ArrayList<>();
+        for (Entity passenger : event.getVehicle().getPassengers()) {
+            if (passenger instanceof Player player) playerPassengers.add(player);
+        }
+        if (playerPassengers.isEmpty()) return;
+
+        Location from = event.getFrom(), to = event.getTo();
+        if (from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ()) return;
+
+        ZoneDefinition fromZone = zoneManager.getZoneAt(from).orElse(null);
+        ZoneDefinition toZone   = zoneManager.getZoneAt(to).orElse(null);
+        if (toZone != null && toZone != fromZone && !toZone.getFlags().entry()) {
+            event.getVehicle().teleport(from);
+            return;
+        }
+        for (Player player : playerPassengers) {
+            zoneManager.checkTransition(player);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

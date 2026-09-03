@@ -60,6 +60,7 @@ world:
     # drowningDamage: true
     # playersSleepingPercentage: 100
     # randomTickSpeed: 3
+    # spawnChunkRadius: 2
 
   # VANILLA_CONTROL_AUDIT.md §8: locks a world's weather to a fixed state, re-enforced against any
   # WeatherChangeEvent/ThunderChangeEvent that would move it away — the natural cycle, a /weather

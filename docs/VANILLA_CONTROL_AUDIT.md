@@ -158,7 +158,7 @@
 | Fly / sprint double-jump / elytra | Flight toggle | `PlayerToggleFlightEvent`, `EntityToggleGlideEvent`, `setAllowFlight` | Re-assert `setAllowFlight`/`setFlying` periodically | ❌ GAP |
 | Movement-speed attribute | `GENERIC_MOVEMENT_SPEED` | `Attribute.GENERIC_MOVEMENT_SPEED` + `NamespacedKey` modifier | Overwriting baseValue clobbers boot/enchant bonuses | 🟡 stat (walk speed only; fly/sprint/sneak/swim GAP) |
 | Levitation / frozen / slowness effect gating | Effects alter movement | `EntityPotionEffectEvent` (cancellable); freeze via `setFreezeTicks` (no event) | — | 🟡 alchemy applies effects; no `EntityPotionEffectEvent` filter |
-| Vehicle enter/exit & minecart/boat | Mount physics | `PlayerVehicleEnterEvent`, `PlayerVehicleExitEvent`, `VehicleEntityCollisionEvent` | — | ❌ GAP |
+| Vehicle enter/exit & minecart/boat | Mount physics | `PlayerVehicleEnterEvent`, `PlayerVehicleExitEvent`, `VehicleEntityCollisionEvent` | `PlayerMoveEvent` does NOT fire for a mounted passenger — position updates go through `VehicleMoveEvent` on the vehicle entity instead, a real zone-protection bypass previously unguarded (a boat/minecart could ride straight through a zone's `entry` restriction) | 🟡 `ZoneListener.onVehicleMove` closes the entry-bypass specifically (soft push-back + zone tracking for every player passenger, mirroring `onMoveEntryCheck`/`onMove`); `PlayerVehicleEnterEvent`/`ExitEvent`/`VehicleEntityCollisionEvent` (mount/dismount ability triggers, collision physics) still not attempted |
 
 ---
 
@@ -172,7 +172,7 @@
 | Drowning / air bubbles / water breathing | Air depletes → `DROWNING` | `EntityAirChangeEvent` (`setAmount`), `EntityDamageEvent` `DROWNING` | Cancel alone won't restore; call `setAmount` | ✅ drowning+alchemy breathing; ❌ no air-bar control |
 | Fire ticks / burning / extinguishing | Burning entity | `EntityIgniteEvent` (Paper, `Cause`), `EntityCombustEvent`, `setFireTicks(0)` | Prefer `EntityIgniteEvent` over `EntityCombustEvent` | ✅ fire immunity extinguishes; ❌ ignite interception |
 | Lava movement / nether immunity | Lava damages/slows | `EntityDamageEvent` `LAVA` | — | ✅ mapped; ❌ no movement/resistance logic |
-| Freeze / powder snow / Frost Walker | Freeze ticks; powder snow damage | `EntityFreezeEvent` (Paper); `EntityDamageEvent` `FREEZE` | — | ❌ GAP |
+| Freeze / powder snow / Frost Walker | Freeze ticks; powder snow damage | `EntityFreezeEvent` (Paper); `EntityDamageEvent` `FREEZE` | `EntityFreezeEvent` does not actually exist in this Paper API version (1.21.11, verified via the shipped jar) — the audit's originally-listed hook is wrong | 🟡 a fully freeze-immune entity now has its freeze ticks reset on the (no-op) immune hit, mirroring the pre-existing fire/lava-immunity parity fix (`CombatListener.onEntityDamage`) — the only mechanism available, since there's no separate freeze-tick-accumulation event to intercept in this API version; non-immune freeze-tick accumulation itself is untouched (already vanilla-correct) |
 | Damage-type classification completeness | `LIGHTNING`/`FREEZE` must not map to MELEE | `CombatListener.mapCauseToType` | **Bug:** `LIGHTNING` and `FREEZE` currently fall through to `MELEE` | ❌ GAP (miscategorized) |
 
 ---
@@ -183,9 +183,9 @@
 |---|---|---|---|---|
 | Time manipulation / freeze | `world.setTime()`; freeze sun | `setGameRule(DO_DAYLIGHT_CYCLE,false)` + tick `setTime` | Client moves the sun itself — must re-set server-side every tick | ❌ GAP (time module read-only by design) |
 | Rain/snow/clear + thunder | World weather state | `WeatherChangeEvent`, `ThunderChangeEvent`, `world.setStorm`/`setThundering` | No weather-change event in some paths — poll | ✅ `world_rules` — per-world `world.weather-lock` (`WorldRulesModule.WeatherLock`), one-shot `setStorm`/`setThundering` + `WeatherChangeEvent`/`ThunderChangeEvent` cancellation enforcing it; no default lock shipped |
-| Night skip / sleeping percentage | Skip when % sleeping | `GameRule.PLAYERS_SLEEPING_PERCENTAGE`; poll dawn | — | ❌ GAP |
+| Night skip / sleeping percentage | Skip when % sleeping | `GameRule.PLAYERS_SLEEPING_PERCENTAGE`; poll dawn | — | ✅ verified — `playersSleepingPercentage` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through like any other gamerule; the "poll dawn" half (detecting the skip itself happening) is not attempted, but that's vanilla's own behavior, nothing to control |
 | Lightning entities | Strikes | `LightningStrikeEvent` | — | ❌ GAP |
-| GameRules wholesale | Dozens affect RPG (keepInventory, doFireTick, naturalRegeneration, fall/fire/drowning damage, doMobSpawning, doMobLoot, etc.) | `World.setGameRule(GameRule.*)` | **None are set anywhere in Valmora** — biggest environmental cluster | ❌ GAP |
+| GameRules wholesale | Dozens affect RPG (keepInventory, doFireTick, naturalRegeneration, fall/fire/drowning damage, doMobSpawning, doMobLoot, etc.) | `World.setGameRule(GameRule.*)` | **None are set anywhere in Valmora** — biggest environmental cluster | ✅ `world_rules` module (§8 high, first pass) — generic `world.gamerules.*` config pass-through covers every named `GameRule`, including all of these; this row was stale (fixed twice over — module shipped first pass, this table row just never got updated to match) |
 | Difficulty | Affects damage/hunger/special spawns | `World.setDifficulty(Difficulty.*)` | — | ❌ GAP |
 | World border | Limit + damage | `WorldBorder` API; `EntityDamageEvent` `WORLD_BORDER` | — | 🟡 border damage mapped; ❌ no border control |
 | Biome rules / temperature | Biome-specific effects | `Registry.BIOME`, `Block.getTemperature()` | `Biome` enum removed → `Registry.BIOME` | ❌ GAP |
@@ -228,7 +228,7 @@
 | XP curve / levels / level-up | Hardcoded curve | `PlayerExpChangeEvent`, `PlayerLevelChangeEvent` | No vanilla-level abstraction in Valmora (profile XP separate) | ❌ GAP |
 | XP orbs / bottle o' enchanting / mending/offhand | Orb pickup routes to mending | `PlayerPickupExperienceEvent`, `PlayerExpChangeEvent` | Mending reroutes transparently | ❌ GAP |
 | Enchanting-table/anvil XP cost | Uses player levels | `PrepareItemEnchantEvent`, `PrepareAnvilEvent`, `EnchantItemEvent` | Valmora enchant engine is its own system; vanilla tables still work on non-Valmora items | 🟡 enchant |
-| Natural regeneration | Gamerule-driven | `GameRule.NATURAL_REGENERATION` | Not set | ✅ starvation canceled; ❌ regen control |
+| Natural regeneration | Gamerule-driven | `GameRule.NATURAL_REGENERATION` | Not set | ✅ starvation canceled; regen control verified — `naturalRegeneration` is a standard named `GameRule` (Boolean type), already settable via the generic `world_rules` config pass-through |
 | Player abilities (flight/invulnerability/mayfly) | `setAllowFlight`/`setInvulnerable` | `PlayerToggleFlightEvent` | — | ❌ GAP |
 
 ---
@@ -405,8 +405,8 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Chunk load/generate/unload | Loading events | `ChunkLoadEvent`, `ChunkUnloadEvent`, `ChunkPopulateEvent` | Paper async chunk load — events may fire async | 🟡 zone/resource/mob/npc use ChunkLoad; ❌ gen |
-| Spawn chunks / force-load tickets | Keep loaded | `Chunk#addPluginChunkTicket`, `setForceLoaded` | `GameRule.SPAWN_CHUNK_RADIUS` (1.21) | ❌ GAP |
-| Random-tick processing | Random block ticks | `GameRule.RANDOM_TICK_SPEED`; events per state change | Default 3 | ❌ GAP |
+| Spawn chunks / force-load tickets | Keep loaded | `Chunk#addPluginChunkTicket`, `setForceLoaded` | `GameRule.SPAWN_CHUNK_RADIUS` (1.21) | 🟡 the gamerule half is verified — `spawnChunkRadius` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through; explicit force-load ticket management (`addPluginChunkTicket`) is a separate, still-open GAP |
+| Random-tick processing | Random block ticks | `GameRule.RANDOM_TICK_SPEED`; events per state change | Default 3 | 🟡 the gamerule half is verified — `randomTickSpeed` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through; per-state-change event control itself is a separate, still-open GAP |
 | Entity persistence across restart | Saved to region file | — | Boss instance state not persisted (mob.md TODO) | ❌ GAP |
 | Chunk-unload entity despawn | Non-persistent removed | `EntityRemoveEvent` (`UNLOADED_CHUNK`) | — | 🟡 persistent flag; ❌ reaction |
 
@@ -464,6 +464,9 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
     Night-skip detection and `Statistic.TIME_SINCE_REST` control remain untouched (vanilla already
     correct; `playersSleepingPercentage` is settable via the already-shipped `world_rules` GameRule
     pass-through).
+14a. ~~**Vehicle-mounted zone-entry bypass**~~ — **done** (§6, eighth pass): `PlayerMoveEvent` never
+    fires for a mounted passenger, so a boat/minecart/horse could previously ride through a zone's
+    `entry` restriction untouched. `ZoneListener.onVehicleMove` (`VehicleMoveEvent`) closes it.
 15. **Custom pathfinder goals** — extend Paper `Pathfinder`/goal API beyond zone mob-home movement.
 16. ~~**Held/equipped `AttributeModifier`**~~ — **verified**, `StatModule` already uses the `NamespacedKey` constructor exclusively.
 
@@ -501,10 +504,11 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
   4. All text through MiniMessage/Adventure only (§7.5/§11.3).
   5. Never store `ExecutionContext`; never touch Bukkit from async threads (§7.4).
 
-_Last updated: 2026-09-03 (seventh pass — weather write-lock, bucket fill/empty and portal-creation
-zone gating, plus verification that spawn-egg/command mob upgrade and zombie-villager cure conversion
-were already fully covered by existing listeners; also fixed several stale coverage cells/summary
-items that hadn't been struck through when earlier passes actually closed them — GameRules wholesale,
-mob conversion, spawn-egg upgrade). Generated from a multi-agent audit of vanilla Paper 1.21.11
+_Last updated: 2026-09-03 (eighth pass — FREEZE-immunity parity fix mirroring the existing fire/lava
+one; a real vehicle-mounted zone-entry-bypass fix (`VehicleMoveEvent`); and a round of stale-row
+cleanup for every gamerule-coverable line item that the generic `world_rules` pass-through already
+closes for free — sleeping percentage, natural regeneration, spawn-chunk radius, random-tick speed,
+and GameRules wholesale itself, which had been re-marked done in the priority summary on a prior pass
+but never in its own §8 table row). Generated from a multi-agent audit of vanilla Paper 1.21.11
 mechanics vs. the current Valmora module set; coverage cells updated in place as gaps are closed —
 see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md` for what shipped on which branch._
