@@ -21,7 +21,6 @@ import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.module.npc.event.NpcInteractEvent;
-import org.nakii.valmora.module.script.condition.ConditionGroup;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
@@ -191,14 +190,14 @@ public class NpcManager {
     private void spawnHolograms(NpcDefinition def, World world) {
         despawnHolograms(def.getId());
         for (HologramDefinition holo : def.getHolograms()) {
-            ConditionGroup conditions = plugin.getScriptModule().getConditionParser().parseList(holo.getConditions());
+            org.nakii.valmora.api.scripting.Condition conditions = holo.getCompiledConditions().condition(plugin.getScriptModule());
             // Apply immediately so the hologram is visible as soon as the NPC spawns.
             applyHologramVisibility(def, world, holo, conditions);
             scheduleHologramTask(def, holo, conditions);
         }
     }
 
-    private void scheduleHologramTask(NpcDefinition def, HologramDefinition holo, ConditionGroup conditions) {
+    private void scheduleHologramTask(NpcDefinition def, HologramDefinition holo, org.nakii.valmora.api.scripting.Condition conditions) {
         String taskKey = def.getId() + ":" + holo.getName();
 
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
@@ -224,7 +223,7 @@ public class NpcManager {
         return nearest;
     }
 
-    private void applyHologramVisibility(NpcDefinition def, World world, HologramDefinition holo, ConditionGroup conditions) {
+    private void applyHologramVisibility(NpcDefinition def, World world, HologramDefinition holo, org.nakii.valmora.api.scripting.Condition conditions) {
         boolean shouldShow;
         try {
             Location npcLoc = new Location(world, def.getX(), def.getY(), def.getZ());
@@ -390,18 +389,16 @@ public class NpcManager {
             dialogueManager.startDialogue(player, def.getBoundConversationId());
             return;
         }
-        if (!def.getOnRightClick().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(def.getOnRightClick()).execute(ctx);
+        if (!def.getRightClickScript().isEmpty()) {
+            def.getRightClickScript().run(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
         }
     }
 
     public void handleLeftClick(Player player, String npcId) {
         NpcDefinition def = registry.get(npcId).orElse(null);
         if (def == null) return;
-        if (!def.getOnLeftClick().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(def.getOnLeftClick()).execute(ctx);
+        if (!def.getLeftClickScript().isEmpty()) {
+            def.getLeftClickScript().run(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
         }
     }
 }

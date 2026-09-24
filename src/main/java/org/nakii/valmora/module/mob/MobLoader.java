@@ -12,7 +12,7 @@ public class MobLoader {
     public MobLoader(Valmora plugin, MobRegistry registry) {
         this.plugin = plugin;
         this.registry = registry;
-        this.loader = new YamlLoader<>(plugin, "mobs", "mobs");
+        this.loader = new YamlLoader<MobDefinition>(plugin, "mobs", "Mobs").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.MOB);
     }
 
     public void loadMobs() {

@@ -3,6 +3,11 @@ package org.nakii.valmora.module.script.pipeline;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.nakii.valmora.infrastructure.config.diag.LoadScope;
+import org.nakii.valmora.infrastructure.config.diag.LoadSession;
+import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;
+import org.nakii.valmora.infrastructure.config.diag.Suggestions;
+import org.nakii.valmora.infrastructure.config.read.ConfigReader;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.pipeline.CompiledPipelineStage;
 import org.nakii.valmora.api.pipeline.HookBus;
@@ -54,41 +59,55 @@ public final class PipelineYamlLoader {
             return 0;
         }
 
-        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-        List<?> rawStages = config.getList("stages");
-        if (rawStages == null || rawStages.isEmpty()) {
-            return 0;
-        }
+        try (LoadSession session = LoadSession.open(plugin, "Pipeline " + fileName, fileName)) {
+            FileConfiguration config = session.readYaml(file, fileName);
+            if (config == null) return 0;
+            List<?> rawStages = config.getList("stages");
+            if (rawStages == null || rawStages.isEmpty()) {
+                if (config.contains("stages") && !config.isList("stages")) {
+                    session.warn(fileName, null, "'stages:' must be a list of stages");
+                }
+                return 0;
+            }
 
-        int compiled = 0;
-        for (Object raw : rawStages) {
-            ConfigurationSection section = toSection(raw);
-            if (section == null) continue;
-            if (compileStage(plugin, scriptModule, bus, section, pointPrefix, validPoints)) compiled++;
+            int compiled = 0;
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            for (int i = 0; i < rawStages.size(); i++) {
+                ConfigurationSection section = toSection(rawStages.get(i));
+                if (section == null) {
+                    session.warn(fileName, "stages[" + i + "]", "expected a stage (id, when, conditions, on-pass, on-fail) — skipped");
+                    continue;
+                }
+                String entryId = section.getString("id", "stages[" + i + "]");
+                try (LoadScope scope = session.entry(fileName, entryId)) {
+                    if (section.getString("id") != null && !ids.add(section.getString("id").toLowerCase())) {
+                        scope.warn("stage id '" + section.getString("id") + "' is used more than once in this file");
+                    }
+                    if (compileStage(scriptModule, bus, section, pointPrefix, validPoints)) {
+                        compiled++;
+                        session.loaded();
+                    }
+                }
+            }
+            return compiled;
         }
-        if (compiled > 0) {
-            plugin.getLogger().info("[PipelineYamlLoader] " + fileName + ": registered " + compiled + " stage(s).");
-        }
-        return compiled;
     }
 
-    private static boolean compileStage(Valmora plugin, ScriptModule scriptModule, HookBus bus,
+    private static boolean compileStage(ScriptModule scriptModule, HookBus bus,
                                          ConfigurationSection section, String pointPrefix, List<String> validPoints) {
-        String id = section.getString("id");
-        String when = section.getString("when");
-        if (id == null || when == null) {
-            plugin.getLogger().warning("[PipelineYamlLoader] Skipping stage missing 'id' or 'when': " + section);
-            return false;
-        }
+        ConfigReader reader = ConfigReader.of(section).knownKeys("id", "when", "conditions", "on-pass", "on-fail");
+        String id = reader.requireString("id");
+        String when = reader.requireString("when");
+        if (id == null || when == null) return false;
         if (!validPoints.contains(when)) {
-            plugin.getLogger().warning("[PipelineYamlLoader] Skipping stage '" + id + "': unknown insertion point '"
-                    + when + "' (expected one of " + validPoints + ")");
+            reader.error("when", "unknown insertion point '" + when + "' (expected one of " + validPoints + ") — stage skipped",
+                    Suggestions.hint(when, validPoints));
             return false;
         }
 
-        var conditions = scriptModule.getConditionParser().parseList(section.getStringList("conditions"));
-        var onPass = scriptModule.getEventParser().parseList(section.getStringList("on-pass"));
-        var onFail = scriptModule.getEventParser().parseList(section.getStringList("on-fail"));
+        var conditions = ScriptCompile.at("conditions", () -> scriptModule.getConditionParser().parseList(section.getStringList("conditions")));
+        var onPass = ScriptCompile.at("on-pass", () -> scriptModule.getEventParser().parseList(section.getStringList("on-pass")));
+        var onFail = ScriptCompile.at("on-fail", () -> scriptModule.getEventParser().parseList(section.getStringList("on-fail")));
 
         bus.registerYamlStage(pointPrefix + when, new CompiledPipelineStage(id, conditions, onPass, onFail));
         return true;

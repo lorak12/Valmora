@@ -130,7 +130,7 @@ public class DialogueManager implements Listener {
         DialogueChoice choice = displayed.get(choiceIndex);
         SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
         if (!choice.getEvents().isEmpty())
-            plugin.getScriptModule().getEventParser().parseList(choice.getEvents()).execute(ctx);
+            choice.getCompiledEvents().run(ctx, plugin.getScriptModule());
 
         String next = choice.getNextNodeId();
         if (next == null || next.isBlank() || next.equalsIgnoreCase("null")) {
@@ -191,21 +191,21 @@ public class DialogueManager implements Listener {
         DialogueNode node = session.getDialogue().getNode(session.getCurrentNodeId()).orElse(null);
         if (node == null) { endSession(player, true); return; }
 
-        if (!evaluateConditions(node.getConditions(), player)) { endSession(player, true); return; }
+        if (!evaluateConditions(node.getCompiledConditions(), player)) { endSession(player, true); return; }
 
         SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
         if (!node.getEvents().isEmpty())
-            plugin.getScriptModule().getEventParser().parseList(node.getEvents()).execute(ctx);
+            node.getCompiledEvents().run(ctx, plugin.getScriptModule());
 
         // Player-option node: transparent — execute pointer events then jump to next node
         if (node.isPlayerNode()) {
             for (DialogueChoice c : node.getChoices()) {
                 if (!"__ptr__".equals(c.getText())) continue;
                 if (!c.getEvents().isEmpty())
-                    plugin.getScriptModule().getEventParser().parseList(c.getEvents()).execute(ctx);
+                    c.getCompiledEvents().run(ctx, plugin.getScriptModule());
                 String nextId = c.getNextNodeId();
                 DialogueNode nextNode = session.getDialogue().getNode(nextId).orElse(null);
-                if (nextNode != null && evaluateConditions(nextNode.getConditions(), player)) {
+                if (nextNode != null && evaluateConditions(nextNode.getCompiledConditions(), player)) {
                     session.setCurrentNodeId(nextId);
                     showNode(player, session);
                     return;
@@ -306,7 +306,7 @@ public class DialogueManager implements Listener {
             if (!target.startsWith("player.")) continue; // NPC pointer — skip here
             DialogueNode playerNode = def.getNode(target).orElse(null);
             if (playerNode == null) continue;
-            if (!evaluateConditions(playerNode.getConditions(), player)) continue;
+            if (!evaluateConditions(playerNode.getCompiledConditions(), player)) continue;
             visible.add(new DialogueChoice(playerNode.getText(), target, List.of(), List.of()));
         }
         return visible;
@@ -324,7 +324,7 @@ public class DialogueManager implements Listener {
             if (target.startsWith("player.")) continue; // player pointer — skip here
             DialogueNode npcNode = def.getNode(target).orElse(null);
             if (npcNode == null) continue;
-            if (!evaluateConditions(npcNode.getConditions(), player)) continue;
+            if (!evaluateConditions(npcNode.getCompiledConditions(), player)) continue;
             pointers.add(target);
         }
         return pointers;
@@ -334,18 +334,16 @@ public class DialogueManager implements Listener {
         if (!def.getFirstOptions().isEmpty()) {
             for (String optionId : def.getFirstOptions()) {
                 DialogueNode node = def.getNode(optionId).orElse(null);
-                if (node != null && evaluateConditions(node.getConditions(), player)) return optionId;
+                if (node != null && evaluateConditions(node.getCompiledConditions(), player)) return optionId;
             }
             return null;
         }
         return def.getStartNodeId();
     }
 
-    private boolean evaluateConditions(List<String> condStrings, Player player) {
-        if (condStrings == null || condStrings.isEmpty()) return true;
-        SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-        Condition group = plugin.getScriptModule().getConditionParser().parseList(condStrings);
-        return group.evaluate(ctx);
+    private boolean evaluateConditions(org.nakii.valmora.module.script.compile.CompiledConditions conditions, Player player) {
+        if (conditions == null || conditions.isEmpty()) return true;
+        return conditions.test(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
     }
 
     private String resolvePointer(Player player, DialogueSession session, String pointer) {
@@ -470,9 +468,7 @@ public class DialogueManager implements Listener {
         UUID uuid = player.getUniqueId();
         DialogueSession session = activeSessions.get(uuid);
         if (runFinalEvents && session != null && !session.getDialogue().getFinalActions().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser()
-                    .parseList(session.getDialogue().getFinalActions()).execute(ctx);
+            session.getDialogue().getCompiledFinalActions().run(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
         }
         endSession(uuid, false);
         if (packetManager != null) packetManager.stopInterception(player);

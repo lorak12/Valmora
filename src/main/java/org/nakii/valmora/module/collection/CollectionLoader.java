@@ -4,6 +4,10 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.Valmora;
 
+import org.nakii.valmora.infrastructure.config.diag.LoadScope;
+import org.nakii.valmora.infrastructure.config.diag.LoadSession;
+import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;
+
 import java.io.File;
 
 public class CollectionLoader {
@@ -16,6 +20,9 @@ public class CollectionLoader {
         this.registry = registry;
     }
 
+    /** Diagnostics for the load in progress. */
+    private LoadSession session;
+
     public void loadCollections() {
         File folder = new File(plugin.getDataFolder(), "collections");
         if (!folder.exists()) {
@@ -23,31 +30,50 @@ public class CollectionLoader {
             return;
         }
 
-        File categoriesFile = new File(folder, "categories.yml");
-        if (categoriesFile.exists()) {
-            loadCategories(categoriesFile);
-        } else {
-            plugin.getLogger().warning("[Collections] collections/categories.yml not found.");
+        try (LoadSession s = LoadSession.open(plugin, "Collections", "collections")) {
+            this.session = s;
+            File categoriesFile = new File(folder, "categories.yml");
+            if (categoriesFile.exists()) {
+                loadCategories(categoriesFile);
+            } else {
+                s.warn("collections/categories.yml", null, "file not found — every collection's category: will be unknown");
+            }
+
+            org.nakii.valmora.infrastructure.versioning.IdAliases.clear(
+                    org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS);
+            loadCollectionsRecursive(folder);
+
+            // Cross-file check: every collection's category must exist in categories.yml.
+            java.util.Set<String> categoryIds = new java.util.HashSet<>();
+            for (CollectionCategory c : registry.getCategories()) categoryIds.add(c.getId().toLowerCase());
+            for (CollectionDefinition def : registry.getCollections()) {
+                if (!categoryIds.contains(def.getCategoryId().toLowerCase())) {
+                    s.warn(null, def.getId(), "unknown category '" + def.getCategoryId() + "' — the collection won't show in any category menu",
+                            org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(def.getCategoryId(), categoryIds));
+                }
+            }
+            s.loaded(registry.getCollections().size());
+        } finally {
+            this.session = null;
         }
+    }
 
-        org.nakii.valmora.infrastructure.versioning.IdAliases.clear(
-                org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS);
-        loadCollectionsRecursive(folder);
-
-        plugin.getLogger().info("[Collections] Loaded " + registry.getCategories().size() +
-                " categories and " + registry.getCollections().size() + " collections.");
+    private String rel(File f) {
+        return plugin.getDataFolder().toPath().relativize(f.toPath()).toString().replace(File.separatorChar, '/');
     }
 
     private void loadCategories(File file) {
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        String path = rel(file);
+        YamlConfiguration config = session.readYaml(file, path);
+        if (config == null) return;
         for (String key : config.getKeys(false)) {
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) continue;
-            try {
+            try (LoadScope ignored = session.entry(path, key)) {
                 CollectionCategory cat = CollectionDefinitionParser.parseCategory(key.toLowerCase(), section);
                 registry.registerCategory(cat);
             } catch (Exception e) {
-                plugin.getLogger().warning("[Collections] Failed to parse category '" + key + "': " + e.getMessage());
+                session.error(path, key, "failed to parse category: " + e.getMessage());
             }
         }
     }
@@ -65,19 +91,26 @@ public class CollectionLoader {
     }
 
     private void loadCollectionFile(File file) {
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        String path = rel(file);
+        YamlConfiguration config = session.readYaml(file, path);
+        if (config == null) return;
         for (String key : config.getKeys(false)) {
             ConfigurationSection section = config.getConfigurationSection(key);
             if (section == null) continue;
-            try {
+            try (LoadScope ignored = session.entry(path, key)) {
                 CollectionDefinition def = CollectionDefinitionParser.parseCollection(key.toLowerCase(), section);
+                for (CollectionStage stage : def.getStages()) {
+                    if (!stage.getRewards().isEmpty() && plugin.getScriptModule() != null) {
+                        ScriptCompile.at("stages." + stage.getKey() + ".rewards",
+                                () -> plugin.getScriptModule().compileCached(stage.getRewards()));
+                    }
+                }
                 registry.registerCollection(def);
                 org.nakii.valmora.infrastructure.versioning.IdAliases.registerAll(
                         org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS,
                         section.getStringList("previous-ids"), def.getId());
             } catch (Exception e) {
-                plugin.getLogger().warning("[Collections] Failed to parse collection '" + key +
-                        "' in " + file.getName() + ": " + e.getMessage());
+                session.error(path, key, "failed to parse collection: " + e.getMessage());
             }
         }
     }

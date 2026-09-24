@@ -72,8 +72,13 @@ public class PlayerHiderManager {
     private boolean evaluate(Player player, List<String> conditions) {
         if (conditions == null || conditions.isEmpty()) return true;
         SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-        Condition group = plugin.getScriptModule().getConditionParser().parseList(conditions);
-        return group.evaluate(ctx);
+        Condition group = plugin.getScriptModule().conditionsCached(conditions);
+        try {
+            return group.evaluate(ctx);
+        } catch (RuntimeException e) {
+            plugin.getLogger().warning("[PlayerHider] condition " + conditions + " failed: " + e);
+            return false;
+        }
     }
 
     private void restoreAll() {

@@ -1,5 +1,8 @@
 package org.nakii.valmora.module.npc.dialogue;
 
+import org.nakii.valmora.module.script.compile.CompiledConditions;
+import org.nakii.valmora.module.script.compile.CompiledScript;
+
 import java.util.List;
 
 public class DialogueNode {
@@ -12,6 +15,8 @@ public class DialogueNode {
     private final List<String> conditions;
     private final List<DialogueChoice> choices;
     private final NodeType nodeType;
+    private final CompiledScript compiledEvents;
+    private final CompiledConditions compiledConditions;
 
     public DialogueNode(String id, String text, List<String> events, List<DialogueChoice> choices) {
         this(id, text, events, List.of(), choices, NodeType.NPC);
@@ -30,7 +35,12 @@ public class DialogueNode {
         this.conditions = conditions != null ? conditions : List.of();
         this.choices = choices != null ? choices : List.of();
         this.nodeType = nodeType != null ? nodeType : NodeType.NPC;
+        this.compiledEvents = CompiledScript.compile(this.events, "events");
+        this.compiledConditions = CompiledConditions.compile(this.conditions, "conditions");
     }
+
+    public CompiledScript getCompiledEvents() { return compiledEvents; }
+    public CompiledConditions getCompiledConditions() { return compiledConditions; }
 
     public String getId() { return id; }
     public String getText() { return text; }

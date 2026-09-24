@@ -32,7 +32,8 @@ public class NotifyModule implements ReloadableModule {
         this.quitListener = new NotifyQuitListener(bossBarIO);
         plugin.getServer().getPluginManager().registerEvents(quitListener, plugin);
 
-        plugin.getScriptModule().registerEvent(new NotifyEvent());
+        // Replaces the script module's basic `notify` with the category-aware one.
+        plugin.getScriptModule().replaceEvent(new NotifyEvent());
         plugin.getScriptModule().registerEvent(new NotifyAllEvent());
     }
 

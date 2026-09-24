@@ -50,27 +50,38 @@ public class EntityCategoryRegistry {
             return;
         }
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        ConfigurationSection section = config.getConfigurationSection("categories");
-        if (section == null) return;
-
-        int count = 0;
-        for (String id : section.getKeys(false)) {
-            ConfigurationSection categorySection = section.getConfigurationSection(id);
-            if (categorySection == null) continue;
-            ConfigurationSection matchSection = categorySection.getConfigurationSection("match");
-            if (matchSection == null) continue;
-
-            List<Predicate<Entity>> rules = compileRules(matchSection, plugin);
-            if (rules.isEmpty()) {
-                plugin.getLogger().warning("[EntityCategoryRegistry] Category '" + id + "' has no valid match rules — skipped.");
-                continue;
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Entity categories", "entity_categories.yml")) {
+            YamlConfiguration config = session.readYaml(file, "entity_categories.yml");
+            if (config == null) return;
+            ConfigurationSection section = config.getConfigurationSection("categories");
+            if (section == null) {
+                session.warn("entity_categories.yml", null, "no top-level 'categories:' section — nothing loaded");
+                return;
             }
-            String normalizedId = id.toUpperCase(Locale.ROOT);
-            categories.put(normalizedId, new EntityCategoryDefinition(normalizedId, rules));
-            count++;
+
+            for (String id : section.getKeys(false)) {
+                ConfigurationSection categorySection = section.getConfigurationSection(id);
+                if (categorySection == null) continue;
+                try (var scope = session.entry("entity_categories.yml", id)) {
+                    ConfigurationSection matchSection = categorySection.getConfigurationSection("match");
+                    if (matchSection == null) {
+                        scope.warn("needs a match: section — skipped");
+                        continue;
+                    }
+                    org.nakii.valmora.infrastructure.config.read.ConfigReader.of(matchSection, scope.sub("match"))
+                            .knownKeys("always", "type_equals", "type_contains", "instanceof", "has_pdc");
+
+                    List<Predicate<Entity>> rules = compileRules(matchSection, plugin);
+                    if (rules.isEmpty()) {
+                        scope.warn("has no valid match rules — skipped");
+                        continue;
+                    }
+                    String normalizedId = id.toUpperCase(Locale.ROOT);
+                    categories.put(normalizedId, new EntityCategoryDefinition(normalizedId, rules));
+                    session.loaded();
+                }
+            }
         }
-        plugin.getLogger().info("[EntityCategoryRegistry] Loaded " + count + " entity categories.");
     }
 
     private List<Predicate<Entity>> compileRules(ConfigurationSection match, Valmora plugin) {
@@ -81,6 +92,10 @@ public class EntityCategoryRegistry {
         }
         if (match.isString("type_equals")) {
             String value = match.getString("type_equals");
+            if (org.nakii.valmora.infrastructure.config.read.ConfigReader.parseEnum(value, org.bukkit.entity.EntityType.class) == null) {
+                org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("match.type_equals: unknown entity type '" + value + "'",
+                        org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(value, org.nakii.valmora.infrastructure.config.read.ConfigReader.enumNames(org.bukkit.entity.EntityType.class)));
+            }
             rules.add(entity -> entity.getType().name().equalsIgnoreCase(value));
         }
         List<String> containsList = match.getStringList("type_contains");
@@ -97,7 +112,8 @@ public class EntityCategoryRegistry {
             if (clazz != null) {
                 rules.add(clazz::isInstance);
             } else {
-                plugin.getLogger().warning("[EntityCategoryRegistry] Unknown 'instanceof' class: " + className);
+                org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("match.instanceof: unknown entity interface '"
+                        + className + "' — rule ignored");
             }
         }
         if (match.isString("has_pdc")) {

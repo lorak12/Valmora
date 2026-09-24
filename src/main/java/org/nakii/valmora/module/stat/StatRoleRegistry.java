@@ -89,21 +89,37 @@ public class StatRoleRegistry {
 
         File statsDir = new File(plugin.getDataFolder(), "stats");
         File[] files = statsDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files != null) {
-            for (File file : files) {
-                FileConfiguration statsConfig = YamlConfiguration.loadConfiguration(file);
-                ConfigurationSection section = statsConfig.getConfigurationSection(SECTION_KEY);
-                if (section == null) continue;
-                for (String role : section.getKeys(false)) {
-                    String statId = section.getString(role);
-                    if (statId != null && !statId.isBlank()) {
+        // Stat files are read (and syntax errors reported) by StatLoader; this only adds the
+        // stat_roles: mappings, checking each points at a real stat once everything has loaded.
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session =
+                     org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Stat roles")) {
+            if (files != null) {
+                java.util.Arrays.sort(files);
+                for (File file : files) {
+                    YamlConfiguration statsConfig = new YamlConfiguration();
+                    try {
+                        statsConfig.load(file);
+                    } catch (Exception e) {
+                        continue; // reported by StatLoader
+                    }
+                    ConfigurationSection section = statsConfig.getConfigurationSection(SECTION_KEY);
+                    if (section == null) continue;
+                    String path = "stats/" + file.getName();
+                    for (String role : section.getKeys(false)) {
+                        String statId = section.getString(role);
+                        if (statId == null || statId.isBlank()) {
+                            session.warn(path, SECTION_KEY + "." + role, "role has no stat id — ignored");
+                            continue;
+                        }
+                        try (var scope = session.entry(path, SECTION_KEY + "." + role)) {
+                            scope.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.STAT, statId);
+                        }
                         roles.put(role.toLowerCase(Locale.ROOT), statId.toLowerCase(Locale.ROOT));
                     }
                 }
             }
+            session.loaded(roles.size());
         }
-
-        plugin.getLogger().info("[StatRoleRegistry] Resolved " + roles.size() + " stat roles.");
     }
 
     /** @return the stat id backing {@code role}, or {@code role} itself if unregistered (matches a plain stat id lookup). */

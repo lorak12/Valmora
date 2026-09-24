@@ -20,6 +20,16 @@ public class EconomyAddEventFactory implements EventFactory {
     public String getName() { return "economy_add"; }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "economy_add <amount>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 1) return context -> {};
         String rawAmount = args[0];

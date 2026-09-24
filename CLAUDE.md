@@ -235,9 +235,38 @@ Use `ValmoraAPI.getInstance()`. Do not hold direct references to sibling module 
 Generic config loader at `org.nakii.valmora.infrastructure.config.YamlLoader`. Use it for all YAML loading — do not write custom `FileConfiguration` boilerplate.
 
 ```java
-YamlLoader<GuiDefinition> loader = new YamlLoader<>(plugin, "guis", "GUIs");
+YamlLoader<GuiDefinition> loader = new YamlLoader<>(plugin, "guis", "GUIs").kind(Kinds.GUI);
 loader.load(parser::parse, def -> registry.put(def.getId(), def));
 ```
+
+**Diagnostics.** `YamlLoader` opens a `LoadScope` (`infrastructure/config/diag/`) around every entry
+it parses. Anything inside it — your parser, `ConfigReader`, the script compilers, event factories —
+reports problems through `LoadScope.current()` / `Diagnostics.warn|error(...)` and they're attributed
+to the file, entry and key path automatically. They go into the `LoadReport` shown by
+`/valmora reload`, `/valmora validate`, `/valmora report` and `plugins/Valmora/last-load-report.txt`.
+Loaders that read YAML themselves (single settings files, quest packages, pipelines) use a
+`LoadSession` for the same reporting — never `YamlConfiguration.loadConfiguration` (it silently turns
+a syntax error into an empty file) and never a bare `logger.warning` for content problems.
+
+**Parsing helpers.** Use `ConfigReader` (`infrastructure/config/read/`) instead of hand-written
+`try { Enum.valueOf } catch`: `requireString/requireEnum/requireMaterial` (missing/invalid → ERROR),
+`enumOf/material/intRange/doubleRange/bool/stringList` (bad value → WARN + default), `oneOf` for
+registry-backed "open enums", `knownKeys(...)` (typo'd keys → WARN with "did you mean"), and
+`result(() -> ...)` to fail the entry only if an ERROR was reported. Rule: a broken required field
+fails the entry (the loader keeps its last good version); a broken optional part is a warning and the
+rest of the entry still loads.
+
+**Cross-references.** Record every id your content points at with `reader.ref(key, Kinds.X, id)` /
+`LoadScope.ref(kind, id)`; event factories do it via `EventFactory.references(...)`. Once all modules
+are enabled, `ReferenceValidator` checks them against the `ContentIndex` (kinds registered in
+`BuiltinContentKinds`) and reports dangling ones as warnings — content stays loaded. Checks that need
+more than "this id exists" implement `ReferenceCheck` and register with
+`ReferenceValidator.global().register(...)` (see `MachineModule`, `ModifierModule`).
+
+**Scripts in definitions.** Compile action/condition lists at load time inside the loader's scope —
+hold a `CompiledScript` / `CompiledConditions` (`module/script/compile/`) and call `.run(ctx, module)`
+/ `.test(ctx, module)` at the call site. Never `parseList(...)` per execution. Code that only has the
+raw strings at runtime uses `ScriptModule.runCached(...)`.
 
 ### 7.2 Registry
 
@@ -481,7 +510,9 @@ The scripting system (`module/script/`) provides a mini-language for YAML config
 ```
 
 - `notify` — sends a confirmation message to the player caster
-- `delay:<ticks>` — schedules the event N ticks in the future
+- `delay:<time>` — schedules the event later: `20`/`20t` ticks, `1.5s` seconds, `1m` minutes
+- Arguments with spaces go in double quotes (`\"` inside); factories declare `minArgs()`/`maxArgs()`/
+  `usage()` so wrong argument counts are reported at load time
 
 **Built-in events:**
 
@@ -507,6 +538,10 @@ When a `condition` fails, execution jumps to `fail-actions` (if present) and ski
 
 **Operators:** `==`, `!=`, `>`, `<`, `>=`, `<=`
 
+Condition strings (in `conditions:` lists) can combine keyword conditions (`tag`, `zone`, `health`,
+`quest`, ... — `ConditionParser.registerKeyword` adds more) and expressions with `and`/`or`/`not`/`!`
+and parentheses: `"tag vip or (zone hub and health 10)"`.
+
 ### 10.3 Expression & Variable Syntax
 
 Variables are embedded in strings with `$namespace.path.path...$`:
@@ -527,7 +562,12 @@ $system.time$           → System.currentTimeMillis()
 $server.online$         → Online player count
 ```
 
-Expressions support arithmetic: `$param.level$*10`, `$player.stat.HEALTH$ + 50`.
+Expressions support arithmetic: `$param.level$*10`, `$player.stat.HEALTH$ + 50`, plus `%`, `!`/`not`,
+short-circuit `and`/`or`, ternary, `'single'`/`"double"` strings with escapes, text joining with `+`,
+and the functions in `FunctionRegistry` (math, `clamp`, `random`, `contains`, `lower`, `len`, `default`,
+...; add-ons: `FunctionRegistry.register`). `ExpressionParser` is stateless/thread-safe; parse errors,
+unknown functions and wrong argument counts are reported at load time. Unknown `$namespace.…$`
+variables are reported once every module is up (`ScriptChecks`).
 
 ### 10.4 Adding New Events or Variables
 

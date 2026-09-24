@@ -36,18 +36,23 @@ public class ForeachEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 2;
+    }
+
+    @Override
+    public String usage() {
+        return "foreach <@all|@nearby:radius> <event...>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2) return ctx -> {};
 
         String selector = args[0];
 
-        // Reconstruct inner event string from remaining args
-        StringBuilder sb = new StringBuilder();
-        for (int i = 1; i < args.length; i++) {
-            if (i > 1) sb.append(' ');
-            sb.append(args[i]);
-        }
-        String innerEventStr = sb.toString();
+        // Inner event from its original text, so quoted arguments survive the re-parse.
+        String innerEventStr = options.rawArgsAfter(1, args);
         CompiledEvent inner = module.getEventParser().parse(innerEventStr);
 
         if (selector.equalsIgnoreCase("@all")) {
@@ -63,6 +68,7 @@ public class ForeachEventFactory implements EventFactory {
             try {
                 radius = Double.parseDouble(selector.substring(8));
             } catch (NumberFormatException e) {
+                org.nakii.valmora.infrastructure.config.diag.Diagnostics.error("foreach: invalid radius in '" + selector + "'");
                 return ctx -> {};
             }
             final double finalRadius = radius;
@@ -75,6 +81,8 @@ public class ForeachEventFactory implements EventFactory {
             };
         }
 
+        org.nakii.valmora.infrastructure.config.diag.Diagnostics.error("foreach: unknown selector '" + selector
+                + "' — use @all or @nearby:<radius>");
         return ctx -> {};
     }
 

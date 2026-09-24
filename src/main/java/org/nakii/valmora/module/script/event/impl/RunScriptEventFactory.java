@@ -34,6 +34,16 @@ public class RunScriptEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "run_script <interval_ticks> <times> <event...>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 3) return ctx -> {};
 
@@ -43,17 +53,18 @@ public class RunScriptEventFactory implements EventFactory {
             interval = Long.parseLong(args[0]);
             times = Integer.parseInt(args[1]);
         } catch (NumberFormatException e) {
+            org.nakii.valmora.infrastructure.config.diag.Diagnostics.error("run_script: interval and times must be whole numbers, got '"
+                    + args[0] + "' and '" + args[1] + "'", "usage: " + usage());
             return ctx -> {};
         }
 
-        if (interval <= 0 || times <= 0) return ctx -> {};
-
-        StringBuilder sb = new StringBuilder();
-        for (int i = 2; i < args.length; i++) {
-            if (i > 2) sb.append(' ');
-            sb.append(args[i]);
+        if (interval <= 0 || times <= 0) {
+            org.nakii.valmora.infrastructure.config.diag.Diagnostics.error("run_script: interval and times must be greater than 0");
+            return ctx -> {};
         }
-        CompiledEvent inner = module.getEventParser().parse(sb.toString());
+
+        // Re-parse the inner event from its original text so quoted arguments survive.
+        CompiledEvent inner = module.getEventParser().parse(options.rawArgsAfter(2, args));
 
         return ctx -> {
             // Captured once at schedule time — a player caster who logs out mid-sequence would

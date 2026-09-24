@@ -26,6 +26,16 @@ public class ConditionEvent implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "condition <expression>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return context -> {};
         String exprString = String.join(" ", args);

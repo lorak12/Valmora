@@ -3,6 +3,8 @@ package org.nakii.valmora.module.zone;
 import org.bukkit.Location;
 import org.bukkit.Material;
 
+import org.nakii.valmora.module.script.compile.CompiledScript;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,9 @@ public class ZoneDefinition {
     private final Map<Material, ZoneResourceConfig> resourceBlocks;
     private final List<String> enterActions;
     private final List<String> exitActions;
+    /** Compiled once when the zone loads — problems in them are reported with the zone's file. */
+    private final CompiledScript enterScript;
+    private final CompiledScript exitScript;
 
     public ZoneDefinition(String id, String displayName, String worldName,
                           int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
@@ -48,8 +53,10 @@ public class ZoneDefinition {
         this.fishingLootTable = fishingLootTable;
         this.mobSpawners = mobSpawners;
         this.resourceBlocks = resourceBlocks;
-        this.enterActions = enterActions;
-        this.exitActions = exitActions;
+        this.enterActions = enterActions != null ? enterActions : List.of();
+        this.exitActions = exitActions != null ? exitActions : List.of();
+        this.enterScript = CompiledScript.compile(this.enterActions, "enter-actions");
+        this.exitScript = CompiledScript.compile(this.exitActions, "exit-actions");
     }
 
     public boolean contains(Location loc) {
@@ -91,6 +98,8 @@ public class ZoneDefinition {
     public Map<Material, ZoneResourceConfig> getResourceBlocks() { return resourceBlocks; }
     public List<String> getEnterActions() { return enterActions; }
     public List<String> getExitActions() { return exitActions; }
+    public CompiledScript getEnterScript() { return enterScript; }
+    public CompiledScript getExitScript() { return exitScript; }
 
     public ZoneDefinition withFlags(ZoneFlags newFlags) {
         return new ZoneDefinition(id, displayName, worldName, minX, minY, minZ, maxX, maxY, maxZ,

@@ -20,13 +20,24 @@ public final class ItemTypeLoader {
         File file = new File(plugin.getDataFolder(), "item_types.yml");
         if (!file.exists()) return;
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        int count = 0;
-        for (String id : config.getStringList("item_types")) {
-            if (id == null || id.isBlank()) continue;
-            ItemType.define(id.trim());
-            count++;
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session =
+                     org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Item types", "item_types.yml")) {
+            YamlConfiguration config = session.readYaml(file, "item_types.yml");
+            if (config == null) return;
+            if (!config.isList("item_types")) {
+                session.warn("item_types.yml", null, "expected an 'item_types:' list — only the built-in types are available");
+                return;
+            }
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            for (String id : config.getStringList("item_types")) {
+                if (id == null || id.isBlank()) continue;
+                if (!seen.add(id.trim().toUpperCase(java.util.Locale.ROOT))) {
+                    session.warn("item_types.yml", id, "listed more than once");
+                    continue;
+                }
+                ItemType.define(id.trim());
+                session.loaded();
+            }
         }
-        plugin.getLogger().info("[ItemTypeLoader] Registered " + count + " item types from item_types.yml.");
     }
 }

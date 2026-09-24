@@ -170,9 +170,8 @@ public class ZoneListener implements Listener {
         int enterTitleDurationTicks = plugin.getConfig().getInt("zones.enter-title-duration-ticks", 60);
         plugin.getUIManager().getActionBar().showTemporary(player, zone.getDisplayName(), enterTitleDurationTicks);
         setPlayerStateZoneId(player, zone.getId());
-        if (!zone.getEnterActions().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(zone.getEnterActions()).execute(ctx);
+        if (!zone.getEnterScript().isEmpty()) {
+            zone.getEnterScript().run(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
         }
     }
 
@@ -183,9 +182,8 @@ public class ZoneListener implements Listener {
         // Cleared here rather than left for the next onZoneEnter — a transition straight into
         // the wilderness (no new zone) never fires a ZoneEnterEvent to overwrite it.
         setPlayerStateZoneId(player, null);
-        if (!zone.getExitActions().isEmpty()) {
-            SimpleExecutionContext ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(zone.getExitActions()).execute(ctx);
+        if (!zone.getExitScript().isEmpty()) {
+            zone.getExitScript().run(new SimpleExecutionContext(player, player.getLocation(), null), plugin.getScriptModule());
         }
     }
 

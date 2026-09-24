@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.npc;
 
+import org.nakii.valmora.module.script.compile.CompiledScript;
+
 import org.bukkit.entity.EntityType;
 
 import java.util.List;
@@ -26,6 +28,9 @@ public class NpcDefinition {
     private final boolean showName;
     /** Conditional floating-text lines shown above the NPC. */
     private final List<HologramDefinition> holograms;
+    /** Click scripts compiled once when the NPC loads — problems are reported with its file. */
+    private final CompiledScript rightClickScript;
+    private final CompiledScript leftClickScript;
 
     public static final String DEFAULT_SOURCE = "npcs/from_command.yml";
 
@@ -52,7 +57,12 @@ public class NpcDefinition {
         this.lookAtPlayer = lookAtPlayer;
         this.showName = showName;
         this.holograms = holograms != null ? List.copyOf(holograms) : List.of();
+        this.rightClickScript = CompiledScript.compile(onRightClick, "on-right-click");
+        this.leftClickScript = CompiledScript.compile(onLeftClick, "on-left-click");
     }
+
+    public CompiledScript getRightClickScript() { return rightClickScript; }
+    public CompiledScript getLeftClickScript() { return leftClickScript; }
 
     // ── Legacy convenience constructors ──────────────────────────────────────
 

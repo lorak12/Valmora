@@ -45,6 +45,18 @@ public class ScriptModule implements ReloadableModule {
     private EventParser eventParser;
     private DelayedEventTracker delayedEvents;
 
+    /**
+     * Compiled action/condition lists by content — for code paths that only have the raw strings
+     * at runtime (quest-board rewards, pet milestones, collection rewards, ...). Loaders warm it by
+     * compiling their lists inside their load scope, so problems are reported at load time and
+     * nothing is re-parsed per execution. Cleared on enable and whenever {@code ScriptEpoch} moves.
+     */
+    private final java.util.Map<java.util.List<String>, org.nakii.valmora.api.scripting.CompiledEvent> eventCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.Map<java.util.List<String>, org.nakii.valmora.api.scripting.Condition> conditionCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile int cacheEpoch;
+    private final org.nakii.valmora.module.script.compile.ScriptChecks scriptChecks = new org.nakii.valmora.module.script.compile.ScriptChecks();
+    private static final int MAX_CACHED = 4096;
+
     public ScriptModule(Valmora plugin) {
         this.plugin = plugin;
         this.hookBus = new HookBus(plugin);
@@ -56,10 +68,13 @@ public class ScriptModule implements ReloadableModule {
         
         this.variableResolver = new VariableResolverImpl(this);
         this.expressionParser = new ExpressionParser();
+        ExpressionParser.setVariableListener(scriptChecks::onVariable);
         this.expressionEvaluator = new ExpressionEvaluatorImpl(this);
         this.conditionParser = new ConditionParser(this.expressionParser);
         this.eventParser = new EventParser(this);
         this.delayedEvents = new DelayedEventTracker(plugin);
+        eventCache.clear();
+        conditionCache.clear();
         // No server in plain unit tests (they build a ScriptModule off a mocked plugin).
         if (plugin.getServer() != null && plugin.getServer().getPluginManager() != null) {
             plugin.getServer().getPluginManager().registerEvents(delayedEvents, plugin);
@@ -113,6 +128,17 @@ public class ScriptModule implements ReloadableModule {
     }
 
     public void registerEvent(EventFactory factory) {
+        var existing = eventFactoryRegistry.get(factory.getName());
+        if (existing.isPresent() && existing.get().getClass() != factory.getClass()) {
+            plugin.getLogger().warning("[Script] Event '" + factory.getName() + "' is registered twice ("
+                    + existing.get().getClass().getSimpleName() + " and " + factory.getClass().getSimpleName()
+                    + ") — the later one wins. Use replaceEvent() if that's intended.");
+        }
+        eventFactoryRegistry.register(factory.getName(), factory);
+    }
+
+    /** Registers {@code factory}, deliberately replacing any earlier event of the same name (no warning). */
+    public void replaceEvent(EventFactory factory) {
         eventFactoryRegistry.register(factory.getName(), factory);
     }
 
@@ -179,6 +205,58 @@ public class ScriptModule implements ReloadableModule {
 
     public EventParser getEventParser() {
         return eventParser;
+    }
+
+    /** The compiled form of an action list, compiled once per content (see {@link #eventCache}). */
+    public org.nakii.valmora.api.scripting.CompiledEvent compileCached(java.util.List<String> lines) {
+        if (lines == null || lines.isEmpty()) return ctx -> {};
+        checkCacheEpoch();
+        var cached = eventCache.get(lines);
+        if (cached != null) return cached;
+        var compiled = eventParser.parseList(lines);
+        if (eventCache.size() >= MAX_CACHED) eventCache.clear();
+        eventCache.put(java.util.List.copyOf(lines), compiled);
+        return compiled;
+    }
+
+    /** The compiled form of a condition list (all must pass), compiled once per content. */
+    public org.nakii.valmora.api.scripting.Condition conditionsCached(java.util.List<String> lines) {
+        if (lines == null || lines.isEmpty()) return ctx -> true;
+        checkCacheEpoch();
+        var cached = conditionCache.get(lines);
+        if (cached != null) return cached;
+        org.nakii.valmora.api.scripting.Condition compiled = conditionParser.parseList(lines);
+        if (conditionCache.size() >= MAX_CACHED) conditionCache.clear();
+        conditionCache.put(java.util.List.copyOf(lines), compiled);
+        return compiled;
+    }
+
+    /**
+     * Runs an action list from its raw strings via the cache; a {@code condition} stop is normal,
+     * any other failure is logged once per {@code source} instead of escaping.
+     */
+    public boolean runCached(java.util.List<String> lines, org.nakii.valmora.api.execution.ExecutionContext ctx,
+                             org.nakii.valmora.infrastructure.config.diag.ConfigSource source) {
+        if (lines == null || lines.isEmpty()) return true;
+        return org.nakii.valmora.module.script.compile.ScriptRunner.run(compileCached(lines), ctx, source);
+    }
+
+    private void checkCacheEpoch() {
+        int epoch = org.nakii.valmora.module.script.compile.ScriptEpoch.current();
+        if (epoch != cacheEpoch) {
+            eventCache.clear();
+            conditionCache.clear();
+            cacheEpoch = epoch;
+        }
+    }
+
+    /**
+     * Checks that can only run once every module is enabled — e.g. event names used in scripts that
+     * no module registered. Called by {@code ModuleManager} at the end of each load pass.
+     */
+    public void runDeferredChecks(org.nakii.valmora.infrastructure.config.diag.DiagnosticSink sink) {
+        if (eventParser != null) eventParser.runDeferred(sink);
+        scriptChecks.report(variableProviderRegistry.getKeys(), sink);
     }
 
     /** @return the shared pipeline dispatch bus (see {@link HookBus}'s class doc). */

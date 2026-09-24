@@ -21,6 +21,26 @@ public class DialogueEventFactory implements EventFactory {
     public String getName() { return "dialogue"; }
 
     @Override
+    public int minArgs() {
+        return 2;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 2;
+    }
+
+    @Override
+    public String usage() {
+        return "dialogue start <conversation>";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 1 && args[0].equalsIgnoreCase("start") && !args[1].contains("$")) sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.DIALOGUE, args[1]);
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2 || !args[0].equalsIgnoreCase("start")) return context -> {};
         String dialogueId = args[1];

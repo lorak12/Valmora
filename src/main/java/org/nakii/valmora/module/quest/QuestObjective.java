@@ -1,5 +1,8 @@
 package org.nakii.valmora.module.quest;
 
+import org.nakii.valmora.module.script.compile.CompiledConditions;
+import org.nakii.valmora.module.script.compile.CompiledScript;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -15,6 +18,9 @@ public class QuestObjective {
     private final int notifyInterval;
     private final long delayTicks;
     private final int intervalTicks;
+    /** Compiled once when the quest loads — problems are reported with the quest's file. */
+    private final CompiledConditions compiledConditions;
+    private final CompiledScript compiledEvents;
 
     public QuestObjective(String id, String type, String target, int required,
                           List<String> conditions, List<String> events,
@@ -31,6 +37,9 @@ public class QuestObjective {
         this.notifyInterval = notifyInterval;
         this.delayTicks = delayTicks;
         this.intervalTicks = intervalTicks;
+        String at = "objectives." + (id != null ? id : this.type);
+        this.compiledConditions = CompiledConditions.compile(this.conditions, at + ".conditions");
+        this.compiledEvents = CompiledScript.compile(this.events, at + ".events");
     }
 
     public QuestObjective(String id, String type, String target, int required,
@@ -54,4 +63,6 @@ public class QuestObjective {
     public int getNotifyInterval() { return notifyInterval; }
     public long getDelayTicks() { return delayTicks; }
     public int getIntervalTicks() { return intervalTicks; }
+    public CompiledConditions getCompiledConditions() { return compiledConditions; }
+    public CompiledScript getCompiledEvents() { return compiledEvents; }
 }

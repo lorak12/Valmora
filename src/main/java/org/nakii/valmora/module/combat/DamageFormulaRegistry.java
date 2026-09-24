@@ -55,21 +55,38 @@ public class DamageFormulaRegistry {
         Map<String, String> raw = new java.util.HashMap<>(DEFAULTS);
         File file = new File(plugin.getDataFolder(), "damage_formula.yml");
         rounding = "floor";
-        if (file.exists()) {
-            FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-            for (String key : DEFAULTS.keySet()) {
-                String override = config.getString(key);
-                if (override != null && !override.isBlank()) {
-                    raw.put(key, override);
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Damage formulas", "damage_formula.yml")) {
+            FileConfiguration config = file.exists() ? session.readYaml(file, "damage_formula.yml") : null;
+            if (config != null) {
+                java.util.List<String> known = new java.util.ArrayList<>(DEFAULTS.keySet());
+                known.add("rounding");
+                for (String key : config.getKeys(false)) {
+                    if (!known.contains(key)) {
+                        session.warn("damage_formula.yml", key, "unknown key — ignored", org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(key, known));
+                    }
+                }
+                for (String key : DEFAULTS.keySet()) {
+                    String override = config.getString(key);
+                    if (override != null && !override.isBlank()) {
+                        raw.put(key, override);
+                    }
+                }
+                rounding = config.getString("rounding", "floor");
+                if (!java.util.List.of("floor", "round", "ceil").contains(rounding.toLowerCase())) {
+                    session.warn("damage_formula.yml", "rounding", "unknown rounding '" + rounding + "' — using floor",
+                            org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(rounding, java.util.List.of("floor", "round", "ceil")));
+                    rounding = "floor";
                 }
             }
-            rounding = config.getString("rounding", "floor");
-        }
 
-        for (Map.Entry<String, String> entry : raw.entrySet()) {
-            compiled.put(entry.getKey(), parser.parse(entry.getValue()));
+            for (Map.Entry<String, String> entry : raw.entrySet()) {
+                // Each formula compiles in its own scope, so a syntax error names the formula.
+                try (var ignored = session.entry("damage_formula.yml", entry.getKey())) {
+                    compiled.put(entry.getKey(), parser.parse(entry.getValue()));
+                }
+                session.loaded();
+            }
         }
-        plugin.getLogger().info("[DamageFormulaRegistry] Compiled " + compiled.size() + " damage formulas.");
     }
 
     /** Applies the configured rounding mode to a final mitigated-damage value. */

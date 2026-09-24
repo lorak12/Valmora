@@ -19,6 +19,8 @@ public class MachineDefinitionParser {
     public LoadResult<MachineDefinition, String> parse(String id, ConfigurationSection section, String filePath) {
         try {
             String gui = section.getString("gui", id);
+            org.nakii.valmora.infrastructure.config.diag.LoadScope.current()
+                    .ifPresent(scope -> scope.sub("gui").ref(org.nakii.valmora.infrastructure.config.refs.Kinds.GUI, gui));
             String logic = section.getString("logic", "custom");
             int inputSlots = section.getInt("input-slots", 0);
             int outputSlots = section.getInt("output-slots", 0);

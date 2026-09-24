@@ -4,6 +4,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.config.LoadResult;
+import org.nakii.valmora.infrastructure.config.read.ConfigReader;
+import org.nakii.valmora.infrastructure.config.refs.Kinds;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 import org.nakii.valmora.module.npc.dialogue.DialogueDefinition;
@@ -27,19 +29,23 @@ public class NpcLoader {
     public void load() {
         npcRegistry.clear();
         dialogueRegistry.clear();
-        new YamlLoader<NpcDefinition>(plugin, "npcs", "NPCs")
+        new YamlLoader<NpcDefinition>(plugin, "npcs", "NPCs").kind(Kinds.NPC)
                 .load(this::parseNpc, def -> npcRegistry.register(def.getId(), def));
     }
 
     private LoadResult<NpcDefinition, String> parseNpc(String id, ConfigurationSection sec, String path) {
         // Skip non-NPC top-level sections (npc_conversations now lives in quest packages)
-        if (id.equalsIgnoreCase("npc_conversations")) return LoadResult.failure("skip");
+        if (id.equalsIgnoreCase("npc_conversations") || id.toLowerCase().endsWith(":npc_conversations")) return LoadResult.skip();
         try {
+            ConfigReader reader = ConfigReader.of(sec).knownKeys(KNOWN_KEYS);
             String displayName = sec.getString("display-name", "<white>" + id);
-            EntityType entityType;
-            try { entityType = EntityType.valueOf(sec.getString("entity-type", "VILLAGER").toUpperCase()); }
-            catch (IllegalArgumentException e) { entityType = EntityType.VILLAGER; }
+            EntityType entityType = reader.enumOf("entity-type", EntityType.class, EntityType.VILLAGER);
+            if (!entityType.isAlive()) {
+                reader.warn("entity-type", "'" + entityType.name() + "' is not a living entity — using VILLAGER");
+                entityType = EntityType.VILLAGER;
+            }
             String boundConv = sec.getString("conversation", null);
+            if (boundConv != null && !boundConv.isBlank()) reader.ref("conversation", Kinds.DIALOGUE, boundConv);
 
             String skinTexture   = sec.getString("skin-texture", null);
             String skinSignature = sec.getString("skin-signature", null);
@@ -72,8 +78,14 @@ public class NpcLoader {
         List<Map<?, ?>> raw = sec.getMapList("holograms");
         if (raw == null || raw.isEmpty()) return List.of();
         List<HologramDefinition> result = new ArrayList<>();
-        for (Map<?, ?> entry : raw) {
+        ConfigReader reader = ConfigReader.of(sec);
+        for (int i = 0; i < raw.size(); i++) {
+            Map<?, ?> entry = raw.get(i);
             try {
+                if (!entry.containsKey("name")) {
+                    reader.warn("holograms." + i, "hologram needs a name: — skipped");
+                    continue;
+                }
                 String name = String.valueOf(entry.get("name"));
                 String text = entry.containsKey("text") ? String.valueOf(entry.get("text")) : "";
                 Map<?, ?> vec = entry.containsKey("vector") ? (Map<?, ?>) entry.get("vector") : Map.of();
@@ -85,10 +97,16 @@ public class NpcLoader {
                 Object rawInterval = entry.containsKey("check_interval") ? entry.get("check_interval") : 60;
                 int interval = toInt(rawInterval);
                 result.add(new HologramDefinition(name, text, ox, oy, oz, conditions, interval));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                reader.warn("holograms." + i, "invalid hologram (" + e.getMessage() + ") — skipped");
+            }
         }
         return result;
     }
+
+    private static final List<String> KNOWN_KEYS = List.of(
+            "display-name", "entity-type", "conversation", "skin-texture", "skin-signature", "look-at-player",
+            "show-name", "holograms", "world", "x", "y", "z", "yaw", "on-right-click", "on-left-click");
 
     private static double toDouble(Object o) {
         if (o instanceof Number n) return n.doubleValue();

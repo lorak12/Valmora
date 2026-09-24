@@ -12,7 +12,7 @@ public class ItemLoader {
     public ItemLoader(Valmora plugin, ItemRegistry registry) {
         this.plugin = plugin;
         this.registry = registry;
-        this.loader = new YamlLoader<>(plugin, "items", "items");
+        this.loader = new YamlLoader<ItemDefinition>(plugin, "items", "Items").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.ITEM);
     }
 
     public void loadItems() {

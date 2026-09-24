@@ -85,6 +85,31 @@ conditions:
 All conditions in the list must be true (AND logic). A single `!` prefix
 negates one condition.
 
+**Combining conditions.** Inside one string, keyword conditions and
+expressions can be combined with `and` / `or` / `not` (or `&&` / `||` / `!`)
+and grouped with parentheses:
+
+```yaml
+conditions:
+  - "tag vip or (zone hub and health 10)"
+  - "not tag banned and $player.level$ >= 5"
+```
+
+`not`/`!` applies to the condition right after it; `and` binds tighter than
+`or`; `or` stops at the first true condition. A string made only of
+expressions (`$a$ > 1 and $b$ < 2`) is still a single expression, exactly as
+before.
+
+**Groups in YAML.** Wherever a condition value is read with the map form
+(`all:` / `any:` / `none:`), lists can be nested:
+
+```yaml
+conditions:
+  any:
+    - "tag vip"
+    - all: ["zone hub", "health 10"]
+```
+
 #### Condition Types
 
 **Tag condition** — Checks if the player's profile has a specific tag
@@ -183,21 +208,34 @@ Expressions are used in:
 | String literal | `"text"` | `"hello"` |
 | Boolean literal | `true` / `false` | `true` |
 | Variable | `$namespace.path$` | `$player.stat.HEALTH$` |
-| Arithmetic | `+`, `-`, `*`, `/` | `10 + 5`, `$stat$ * 2` |
+| String literal (single quotes) | `'text'`, escapes `\'` `\"` `\\` `\n` `\t` | `'it\'s'` |
+| Arithmetic | `+`, `-`, `*`, `/`, `%` (remainder) | `10 + 5`, `$stat$ * 2`, `$tick$ % 20` |
+| Text joining | `+` when either side is non-numeric text | `"Level " + $player.level$` |
+| Negation | `!x`, `not x`, `-x` | `!$time.is_day$`, `-$dmg$` |
 | Comparison | `==`, `!=`, `>`, `<`, `>=`, `<=` | `$hp$ > 50` |
-| Logical AND | `and`, `&&` | `a > 0 and b > 0` |
-| Logical OR | `or`, `\|\|` | `a or b` |
+| Logical AND | `and`, `&&` (right side skipped when the left is false) | `a > 0 and b > 0` |
+| Logical OR | `or`, `\|\|` (right side skipped when the left is true) | `a or b` |
 | Ternary | `condition ? value : value` | `$hp$ > 50 ? "safe" : "danger"` |
 | Grouping | `( ... )` | `(a + b) * c` |
-| Math functions | `floor(x)`, `ceil(x)`, `round(x)`, `abs(x)`, `sqrt(x)`, `log10(x)`, `log(x)`, `pow(a, b)`, `min(a, b, ...)`, `max(a, b, ...)` | `floor($player.stat.DAMAGE$ / 2)` |
+| Math functions | `floor(x)`, `ceil(x)`, `round(x)`, `abs(x)`, `sqrt(x)`, `log10(x)`, `log(x)`, `pow(a, b)`, `min(a, b, ...)`, `max(a, b, ...)`, `clamp(x, lo, hi)`, `sign(x)`, `sin(x)`, `cos(x)`, `random()`, `random(max)`, `random(min, max)`, `randint(min, max)` | `floor($player.stat.DAMAGE$ / 2)` |
+| Text functions | `contains(t, part)`, `startsWith(t, p)`, `endsWith(t, s)`, `lower(t)`, `upper(t)`, `trim(t)`, `len(t)`, `replace(t, find, with)` | `contains($item.id$, "sword")` |
+| Conversion | `str(x)`, `num(x)`, `isnull(x)`, `default(x, fallback)` | `default($player.var.rank$, "none")` |
 
 **Operator precedence** (highest to lowest):
 1. Primary (literals, variables, grouped, function calls)
-2. `*` and `/`
-3. `+` and `-`
-4. `==`, `!=`, `>`, `<`, `>=`, `<=`
-5. `and` / `or`
-6. `?` `:` (ternary, right-associative)
+2. Unary `!` / `not` / `-`
+3. `*`, `/` and `%`
+4. `+` and `-`
+5. `==`, `!=`, `>`, `<`, `>=`, `<=`
+6. `and`
+7. `or`
+8. `?` `:` (ternary, right-associative)
+
+**Mistakes are reported when the content loads**, with the file, entry and
+key they're in: an unknown function (with a "did you mean"), a function
+called with the wrong number of arguments, a missing `)`, a stray character,
+or a single `=` (treated as `==`). The expression still evaluates the way it
+always did, so a reported problem never breaks content that used to work.
 
 **Number formatting in templates**: When a variable is used in a MiniMessage
 text template (like a notification message), numbers with no fractional part
@@ -220,8 +258,17 @@ rewards:
 - **`notify`** — Sends a notification message to the player when the event
   executes. What counts as "notification" depends on the event (e.g., `give`
   sends a chat message listing the items received).
-- **`delay:<ticks>`** — Delays execution by N server ticks (20 ticks = 1
-  second).
+- **`delay:<time>`** — Delays execution. `delay:20` / `delay:20t` are ticks
+  (20 ticks = 1 second), `delay:1.5s` seconds, `delay:1m` minutes.
+
+Arguments containing spaces go in double quotes: `notify "Welcome back!"`;
+use `\"` for a quote inside quotes. Events that run another event
+(`foreach`, `run_script`) keep those quotes intact.
+
+Every event checks its arguments when the content loads — `give` with no
+item, `tag add` with no tag, an unknown event name (with a "did you mean"),
+or a malformed `delay:` shows up in the reload report with the file and entry
+instead of silently doing nothing.
 
 #### Built-in Events
 
@@ -652,7 +699,7 @@ PAGINATED GUI components).
 | Option | Description |
 |--------|-------------|
 | `notify` | Sends a notification to the player on execution (behavior is event-specific — e.g., `give` sends a chat message, `notify` is the notification itself). |
-| `delay:<ticks>` | Delays the event by N server ticks (20 ticks = 1 second). Uses `Bukkit.getScheduler().runTaskLater()`. |
+| `delay:<time>` | Delays the event: `20` / `20t` ticks, `1.5s` seconds, `1m` minutes. Tracked, so a reload or logout cancels it. |
 | `conditions:<inline>` | Comma-separated inline condition tokens. If any is false, the event is skipped (not an exception — just no-op). |
 
 ---

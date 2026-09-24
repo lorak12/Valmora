@@ -59,37 +59,50 @@ public class ValmoraCommand implements TabExecutor {
             // edits (e.g. items.lore) at all, only YAML content under resources/*.
             plugin.reloadConfig();
             var result = plugin.getModuleManager().reloadModules();
-            if (result.clean()) {
-                sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
-            } else {
-                if (!result.failedModules().isEmpty()) {
-                    sender.sendMessage(Formatter.format("<red>Modules that failed to reload: <yellow>"
-                            + String.join(", ", result.failedModules()) + "<red> — they may be partially loaded; see the console."));
-                }
-                if (!result.contentErrors().isEmpty()) {
-                    sender.sendMessage(Formatter.format("<gold>" + result.contentErrors().size()
-                            + " content error(s). Entries that broke kept their previous working version:"));
-                    result.contentErrors().stream().limit(10).forEach(err ->
-                            sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(err))));
-                    if (result.contentErrors().size() > 10) {
-                        sender.sendMessage(Formatter.format("<gray>... and " + (result.contentErrors().size() - 10) + " more in the console."));
-                    }
-                }
+            long errors = result.contentErrors().size();
+            long warnings = result.warningCount();
+            if (result.failedModules().isEmpty() && errors == 0 && warnings == 0) {
+                sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully — no content problems."));
+                return true;
             }
+            if (!result.failedModules().isEmpty()) {
+                sender.sendMessage(Formatter.format("<red>Modules that failed to reload: <yellow>"
+                        + String.join(", ", result.failedModules()) + "<red> — they may be partially loaded; see the console."));
+            }
+            sender.sendMessage(Formatter.format((errors > 0 ? "<gold>" : "<green>") + "Reloaded — "
+                    + org.nakii.valmora.infrastructure.config.diag.ModuleLoadLog.counts((int) errors, (int) warnings)
+                    + (errors > 0 ? " (an entry that failed to load kept its previous working version):" : ":")));
+            org.nakii.valmora.infrastructure.config.diag.ReportRenderer.sendSummary(sender, result.diagnostics(), 10, 5);
+            sender.sendMessage(Formatter.format("<gray>Full list: <white>/valmora report<gray> or plugins/Valmora/last-load-report.txt"));
             return true;
         }
 
         if (args[0].equalsIgnoreCase("validate")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "reload")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             // Dry run: re-parses content on disk without changing anything live.
-            var problems = org.nakii.valmora.infrastructure.config.YamlLoader.validateAll(plugin);
-            if (problems.isEmpty()) {
+            var problems = org.nakii.valmora.infrastructure.config.ContentValidator.validate(plugin);
+            long errors = problems.stream().filter(org.nakii.valmora.infrastructure.config.diag.ConfigDiagnostic::isError).count();
+            long warnings = problems.stream().filter(d -> d.severity() == org.nakii.valmora.infrastructure.config.diag.Severity.WARN).count();
+            if (errors + warnings == 0) {
                 sender.sendMessage(Formatter.format("<green>No content problems found — safe to /valmora reload."));
             } else {
-                sender.sendMessage(Formatter.format("<gold>" + problems.size() + " content problem(s) found (nothing was changed):"));
-                problems.stream().limit(15).forEach(p -> sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(p))));
-                if (problems.size() > 15) sender.sendMessage(Formatter.format("<gray>... and " + (problems.size() - 15) + " more."));
-                problems.forEach(p -> plugin.getLogger().warning("[validate] " + p));
+                sender.sendMessage(Formatter.format("<gold>" + org.nakii.valmora.infrastructure.config.diag.ModuleLoadLog.counts((int) errors, (int) warnings)
+                        + " found (nothing was changed)" + (errors == 0 ? " — safe to /valmora reload:" : ":")));
+                org.nakii.valmora.infrastructure.config.diag.ReportRenderer.sendSummary(sender, problems, 15, 10);
+                problems.forEach(p -> plugin.getLogger().warning("[validate] " + p.severity() + " " + p.format()));
             }
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("report")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "reload")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
+            handleReport(sender, args);
             return true;
         }
 
@@ -384,10 +397,38 @@ public class ValmoraCommand implements TabExecutor {
         }
     }
 
+    /** {@code /valmora report [errors|warnings|all] [filter] [page]} — the last load pass's diagnostics. */
+    private void handleReport(CommandSender sender, String[] args) {
+        var snapshot = org.nakii.valmora.infrastructure.config.diag.LoadReport.global().lastCompleted();
+        if (snapshot.completedAt() == null) {
+            sender.sendMessage(Formatter.format("<gray>No load has completed yet."));
+            return;
+        }
+        String severity = "all";
+        String filter = null;
+        int page = 1;
+        for (int i = 1; i < args.length; i++) {
+            String a = args[i];
+            if (i == 1 && (a.equalsIgnoreCase("errors") || a.equalsIgnoreCase("warnings") || a.equalsIgnoreCase("all"))) {
+                severity = a;
+            } else if (a.matches("\\d+")) {
+                page = Integer.parseInt(a);
+            } else {
+                filter = a;
+            }
+        }
+        sender.sendMessage(Formatter.format("<aqua>" + snapshot.label() + ": <white>" + snapshot.totalLoaded()
+                + " entries across " + snapshot.types().size() + " types — "
+                + org.nakii.valmora.infrastructure.config.diag.ModuleLoadLog.counts(
+                        (int) snapshot.count(org.nakii.valmora.infrastructure.config.diag.Severity.ERROR),
+                        (int) snapshot.count(org.nakii.valmora.infrastructure.config.diag.Severity.WARN))));
+        org.nakii.valmora.infrastructure.config.diag.ReportRenderer.sendPage(sender, snapshot.diagnostics(), severity, filter, page);
+    }
+
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "validate", "variable", "pipeline", "pack", "debug", "orphans")
+            return Stream.of("reload", "validate", "report", "variable", "pipeline", "pack", "debug", "orphans")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -396,6 +437,19 @@ public class ValmoraCommand implements TabExecutor {
             return Stream.concat(Stream.of(DEBUG_ALL), debuggableModules().stream())
                     .filter(s -> s.startsWith(args[1].toLowerCase()))
                     .collect(Collectors.toList());
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("report")) {
+            return Stream.of("errors", "warnings", "all")
+                    .filter(s -> s.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("report")) {
+            var snapshot = org.nakii.valmora.infrastructure.config.diag.LoadReport.global().lastCompleted();
+            return snapshot.types().stream().map(t -> t.category().toLowerCase())
+                    .filter(s -> s.startsWith(args[2].toLowerCase()))
+                    .distinct().collect(Collectors.toList());
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("pack")) {
@@ -484,6 +538,7 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<gold>--- Valmora Engine ---"));
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
         sender.sendMessage(Formatter.format("<yellow>/valmora validate <gray>- Check content files for errors without reloading"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora report [errors|warnings|all] [filter] [page] <gray>- Problems found by the last load"));
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pack ... <gray>- Manage content packs (see /valmora pack)"));

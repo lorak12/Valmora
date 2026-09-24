@@ -53,7 +53,17 @@ public class ModifierModule implements ReloadableModule {
         loadGroups();
         loadModifiers();
         loadRecipes();
-        ModifierValidator.validate(groupRegistry, modifierRegistry, recipeRegistry, plugin.getItemManager(), plugin.getLogger());
+        // Cross-checks (groups, conflicts, recipe items, state keys) run once everything has loaded
+        // and land in the load report — see ReferenceValidator.
+        org.nakii.valmora.infrastructure.config.refs.ReferenceValidator.global().register(
+                new org.nakii.valmora.infrastructure.config.refs.ReferenceCheck() {
+                    @Override public String name() { return "modifiers"; }
+                    @Override public void check(org.nakii.valmora.infrastructure.config.refs.ReferenceContext ctx) {
+                        for (String w : ModifierValidator.collect(groupRegistry, modifierRegistry, recipeRegistry, plugin.getItemManager())) {
+                            ctx.warn("Modifiers", null, null, w, null);
+                        }
+                    }
+                });
 
         // No provider registration here: $item.*$ is served by ItemAbilityVariableProvider
         // (registered once by ScriptModule) — see that class's javadoc for why a second "item"

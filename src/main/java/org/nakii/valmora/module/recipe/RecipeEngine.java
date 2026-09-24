@@ -39,6 +39,11 @@ public class RecipeEngine {
         dynamicHandlers.remove(machineId.toLowerCase());
     }
 
+    /** Machine ids with a registered dynamic handler (anvil, alchemy, ...). */
+    public java.util.Set<String> getHandlerIds() {
+        return java.util.Set.copyOf(dynamicHandlers.keySet());
+    }
+
     /**
      * Unified craft operation: matches, determines output, consumes ingredients.
      * Returns empty if no recipe matched or output could not be built.

@@ -20,6 +20,21 @@ public class OpenGuiEventFactory implements EventFactory {
     public String getName() { return "open_gui"; }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "open_gui <gui> [key=value ...]";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 0 && !args[0].contains("$")) sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.GUI, args[0]);
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return context -> {};
         String guiId = args[0];

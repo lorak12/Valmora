@@ -42,13 +42,22 @@ public class BlockLootLoader {
             }
             Material material = Material.matchMaterial(materialName.toUpperCase());
             if (material == null) {
-                return LoadResult.failure("[" + path + "] Block-loot entry '" + id + "' has an unknown material: " + materialName);
+                String hint = org.nakii.valmora.infrastructure.config.read.ConfigReader.materialHint(materialName);
+                return LoadResult.failure("[" + path + "] Block-loot entry '" + id + "' has an unknown material: " + materialName
+                        + (hint != null ? " (" + hint + ")" : ""));
             }
 
             List<BlockLootDrop> drops = new ArrayList<>();
+            int index = -1;
             for (Map<?, ?> dropMap : sec.getMapList("drops")) {
+                index++;
                 Object itemObj = dropMap.get("item");
-                if (itemObj == null) continue;
+                if (itemObj == null) {
+                    org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("drops[" + index + "]: missing item: — drop skipped");
+                    continue;
+                }
+                final int at = index;
+                org.nakii.valmora.infrastructure.config.diag.LoadScope.current().ifPresent(sc -> sc.sub("drops").sub(String.valueOf(at)).sub("item").ref(org.nakii.valmora.infrastructure.config.refs.Kinds.ITEM_OR_MATERIAL, itemObj.toString()));
                 drops.add(new BlockLootDrop(
                         itemObj.toString(),
                         intVal(dropMap, "min", 1),
