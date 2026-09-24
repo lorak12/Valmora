@@ -11,6 +11,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 
+import org.nakii.valmora.infrastructure.config.diag.ConfigDiagnostic;
+import org.nakii.valmora.infrastructure.config.diag.DiagnosticSink;
+import org.nakii.valmora.infrastructure.config.diag.LoadReport;
+import org.nakii.valmora.infrastructure.config.diag.ModuleLoadLog;
+import org.nakii.valmora.infrastructure.config.diag.ReportFile;
+import org.nakii.valmora.infrastructure.config.diag.Severity;
+import org.nakii.valmora.infrastructure.config.refs.ReferenceValidator;
+
 /**
  * Manages the lifecycle of all Valmora modules.
  * Handles loading, unloading, and reloading of modules in the correct order.
@@ -28,6 +36,9 @@ public class ModuleManager {
 
     public ModuleManager(Valmora plugin) {
         this.plugin = plugin;
+        org.nakii.valmora.infrastructure.config.refs.ReferenceIndex.install();
+        org.nakii.valmora.infrastructure.config.refs.BuiltinContentKinds.register(plugin,
+                org.nakii.valmora.infrastructure.config.refs.ContentIndex.global());
     }
 
     /**
@@ -39,9 +50,17 @@ public class ModuleManager {
     }
 
     /**
-     * Enably all registered modules in order.
+     * Enables all registered modules in order — the startup load pass, reported as a whole (see
+     * {@link #finishLoad}).
      */
     public void enableModules() {
+        LoadReport.global().begin();
+        org.nakii.valmora.infrastructure.config.refs.ReferenceIndex.global().clear();
+        enableAll();
+        finishLoad("Startup");
+    }
+
+    private void enableAll() {
         for (ReloadableModule module : modules.values()) {
             try {
                 plugin.getLogger().info("Enabling module: " + module.getName());
@@ -51,9 +70,40 @@ public class ModuleManager {
                 lastFailures.add(module.getId());
             }
         }
+    }
+
+    /**
+     * Ends a load pass once every module involved is back up: runs the checks that need all content
+     * loaded (script names nobody provides, dangling cross-references), then logs the overall summary
+     * and keeps the result for {@code /valmora report}.
+     */
+    private LoadReport.Snapshot finishLoad(String label) {
+        List<ConfigDiagnostic> postLoad = new java.util.ArrayList<>();
+        DiagnosticSink sink = postLoad::add;
         // Only now is every module's script events registered — report names nobody provides.
         var script = plugin.getScriptModule();
-        if (script != null && script.getEventParser() != null) script.getEventParser().reportUnresolved();
+        if (script != null) {
+            try {
+                script.runDeferredChecks(sink);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.WARNING, "Deferred script checks failed", e);
+            }
+        }
+        try {
+            ReferenceValidator.global().runAll(sink);
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.WARNING, "Reference validation failed", e);
+        }
+        if (!postLoad.isEmpty()) {
+            LoadReport.global().addAll(postLoad);
+            plugin.getLogger().warning("[Validation] " + postLoad.stream().filter(d -> d.severity() != Severity.INFO).count()
+                    + " problem(s) found after loading:");
+            ModuleLoadLog.logLines(plugin.getLogger(), postLoad, 50);
+        }
+        LoadReport.Snapshot snapshot = LoadReport.global().complete(label);
+        ModuleLoadLog.logOverall(plugin.getLogger(), snapshot, label);
+        ReportFile.writeIfEnabled(plugin, snapshot);
+        return snapshot;
     }
 
     /**
@@ -83,26 +133,37 @@ public class ModuleManager {
      * errors reported by the loaders. Content entries that failed kept their last working version
      * where one existed (see YamlLoader), so a content error never removes live content.
      */
-    public record ReloadResult(List<String> failedModules, List<String> contentErrors) {
+    public record ReloadResult(List<String> failedModules, List<String> contentErrors, List<ConfigDiagnostic> diagnostics) {
+        public ReloadResult(List<String> failedModules, List<String> contentErrors) {
+            this(failedModules, contentErrors, List.of());
+        }
+
         public boolean clean() {
             return failedModules.isEmpty() && contentErrors.isEmpty();
+        }
+
+        public long warningCount() {
+            return diagnostics.stream().filter(d -> d.severity() == Severity.WARN).count();
         }
     }
 
     public ReloadResult reloadModules() {
         plugin.getLogger().info("Reloading all modules...");
         lastFailures.clear();
-        org.nakii.valmora.infrastructure.config.YamlLoader.beginReport();
+        LoadReport.global().begin();
+        org.nakii.valmora.infrastructure.config.refs.ReferenceIndex.global().clear();
+        org.nakii.valmora.infrastructure.config.diag.Diagnostics.resetRuntimeDedup();
         reloading = true;
         try {
             disableModules();
-            enableModules();
+            enableAll();
         } finally {
             reloading = false;
         }
         afterReload(modules.values());
+        LoadReport.Snapshot snapshot = finishLoad("Reload");
         ReloadResult result = new ReloadResult(List.copyOf(lastFailures),
-                org.nakii.valmora.infrastructure.config.YamlLoader.drainReport());
+                LoadReport.errorLines(snapshot.diagnostics()), snapshot.diagnostics());
         plugin.getLogger().info(result.clean() ? "Reload complete."
                 : "Reload finished with " + result.failedModules().size() + " module failure(s) and "
                 + result.contentErrors().size() + " content error(s).");
@@ -190,6 +251,9 @@ public class ModuleManager {
             return;
         }
         plugin.getLogger().info("Reloading modules: " + moduleIds);
+        LoadReport.global().begin();
+        // Scripts in modules that stay up may have compiled against the ones reloading now.
+        org.nakii.valmora.module.script.compile.ScriptEpoch.bump();
         List<ReloadableModule> reversed = new java.util.ArrayList<>(subset);
         Collections.reverse(reversed);
         reloading = true;
@@ -212,7 +276,7 @@ public class ModuleManager {
             reloading = false;
         }
         afterReload(subset);
-        plugin.getLogger().info("Reload of " + moduleIds + " complete.");
+        finishLoad("Reload of " + moduleIds);
     }
 
     public Map<String, ReloadableModule> getModules() {

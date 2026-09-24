@@ -12,6 +12,8 @@ import java.util.Map;
 public class NotifyAllEvent implements EventFactory {
 
     @Override public String getName() { return "notifyall"; }
+    @Override public int minArgs() { return 1; }
+    @Override public String usage() { return "notifyall <message...>"; }
 
     @Override
     public CompiledEvent compile(String[] args, EventOptions options) {

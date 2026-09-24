@@ -41,7 +41,8 @@ public class AlchemyModule implements ReloadableModule {
         alchemyManager.setMaxActiveEffects(plugin.getConfig().getInt("alchemy.max-active-effects", 10));
         alchemyManager.clear();
 
-        YamlLoader<AlchemyEffect> loader = new YamlLoader<>(plugin, "alchemy", "Alchemy Effect");
+        // alchemy/modifiers.yml has its own format and loader (loadModifiers) — not effect entries.
+        YamlLoader<AlchemyEffect> loader = new YamlLoader<AlchemyEffect>(plugin, "alchemy", "Alchemy Effect").ignoreFiles("modifiers.yml");
         loader.load(AlchemyEffectLoader.parser(), alchemyManager::registerEffect);
 
         registerHardcodedEffects();
@@ -141,26 +142,40 @@ public class AlchemyModule implements ReloadableModule {
             plugin.saveResource("alchemy/modifiers.yml", false);
         }
 
-        org.bukkit.configuration.file.YamlConfiguration cfg =
-                org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(modifiersFile);
-
-        loadModifierCategory(cfg, "level", AlchemyModifierType.LEVEL);
-        loadModifierCategory(cfg, "duration", AlchemyModifierType.DURATION);
-        loadModifierCategory(cfg, "splash", AlchemyModifierType.SPLASH);
-
-        plugin.getLogger().info("Loaded " + countModifiers(cfg) + " alchemy modifier(s).");
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session =
+                     org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Alchemy modifiers", "alchemy/modifiers.yml")) {
+            org.bukkit.configuration.file.YamlConfiguration cfg = session.readYaml(modifiersFile, "alchemy/modifiers.yml");
+            if (cfg == null) return;
+            for (String key : cfg.getKeys(false)) {
+                if (!List.of("level", "duration", "splash").contains(key)) {
+                    session.warn("alchemy/modifiers.yml", key, "unknown category — use level, duration or splash",
+                            org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(key, List.of("level", "duration", "splash")));
+                }
+            }
+            session.loaded(loadModifierCategory(session, cfg, "level", AlchemyModifierType.LEVEL));
+            session.loaded(loadModifierCategory(session, cfg, "duration", AlchemyModifierType.DURATION));
+            session.loaded(loadModifierCategory(session, cfg, "splash", AlchemyModifierType.SPLASH));
+        }
     }
 
-    private void loadModifierCategory(org.bukkit.configuration.file.YamlConfiguration cfg,
-                                      String section, AlchemyModifierType type) {
+    private int loadModifierCategory(org.nakii.valmora.infrastructure.config.diag.LoadSession session,
+                                     org.bukkit.configuration.file.YamlConfiguration cfg,
+                                     String section, AlchemyModifierType type) {
         List<?> entries = cfg.getList(section);
-        if (entries == null) return;
+        if (entries == null) return 0;
 
-        for (Object obj : entries) {
+        int loaded = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            Object obj = entries.get(i);
             if (!(obj instanceof Map<?, ?> map)) continue;
-            try {
-                String itemId = (String) map.get("item");
-                if (itemId == null) continue;
+            try (var scope = session.entry("alchemy/modifiers.yml", section + "[" + i + "]")) {
+                Object rawItem = map.get("item");
+                if (rawItem == null) {
+                    scope.warn("missing item: — entry skipped");
+                    continue;
+                }
+                String itemId = String.valueOf(rawItem);
+                scope.sub("item").ref(org.nakii.valmora.infrastructure.config.refs.Kinds.ITEM_OR_MATERIAL, itemId);
 
                 boolean requiresMaxBase = Boolean.TRUE.equals(map.get("requires-max-base"));
 
@@ -180,18 +195,13 @@ public class AlchemyModule implements ReloadableModule {
                 };
 
                 alchemyManager.registerModifier(modifier);
+                loaded++;
             } catch (Exception e) {
-                plugin.getLogger().warning("Failed to load alchemy modifier entry in section '" + section + "': " + e.getMessage());
+                session.error("alchemy/modifiers.yml", section + "[" + i + "]",
+                        "invalid modifier (" + (type == AlchemyModifierType.LEVEL ? "needs bonus:" : type == AlchemyModifierType.DURATION
+                                ? "needs seconds:" : "needs duration-multiplier:") + "): " + e.getMessage());
             }
         }
-    }
-
-    private int countModifiers(org.bukkit.configuration.file.YamlConfiguration cfg) {
-        int count = 0;
-        for (String section : List.of("level", "duration", "splash")) {
-            List<?> list = cfg.getList(section);
-            if (list != null) count += list.size();
-        }
-        return count;
+        return loaded;
     }
 }

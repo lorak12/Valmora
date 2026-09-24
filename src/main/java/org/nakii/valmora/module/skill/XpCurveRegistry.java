@@ -66,27 +66,40 @@ public class XpCurveRegistry {
         File file = new File(plugin.getDataFolder(), "skills/xp_curves.yml");
         if (!file.exists()) return;
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "XP curves", "skills/xp_curves.yml")) {
+        YamlConfiguration config = session.readYaml(file, "skills/xp_curves.yml");
+        if (config == null) return;
         ConfigurationSection section = config.getConfigurationSection("xp_curves");
-        if (section == null) return;
+        if (section == null) {
+            session.warn("skills/xp_curves.yml", null, "no top-level 'xp_curves:' section — only the default curve is available");
+            return;
+        }
 
-        int loaded = 0;
         for (String id : section.getKeys(false)) {
             ConfigurationSection curveSection = section.getConfigurationSection(id);
             if (curveSection == null) continue;
+            try (var scope = session.entry("skills/xp_curves.yml", id)) {
 
             int[] thresholds = curveSection.contains("thresholds")
                     ? curveSection.getIntegerList("thresholds").stream().mapToInt(Integer::intValue).toArray()
                     : fromFormula(curveSection, parser);
             if (thresholds == null || thresholds.length == 0) {
-                plugin.getLogger().warning("[XpCurveRegistry] Curve '" + id + "' has neither a valid 'thresholds' list nor a 'formula' — skipped.");
+                scope.error("has neither a valid 'thresholds' list nor a 'formula' — skipped");
                 continue;
+            }
+            for (int i = 1; i < thresholds.length; i++) {
+                if (thresholds[i] < thresholds[i - 1]) {
+                    scope.warn("thresholds must not decrease (level " + (i + 1) + " needs " + thresholds[i]
+                            + " XP, less than level " + i + "'s " + thresholds[i - 1] + ")");
+                    break;
+                }
             }
 
             curves.put(id.toLowerCase(Locale.ROOT), new XpCurve(thresholds));
-            loaded++;
+            session.loaded();
+            }
         }
-        plugin.getLogger().info("[XpCurveRegistry] Loaded " + loaded + " custom XP curve(s) from skills/xp_curves.yml.");
+        }
     }
 
     private int[] fromFormula(ConfigurationSection section, ExpressionParser parser) {

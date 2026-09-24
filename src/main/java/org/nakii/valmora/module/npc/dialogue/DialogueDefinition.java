@@ -17,6 +17,7 @@ public class DialogueDefinition {
     /** Actions fired when the conversation ends for any reason. */
     private final List<String> finalActions;
     private final Map<String, DialogueNode> nodes;
+    private final org.nakii.valmora.module.script.compile.CompiledScript compiledFinalActions;
 
     public DialogueDefinition(String id, String startNodeId, Map<String, DialogueNode> nodes) {
         this(id, id, List.of(), startNodeId, false, List.of(), nodes);
@@ -32,7 +33,10 @@ public class DialogueDefinition {
         this.stop = stop;
         this.finalActions = finalActions != null ? finalActions : List.of();
         this.nodes = nodes;
+        this.compiledFinalActions = org.nakii.valmora.module.script.compile.CompiledScript.compile(this.finalActions, "final_events");
     }
+
+    public org.nakii.valmora.module.script.compile.CompiledScript getCompiledFinalActions() { return compiledFinalActions; }
 
     public String getId() { return id; }
     public String getQuesterName() { return questerName; }

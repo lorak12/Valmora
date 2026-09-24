@@ -119,9 +119,8 @@ public class CollectionListener implements Listener {
                 granted.add(stage.getKey());
                 if (stage.getRewards().isEmpty()) continue;
                 if (ctx == null) ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
-                plugin.getScriptModule().getEventParser()
-                        .parseList(stage.getRewards())
-                        .execute(ctx);
+                plugin.getScriptModule().runCached(stage.getRewards(), ctx,
+                        new org.nakii.valmora.infrastructure.config.diag.ConfigSource("Collections", null, def.getId(), "stages." + stage.getKey() + ".rewards"));
             }
             if (newStage > manager.getGrantedStage(def.getId())) {
                 manager.setGrantedStage(def.getId(), newStage);

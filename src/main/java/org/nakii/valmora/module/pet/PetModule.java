@@ -322,7 +322,7 @@ public class PetModule implements ReloadableModule {
         if (events == null || events.isEmpty()) return;
         var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(
                 player, player.getLocation(), new org.bukkit.configuration.file.YamlConfiguration());
-        plugin.getScriptModule().getEventParser().parseList(events).execute(ctx);
+        plugin.getScriptModule().runCached(events, ctx, new org.nakii.valmora.infrastructure.config.diag.ConfigSource("Pets", null, def.getId(), "milestones." + level));
     }
 
     private void triggerStatRecalc(Player player) {
@@ -348,11 +348,22 @@ public class PetModule implements ReloadableModule {
             plugin.saveResource("pets/defaults.yml", false);
         }
         if (!file.exists()) return;
-        var config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
-        ConfigurationSection section = config.getConfigurationSection("pet_defaults");
-        if (section == null) return;
-        defaultXpFormula = section.getString("xp-formula", defaultXpFormula);
-        defaultMaxLevel = Math.max(1, section.getInt("max-level", defaultMaxLevel));
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Pet defaults", "pets/defaults.yml")) {
+            var config = session.readYaml(file, "pets/defaults.yml");
+            if (config == null) return;
+            ConfigurationSection section = config.getConfigurationSection("pet_defaults");
+            if (section == null) {
+                session.warn("pets/defaults.yml", null, "no top-level 'pet_defaults:' section — built-in defaults used");
+                return;
+            }
+            try (var ignored = session.entry("pets/defaults.yml", "pet_defaults")) {
+                org.nakii.valmora.infrastructure.config.read.ConfigReader reader = org.nakii.valmora.infrastructure.config.read.ConfigReader.of(section).knownKeys("xp-formula", "max-level");
+                defaultXpFormula = section.getString("xp-formula", defaultXpFormula);
+                plugin.getScriptModule().getExpressionParser().parse(defaultXpFormula); // report formula errors here
+                defaultMaxLevel = reader.intRange("max-level", defaultMaxLevel, 1, 10_000);
+            }
+            session.loaded();
+        }
     }
 
     /** Pre-computes a level->XP-needed table by evaluating {@code formula} once per level (Phase 3.3). Never re-evaluated afterward. */
@@ -369,14 +380,10 @@ public class PetModule implements ReloadableModule {
     }
 
     private void loadDefinitions() {
-        YamlLoader<PetDefinition> loader = new YamlLoader<>(plugin, "pets", "Pet");
-        loader.load(this::parseDefinition, def -> {
-            // pets/defaults.yml's top-level "pet_defaults" key parses as a (discarded) dummy
-            // PetDefinition through the same generic loader — it's server-wide config, not a pet.
-            if (!"pet_defaults".equalsIgnoreCase(def.getId())) {
-                definitions.put(def.getId(), def);
-            }
-        });
+        // pets/defaults.yml is server-wide config read by loadPetDefaultsConfig(), not a pet.
+        YamlLoader<PetDefinition> loader = new YamlLoader<PetDefinition>(plugin, "pets", "Pets")
+                .ignoreFiles("defaults.yml").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.PET);
+        loader.load(this::parseDefinition, def -> definitions.put(def.getId(), def));
     }
 
     private LoadResult<PetDefinition, String> parseDefinition(String id, ConfigurationSection section, String filePath) {
@@ -384,8 +391,7 @@ public class PetModule implements ReloadableModule {
             String name = section.getString("name", id);
             EntityType entityType = EntityType.WOLF;
             if (section.contains("entity-type")) {
-                try { entityType = EntityType.valueOf(section.getString("entity-type").toUpperCase()); }
-                catch (IllegalArgumentException ignored) {}
+                entityType = org.nakii.valmora.infrastructure.config.read.ConfigReader.of(section).enumOf("entity-type", EntityType.class, EntityType.WOLF);
             }
             Map<String, Double> baseStats = parseStatMap(section.getConfigurationSection("base-stats"));
             Map<String, Double> statsPerLevel = parseStatMap(section.getConfigurationSection("stats-per-level"));
@@ -407,8 +413,14 @@ public class PetModule implements ReloadableModule {
             ConfigurationSection msSec = section.getConfigurationSection("milestones");
             if (msSec != null) {
                 for (String key : msSec.getKeys(false)) {
-                    try { milestones.put(Integer.parseInt(key), msSec.getStringList(key)); }
-                    catch (NumberFormatException ignored) {}
+                    try {
+                        List<String> lines = msSec.getStringList(key);
+                        milestones.put(Integer.parseInt(key), lines);
+                        org.nakii.valmora.infrastructure.config.diag.ScriptCompile.at("milestones." + key, () -> plugin.getScriptModule().compileCached(lines));
+                    } catch (NumberFormatException e) {
+                        org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn(
+                                "milestones." + key + ": milestone keys must be pet levels (numbers) — ignored");
+                    }
                 }
             }
 

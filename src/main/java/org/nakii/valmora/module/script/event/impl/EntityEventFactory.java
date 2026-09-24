@@ -44,6 +44,16 @@ public class EntityEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "entity set <property> <value> [selector]";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 3 || !args[0].equalsIgnoreCase("set")) return context -> {};
 

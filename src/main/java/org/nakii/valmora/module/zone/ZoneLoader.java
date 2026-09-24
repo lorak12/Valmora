@@ -4,6 +4,8 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.config.LoadResult;
+import org.nakii.valmora.infrastructure.config.read.ConfigReader;
+import org.nakii.valmora.infrastructure.config.refs.Kinds;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 
 import java.util.ArrayList;
@@ -23,12 +25,15 @@ public class ZoneLoader {
 
     public void loadZones() {
         registry.clear();
-        new YamlLoader<ZoneDefinition>(plugin, "zones", "Zones")
+        new YamlLoader<ZoneDefinition>(plugin, "zones", "Zones").kind(Kinds.ZONE)
                 .load(this::parse, def -> registry.register(def.getId(), def));
     }
 
     private LoadResult<ZoneDefinition, String> parse(String id, ConfigurationSection sec, String path) {
         try {
+            ConfigReader reader = ConfigReader.of(sec).knownKeys(KNOWN_KEYS);
+            ConfigReader allowReader = reader.section("allow");
+            if (allowReader != null) allowReader.knownKeys(ALLOW_KEYS);
             String displayName = sec.getString("display-name", "<green>" + id);
             String world = sec.getString("world", "world");
             String fishingTable = sec.getString("fishing-loot-table", null);
@@ -57,17 +62,29 @@ public class ZoneLoader {
             List<Integer> minList = sec.getIntegerList("min");
             List<Integer> maxList = sec.getIntegerList("max");
             if (minList.size() < 3 || maxList.size() < 3)
-                return LoadResult.failure("[" + path + "] Zone '" + id + "' missing min/max bounds.");
+                return LoadResult.failure("[" + path + "] Zone '" + id + "' missing min/max bounds (each a list of 3 numbers: [x, y, z]).");
 
             int minX = minList.get(0), minY = minList.get(1), minZ = minList.get(2);
             int maxX = maxList.get(0), maxY = maxList.get(1), maxZ = maxList.get(2);
+            if (minX > maxX || minY > maxY || minZ > maxZ) {
+                // contains() tests min <= v <= max per axis, so a swapped corner makes the zone empty.
+                reader.warn("min", "min " + minList + " is greater than max " + maxList
+                        + " on some axis — swapped to make a valid box");
+                int t;
+                if (minX > maxX) { t = minX; minX = maxX; maxX = t; }
+                if (minY > maxY) { t = minY; minY = maxY; maxY = t; }
+                if (minZ > maxZ) { t = minZ; minZ = maxZ; maxZ = t; }
+            }
 
             // Optional extra bounding boxes
             List<int[]> extraBoxes = new ArrayList<>();
             List<?> extraBoxesList = sec.getList("extra-boxes");
             if (extraBoxesList != null) {
                 for (Object entry : extraBoxesList) {
-                    if (!(entry instanceof Map<?, ?> m)) continue;
+                    if (!(entry instanceof Map<?, ?> m)) {
+                        reader.warn("extra-boxes", "every entry needs min: and max: — one was skipped");
+                        continue;
+                    }
                     Object minObj = m.get("min");
                     Object maxObj = m.get("max");
                     if (!(minObj instanceof List<?> minL) || !(maxObj instanceof List<?> maxL)) continue;
@@ -90,6 +107,9 @@ public class ZoneLoader {
                 for (String key : spawnersSec.getKeys(false)) {
                     ConfigurationSection s = spawnersSec.getConfigurationSection(key);
                     if (s == null) continue;
+                    ConfigReader spawnerReader = reader.section("mob-spawners").section(key)
+                            .knownKeys("mob", "x", "y", "z", "spawn-interval", "max-alive", "radius", "spawn-radius");
+                    spawnerReader.ref("mob", Kinds.MOB, s.getString("mob", "zombie"));
                     spawners.add(new ZoneMobSpawner(
                             key,
                             s.getString("mob", "zombie"),
@@ -107,7 +127,11 @@ public class ZoneLoader {
             if (rbSec != null) {
                 for (String matName : rbSec.getKeys(false)) {
                     Material mat = Material.matchMaterial(matName.toUpperCase());
-                    if (mat == null) { plugin.getLogger().warning("[Zones] Unknown material: " + matName); continue; }
+                    if (mat == null) {
+                        reader.section("resource-blocks").warn(matName, "unknown material '" + matName + "' — ignored",
+                                ConfigReader.materialHint(matName));
+                        continue;
+                    }
                     ConfigurationSection rbEntry = rbSec.getConfigurationSection(matName);
                     if (rbEntry == null) continue;
                     int regenDelay = rbEntry.getInt("regen-delay", 600);
@@ -124,6 +148,7 @@ public class ZoneLoader {
                             if (dropsObj instanceof List<?> dropsList) {
                                 for (Object dropObj : dropsList) {
                                     if (dropObj instanceof Map<?, ?> dropMap) {
+                                        reader.ref("resource-blocks." + matName + ".stages", Kinds.ITEM_OR_MATERIAL, str(dropMap, "item", "COBBLESTONE"));
                                         drops.add(new ZoneResourceDrop(
                                             str(dropMap, "item", "COBBLESTONE"),
                                             intVal(dropMap, "min", 1),
@@ -135,12 +160,17 @@ public class ZoneLoader {
                             }
                             String nextStr = str(stageMap, "next", null);
                             Material nextMat = nextStr != null ? Material.matchMaterial(nextStr.toUpperCase()) : null;
+                            if (nextStr != null && nextMat == null) {
+                                reader.section("resource-blocks").warn(matName, "unknown next: material '" + nextStr + "'",
+                                        ConfigReader.materialHint(nextStr));
+                            }
                             stages.add(new ResourceStage(drops, nextMat));
                         }
                     } else {
                         // Legacy flat drops format — wrap as single stage, block goes to AIR then regenerates
                         List<ZoneResourceDrop> drops = new ArrayList<>();
                         for (Map<?, ?> dropMap : rbEntry.getMapList("drops")) {
+                            reader.ref("resource-blocks." + matName + ".drops", Kinds.ITEM_OR_MATERIAL, str(dropMap, "item", "COBBLESTONE"));
                             drops.add(new ZoneResourceDrop(
                                 str(dropMap, "item", "COBBLESTONE"),
                                 intVal(dropMap, "min", 1),
@@ -168,6 +198,14 @@ public class ZoneLoader {
             return LoadResult.failure("[" + path + "] Error parsing zone '" + id + "': " + e.getMessage());
         }
     }
+
+    private static final java.util.List<String> KNOWN_KEYS = java.util.List.of(
+            "display-name", "world", "fishing-loot-table", "allow", "pvp-enabled", "min", "max", "extra-boxes",
+            "mob-spawners", "resource-blocks", "enter-actions", "exit-actions");
+
+    private static final java.util.List<String> ALLOW_KEYS = java.util.List.of(
+            "pvp", "natural-mob-spawning", "block-breaking", "block-placing", "hunger", "entry", "teleportation",
+            "leaf-decay", "keep-inventory-on-death", "keep-experience-on-death", "sleeping", "natural-block-changes");
 
     private String str(Map<?, ?> m, String key, String def) { Object v = m.get(key); return v != null ? v.toString() : def; }
     private int intVal(Map<?, ?> m, String key, int def) { Object v = m.get(key); return v instanceof Number n ? n.intValue() : def; }

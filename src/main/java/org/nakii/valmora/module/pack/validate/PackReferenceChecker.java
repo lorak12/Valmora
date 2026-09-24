@@ -11,11 +11,10 @@ import java.util.List;
  * {@link PackReferenceCheckerRegistry}, the same "extension point instead of special-casing" pattern
  * {@code ScriptModule}'s {@code VariableProvider}/{@code EventFactory} registries use (CLAUDE.md §10.4).
  *
- * <p><b>Status:</b> the registry mechanism exists and is wired into {@link PackValidator}, but no
- * concrete checkers are registered yet — wiring one in for a given content type (item refs from
- * quests, machine ids from recipes, etc.) is follow-up work per content type, matching how
- * {@code ModifierValidator} and {@code MachineModule}'s validator are today the only two content
- * types with any cross-reference validation at all.
+ * <p><b>Status:</b> {@code PackModule} registers one generic checker,
+ * {@link IndexedPackReferenceChecker}, which covers every content type at once: it checks the
+ * references the pack's files recorded in the shared reference index while loading. Module-specific
+ * checkers are only needed for rules that aren't plain "this id must exist" references.
  */
 @FunctionalInterface
 public interface PackReferenceChecker {

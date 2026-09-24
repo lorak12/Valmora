@@ -18,6 +18,26 @@ public class GiveEvent implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "give <item>[:amount]";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 0 && !args[0].contains("$")) { String id = args[0]; int colon = id.lastIndexOf(':'); if (colon > 0 && id.substring(colon + 1).chars().allMatch(Character::isDigit)) id = id.substring(0, colon); sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.ITEM_OR_MATERIAL, id); }
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 1) return context -> {};
 

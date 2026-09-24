@@ -86,7 +86,7 @@ public class CalendarEventModule implements ReloadableModule {
             if (def != null && def.isActive(snapshot)) continue;
             plugin.getLogger().info("[Calendar] Ending '" + entry.getKey() + "' (" + (def == null ? "removed" : "no longer active") + ").");
             if (!entry.getValue().isEmpty()) {
-                plugin.getScriptModule().getEventParser().parseList(entry.getValue()).execute(ctx);
+                plugin.getScriptModule().runCached(entry.getValue(), ctx, new org.nakii.valmora.infrastructure.config.diag.ConfigSource("Calendar", null, entry.getKey(), "on-end"));
             } else if (def != null) {
                 def.getOnEnd().execute(ctx);
             }

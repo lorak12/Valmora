@@ -129,8 +129,16 @@ public class UIManager implements ReloadableModule {
         // the same fix already applied to time.yml. Not switched to the generic YamlLoader<T> —
         // that loader's contract is "one folder of files, each contributing named registry
         // entries"; ui.yml is a single fixed-shape config file, not a fit for that shape.
-        try {
-            FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "UI", "ui.yml")) {
+            FileConfiguration cfg = session.readYaml(file, "ui.yml");
+            if (cfg == null) {
+                // Syntax error (reported above): keep the shipped defaults rather than an empty UI.
+                return new UIConfig(DEFAULT_TITLE, List.of(), DEFAULT_ACTION_BAR, "", "");
+            }
+            try (var ignored = session.entry("ui.yml", null)) {
+                org.nakii.valmora.infrastructure.config.read.ConfigReader.of(cfg).knownKeys("scoreboard", "action-bar", "tab");
+            }
+            session.loaded();
 
             String title = cfg.getString("scoreboard.title", DEFAULT_TITLE);
             List<String> lines = cfg.getStringList("scoreboard.lines");
@@ -138,7 +146,6 @@ public class UIManager implements ReloadableModule {
             String tabHeader = cfg.getString("tab.header", "");
             String tabFooter = cfg.getString("tab.footer", "");
 
-            plugin.getLogger().info("[UI] Loaded ui.yml: " + lines.size() + " scoreboard line(s).");
             return new UIConfig(title, lines, actionBarDefault, tabHeader, tabFooter);
         } catch (Exception e) {
             plugin.getLogger().warning("[UI] Failed to load ui.yml (" + e.getMessage() + ") — falling back to defaults.");

@@ -27,6 +27,21 @@ public class MultiplyDamageEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "multiply_damage <factor>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 1) return context -> {};
         String rawFactor = args[0];

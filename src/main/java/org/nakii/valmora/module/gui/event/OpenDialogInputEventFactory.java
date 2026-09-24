@@ -48,6 +48,16 @@ public class OpenDialogInputEventFactory implements EventFactory {
     public String getName() { return "open_dialog_input"; }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public String usage() {
+        return "open_dialog_input <property> [prompt...]";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 1) return context -> {};
         String propKey = args[0];

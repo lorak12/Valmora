@@ -9,6 +9,9 @@ import org.nakii.valmora.module.script.event.EventOptions;
 public class PointEvent implements EventFactory {
 
     @Override public String getName() { return "point"; }
+    @Override public int minArgs() { return 3; }
+    @Override public int maxArgs() { return 3; }
+    @Override public String usage() { return "point <add|remove|set> <category> <amount>"; }
 
     @Override
     public CompiledEvent compile(String[] args, EventOptions options) {

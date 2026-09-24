@@ -29,6 +29,21 @@ public class EnchantApplyEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 3;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "enchant_apply <inputSlotId> <enchantId> <level>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 3) return context -> {};
         // Syntax: enchant_apply <inputSlotId> <enchantId> <level>

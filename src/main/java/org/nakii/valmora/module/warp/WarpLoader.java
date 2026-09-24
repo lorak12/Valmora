@@ -21,7 +21,7 @@ public class WarpLoader {
 
     public void load() {
         registry.clear();
-        new YamlLoader<WarpDefinition>(plugin, "warps", "Warps")
+        new YamlLoader<WarpDefinition>(plugin, "warps", "Warps").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.WARP)
                 .load(this::parse, def -> {
                     if (registry.get(def.getId()).isPresent()) {
                         plugin.getLogger().warning("[Warps] Duplicate warp id '" + def.getId()

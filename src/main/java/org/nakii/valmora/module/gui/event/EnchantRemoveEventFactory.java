@@ -26,6 +26,16 @@ public class EnchantRemoveEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 2;
+    }
+
+    @Override
+    public String usage() {
+        return "enchant_remove <inputSlotId> <enchantId>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2) return context -> {};
         // Syntax: enchant_remove <inputSlotId> <enchantId>

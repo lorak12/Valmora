@@ -39,11 +39,17 @@ public class MachineModule implements ReloadableModule {
     public void onEnable() {
         registry.clear();
 
-        YamlLoader<MachineDefinition> loader = new YamlLoader<>(plugin, "machines", "Machines");
+        YamlLoader<MachineDefinition> loader = new YamlLoader<MachineDefinition>(plugin, "machines", "Machines").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.MACHINE);
         MachineDefinitionParser parser = new MachineDefinitionParser(plugin);
         loader.load(parser::parse, registry::register);
 
-        validateAgainstGuis();
+        org.nakii.valmora.infrastructure.config.refs.ReferenceValidator.global().register(
+                new org.nakii.valmora.infrastructure.config.refs.ReferenceCheck() {
+                    @Override public String name() { return "machine-guis"; }
+                    @Override public void check(org.nakii.valmora.infrastructure.config.refs.ReferenceContext ctx) {
+                        validateAgainstGuis(ctx);
+                    }
+                });
 
         List<MachineDefinition> withTriggers = new ArrayList<>();
         for (MachineDefinition machine : registry.values()) {
@@ -67,14 +73,12 @@ public class MachineModule implements ReloadableModule {
      * block loading): confirms the GUI a machine points to actually declares as many INPUT/OUTPUT
      * components as the machine claims.
      */
-    private void validateAgainstGuis() {
+    private void validateAgainstGuis(org.nakii.valmora.infrastructure.config.refs.ReferenceContext ctx) {
         Map<String, GuiDefinition> guis = plugin.getGuiModule() != null ? plugin.getGuiModule().getGuiRegistry() : Map.of();
         for (MachineDefinition machine : registry.values()) {
             GuiDefinition gui = guis.get(machine.getGui().toLowerCase());
             if (gui == null) {
-                plugin.getLogger().warning("[MachineModule] Machine '" + machine.getId()
-                        + "' references unknown GUI '" + machine.getGui() + "'.");
-                continue;
+                continue; // reported as a dangling gui reference (recorded by the parser)
             }
 
             int actualInputs = 0, actualOutputs = 0;
@@ -87,14 +91,12 @@ public class MachineModule implements ReloadableModule {
             }
 
             if (machine.getInputSlots() > 0 && actualInputs != machine.getInputSlots()) {
-                plugin.getLogger().warning("[MachineModule] Machine '" + machine.getId() + "' declares "
-                        + machine.getInputSlots() + " input-slots but GUI '" + machine.getGui()
-                        + "' has " + actualInputs + " INPUT components.");
+                ctx.warn("Machines", null, machine.getId(), "declares " + machine.getInputSlots()
+                        + " input-slots but GUI '" + machine.getGui() + "' has " + actualInputs + " INPUT slots", null);
             }
             if (machine.getOutputSlots() > 0 && actualOutputs != machine.getOutputSlots()) {
-                plugin.getLogger().warning("[MachineModule] Machine '" + machine.getId() + "' declares "
-                        + machine.getOutputSlots() + " output-slots but GUI '" + machine.getGui()
-                        + "' has " + actualOutputs + " OUTPUT components.");
+                ctx.warn("Machines", null, machine.getId(), "declares " + machine.getOutputSlots()
+                        + " output-slots but GUI '" + machine.getGui() + "' has " + actualOutputs + " OUTPUT slots", null);
             }
         }
     }

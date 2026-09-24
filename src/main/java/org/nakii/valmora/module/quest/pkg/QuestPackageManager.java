@@ -1,5 +1,12 @@
 package org.nakii.valmora.module.quest.pkg;
 
+import org.nakii.valmora.infrastructure.config.diag.Diagnostics;
+import org.nakii.valmora.infrastructure.config.diag.LoadScope;
+import org.nakii.valmora.infrastructure.config.diag.LoadSession;
+import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;
+import org.nakii.valmora.infrastructure.config.diag.Suggestions;
+import org.nakii.valmora.infrastructure.config.refs.Kinds;
+
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.Valmora;
@@ -35,6 +42,8 @@ public class QuestPackageManager {
     private final Valmora plugin;
     private final Logger log;
     private final List<QuestPackage> packages = new ArrayList<>();
+    /** Diagnostics for the load in progress (null outside {@link #loadAll()}). */
+    private LoadSession session;
 
     public QuestPackageManager(Valmora plugin) {
         this.plugin = plugin;
@@ -48,6 +57,16 @@ public class QuestPackageManager {
     // -------------------------------------------------------------------------
 
     public void loadAll() {
+        try (LoadSession s = LoadSession.open(plugin, "Quest packages", "quests", "templates")) {
+            this.session = s;
+            loadAllInternal();
+            s.loaded(packages.size());
+        } finally {
+            this.session = null;
+        }
+    }
+
+    private void loadAllInternal() {
         packages.clear();
         File questsRoot = new File(plugin.getDataFolder(), "quests");
         File templatesRoot = new File(plugin.getDataFolder(), "templates");
@@ -103,7 +122,10 @@ public class QuestPackageManager {
         File questYml = new File(dir, "quest.yml");
         if (!questYml.exists()) return null;
 
-        YamlConfiguration questCfg = YamlConfiguration.loadConfiguration(questYml);
+        String questYmlPath = relative(questYml);
+        YamlConfiguration questCfg = session != null ? session.readYaml(questYml, questYmlPath)
+                : YamlConfiguration.loadConfiguration(questYml);
+        if (questCfg == null) return null; // syntax error — reported by the session
         ConfigurationSection pkgSec = questCfg.getConfigurationSection("package");
         boolean enabled = pkgSec == null || pkgSec.getBoolean("enabled", true);
         List<String> templateNames = pkgSec != null ? pkgSec.getStringList("templates") : List.of();
@@ -113,36 +135,90 @@ public class QuestPackageManager {
         // Parse npc_conversations from quest.yml only
         ConfigurationSection npcConvSec = questCfg.getConfigurationSection("npc_conversations");
         if (npcConvSec != null) {
-            for (String npcId : npcConvSec.getKeys(false)) {
-                String convId = npcConvSec.getString(npcId);
-                if (convId != null && !convId.isBlank())
-                    pkg.getNpcConversationBindings().put(npcId.toLowerCase(), convId);
+            try (LoadScope scope = entryScope(questYmlPath, "npc_conversations")) {
+                for (String npcId : npcConvSec.getKeys(false)) {
+                    String convId = npcConvSec.getString(npcId);
+                    if (convId != null && !convId.isBlank()) {
+                        pkg.getNpcConversationBindings().put(npcId.toLowerCase(), convId);
+                        if (scope != null) scope.sub(npcId).ref(Kinds.NPC, npcId);
+                    }
+                }
             }
         }
 
-        List<YamlConfiguration> configs = collectConfigs(dir);
+        List<Map.Entry<String, YamlConfiguration>> configs = collectConfigs(dir);
 
         // Pass 1a: load events and conditions from all files first
-        for (YamlConfiguration cfg : configs) parseEventsAndConditions(cfg, pkg);
+        for (var cfg : configs) parseEventsAndConditions(cfg.getKey(), cfg.getValue(), pkg);
 
         // Expand folder events after all raw events are collected
         expandFolderEvents(pkg);
 
+        // Validate every named event/condition now (inside its file's scope) — a named entry only
+        // used through a cross-package ref would otherwise only be compiled when it first runs.
+        for (var cfg : configs) validateNamedScripts(cfg.getKey(), cfg.getValue(), pkg);
+
         // Pass 1b: load objectives, quests, notifications, player_hider (may reference events/conditions)
-        for (YamlConfiguration cfg : configs) parseRemainingFeatures(cfg, pkg);
+        for (var cfg : configs) parseRemainingFeatures(cfg.getKey(), cfg.getValue(), pkg);
 
         // Pass 2: load conversations (named refs now fully resolvable)
-        for (YamlConfiguration cfg : configs) parseConversations(cfg, pkg);
+        for (var cfg : configs) parseConversations(cfg.getKey(), cfg.getValue(), pkg);
 
         return pkg;
     }
 
-    private List<YamlConfiguration> collectConfigs(File dir) {
-        List<YamlConfiguration> result = new ArrayList<>();
+    private List<Map.Entry<String, YamlConfiguration>> collectConfigs(File dir) {
+        List<Map.Entry<String, YamlConfiguration>> result = new ArrayList<>();
         for (File f : collectYamlFiles(dir, true)) {
-            result.add(YamlConfiguration.loadConfiguration(f));
+            String rel = relative(f);
+            YamlConfiguration cfg = session != null ? session.readYaml(f, rel) : YamlConfiguration.loadConfiguration(f);
+            if (cfg != null) result.add(Map.entry(rel, cfg));
         }
         return result;
+    }
+
+    /** Path relative to the data folder, with forward slashes (e.g. {@code quests/mine/quest.yml}). */
+    private String relative(File f) {
+        try {
+            return plugin.getDataFolder().toPath().relativize(f.toPath()).toString().replace(File.separatorChar, '/');
+        } catch (IllegalArgumentException e) {
+            return f.getName();
+        }
+    }
+
+    /** A scope for one entry, when a session is active (null otherwise — callers must tolerate it). */
+    private LoadScope entryScope(String file, String entryId) {
+        return session != null ? session.entry(file, entryId) : null;
+    }
+
+    private void warn(String message) {
+        Diagnostics.warn(message);
+    }
+
+    /** Compiles every named event list and condition of a file in its own scope, reporting DSL problems. */
+    private void validateNamedScripts(String file, YamlConfiguration cfg, QuestPackage pkg) {
+        var script = plugin.getScriptModule();
+        if (script == null || session == null) return;
+        ConfigurationSection eventsSec = cfg.getConfigurationSection("events");
+        if (eventsSec != null) {
+            for (String key : eventsSec.getKeys(false)) {
+                List<String> lines = pkg.getEvents().get(key.toLowerCase());
+                if (lines == null || lines.isEmpty()) continue;
+                try (LoadScope ignored = session.entry(file, "events." + key)) {
+                    script.getEventParser().parseList(lines);
+                }
+            }
+        }
+        ConfigurationSection condSec = cfg.getConfigurationSection("conditions");
+        if (condSec != null) {
+            for (String key : condSec.getKeys(false)) {
+                String dsl = pkg.getConditions().get(key.toLowerCase());
+                if (dsl == null) continue;
+                try (LoadScope ignored = session.entry(file, "conditions." + key)) {
+                    script.getConditionParser().parse(dsl);
+                }
+            }
+        }
     }
 
     /** Collects all .yml files in dir; if skipSubPackages, skips sub-dirs that have quest.yml. */
@@ -165,7 +241,7 @@ public class QuestPackageManager {
     // Pass 1a: events and conditions
     // -------------------------------------------------------------------------
 
-    private void parseEventsAndConditions(YamlConfiguration cfg, QuestPackage pkg) {
+    private void parseEventsAndConditions(String file, YamlConfiguration cfg, QuestPackage pkg) {
         ConfigurationSection eventsSec = cfg.getConfigurationSection("events");
         if (eventsSec != null) {
             for (String key : eventsSec.getKeys(false)) {
@@ -192,20 +268,27 @@ public class QuestPackageManager {
     // Pass 1b: objectives, quests, notifications, player_hider
     // -------------------------------------------------------------------------
 
-    private void parseRemainingFeatures(YamlConfiguration cfg, QuestPackage pkg) {
+    private void parseRemainingFeatures(String file, YamlConfiguration cfg, QuestPackage pkg) {
         // objectives: (flat named objectives)
         ConfigurationSection objSec = cfg.getConfigurationSection("objectives");
         if (objSec != null) {
             for (String key : objSec.getKeys(false)) {
-                QuestObjective obj = parseObjectiveDsl(key, objSec.getString(key, ""), pkg);
-                if (obj != null) pkg.getObjectives().put(key.toLowerCase(), obj);
+                try (LoadScope ignored = entryScope(file, "objectives." + key)) {
+                    QuestObjective obj = parseObjectiveDsl(key, objSec.getString(key, ""), pkg);
+                    if (obj != null) pkg.getObjectives().put(key.toLowerCase(), obj);
+                }
             }
             // Package-level objectives are parsed (and inherited through templates) but no quest
             // ever reads them — only objectives declared under a quest's own objectives: block count.
             if (!objSec.getKeys(false).isEmpty()) {
-                log.warning("[QuestPackages] Package '" + pkg.getPath() + "' declares top-level objectives: "
-                        + objSec.getKeys(false) + " — these are not used by any quest. Declare objectives under"
-                        + " quests.<questId>.objectives instead.");
+                if (session != null) {
+                    session.warn(file, null, "top-level objectives: " + objSec.getKeys(false)
+                            + " are not used by any quest — declare objectives under quests.<questId>.objectives instead");
+                } else {
+                    log.warning("[QuestPackages] Package '" + pkg.getPath() + "' declares top-level objectives: "
+                            + objSec.getKeys(false) + " — these are not used by any quest. Declare objectives under"
+                            + " quests.<questId>.objectives instead.");
+                }
             }
         }
 
@@ -215,8 +298,10 @@ public class QuestPackageManager {
             for (String questId : questsSec.getKeys(false)) {
                 ConfigurationSection qs = questsSec.getConfigurationSection(questId);
                 if (qs == null) continue;
-                QuestDefinition def = parseQuestSection(questId, qs, pkg);
-                pkg.getQuests().put(questId.toLowerCase(), def);
+                try (LoadScope ignored = entryScope(file, questId)) {
+                    QuestDefinition def = parseQuestSection(questId, qs, pkg);
+                    pkg.getQuests().put(questId.toLowerCase(), def);
+                }
             }
         }
 
@@ -260,7 +345,8 @@ public class QuestPackageManager {
                     String name = ref.trim().toLowerCase();
                     List<String> refList = pkg.getEvents().get(name);
                     if (refList != null) expanded.addAll(refList);
-                    else log.warning("[QuestPackages] Folder event ref '" + name + "' not found in package '" + pkg.getPath() + "'");
+                    else warnPackage(pkg, "folder event '" + entry.getKey() + "' refers to unknown event '" + name + "'",
+                            Suggestions.hint(name, pkg.getEvents().keySet()));
                 }
                 entry.setValue(expanded);
             }
@@ -271,14 +357,17 @@ public class QuestPackageManager {
     // Pass 2: conversations
     // -------------------------------------------------------------------------
 
-    private void parseConversations(YamlConfiguration cfg, QuestPackage pkg) {
+    private void parseConversations(String file, YamlConfiguration cfg, QuestPackage pkg) {
         ConfigurationSection convSec = cfg.getConfigurationSection("conversations");
         if (convSec == null) return;
         for (String convId : convSec.getKeys(false)) {
             ConfigurationSection cs = convSec.getConfigurationSection(convId);
             if (cs == null) continue;
-            DialogueDefinition def = parseConversationSection(convId, cs, pkg);
-            pkg.getConversations().put(convId.toLowerCase(), def);
+            try (LoadScope ignored = entryScope(file, convId)) {
+                DialogueDefinition def = parseConversationSection(convId, cs, pkg);
+                validatePointers(def);
+                pkg.getConversations().put(convId.toLowerCase(), def);
+            }
         }
     }
 
@@ -462,8 +551,9 @@ public class QuestPackageManager {
                     String resolved = resolvePointerTarget(ptr, playerOptionKeys);
                     choices.add(new DialogueChoice("__ptr__", resolved, List.of()));
                 }
-                nodes.put(nodeId, new DialogueNode(nodeId, ns.getString("text", ""),
-                        events, conditions, choices, DialogueNode.NodeType.NPC));
+                final List<DialogueChoice> npcChoices = choices;
+                nodes.put(nodeId, ScriptCompile.at("NPC_options." + nodeId, () -> new DialogueNode(nodeId, ns.getString("text", ""),
+                        events, conditions, npcChoices, DialogueNode.NodeType.NPC)));
             }
         }
 
@@ -485,9 +575,9 @@ public class QuestPackageManager {
                     String resolved = resolvePointerTarget(ptr, playerOptionKeys);
                     pointerChoices.add(new DialogueChoice("__ptr__", resolved, List.of()));
                 }
-                nodes.put("player." + nodeId, new DialogueNode("player." + nodeId,
+                nodes.put("player." + nodeId, ScriptCompile.at("player_options." + nodeId, () -> new DialogueNode("player." + nodeId,
                         ns.getString("text", ""), events, conditions, pointerChoices,
-                        DialogueNode.NodeType.PLAYER));
+                        DialogueNode.NodeType.PLAYER)));
             }
         }
 
@@ -498,6 +588,42 @@ public class QuestPackageManager {
         }
 
         return new DialogueDefinition(convId, quester, resolvedFirst, startNode, stop, finalEvents, nodes);
+    }
+
+    /**
+     * Warns about pointers (and {@code first:} entries) naming a node that doesn't exist in the
+     * conversation. Cross-conversation pointers ({@code otherConv.node}) are resolved at runtime
+     * and not checked here.
+     */
+    private void validatePointers(DialogueDefinition def) {
+        Set<String> nodeIds = def.getAllNodes().keySet();
+        for (String first : def.getFirstOptions()) {
+            if (first != null && !first.isBlank() && !nodeIds.contains(first) && !isCrossConversation(first)) {
+                warn("first: points at unknown node '" + first + "'", Suggestions.hint(first, nodeIds));
+            }
+        }
+        for (DialogueNode node : def.getAllNodes().values()) {
+            for (DialogueChoice choice : node.getChoices()) {
+                String next = choice.getNextNodeId();
+                if (next == null || next.isBlank() || next.equalsIgnoreCase("null")) continue;
+                if (!nodeIds.contains(next) && !isCrossConversation(next)) {
+                    warn("node '" + node.getId() + "' points at unknown node '" + next + "'", Suggestions.hint(next, nodeIds));
+                }
+            }
+        }
+    }
+
+    private static boolean isCrossConversation(String pointer) {
+        return pointer.contains(".") && !pointer.startsWith("player.");
+    }
+
+    private void warn(String message, String hint) {
+        Diagnostics.warn(message, hint);
+    }
+
+    private void warnPackage(QuestPackage pkg, String message, String hint) {
+        if (session != null) session.warn("quests/" + pkg.getPath().replace('-', '/'), null, message, hint);
+        else log.warning("[QuestPackages] " + message + " in package '" + pkg.getPath() + "'");
     }
 
     /**
@@ -530,13 +656,14 @@ public class QuestPackageManager {
             // Cross-package reference ("pkgPath>eventName") — previously only the public
             // resolveEvent() supported this syntax, but this parse pipeline never called it, so
             // refs fell through to "inline DSL" below and warned/failed at compile time.
-            if (trimmed.contains(">")) {
+            // Only a bare token like "pkg>event" / "_-sub>event" — an inline event line can contain '>'
+            // too (MiniMessage tags: "notify <green>Done!"), and used to be dropped as an unknown ref.
+            if (trimmed.contains(">") && !trimmed.contains(" ") && !trimmed.contains("<")) {
                 List<String> crossPackage = resolveEvent(trimmed, pkg.getPath());
                 if (crossPackage != null) {
                     resolved.addAll(crossPackage);
                 } else {
-                    log.warning("[QuestPackages] Unknown cross-package event reference '" + trimmed
-                            + "' in package '" + pkg.getPath() + "'.");
+                    warn("unknown cross-package event reference '" + trimmed + "'");
                 }
                 continue;
             }
@@ -586,8 +713,9 @@ public class QuestPackageManager {
             if (dsl != null) {
                 resolved.add(negate ? "!" + dsl : dsl);
             } else {
-                log.warning("[QuestPackages] Unknown condition '" + name + "' at " + location
-                        + " — conditions in conversations must reference named conditions from conditions: sections");
+                warn("unknown condition '" + name + "' at " + location
+                        + " — conditions in conversations must reference named conditions from conditions: sections",
+                        Suggestions.hint(name, pkg.getConditions().keySet()));
             }
         }
         return resolved;
@@ -600,7 +728,10 @@ public class QuestPackageManager {
     private void mergeTemplates(QuestPackage pkg, Map<String, QuestPackage> templates) {
         for (String tplName : pkg.getTemplateNames()) {
             QuestPackage tpl = templates.get(tplName.toLowerCase());
-            if (tpl == null) { log.warning("[QuestPackages] Template not found: " + tplName); continue; }
+            if (tpl == null) {
+                warnPackage(pkg, "template '" + tplName + "' not found", Suggestions.hint(tplName, templates.keySet()));
+                continue;
+            }
             tpl.getEvents().forEach(pkg.getEvents()::putIfAbsent);
             tpl.getConditions().forEach(pkg.getConditions()::putIfAbsent);
             tpl.getObjectives().forEach(pkg.getObjectives()::putIfAbsent);
@@ -646,7 +777,7 @@ public class QuestPackageManager {
             }
         }
 
-        log.info("[QuestPackages] Loaded " + packages.size() + " package(s).");
+        if (session == null) log.info("[QuestPackages] Loaded " + packages.size() + " package(s).");
     }
 
     // -------------------------------------------------------------------------

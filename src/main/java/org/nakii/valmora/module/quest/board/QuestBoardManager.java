@@ -66,7 +66,8 @@ public class QuestBoardManager {
         QuestDefinition quest = qm.getRegistry().get(questId).orElse(null);
         if (quest != null && !quest.getRewardEvents().isEmpty()) {
             var ctx = new SimpleExecutionContext(player, player.getLocation(), null);
-            plugin.getScriptModule().getEventParser().parseList(quest.getRewardEvents()).execute(ctx);
+            plugin.getScriptModule().runCached(quest.getRewardEvents(), ctx,
+                    new org.nakii.valmora.infrastructure.config.diag.ConfigSource("Quests", null, questId, "reward-events"));
         }
 
         qm.resetQuestProgress(profile, questId);

@@ -23,7 +23,7 @@ public class SetBonusRegistry {
 
     public void load() {
         registry.clear();
-        YamlLoader<SetBonusDefinition> loader = new YamlLoader<>(plugin, "set_bonuses", "set bonuses");
+        YamlLoader<SetBonusDefinition> loader = new YamlLoader<SetBonusDefinition>(plugin, "set_bonuses", "Set bonuses").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.SET_BONUS);
         loader.load(SetBonusParser::parse, def -> registry.put(def.setId().toLowerCase(), def));
     }
 
@@ -34,5 +34,10 @@ public class SetBonusRegistry {
 
     public void clear() {
         registry.clear();
+    }
+
+    /** Every loaded set id. */
+    public java.util.Set<String> ids() {
+        return java.util.Set.copyOf(registry.keySet());
     }
 }

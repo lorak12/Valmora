@@ -44,10 +44,15 @@ public final class SetBonusParser {
                 for (Map.Entry<?, ?> e : statsMap.entrySet()) {
                     String statKey = String.valueOf(e.getKey());
                     if (!statRegistry.contains(statKey)) {
-                        return LoadResult.failure("[" + file + "] Set '" + setId + "' references unknown stat '" + statKey + "'.");
+                        String hint = org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(statKey, statRegistry.getKeys());
+                        return LoadResult.failure("[" + file + "] Set '" + setId + "' references unknown stat '" + statKey + "'"
+                                + (hint != null ? " (" + hint + ")" : "") + ".");
                     }
                     if (e.getValue() instanceof Number num) {
                         stats.put(statKey.toLowerCase(), num.doubleValue());
+                    } else {
+                        org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("bonuses: stat '" + statKey
+                                + "' must be a number, got '" + e.getValue() + "' — ignored");
                     }
                 }
             }

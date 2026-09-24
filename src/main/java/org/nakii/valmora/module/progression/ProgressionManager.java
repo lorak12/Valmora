@@ -130,7 +130,8 @@ public class ProgressionManager {
         if (!node.getOnLevelEvents().isEmpty()) {
             var ctx = new SimpleExecutionContext(player, player.getLocation(), new MemoryConfiguration());
             ctx.set("progression:level", (double) newLevel);
-            plugin.getScriptModule().getEventParser().parseList(node.getOnLevelEvents()).execute(ctx);
+            plugin.getScriptModule().runCached(node.getOnLevelEvents(), ctx,
+                    new org.nakii.valmora.infrastructure.config.diag.ConfigSource("Progression", null, treeId, nodeId + ".on-level"));
         }
 
         new ProgressionNodeLevelUpEvent(player, treeId, nodeId, newLevel).callEvent();

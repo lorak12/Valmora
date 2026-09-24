@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.npc;
 
+import org.nakii.valmora.module.script.compile.CompiledConditions;
+
 import java.util.List;
 
 public class HologramDefinition {
@@ -10,6 +12,7 @@ public class HologramDefinition {
     private final double offsetZ;
     private final List<String> conditions;
     private final int checkInterval;
+    private final CompiledConditions compiledConditions;
 
     public HologramDefinition(String name, String text,
                                double offsetX, double offsetY, double offsetZ,
@@ -21,6 +24,7 @@ public class HologramDefinition {
         this.offsetZ = offsetZ;
         this.conditions = List.copyOf(conditions);
         this.checkInterval = Math.max(1, checkInterval);
+        this.compiledConditions = CompiledConditions.compile(this.conditions, "holograms." + name + ".conditions");
     }
 
     public String getName() { return name; }
@@ -30,4 +34,6 @@ public class HologramDefinition {
     public double getOffsetZ() { return offsetZ; }
     public List<String> getConditions() { return conditions; }
     public int getCheckInterval() { return checkInterval; }
+    /** The conditions, compiled once when the NPC loaded. */
+    public CompiledConditions getCompiledConditions() { return compiledConditions; }
 }

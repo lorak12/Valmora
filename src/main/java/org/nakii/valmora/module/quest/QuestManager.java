@@ -326,7 +326,7 @@ public class QuestManager {
                             && targets.stream().noneMatch(t -> obj.getTarget().equalsIgnoreCase(t))) continue;
                 }
 
-                if (!evaluateConditions(obj.getConditions(), ctx)) continue;
+                if (!obj.getCompiledConditions().test(ctx, plugin.getScriptModule())) continue;
 
                 String key = quest.progressKey(i);
                 int current = getProgressByKey(profile, quest.getId(), key);
@@ -347,7 +347,7 @@ public class QuestManager {
                         profile.getVariables().put("objective." + obj.getId() + ".active", false);
 
                     if (!obj.getEvents().isEmpty())
-                        plugin.getScriptModule().getEventParser().parseList(obj.getEvents()).execute(ctx);
+                        obj.getCompiledEvents().run(ctx, plugin.getScriptModule());
 
                     if (obj.isPersistent()) {
                         profile.getVariables().put("quest." + quest.getId() + ".obj." + key, 0);

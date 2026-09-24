@@ -532,7 +532,7 @@ public class GuiModule implements ReloadableModule {
         guiRegistry.clear();
         plugin.getScriptModule().getHookBus().clearYamlStages(GUI_POINT_PREFIX);
         GuiDefinitionParser parser = new GuiDefinitionParser(plugin);
-        YamlLoader<GuiDefinition> loader = new YamlLoader<>(plugin, "guis", "GUIs");
+        YamlLoader<GuiDefinition> loader = new YamlLoader<GuiDefinition>(plugin, "guis", "GUIs").kind(org.nakii.valmora.infrastructure.config.refs.Kinds.GUI);
         loader.load(parser::parse, def -> {
             guiRegistry.put(def.getId().toLowerCase(java.util.Locale.ROOT), def);
             if (def.getCommand() != null) {

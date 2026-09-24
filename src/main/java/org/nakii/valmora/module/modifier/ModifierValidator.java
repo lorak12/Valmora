@@ -32,6 +32,19 @@ public final class ModifierValidator {
 
     public static void validate(ModifierGroupRegistry groups, ModifierRegistry modifiers,
                                  ModifierRecipeRegistry recipes, ItemManager itemManager, Logger logger) {
+        List<String> warnings = collect(groups, modifiers, recipes, itemManager);
+
+        if (!warnings.isEmpty()) {
+            logger.warning("Modifier content validation found " + warnings.size() + " issue(s):");
+            logger.warning("------------------------------");
+            for (String w : warnings) logger.warning("- " + w);
+            logger.warning("------------------------------");
+        }
+    }
+
+    /** Every problem found, one message each — what {@link #validate} logs. */
+    public static List<String> collect(ModifierGroupRegistry groups, ModifierRegistry modifiers,
+                                       ModifierRecipeRegistry recipes, ItemManager itemManager) {
         List<String> warnings = new ArrayList<>();
 
         for (ModifierDefinition def : modifiers.values()) {
@@ -42,12 +55,7 @@ public final class ModifierValidator {
             validateRecipe(recipe, groups, modifiers, itemManager, warnings);
         }
 
-        if (!warnings.isEmpty()) {
-            logger.warning("Modifier content validation found " + warnings.size() + " issue(s):");
-            logger.warning("------------------------------");
-            for (String w : warnings) logger.warning("- " + w);
-            logger.warning("------------------------------");
-        }
+        return warnings;
     }
 
     private static void validateModifier(ModifierDefinition def, ModifierGroupRegistry groups,

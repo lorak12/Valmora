@@ -26,6 +26,26 @@ public class SpawnMobEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "spawn_mob <mob> [count] [radius:<r>]";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 0 && !args[0].contains("$")) sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.MOB, args[0]);
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return ctx -> {};
 

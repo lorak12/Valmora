@@ -20,13 +20,18 @@ public final class MobCategoryLoader {
         File file = new File(plugin.getDataFolder(), "mob_categories.yml");
         if (!file.exists()) return;
 
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
-        int count = 0;
-        for (String id : config.getStringList("categories")) {
-            if (id == null || id.isBlank()) continue;
-            MobCategory.define(id.trim());
-            count++;
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Mob categories", "mob_categories.yml")) {
+            YamlConfiguration config = session.readYaml(file, "mob_categories.yml");
+            if (config == null) return;
+            if (!config.isList("categories")) {
+                session.warn("mob_categories.yml", null, "expected a 'categories:' list — only the built-in categories are available");
+                return;
+            }
+            for (String id : config.getStringList("categories")) {
+                if (id == null || id.isBlank()) continue;
+                MobCategory.define(id.trim());
+                session.loaded();
+            }
         }
-        plugin.getLogger().info("[MobCategoryLoader] Registered " + count + " mob categories from mob_categories.yml.");
     }
 }

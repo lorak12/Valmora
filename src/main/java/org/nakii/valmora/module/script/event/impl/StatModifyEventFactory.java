@@ -26,6 +26,26 @@ public class StatModifyEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 2;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "stat_modify <add|set|reset> <stat> [value]";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 1 && !args[1].contains("$")) sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.STAT, args[1]);
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2) return ctx -> {};
 

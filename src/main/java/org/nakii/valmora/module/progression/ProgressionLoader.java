@@ -63,7 +63,12 @@ public class ProgressionLoader {
                     String nodeName = nodeSec.getString("name", nodeKey);
                     String nodeDesc = nodeSec.getString("description", "");
                     Material icon = Material.matchMaterial(nodeSec.getString("icon", "BOOK"));
-                    if (icon == null) icon = Material.BOOK;
+                    if (icon == null) {
+                        org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("nodes." + nodeKey + ".icon: unknown material '"
+                                + nodeSec.getString("icon") + "' — using BOOK",
+                                org.nakii.valmora.infrastructure.config.read.ConfigReader.materialHint(nodeSec.getString("icon")));
+                        icon = Material.BOOK;
+                    }
                     int tierIndex = nodeSec.getInt("tier", 0);
                     int maxLevel = nodeSec.getInt("max-level", 1);
                     String costCurve = nodeSec.getString("cost-curve", "1");
@@ -86,10 +91,33 @@ public class ProgressionLoader {
                     }
 
                     List<String> onLevelEvents = nodeSec.getStringList("on-level");
+                    if (!onLevelEvents.isEmpty() && plugin.getScriptModule() != null) {
+                        org.nakii.valmora.infrastructure.config.diag.ScriptCompile.at("nodes." + nodeKey + ".on-level", () -> plugin.getScriptModule().compileCached(onLevelEvents));
+                    }
 
                     nodes.put(nodeKey.toLowerCase(), new ProgressionNode(
                             nodeKey, nodeName, nodeDesc, icon, tierIndex, maxLevel, costCurve,
                             prereqs, statBonus, dailyBonus, onLevelEvents));
+                }
+            }
+
+            // Within-tree references: tiers and prerequisites must name nodes of this tree.
+            for (ProgressionTier tier : tiers) {
+                for (String nodeId : tier.getNodeIds()) {
+                    if (!nodes.containsKey(nodeId.toLowerCase())) {
+                        org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("tiers." + tier.getIndex()
+                                + ".nodes: unknown node '" + nodeId + "'",
+                                org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(nodeId, nodes.keySet()));
+                    }
+                }
+            }
+            for (ProgressionNode node : nodes.values()) {
+                for (String prereq : node.getPrerequisiteNodeIds()) {
+                    if (!nodes.containsKey(prereq.toLowerCase())) {
+                        org.nakii.valmora.infrastructure.config.diag.Diagnostics.warn("nodes." + node.getId()
+                                + ".prerequisites: unknown node '" + prereq + "' — this node can never be unlocked",
+                                org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(prereq, nodes.keySet()));
+                    }
                 }
             }
 

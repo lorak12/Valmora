@@ -43,6 +43,7 @@ public class PackModule implements ReloadableModule {
 
     @Override
     public void onEnable() {
+        referenceCheckerRegistry.register(new org.nakii.valmora.module.pack.validate.IndexedPackReferenceChecker(fileIndex));
         packManager = new PackManager(plugin, dataStore, fileIndex);
         packManager.loadInstalledPacks();
     }

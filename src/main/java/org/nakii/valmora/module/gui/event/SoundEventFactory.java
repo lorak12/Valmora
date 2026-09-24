@@ -15,6 +15,21 @@ public class SoundEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "sound [player|world] <sound.key>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return context -> {};
         

@@ -27,6 +27,21 @@ public class ApplyPotionEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 3;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 4;
+    }
+
+    @Override
+    public String usage() {
+        return "apply_potion <effect> <duration> <amplifier> [selector]";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 3) return context -> {};
 

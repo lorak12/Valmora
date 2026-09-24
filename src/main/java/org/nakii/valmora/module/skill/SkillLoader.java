@@ -13,7 +13,7 @@ public class SkillLoader {
         this.plugin = plugin;
         this.registry = registry;
         // Loads all .yml files from plugins/Valmora/skills/
-        this.loader = new YamlLoader<>(plugin, "skills", "skills");
+        this.loader = new YamlLoader<SkillDefinition>(plugin, "skills", "Skills").ignoreFiles("xp_curves.yml").kind("skill");
     }
 
     public void loadSkills() {

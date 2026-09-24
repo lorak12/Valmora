@@ -30,6 +30,26 @@ public class TeleportEventFactory implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 1;
+    }
+
+    @Override
+    public int maxArgs() {
+        return 4;
+    }
+
+    @Override
+    public String usage() {
+        return "teleport <warp:id | @look <blocks> | x y z | world x y z>";
+    }
+
+    @Override
+    public void references(String[] args, ReferenceSink sink) {
+        if (args.length > 0 && args[0].startsWith("warp:") && !args[0].contains("$")) sink.ref(org.nakii.valmora.infrastructure.config.refs.Kinds.WARP, args[0].substring(5));
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length == 0) return ctx -> {};
         return ctx -> ctx.getPlayerCaster().ifPresent(player -> {

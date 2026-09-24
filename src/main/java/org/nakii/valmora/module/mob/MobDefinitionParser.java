@@ -3,7 +3,6 @@ package org.nakii.valmora.module.mob;
 import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.api.ValmoraAPI;
@@ -13,6 +12,8 @@ import org.nakii.valmora.module.item.MechanicRegistry;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 import org.nakii.valmora.module.mob.ability.MobAbilityParser;
 import org.nakii.valmora.api.config.LoadResult;
+import org.nakii.valmora.infrastructure.config.diag.Suggestions;
+import org.nakii.valmora.infrastructure.config.read.ConfigReader;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,35 +24,23 @@ public class MobDefinitionParser {
 
     public static LoadResult<MobDefinition, String> parse(String sectionId, ConfigurationSection section, String fileName, ItemManager itemManager) {
         MobDefinition.Builder builder = new MobDefinition.Builder(sectionId);
+        ConfigReader reader = ConfigReader.of(section).knownKeys(KNOWN_KEYS);
 
         // Name — fall back to the mob's own id so a missing 'name' can't NPE MobFactory.applyVisuals
         // (which formats it unconditionally) instead of just displaying a blank/odd name.
         builder.name(section.getString("name", sectionId));
 
-        // Category (required)
-        if (!section.contains("category")) {
-            return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Missing required field 'category'.");
+        // Category and entity type (both required). Both are checked before bailing out so a
+        // broken entry reports every problem at once.
+        MobCategory category = reader.requireOneOf("category", "mob category", MobCategory::find, MobDefinitionParser::categoryNames);
+        EntityType entityType = reader.requireEnum("type", EntityType.class);
+        if (entityType != null && !entityType.isAlive()) {
+            reader.error("type", "entity type '" + entityType.name() + "' is not a living entity");
         }
-        String categoryStr = section.getString("category");
-        MobCategory category;
-        try {
-            category = MobCategory.valueOf(categoryStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid category '" + categoryStr + "'.");
+        if (category == null || entityType == null || !entityType.isAlive()) {
+            return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': not loaded — see the errors above.");
         }
         builder.category(category);
-
-        // Entity Type
-        if (!section.contains("type")) {
-            return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Missing required field 'type'.");
-        }
-        String typeStr = section.getString("type");
-        EntityType entityType;
-        try {
-            entityType = EntityType.valueOf(typeStr.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid entity type '" + typeStr + "'.");
-        }
         builder.entityType(entityType);
 
         // Stats. The canonical form is a nested 'stats:' block; legacy flat keys
@@ -87,15 +76,15 @@ public class MobDefinitionParser {
         ConfigurationSection resistSection = section.getConfigurationSection("resistances");
         if (resistSection != null) {
             Map<DamageType, Double> resistances = new HashMap<>();
+            ConfigReader resistReader = reader.section("resistances");
             for (String typeKey : resistSection.getKeys(false)) {
-                DamageType type;
-                try {
-                    type = DamageType.valueOf(typeKey.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid resistance damage-type '" + typeKey + "'.");
+                DamageType type = DamageType.find(typeKey).orElse(null);
+                if (type == null) {
+                    resistReader.warn(typeKey, "unknown damage type '" + typeKey + "' — resistance ignored",
+                            Suggestions.hint(typeKey, damageTypeNames()));
+                    continue;
                 }
-                double value = Math.max(0.0, Math.min(1.0, resistSection.getDouble(typeKey)));
-                resistances.put(type, value);
+                resistances.put(type, resistReader.doubleRange(typeKey, 0.0, 0.0, 1.0));
             }
             builder.resistances(resistances);
         }
@@ -146,41 +135,38 @@ public class MobDefinitionParser {
 
         // Damage Type
         if (section.contains("damage-type")) {
-            String damageTypeStr = section.getString("damage-type");
-            try {
-                DamageType damageType = DamageType.valueOf(damageTypeStr.toUpperCase());
-                builder.damageType(damageType);
-            } catch (IllegalArgumentException e) {
-                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid damage-type '" + damageTypeStr + "'.");
-            }
+            DamageType damageType = reader.oneOf("damage-type", "damage type", DamageType::find, MobDefinitionParser::damageTypeNames, null);
+            if (damageType != null) builder.damageType(damageType);
         }
 
         // Equipment
         if (section.contains("equipment")) {
             ConfigurationSection equipSection = section.getConfigurationSection("equipment");
+            ConfigReader equip = reader.section("equipment");
+            if (equip != null) equip.knownKeys("helmet", "chestplate", "leggings", "boots", "main-hand", "off-hand");
             if (equipSection != null) {
                 ItemStack[] armor = new ItemStack[4];
                 boolean hasArmor = false;
 
                 // Helmet (index 3)
                 if (equipSection.contains("helmet")) {
-                    armor[3] = itemManager.createItemStack(equipSection.getString("helmet"));
-                    hasArmor = true;
+                    armor[3] = equipmentItem(equip, "helmet", itemManager);
+                    hasArmor |= armor[3] != null;
                 }
                 // Chestplate (index 2)
                 if (equipSection.contains("chestplate")) {
-                    armor[2] = itemManager.createItemStack(equipSection.getString("chestplate"));
-                    hasArmor = true;
+                    armor[2] = equipmentItem(equip, "chestplate", itemManager);
+                    hasArmor |= armor[2] != null;
                 }
                 // Leggings (index 1)
                 if (equipSection.contains("leggings")) {
-                    armor[1] = itemManager.createItemStack(equipSection.getString("leggings"));
-                    hasArmor = true;
+                    armor[1] = equipmentItem(equip, "leggings", itemManager);
+                    hasArmor |= armor[1] != null;
                 }
                 // Boots (index 0)
                 if (equipSection.contains("boots")) {
-                    armor[0] = itemManager.createItemStack(equipSection.getString("boots"));
-                    hasArmor = true;
+                    armor[0] = equipmentItem(equip, "boots", itemManager);
+                    hasArmor |= armor[0] != null;
                 }
 
                 if (hasArmor) {
@@ -188,11 +174,11 @@ public class MobDefinitionParser {
                 }
 
                 if (equipSection.contains("main-hand")) {
-                    builder.weapon(itemManager.createItemStack(equipSection.getString("main-hand")));
+                    builder.weapon(equipmentItem(equip, "main-hand", itemManager));
                 }
 
                 if (equipSection.contains("off-hand")) {
-                    builder.offHand(itemManager.createItemStack(equipSection.getString("off-hand")));
+                    builder.offHand(equipmentItem(equip, "off-hand", itemManager));
                 }
             }
         }
@@ -205,17 +191,13 @@ public class MobDefinitionParser {
                 // ConfigurationSection (that instanceof check only ever matches for actual nested
                 // sections, e.g. YAML anchors) — so use getMapList() and wrap each map into a
                 // section via MemoryConfiguration#createSection to reuse parseLootEntry() below.
-                List<Map<?, ?>> dropsList = lootSection.getMapList("drops");
+                // A drop that can't be parsed (unknown item, missing 'item') is reported and left
+                // out — the rest of the mob, including its other drops, still loads.
                 List<LootEntry> entries = new ArrayList<>();
-                for (Map<?, ?> dropMap : dropsList) {
-                    @SuppressWarnings("unchecked")
-                    Map<String, Object> typedMap = (Map<String, Object>) dropMap;
-                    ConfigurationSection dropEntry = new MemoryConfiguration().createSection("drop", typedMap);
-                    LootEntry entry = parseLootEntry(dropEntry, sectionId, fileName, itemManager);
-                    if (entry == null) {
-                        return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Failed to parse loot entry.");
-                    }
-                    entries.add(entry);
+                ConfigReader loot = reader.section("loot-table");
+                for (ConfigReader drop : loot.sectionList("drops")) {
+                    LootEntry entry = parseLootEntry(drop, itemManager);
+                    if (entry != null) entries.add(entry);
                 }
                 builder.lootTable(new LootTable(entries));
             }
@@ -224,15 +206,13 @@ public class MobDefinitionParser {
         // Boss bar
         ConfigurationSection barSection = section.getConfigurationSection("boss-bar");
         if (barSection != null && barSection.getBoolean("enabled", false)) {
-            BossBar.Color color;
-            try {
-                color = BossBar.Color.valueOf(barSection.getString("color", "RED").toUpperCase());
-            } catch (IllegalArgumentException e) {
-                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar color '" + barSection.getString("color") + "'.");
-            }
+            ConfigReader bar = reader.section("boss-bar").knownKeys("enabled", "color", "style", "range");
+            BossBar.Color color = bar.enumOf("color", BossBar.Color.class, BossBar.Color.RED);
             BossBar.Overlay overlay = parseOverlay(barSection.getString("style", "PROGRESS"));
             if (overlay == null) {
-                return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar style '" + barSection.getString("style") + "'.");
+                bar.warn("style", "unknown boss-bar style '" + barSection.getString("style") + "' — using PROGRESS",
+                        Suggestions.hint(barSection.getString("style"), List.of("PROGRESS", "NOTCHED_6", "NOTCHED_10", "NOTCHED_12", "NOTCHED_20")));
+                overlay = BossBar.Overlay.PROGRESS;
             }
             double range = barSection.getDouble("range", BossBarConfig.defaultRange());
             builder.bossBar(new BossBarConfig(true, color, overlay, range));
@@ -265,29 +245,68 @@ public class MobDefinitionParser {
         };
     }
 
-    private static LootEntry parseLootEntry(ConfigurationSection section, String mobId, String fileName, ItemManager itemManager) {
-        if (!section.contains("item")) {
-            return null;
-        }
+    private static LootEntry parseLootEntry(ConfigReader drop, ItemManager itemManager) {
+        drop.knownKeys("item", "min-amount", "max-amount", "amount", "chance", "luck-affected");
+        String itemStr = drop.requireString("item");
+        if (itemStr == null) return null;
 
-        String itemStr = section.getString("item");
         ItemStack item;
-        
         Material material = Material.getMaterial(itemStr.toUpperCase());
         if (material != null) {
             item = new ItemStack(material);
         } else {
             item = itemManager.createItemStack(itemStr);
             if (item == null) {
+                drop.warn("item", "unknown item '" + itemStr + "' — this drop is skipped", itemHint(itemStr, itemManager));
                 return null;
             }
         }
 
-        int minAmount = section.contains("min-amount") ? section.getInt("min-amount") : 1;
-        int maxAmount = section.contains("max-amount") ? section.getInt("max-amount") : minAmount;
-        double chance = section.contains("chance") ? section.getDouble("chance") : 1.0;
-        boolean luckAffected = section.contains("luck-affected") && section.getBoolean("luck-affected");
+        int fixed = drop.intRange("amount", 1, 0, 10_000);
+        int minAmount = drop.intRange("min-amount", fixed, 0, 10_000);
+        int maxAmount = drop.intRange("max-amount", drop.has("amount") ? fixed : minAmount, 0, 10_000);
+        if (maxAmount < minAmount) {
+            drop.warn("max-amount", "max-amount " + maxAmount + " is below min-amount " + minAmount + " — using " + minAmount);
+            maxAmount = minAmount;
+        }
+        double chance = drop.doubleRange("chance", 1.0, 0.0, 1.0);
+        boolean luckAffected = drop.bool("luck-affected", false);
 
         return new LootEntry(item, minAmount, maxAmount, chance, luckAffected);
     }
+
+    /** An equipment slot's item; unknown ids are reported (with a suggestion) instead of silently leaving the slot empty. */
+    private static ItemStack equipmentItem(ConfigReader equip, String slot, ItemManager itemManager) {
+        String id = equip.string(slot, null);
+        if (id == null || id.isBlank()) return null;
+        ItemStack stack = itemManager.createItemStack(id);
+        if (stack == null) equip.warn(slot, "unknown item '" + id + "' — slot left empty", itemHint(id, itemManager));
+        return stack;
+    }
+
+    private static String itemHint(String id, ItemManager itemManager) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        try {
+            ids.addAll(itemManager.getItemRegistry().getAllItemIds());
+        } catch (RuntimeException ignored) {
+            // registry not ready — suggest from materials only
+        }
+        String hint = Suggestions.hint(id, ids);
+        return hint != null ? hint : ConfigReader.materialHint(id);
+    }
+
+    private static List<String> categoryNames() {
+        return MobCategory.values().stream().map(MobCategory::getId).toList();
+    }
+
+    private static List<String> damageTypeNames() {
+        return DamageType.values().stream().map(DamageType::getId).toList();
+    }
+
+    /** Every top-level key a mob definition may use — anything else is reported as a likely typo. */
+    private static final List<String> KNOWN_KEYS = List.of(
+            "name", "category", "type", "stats", "health", "base-damage", "speed", "defense",
+            "resistances", "knockback-resistance", "no-ai", "silent", "glowing", "persistent", "baby",
+            "prevent-sun-burn", "ai", "natural-spawn", "level", "base-xp", "gold-reward", "damage-type",
+            "equipment", "loot-table", "boss-bar", "abilities");
 }

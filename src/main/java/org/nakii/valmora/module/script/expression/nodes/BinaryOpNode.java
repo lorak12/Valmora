@@ -3,10 +3,13 @@ package org.nakii.valmora.module.script.expression.nodes;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.scripting.Expression;
 
+import org.nakii.valmora.module.script.expression.FunctionRegistry;
+
 import java.util.Objects;
 
 /**
- * Expression node representing binary operations (+, -, *, /, ==, !=, >, <, etc.).
+ * Expression node representing binary operations (+, -, *, /, %, ==, !=, >, <, etc.).
+ * {@code +} concatenates when either side is non-numeric text.
  */
 public record BinaryOpNode(Expression left, String op, Expression right) implements Expression {
 
@@ -45,6 +48,7 @@ public record BinaryOpNode(Expression left, String op, Expression right) impleme
                 case "-" -> leftVal - rightVal;
                 case "*" -> leftVal * rightVal;
                 case "/" -> rightVal != 0 ? leftVal / rightVal : 0.0;
+                case "%" -> rightVal != 0 ? leftVal % rightVal : 0.0;
                 case ">" -> leftVal > rightVal;
                 case "<" -> leftVal < rightVal;
                 case ">=" -> leftVal >= rightVal;
@@ -53,6 +57,12 @@ public record BinaryOpNode(Expression left, String op, Expression right) impleme
                 case "!=" -> Math.abs(leftVal - rightVal) >= 0.0001;
                 default -> null;
             };
+        }
+
+        // Text concatenation: "+" with at least one non-numeric text side (numbers win above, so
+        // 1 + "2" is still 3). null joins as empty text, whole numbers without ".0".
+        if (op.equals("+") && (l instanceof String || r instanceof String)) {
+            return FunctionRegistry.str(l) + FunctionRegistry.str(r);
         }
 
         // String and generic comparison

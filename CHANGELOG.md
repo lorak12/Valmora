@@ -7,6 +7,65 @@ All notable changes to Valmora are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Content diagnostics.** Every content problem is now a structured diagnostic (severity, file,
+  entry, key path, message, "did you mean" hint) collected into one load report:
+  - one summary line per content type on every load (`[Mobs] 57 loaded from 4 files in 21 ms — 1 error,
+    2 warnings`) plus a final `Content: …` line; the full list goes to
+    `plugins/Valmora/last-load-report.txt`;
+  - `/valmora reload` shows errors *and* warnings; new `/valmora report [errors|warnings|all] [filter]
+    [page]`; `/valmora validate` now also checks cross-references and treats content that is new on
+    disk as valid;
+  - startup and pack (partial) reloads are reported too — partial reloads no longer leak errors into
+    the next report;
+  - every content loader reports this way, including the single-file ones (rarities, stats, stat
+    roles, damage types/formulas, item types, mob and entity categories, XP curves, pipelines, quest
+    packages, collections, alchemy modifiers, pet defaults, `ui.yml`) — a YAML syntax error is
+    reported instead of silently loading an empty file;
+  - new `diagnostics:` section in `config.yml` (console line cap, unknown-key and unknown-variable
+    warnings, report file).
+- **Cross-reference safeguards** (`ReferenceValidator`): once all modules are enabled, every id content
+  points at is checked — recipe ingredients/outputs and machines, mob drops/equipment, zone spawners and
+  resource drops, fishing/block-loot items, NPC conversations, machine GUIs, item container GUIs, and
+  ids inside scripts (`give`, `open_gui`, `gui open`, `dialogue start`, `spawn_mob`, `warp_to`,
+  `teleport warp:`, `stat_modify`, `zone`/`quest` conditions). Dangling ones are warnings; content
+  stays loaded. The machine-GUI and modifier checks now report into the same place, and content packs
+  get a generic reference checker.
+- **Within-file checks**: dialogue pointers to missing nodes, progression prerequisites/tier nodes,
+  collection categories, GUI layout letters without components (and unused components), recipe
+  pattern letters never used, swapped zone corners, duplicate stat ids/rarity ranks, decreasing XP
+  curve thresholds, unknown keys in mobs/items/recipes/zones/NPCs/GUIs/quests/stats ("did you mean").
+- **`ConfigReader`** parsing helper (typed, self-reporting required/optional values, enums, materials,
+  ranges, lists, sub-sections, unknown-key detection).
+- **Script DSL:**
+  - Conditions: combine keyword conditions and expressions with `and`/`or`/`not`/`!` and parentheses
+    (`tag vip or (zone hub and health 10)`); `all:`/`any:`/`none:` groups; custom keywords via
+    `ConditionParser.registerKeyword`.
+  - Expressions: `%`, `!`/`not`, unary minus as a real operator, short-circuit `and`/`or`,
+    single-quoted strings and escapes, text joining with `+`, and new functions (`clamp`, `sign`,
+    `sin`, `cos`, `random`, `randint`, `contains`, `startsWith`, `endsWith`, `lower`, `upper`,
+    `trim`, `len`, `replace`, `str`, `num`, `isnull`, `default`); add-ons can register functions.
+  - Events: `delay:` accepts `20t`/`1.5s`/`1m`; `\"` inside quoted arguments; argument counts checked
+    against each event's usage; `variable set x $a$ + 1` works without quotes.
+  - Load-time diagnostics for unknown events/functions/variable namespaces, bad arguments, bad delays
+    and expression syntax errors — with file, entry and line index.
+
+### Changed
+- Scripts in zones, NPCs (clicks, hologram conditions), dialogues, quest objectives, quest-board
+  rewards, pets, progression, collections and the player hider are compiled once at load instead of
+  on every execution; a failing script is logged once per minute with its source instead of throwing
+  into the event listener.
+- `ExpressionParser` is stateless and thread-safe; parsed expressions are cached.
+- A mob with one unknown drop item now loads without that drop (was: the whole mob failed); unknown
+  item stats and bad resistances/boss-bar values are warnings instead of failing the entry.
+- `skills/` loading reports YAML syntax errors, keeps the last good version, and no longer treats
+  `xp_curves.yml` as a skill.
+
+### Fixed
+- `npc_conversations` in `npcs/` was reported as a load error named "skip".
+- Registering the same script event twice now warns (the double `notify` registration is explicit).
+- `/valmora validate` had no permission check.
+
+### Added (earlier)
 - **Generic Modifier Framework** (`docs/Valmora_Modifier_Framework_Design.docx`): a data-driven
   engine for attachable item components that grant stats/abilities/other effects — reforges,
   gemstones, and any future system are now YAML content over one generic engine, not per-system Java.

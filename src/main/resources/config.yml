@@ -437,6 +437,21 @@ scripting:
     max-expression-depth: 100
 
 # ========================================================== #
+#                   Content Diagnostics                      #
+# ========================================================== #
+# How content-loading problems are reported. Every load (startup, /valmora reload, pack reloads)
+# prints one summary line per content type plus its problems; /valmora report shows the full list.
+diagnostics:
+  # How many problems to print per content type in the console before "... and N more".
+  max-console-lines-per-type: 20
+  # Warn about keys a parser doesn't recognise (usually typos, e.g. "materail:"). warn | off
+  unknown-keys: warn
+  # Warn about script variables ($namespace.path$) whose namespace no module provides. warn | off
+  unknown-variable-namespace: warn
+  # Write the full result of every load to plugins/Valmora/last-load-report.txt.
+  write-report-file: true
+
+# ========================================================== #
 #                    NPC Skin File Server                    #
 # ========================================================== #
 # Enables a tiny built-in HTTP server so you can apply skins

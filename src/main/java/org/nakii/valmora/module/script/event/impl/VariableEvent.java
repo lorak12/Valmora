@@ -19,12 +19,29 @@ public class VariableEvent implements EventFactory {
     }
 
     @Override
+    public int minArgs() {
+        return 3;
+    }
+
+    @Override
+    public String usage() {
+        return "variable <set|add|remove> <path> <value...>";
+    }
+
+    @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 3) return context -> {};
 
         String action = args[0];
         String path = args[1]; // Currently we only support player.var.X
-        String rawValue = args[2];
+        // Everything after the path is the value, so an unquoted formula works:
+        // `variable set player.var.x $player.var.x$ + 1` (previously only "$player.var.x$" was used).
+        String rawValue = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
+        if (!action.equalsIgnoreCase("set") && !action.equalsIgnoreCase("add") && !action.equalsIgnoreCase("remove")) {
+            org.nakii.valmora.infrastructure.config.diag.Diagnostics.error("variable: unknown action '" + action
+                    + "' — use set, add or remove", org.nakii.valmora.infrastructure.config.diag.Suggestions.hint(action,
+                    java.util.List.of("set", "add", "remove")));
+        }
 
         return context -> {
             // Full expression evaluation (added 2026-08-07) — was single-token "$var$"

@@ -35,17 +35,18 @@ public class StatLoader {
             return;
         }
 
-        int count = 0;
-        for (File file : files) {
-            org.bukkit.configuration.file.YamlConfiguration yaml =
-                    org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
-            count += loadFromConfig(yaml, file.getName());
+        try (org.nakii.valmora.infrastructure.config.diag.LoadSession session = org.nakii.valmora.infrastructure.config.diag.LoadSession.open(plugin, "Stats", "stats")) {
+            java.util.Arrays.sort(files);
+            for (File file : files) {
+                String path = "stats/" + file.getName();
+                org.bukkit.configuration.file.YamlConfiguration yaml = session.readYaml(file, path);
+                if (yaml == null) continue;
+                session.loaded(loadFromConfig(yaml, path, session));
+            }
         }
-
-        log.info("[StatLoader] Loaded " + count + " stat definitions.");
     }
 
-    private int loadFromConfig(FileConfiguration config, String fileName) {
+    private int loadFromConfig(FileConfiguration config, String fileName, org.nakii.valmora.infrastructure.config.diag.LoadSession session) {
         int count = 0;
         for (String id : config.getKeys(false)) {
             // Phase 3.1 (docs/REFACTOR/PROGRESS.md): stat_roles: is a role->stat-id mapping read
@@ -54,6 +55,18 @@ public class StatLoader {
 
             ConfigurationSection s = config.getConfigurationSection(id);
             if (s == null) continue;
+            if (registry.contains(id.toLowerCase())) {
+                session.warn(fileName, id, "stat '" + id + "' is defined more than once — this definition replaces the earlier one");
+            }
+            try (var scope = session.entry(fileName, id)) {
+                org.nakii.valmora.infrastructure.config.read.ConfigReader reader =
+                        org.nakii.valmora.infrastructure.config.read.ConfigReader.of(s).knownKeys(
+                                "display-name", "default-value", "max-value", "color", "icon", "description", "pool", "vanilla-attribute");
+                if (s.contains("icon") && org.nakii.valmora.infrastructure.config.read.ConfigReader.parseMaterial(s.getString("icon")) == null) {
+                    reader.warn("icon", "unknown material '" + s.getString("icon") + "'",
+                            org.nakii.valmora.infrastructure.config.read.ConfigReader.materialHint(s.getString("icon")));
+                }
+            }
 
             String normalizedId = id.toLowerCase();
             String displayName = s.getString("display-name", normalizedId);

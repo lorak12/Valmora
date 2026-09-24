@@ -4,6 +4,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.api.scripting.CompiledEvent;
+import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;
+import org.nakii.valmora.infrastructure.config.read.ConfigReader;
+import org.nakii.valmora.infrastructure.config.refs.Kinds;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,6 +53,12 @@ public class RecipeDefinitionParser {
             }
 
             String machine = section.getString("machine");
+            ConfigReader reader = ConfigReader.of(section).knownKeys(KNOWN_KEYS);
+            if (machine == null || machine.isBlank()) {
+                reader.warn("machine", "no machine: — this recipe can never be crafted in any GUI");
+            } else {
+                reader.ref("machine", Kinds.MACHINE, machine);
+            }
             if (!"SHAPED".equalsIgnoreCase(rawType) && !"SHAPELESS".equalsIgnoreCase(rawType)) {
                 // EXACT_SLOT's old named-slot `inputs:` map (e.g. forge's input1/input2) is gone —
                 // every positional machine, however many slots it has, is a SHAPED recipe now:
@@ -73,21 +82,25 @@ public class RecipeDefinitionParser {
                 // Plain list, order/position irrelevant — mirrors vanilla's own shapeless-recipe
                 // JSON convention (a flat `ingredients` list, vs. shaped's `key`+`pattern`).
                 if (section.contains("pattern")) {
-                    plugin.getLogger().warning("[" + filePath + "] Recipe " + id
-                            + " is SHAPELESS but declares a pattern: — SHAPELESS matches ingredients in"
-                            + " any slot/order, so pattern: has no effect and is ignored.");
+                    reader.warn("pattern", "SHAPELESS recipes match ingredients in any slot/order, so pattern: has no effect and is ignored");
                 }
                 List<? extends Map<?, ?>> ingredients = section.getMapList("ingredients");
                 if (ingredients.isEmpty() && section.contains("inputs")) {
                     return LoadResult.failure("[" + filePath + "] Recipe " + id
                             + ": SHAPELESS recipes use ingredients: (a list) now, not inputs: — rename the key.");
                 }
-                for (Map<?, ?> input : ingredients) {
+                for (int i = 0; i < ingredients.size(); i++) {
+                    Map<?, ?> input = ingredients.get(i);
                     // `amount` is optional (defaults to 1) — previously a missing value threw an
                     // uncaught NPE from unboxing a null Integer, failing the whole file's load.
                     Object amountObj = input.get("amount");
                     int amount = amountObj instanceof Number n ? n.intValue() : 1;
-                    inputList.add(new RecipeIngredient((String) input.get("item"), amount));
+                    Object item = input.containsKey("item") ? input.get("item") : input.get("material");
+                    if (item == null) {
+                        return LoadResult.failure("[" + filePath + "] Recipe " + id + ": ingredients[" + i + "] needs an item:");
+                    }
+                    reader.ref("ingredients." + i + ".item", Kinds.ITEM_OR_MATERIAL, String.valueOf(item));
+                    inputList.add(new RecipeIngredient(String.valueOf(item), amount));
                 }
             } else {
                 // Letter-keyed SHAPED syntax (recipe-yaml rework note), the one input format every
@@ -105,7 +118,10 @@ public class RecipeDefinitionParser {
                 Map<Character, RecipeIngredient> letters = shapedLetters;
                 if (ingredientsSec != null) {
                     for (String key : ingredientsSec.getKeys(false)) {
-                        if (key.length() != 1) continue;
+                        if (key.length() != 1) {
+                            reader.warn("ingredients." + key, "ingredient keys must be a single letter used in pattern: — '" + key + "' is ignored");
+                            continue;
+                        }
                         ConfigurationSection ingSec = ingredientsSec.getConfigurationSection(key);
                         if (ingSec == null) continue;
                         // `item:` accepted as an alias — SHAPELESS ingredients use `item:`, so writing
@@ -115,10 +131,18 @@ public class RecipeDefinitionParser {
                             return LoadResult.failure("[" + filePath + "] Recipe " + id
                                     + ": ingredient '" + key + "' needs a material: (a material or Valmora item id)");
                         }
+                        reader.ref("ingredients." + key, Kinds.ITEM_OR_MATERIAL, material);
                         letters.put(key.charAt(0), new RecipeIngredient(material, ingSec.getInt("amount", 1)));
                     }
                 }
                 List<String> pattern = section.getStringList("pattern");
+                java.util.Set<Character> usedLetters = new java.util.HashSet<>();
+                for (String line : pattern) for (char c : line.toCharArray()) usedLetters.add(c);
+                for (Character letter : letters.keySet()) {
+                    if (!usedLetters.contains(letter)) {
+                        reader.warn("ingredients." + letter, "ingredient '" + letter + "' is never used in pattern:");
+                    }
+                }
                 gridWidth = pattern.stream().mapToInt(String::length).max().orElse(3);
                 for (int row = 0; row < pattern.size(); row++) {
                     String line = pattern.get(row);
@@ -142,10 +166,18 @@ public class RecipeDefinitionParser {
             // than falling back to layout-scan order.
             List<RecipeOutput> outputs = new ArrayList<>();
             List<? extends Map<?, ?>> outputMaps = section.getMapList("outputs");
-            for (Map<?, ?> outMap : outputMaps) {
+            if (outputMaps.isEmpty()) {
+                return LoadResult.failure("[" + filePath + "] Recipe " + id + ": has no outputs: — nothing to craft.");
+            }
+            for (int i = 0; i < outputMaps.size(); i++) {
+                Map<?, ?> outMap = outputMaps.get(i);
                 Object amountObj = outMap.get("amount");
                 int amount = amountObj instanceof Number n ? n.intValue() : 1;
                 Object itemObj = outMap.get("item");
+                if (itemObj == null) {
+                    return LoadResult.failure("[" + filePath + "] Recipe " + id + ": outputs[" + i + "] needs an item:");
+                }
+                reader.ref("outputs." + i + ".item", Kinds.ITEM_OR_MATERIAL, String.valueOf(itemObj));
                 Object slotObj = outMap.get("slot");
                 outputs.add(new RecipeOutput(new RecipeIngredient(itemObj != null ? String.valueOf(itemObj) : null, amount),
                         slotObj != null ? String.valueOf(slotObj) : null));
@@ -175,7 +207,8 @@ public class RecipeDefinitionParser {
 
             CompiledEvent onCraft = null;
             if (section.contains("on-craft")) {
-                onCraft = plugin.getScriptModule().getEventParser().parseList(section.getStringList("on-craft"));
+                onCraft = ScriptCompile.at("on-craft", () ->
+                        plugin.getScriptModule().getEventParser().parseList(section.getStringList("on-craft")));
             }
 
             boolean keepDataOnUpgrade = section.getBoolean("keep-data-on-upgrade", true);
@@ -201,6 +234,11 @@ public class RecipeDefinitionParser {
             return LoadResult.failure("[" + filePath + "] Error parsing Recipe " + id + ": " + e.getMessage());
         }
     }
+
+    /** Every key a (non-smithing) YAML recipe may use — anything else is reported as a likely typo. */
+    private static final List<String> KNOWN_KEYS = List.of(
+            "machine", "type", "ingredients", "pattern", "outputs", "on-craft", "keep-data-on-upgrade",
+            "upgrade-from", "inputs", "cost");
 
     /**
      * Registers a real vanilla {@link org.bukkit.inventory.SmithingTransformRecipe} from a
@@ -254,14 +292,11 @@ public class RecipeDefinitionParser {
 
     private org.bukkit.inventory.RecipeChoice parseChoice(ConfigurationSection section, String key) {
         List<org.bukkit.Material> materials = new ArrayList<>();
-        if (section.isList(key)) {
-            for (String s : section.getStringList(key)) {
-                org.bukkit.Material mat = org.bukkit.Material.matchMaterial(s);
-                if (mat != null) materials.add(mat);
-            }
-        } else if (section.isString(key)) {
-            org.bukkit.Material mat = org.bukkit.Material.matchMaterial(section.getString(key, ""));
+        ConfigReader reader = ConfigReader.of(section);
+        for (String s : reader.stringList(key)) {
+            org.bukkit.Material mat = org.bukkit.Material.matchMaterial(s);
             if (mat != null) materials.add(mat);
+            else reader.warn(key, "unknown material '" + s + "' — ignored", ConfigReader.materialHint(s));
         }
         return materials.isEmpty() ? null : new org.bukkit.inventory.RecipeChoice.MaterialChoice(materials);
     }
