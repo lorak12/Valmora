@@ -60,7 +60,10 @@ public class ScriptModule implements ReloadableModule {
         this.conditionParser = new ConditionParser(this.expressionParser);
         this.eventParser = new EventParser(this);
         this.delayedEvents = new DelayedEventTracker(plugin);
-        plugin.getServer().getPluginManager().registerEvents(delayedEvents, plugin);
+        // No server in plain unit tests (they build a ScriptModule off a mocked plugin).
+        if (plugin.getServer() != null && plugin.getServer().getPluginManager() != null) {
+            plugin.getServer().getPluginManager().registerEvents(delayedEvents, plugin);
+        }
 
         // Register default providers
         registerProvider(new PlayerVariableProvider());
