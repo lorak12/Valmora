@@ -45,9 +45,81 @@ public class QuestManager {
         return s != null ? s.toString() : STATUS_NOT_STARTED;
     }
 
+    /** Progress of the objective at {@code index}, read under its stable key (see {@link QuestDefinition#progressKey}). */
     public int getProgress(ValmoraProfile profile, String questId, int index) {
-        Object p = profile.getVariables().get("quest." + questId + ".obj." + index);
+        QuestDefinition quest = registry.get(questId).orElse(null);
+        if (quest == null || index < 0 || index >= quest.getObjectives().size()) return 0;
+        Object p = profile.getVariables().get("quest." + quest.getId() + ".obj." + quest.progressKey(index));
         return p instanceof Number n ? n.intValue() : 0;
+    }
+
+    /**
+     * Restarts the per-player machinery of every in-progress quest when a session (re)starts:
+     * objectives added to a quest since the player started it are initialised (and their
+     * handler's start hook runs), and every incomplete objective's handler resumes (see
+     * {@link org.nakii.valmora.api.quest.ObjectiveHandler#onResume}). Call after
+     * {@link #migrateLegacyProgressKeys}.
+     */
+    public void resumeObjectives(Player player) {
+        ValmoraProfile profile = getProfile(player);
+        if (profile == null) return;
+        Map<String, Object> vars = profile.getVariables();
+        for (QuestDefinition quest : registry.values()) {
+            if (!STATUS_IN_PROGRESS.equals(getStatus(profile, quest.getId()))) continue;
+            List<QuestObjective> objectives = quest.getObjectives();
+            for (int i = 0; i < objectives.size(); i++) {
+                QuestObjective obj = objectives.get(i);
+                String key = "quest." + quest.getId() + ".obj." + quest.progressKey(i);
+                var handler = handlerRegistry.get(obj.getType());
+                if (!vars.containsKey(key)) {
+                    // Added to the quest after this player started it.
+                    vars.put(key, 0);
+                    vars.put(key + ".started", System.currentTimeMillis());
+                    if (obj.getId() != null) vars.put("objective." + obj.getId() + ".active", true);
+                    handler.ifPresent(h -> h.onQuestStart(player, obj, this));
+                    continue;
+                }
+                int progress = getProgressByKey(profile, quest.getId(), quest.progressKey(i));
+                if (progress >= obj.getRequired()) continue;
+                long started = vars.get(key + ".started") instanceof Number n ? n.longValue() : 0L;
+                handler.ifPresent(h -> h.onResume(player, obj, this, progress, started));
+            }
+        }
+    }
+
+    /** Lets every objective handler drop what it scheduled for {@code player}. */
+    public void onPlayerQuit(Player player) {
+        for (var handler : handlerRegistry.values()) handler.onPlayerQuit(player);
+    }
+
+    /** Cancels everything every objective handler scheduled (module disable). */
+    public void cancelAllHandlers() {
+        for (var handler : handlerRegistry.values()) handler.cancelAll();
+    }
+
+    /**
+     * Moves progress saved under the old list-index keys ({@code quest.<q>.obj.<index>}) of
+     * id-less objectives to their stable keys (see {@link QuestDefinition#progressKey}), using the
+     * CURRENT definition. Idempotent (a moved key is gone), and run whenever a profile loads, before
+     * any progress is read. Returns how many keys moved.
+     */
+    public int migrateLegacyProgressKeys(ValmoraProfile profile) {
+        Map<String, Object> vars = profile.getVariables();
+        int moved = 0;
+        for (QuestDefinition quest : registry.values()) {
+            String prefix = "quest." + quest.getId() + ".obj.";
+            List<QuestObjective> objectives = quest.getObjectives();
+            for (int i = 0; i < objectives.size(); i++) {
+                if (objectives.get(i).getId() != null) continue;
+                String legacyKey = prefix + i;
+                if (!vars.containsKey(legacyKey)) continue;
+                String newKey = prefix + quest.progressKey(i);
+                Object value = vars.remove(legacyKey);
+                vars.putIfAbsent(newKey, value);
+                moved++;
+            }
+        }
+        return moved;
     }
 
     public int getObjectiveProgress(ValmoraProfile profile, String questId, String objectiveId) {
@@ -108,8 +180,9 @@ public class QuestManager {
         List<QuestObjective> objectives = quest.getObjectives();
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
-            String key = objectiveKey(obj, i);
+            String key = quest.progressKey(i);
             vars.put("quest." + questId + ".obj." + key, 0);
+            vars.put("quest." + questId + ".obj." + key + ".started", System.currentTimeMillis());
             if (obj.getId() != null) {
                 vars.put("objective." + obj.getId() + ".active", true);
             }
@@ -158,8 +231,9 @@ public class QuestManager {
         List<QuestObjective> objectives = quest.getObjectives();
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
-            String key = objectiveKey(obj, i);
+            String key = quest.progressKey(i);
             vars.remove("quest." + questId + ".obj." + key);
+            vars.remove("quest." + questId + ".obj." + key + ".started");
         }
         vars.put("quest." + questId + ".status", STATUS_NOT_STARTED);
     }
@@ -254,7 +328,7 @@ public class QuestManager {
 
                 if (!evaluateConditions(obj.getConditions(), ctx)) continue;
 
-                String key = objectiveKey(obj, i);
+                String key = quest.progressKey(i);
                 int current = getProgressByKey(profile, quest.getId(), key);
                 if (current >= obj.getRequired()) continue;
 
@@ -298,7 +372,7 @@ public class QuestManager {
             for (int i = 0; i < objectives.size(); i++) {
                 QuestObjective obj = objectives.get(i);
                 if (!obj.isAutoOnce()) continue;
-                String key = objectiveKey(obj, i);
+                String key = quest.progressKey(i);
                 String guardTag = quest.getId() + ".auto-once-" + key;
                 if (profile.getTags().contains(guardTag)) continue;
                 // Id-less objectives used to be guarded by their *type*, so two of the same type
@@ -319,15 +393,6 @@ public class QuestManager {
     // Internals
     // -------------------------------------------------------------------------
 
-    /**
-     * The variable key an objective's progress is stored under: its explicit {@code id}, else its
-     * list index. Every read and write must go through this — auto-once objectives used to be
-     * written under their type but read under their index, so id-less ones never progressed.
-     */
-    private static String objectiveKey(QuestObjective obj, int index) {
-        return obj.getId() != null ? obj.getId() : String.valueOf(index);
-    }
-
     private static boolean isFirstOfType(List<QuestObjective> objectives, int index) {
         String type = objectives.get(index).getType();
         for (int i = 0; i < index; i++) {
@@ -338,6 +403,7 @@ public class QuestManager {
 
     private void startObjectiveInQuest(ValmoraProfile profile, QuestDefinition quest, String key, QuestObjective obj) {
         profile.getVariables().put("quest." + quest.getId() + ".obj." + key, 0);
+        profile.getVariables().put("quest." + quest.getId() + ".obj." + key + ".started", System.currentTimeMillis());
         if (obj.getId() != null) profile.getVariables().put("objective." + obj.getId() + ".active", true);
     }
 
@@ -346,7 +412,7 @@ public class QuestManager {
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
             if (obj.isPersistent()) continue;
-            String key = objectiveKey(obj, i);
+            String key = quest.progressKey(i);
             if (getProgressByKey(profile, quest.getId(), key) < obj.getRequired()) return;
         }
         finishQuest(player, profile, quest);

@@ -37,7 +37,7 @@ public class CollectionDefinitionParser {
 
                 long required = stageSection.getLong("required", 0);
                 List<String> rewards = stageSection.getStringList("rewards");
-                stages.add(new CollectionStage(stageNumber, required, rewards));
+                stages.add(new CollectionStage(stageNumber, required, rewards, stageSection.getString("id")));
             }
         }
         stages.sort(Comparator.comparingInt(CollectionStage::getNumber));

@@ -4,7 +4,6 @@ import org.nakii.valmora.infrastructure.versioning.IdAliases;
 import org.nakii.valmora.module.collection.CollectionManager;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,16 +35,7 @@ public final class ProfileReferences {
     }
 
     private static int resolveSkills(ValmoraProfile profile) {
-        Map<String, Double> xp = profile.getSkillManager().getSaveData();
-        Map<String, Double> resolved = new HashMap<>();
-        int moved = 0;
-        for (Map.Entry<String, Double> e : xp.entrySet()) {
-            String id = IdAliases.resolve(IdAliases.SKILLS, e.getKey());
-            if (!id.equals(e.getKey().toLowerCase())) moved++;
-            resolved.merge(id, e.getValue(), Math::max);
-        }
-        if (moved > 0) profile.getSkillManager().loadData(resolved);
-        return moved;
+        return profile.getSkillManager().remapIds(id -> IdAliases.resolve(IdAliases.SKILLS, id));
     }
 
     private static int resolveCollections(ValmoraProfile profile) {
@@ -61,6 +51,11 @@ public final class ProfileReferences {
             String id = IdAliases.resolve(IdAliases.COLLECTIONS, e.getKey());
             if (!id.equals(e.getKey().toLowerCase())) moved++;
             resolved.grantedStages.merge(id, e.getValue(), Math::max);
+        }
+        for (Map.Entry<String, Set<String>> e : data.grantedKeys.entrySet()) {
+            String id = IdAliases.resolve(IdAliases.COLLECTIONS, e.getKey());
+            if (!id.equals(e.getKey().toLowerCase())) moved++;
+            resolved.grantedKeys.computeIfAbsent(id, k -> new java.util.HashSet<>()).addAll(e.getValue());
         }
         if (moved > 0) profile.getCollectionManager().loadData(resolved);
         return moved;

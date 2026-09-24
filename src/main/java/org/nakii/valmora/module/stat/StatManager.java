@@ -37,6 +37,46 @@ public class StatManager {
         return new HashMap<>(baseStats);
     }
 
+    /**
+     * What gets persisted (profile data v3+): each base stat as its offset from the stat's
+     * CURRENT default, i.e. only what was actually allocated (admin commands, rewards). Saving
+     * the absolute value froze the default at whatever it was when the profile was created, so
+     * changing a stat's {@code default} in YAML never reached existing players.
+     */
+    public Map<String, Double> getAllocationSaveData() {
+        StatRegistry registry = ValmoraAPI.getInstance().getStatRegistry();
+        Map<String, Double> deltas = new HashMap<>();
+        baseStats.forEach((id, value) -> {
+            double def = registry.get(id).map(StatDefinition::getDefaultValue).orElse(0.0);
+            double delta = value - def;
+            if (delta != 0.0) deltas.put(id, delta);
+        });
+        return deltas;
+    }
+
+    /**
+     * Loads {@link #getAllocationSaveData()} output: base = current default + saved offset.
+     * Unrecognized ids are returned (not applied) for quarantine, like
+     * {@link #loadDataAndQuarantineUnrecognized}.
+     */
+    public Map<String, Double> loadAllocationsAndQuarantineUnrecognized(Map<String, Double> deltas) {
+        if (deltas == null) return Map.of();
+        StatRegistry registry = ValmoraAPI.getInstance().getStatRegistry();
+        Map<String, Double> absolute = new HashMap<>();
+        Map<String, Double> quarantined = new HashMap<>();
+        deltas.forEach((rawKey, delta) -> {
+            String key = rawKey.toLowerCase();
+            var def = registry.get(key);
+            if (def.isPresent()) {
+                absolute.put(key, def.get().getDefaultValue() + delta);
+            } else {
+                quarantined.put(key, delta);
+            }
+        });
+        loadData(absolute);
+        return quarantined;
+    }
+
     public void loadData(Map<String, Double> savedData) {
         if (savedData == null) return;
         // Normalize keys to lowercase to handle any legacy uppercase keys

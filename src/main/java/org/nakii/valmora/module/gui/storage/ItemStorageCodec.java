@@ -33,7 +33,12 @@ public final class ItemStorageCodec {
         }
     }
 
-    /** Always returns an array of exactly {@code expectedSize}, padding/truncating as needed. */
+    /**
+     * Returns the stored contents padded to at least {@code expectedSize}. Never truncated: items
+     * beyond {@code expectedSize} (the storage shrank in YAML) are kept for the caller to hand
+     * back. Returns {@code null} if the data can't be read, so the caller refuses to open rather
+     * than showing, and then saving, an empty storage over the real contents.
+     */
     public static ItemStack[] deserialize(byte[] bytes, int expectedSize, Logger logger) {
         if (bytes == null) return new ItemStack[expectedSize];
         try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
@@ -43,13 +48,13 @@ public final class ItemStorageCodec {
             for (int i = 0; i < size; i++) {
                 contents[i] = (ItemStack) in.readObject();
             }
-            if (size == expectedSize) return contents;
+            if (size >= expectedSize) return contents;
             ItemStack[] result = new ItemStack[expectedSize];
-            System.arraycopy(contents, 0, result, 0, Math.min(size, expectedSize));
+            System.arraycopy(contents, 0, result, 0, size);
             return result;
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException | ClassCastException e) {
             if (logger != null) logger.warning("Failed to deserialize storage contents: " + e.getMessage());
-            return new ItemStack[expectedSize];
+            return null;
         }
     }
 }

@@ -27,7 +27,15 @@ import java.util.Map;
 public final class ProfileMigrator {
 
     /** The profile data version this build writes. */
-    public static final int LATEST_VERSION = 1;
+    public static final int LATEST_VERSION = 3;
+
+    /**
+     * From this version on, the {@code stats} blob holds allocations (offsets from each stat's
+     * current default) instead of absolute base values. That's a change in meaning, not shape,
+     * and converting needs the stat registry, so there's no JSON step. The loader picks the
+     * interpretation from the row's version (see SQLDataStore.loadPlayer).
+     */
+    public static final int STAT_ALLOCATIONS_VERSION = 3;
 
     private ProfileMigrator() {}
 
@@ -43,6 +51,25 @@ public final class ProfileMigrator {
                     + " is newer than this plugin supports (" + LATEST_VERSION + ")");
         }
         if (fromVersion < 1) toV1(columns);
+        if (fromVersion < 2) toV2(columns);
+    }
+
+    /**
+     * v2 — {@code skills}: the bare {@code skillId → xp} map becomes
+     * {@code {xp: {...}, rewarded: {}}}, adding the per-skill reward ledger. The empty ledger means
+     * "rewarded up to the current level", filled in by SkillManager once the skill registry is
+     * available — existing players are never re-granted old rewards.
+     */
+    private static void toV2(Map<String, String> columns) {
+        String skills = columns.get("skills");
+        if (skills == null) return;
+        JsonElement parsed = JsonParser.parseString(skills);
+        if (parsed.isJsonObject() && !parsed.getAsJsonObject().has("xp")) {
+            JsonObject obj = new JsonObject();
+            obj.add("xp", parsed);
+            obj.add("rewarded", new JsonObject());
+            columns.put("skills", obj.toString());
+        }
     }
 
     /**

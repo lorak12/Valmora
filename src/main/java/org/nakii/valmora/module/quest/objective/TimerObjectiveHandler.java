@@ -8,7 +8,9 @@ import org.nakii.valmora.module.quest.QuestObjective;
 import org.nakii.valmora.module.quest.QuestObjectiveTypes;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 /**
@@ -18,18 +20,18 @@ import org.bukkit.entity.Player;
  * Required: target seconds to wait
  *
  * The task calls trigger() every second. trigger() increments the counter and
- * handles completion when it reaches required.
+ * handles completion when it reaches required. The counter is the objective's saved progress,
+ * so seconds already counted survive a relog/reload/restart: {@link #onResume} simply starts
+ * ticking again from there. Only online time counts.
  */
 public class TimerObjectiveHandler implements ObjectiveHandler {
 
     private final Valmora plugin;
-    private final QuestManager questManager;
     /** Key = "<playerUuid>:<objectiveId>" */
     private final Map<String, BukkitTask> activeTasks = new ConcurrentHashMap<>();
 
     public TimerObjectiveHandler(Valmora plugin, QuestManager questManager) {
         this.plugin = plugin;
-        this.questManager = questManager;
     }
 
     @Override
@@ -37,19 +39,42 @@ public class TimerObjectiveHandler implements ObjectiveHandler {
 
     @Override
     public void onQuestStart(Player player, QuestObjective objective, QuestManager qm) {
+        startTicking(player.getUniqueId(), objective, qm);
+    }
+
+    @Override
+    public void onResume(Player player, QuestObjective objective, QuestManager qm, int progress, long startedAtMillis) {
+        startTicking(player.getUniqueId(), objective, qm);
+    }
+
+    private void startTicking(UUID playerId, QuestObjective objective, QuestManager qm) {
         if (objective.getId() == null) return;
-        String taskKey = player.getUniqueId() + ":" + objective.getId();
+        String taskKey = playerId + ":" + objective.getId();
         if (activeTasks.containsKey(taskKey)) return;
 
+        // Looks the player up each tick rather than capturing the Player object, which goes stale
+        // after a relog (and used to keep a dead task blocking a new one for the new session).
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
-            if (!player.isOnline()) return;
-            qm.trigger(player, QuestObjectiveTypes.TIMER, objective.getId(), 1);
+            Player online = Bukkit.getPlayer(playerId);
+            if (online == null) return;
+            qm.trigger(online, QuestObjectiveTypes.TIMER, objective.getId(), 1);
         }, 20L, 20L);
 
         activeTasks.put(taskKey, task);
     }
 
+    @Override
+    public void onPlayerQuit(Player player) {
+        String prefix = player.getUniqueId() + ":";
+        activeTasks.entrySet().removeIf(e -> {
+            if (!e.getKey().startsWith(prefix)) return false;
+            e.getValue().cancel();
+            return true;
+        });
+    }
+
     /** Cancels all running timer tasks (call from QuestModule.onDisable). */
+    @Override
     public void cancelAll() {
         activeTasks.values().forEach(BukkitTask::cancel);
         activeTasks.clear();

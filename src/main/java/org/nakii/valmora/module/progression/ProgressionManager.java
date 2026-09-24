@@ -37,7 +37,12 @@ public class ProgressionManager {
         ValmoraProfile profile = getProfile(playerUuid);
         if (profile == null) return 0;
         Object v = profile.getVariables().get(varKey(treeId, nodeId, "level"));
-        return v instanceof Number n ? n.intValue() : 0;
+        int level = v instanceof Number n ? n.intValue() : 0;
+        // Capped at the node's CURRENT max-level: lowering it in YAML must also cap players who
+        // already went past it (their stat bonuses scale with this level). The stored level is
+        // kept, so raising the cap again restores it.
+        ProgressionNode node = registry.getTree(treeId).flatMap(t -> t.getNode(nodeId)).orElse(null);
+        return node != null ? Math.min(level, node.getMaxLevel()) : level;
     }
 
     public int getUnlockedTier(UUID playerUuid, String treeId) {
@@ -178,9 +183,10 @@ public class ProgressionManager {
         vars.remove(spentKey(treeId, tree.getLevelCurrencyCategory()));
         vars.remove(spentKey(treeId, tree.getTierCurrencyCategory()));
         vars.remove("progression." + treeId + ".tier");
-        for (String nodeId : tree.getNodes().keySet()) {
-            vars.remove(varKey(treeId, nodeId, "level"));
-        }
+        // Every node level under this tree, including nodes since removed from the YAML (whose
+        // levels would otherwise linger forever). Daily-claim timestamps are kept on purpose.
+        String treePrefix = "progression." + treeId + ".";
+        vars.keySet().removeIf(key -> key.startsWith(treePrefix) && key.endsWith(".level"));
 
         player.sendMessage(org.nakii.valmora.util.Formatter.format(
                 "<yellow>✦ <white>" + treeId + " <yellow>progression reset. <white>"

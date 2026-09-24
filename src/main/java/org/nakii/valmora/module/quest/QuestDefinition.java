@@ -40,6 +40,27 @@ public class QuestDefinition {
     public String getId() { return id; }
     public String getName() { return name; }
     public List<QuestObjective> getObjectives() { return objectives; }
+
+    /**
+     * The variable key the objective at {@code index} stores its progress under
+     * ({@code quest.<questId>.obj.<key>}): its explicit {@code id} if it has one, else
+     * {@code <type>_<n>}, where n counts id-less objectives of the same type up to it (1-based).
+     *
+     * <p>Progress used to be keyed by list index, so inserting, removing or reordering objectives
+     * in YAML silently moved players' progress onto the wrong objective. A type-based key survives
+     * any edit except reordering two id-less objectives of the same type. Give objectives an
+     * explicit {@code id} to make them fully stable.
+     */
+    public String progressKey(int index) {
+        QuestObjective obj = objectives.get(index);
+        if (obj.getId() != null) return obj.getId();
+        int n = 0;
+        for (int i = 0; i <= index; i++) {
+            QuestObjective other = objectives.get(i);
+            if (other.getId() == null && other.getType().equalsIgnoreCase(obj.getType())) n++;
+        }
+        return obj.getType().toLowerCase() + "_" + n;
+    }
     public List<String> getRewardEvents() { return rewardEvents; }
     public long getCooldownSeconds() { return cooldownSeconds; }
     public boolean isRepeatable() { return cooldownSeconds > 0; }

@@ -381,7 +381,6 @@ public class SQLDataStore implements DataStore {
                 ResultSet rsProfiles = psProfiles.executeQuery();
 
                 Type statsType = new TypeToken<Map<String, Double>>() {}.getType();
-                Type skillsType = new TypeToken<Map<String, Double>>() {}.getType();
                 Type tagsType = new TypeToken<Set<String>>() {}.getType();
                 Type variablesType = new TypeToken<Map<String, Object>>() {}.getType();
                 Type cooldownsType = new TypeToken<Map<String, Long>>() {}.getType();
@@ -401,18 +400,25 @@ public class SQLDataStore implements DataStore {
                     for (String column : PROFILE_JSON_COLUMNS) {
                         columns.put(column, rsProfiles.getString(column));
                     }
-                    ProfileMigrator.migrate(columns, rsProfiles.getInt("data_version"));
+                    int dataVersion = rsProfiles.getInt("data_version");
+                    ProfileMigrator.migrate(columns, dataVersion);
 
                     Map<String, Double> stats = gson.fromJson(columns.get("stats"), statsType);
                     if (stats != null) {
                         // Phase 5 (docs/REFACTOR/PROGRESS.md Task 21): stat ids no longer in the
                         // live StatRegistry are quarantined rather than dropped or silently applied.
-                        profile.getQuarantinedStats().putAll(
-                                profile.getStatManager().loadDataAndQuarantineUnrecognized(stats));
+                        // v3+ rows store allocations (offsets from each stat's current default);
+                        // older rows stored absolute values and load as-is, once.
+                        profile.getQuarantinedStats().putAll(dataVersion >= ProfileMigrator.STAT_ALLOCATIONS_VERSION
+                                ? profile.getStatManager().loadAllocationsAndQuarantineUnrecognized(stats)
+                                : profile.getStatManager().loadDataAndQuarantineUnrecognized(stats));
                     }
 
-                    Map<String, Double> skills = gson.fromJson(columns.get("skills"), skillsType);
-                    if (skills != null) profile.getSkillManager().loadData(skills);
+                    String skillsJson = columns.get("skills");
+                    if (skillsJson != null) {
+                        profile.getSkillManager().loadFullData(
+                                gson.fromJson(skillsJson, org.nakii.valmora.module.skill.SkillManager.SaveData.class));
+                    }
 
                     String stateJson = columns.get("player_state");
                     if (stateJson != null) {
@@ -509,13 +515,13 @@ public class SQLDataStore implements DataStore {
         for (ValmoraProfile profile : player.getProfiles().values()) {
             // Phase 5 Task 21: write quarantined (unrecognized) stat ids back unchanged
             // alongside the live ones, so they aren't lost across a save cycle.
-            Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getSaveData());
+            Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getAllocationSaveData());
             statsToSave.putAll(profile.getQuarantinedStats());
             rows.add(new ProfileRow(
                     profile.getId().toString(),
                     profile.getName(),
                     gson.toJson(statsToSave),
-                    gson.toJson(profile.getSkillManager().getSaveData()),
+                    gson.toJson(profile.getSkillManager().getFullSaveData()),
                     gson.toJson(profile.getPlayerState().getSaveData()),
                     gson.toJson(profile.getTags()),
                     gson.toJson(profile.getVariables()),
@@ -716,12 +722,17 @@ public class SQLDataStore implements DataStore {
         return result;
     }
 
+    /**
+     * Padded to at least {@code size} but never truncated: slots beyond {@code size} (the storage
+     * shrank in its GUI YAML) are returned too, for the GUI to hand back to the player. They used to
+     * be cut off here and the next save made the loss permanent.
+     */
     private ItemStack[] deserializeItemArray(String json, int size, String context) {
-        ItemStack[] result = new ItemStack[size];
-        if (json == null) return result;
+        if (json == null) return new ItemStack[size];
         String[] encoded = gson.fromJson(json, String[].class);
-        if (encoded == null) return result;
-        for (int i = 0; i < Math.min(encoded.length, size); i++) {
+        if (encoded == null) return new ItemStack[size];
+        ItemStack[] result = new ItemStack[Math.max(size, encoded.length)];
+        for (int i = 0; i < encoded.length; i++) {
             if (encoded[i] == null) continue;
             result[i] = decodeItem(encoded[i], context + " slot " + i);
         }

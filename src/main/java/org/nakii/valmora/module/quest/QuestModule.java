@@ -65,6 +65,12 @@ public class QuestModule implements ReloadableModule {
 
         // Trigger auto-once objectives for all currently online players
         for (var player : plugin.getServer().getOnlinePlayers()) {
+            var session = plugin.getPlayerManager().getSession(player.getUniqueId());
+            if (session != null && session.getActiveProfile() != null) {
+                questManager.migrateLegacyProgressKeys(session.getActiveProfile());
+            }
+            // Timed objectives' tasks died with the previous module instance — restart them.
+            questManager.resumeObjectives(player);
             questManager.startAutoOnceObjectivesForPlayer(player);
         }
     }
@@ -73,6 +79,7 @@ public class QuestModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Quest Module...");
         if (npcRangeHandler != null) { npcRangeHandler.stop(); npcRangeHandler = null; }
+        if (questManager != null) questManager.cancelAllHandlers();
         if (timerHandler != null) { timerHandler.cancelAll(); timerHandler = null; }
         if (playerHiderManager != null) { playerHiderManager.stop(); playerHiderManager = null; }
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }

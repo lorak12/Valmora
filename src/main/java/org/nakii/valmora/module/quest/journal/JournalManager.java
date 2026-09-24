@@ -110,7 +110,7 @@ public class JournalManager implements Listener {
             List<QuestObjective> objectives = quest.getObjectives();
             for (int i = 0; i < objectives.size(); i++) {
                 QuestObjective obj = objectives.get(i);
-                String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+                String key = quest.progressKey(i);
                 int progress = getProgressByKey(profile, quest.getId(), key, qm);
                 int required = obj.getRequired();
                 boolean done = progress >= required;

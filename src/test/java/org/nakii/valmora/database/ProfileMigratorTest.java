@@ -42,4 +42,14 @@ class ProfileMigratorTest {
     void newerDataVersionIsRejected() {
         assertThrows(IllegalStateException.class, () -> ProfileMigrator.migrate(new HashMap<>(), ProfileMigrator.LATEST_VERSION + 1));
     }
+
+    @Test
+    void v2WrapsSkillsWithEmptyRewardLedger() {
+        Map<String, String> columns = new HashMap<>();
+        columns.put("skills", "{\"mining\": 120.5}");
+        ProfileMigrator.migrate(columns, 1);
+        var skills = JsonParser.parseString(columns.get("skills")).getAsJsonObject();
+        assertEquals(120.5, skills.getAsJsonObject("xp").get("mining").getAsDouble());
+        assertTrue(skills.getAsJsonObject("rewarded").isEmpty());
+    }
 }

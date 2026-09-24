@@ -178,4 +178,58 @@ class SkillManagerXpTest {
         withBukkit(() -> manager.addXp("unknown_skill", 100, player));
         assertEquals(0.0, manager.getXp("unknown_skill"), 1e-9);
     }
+
+    @Test
+    void rewardLedger_curveMadeHarder_doesNotRegrantRewards() {
+        CompiledEvent reward = mock(CompiledEvent.class);
+        registry.registerSkill(makeSkill("mining", 60, reward, null));
+        SkillManager manager = new SkillManager(registry);
+        // 50 XP = level 3 under the default curve, but levels up to 5 were already rewarded
+        // (e.g. under an easier curve before an admin made it harder).
+        SkillManager.SaveData data = new SkillManager.SaveData();
+        data.xp.put("mining", 50.0);
+        data.rewarded.put("mining", 5);
+        manager.loadFullData(data);
+
+        withBukkit(() -> manager.addXp("mining", 1, player));
+
+        verify(reward, never()).execute(any(ExecutionContext.class));
+    }
+
+    @Test
+    void rewardLedger_curveMadeEasier_grantsSkippedLevels() {
+        CompiledEvent reward = mock(CompiledEvent.class);
+        registry.registerSkill(makeSkill("mining", 60, reward, null));
+        SkillManager manager = new SkillManager(registry);
+        // Level 3 by XP now, but only level 1 was ever rewarded.
+        SkillManager.SaveData data = new SkillManager.SaveData();
+        data.xp.put("mining", 50.0);
+        data.rewarded.put("mining", 1);
+        manager.loadFullData(data);
+
+        withBukkit(() -> manager.addXp("mining", 1, player));
+
+        verify(reward, times(2)).execute(any(ExecutionContext.class)); // levels 2 and 3
+        assertEquals(3, manager.getFullSaveData().rewarded.get("mining"));
+    }
+
+    @Test
+    void legacyProfileWithoutLedgerIsTreatedAsRewardedUpToCurrentLevel() {
+        CompiledEvent reward = mock(CompiledEvent.class);
+        registry.registerSkill(makeSkill("mining", 60, reward, null));
+        SkillManager manager = new SkillManager(registry);
+        manager.loadData(Map.of("mining", 50.0)); // level 3, no ledger
+
+        withBukkit(() -> manager.addXp("mining", 1, player));
+
+        verify(reward, never()).execute(any(ExecutionContext.class));
+    }
+
+    @Test
+    void levelIsCappedAtMaxLevel() {
+        registry.registerSkill(makeSkill("mining", 2, null, null));
+        SkillManager manager = new SkillManager(registry);
+        manager.loadData(Map.of("mining", 50.0)); // level 3 by XP
+        assertEquals(2, manager.getLevel("mining"));
+    }
 }

@@ -8,7 +8,6 @@ import org.nakii.valmora.module.quest.QuestManager;
 import org.nakii.valmora.module.skill.SkillModule;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,9 +73,7 @@ public final class OrphanReport {
 
         List<String> skills = orphans.getOrDefault("skills", List.of());
         if (!skills.isEmpty()) {
-            Map<String, Double> xp = new HashMap<>(profile.getSkillManager().getSaveData());
-            skills.forEach(xp::remove);
-            profile.getSkillManager().loadData(xp);
+            skills.forEach(profile.getSkillManager()::remove);
             removed += skills.size();
         }
 
@@ -86,6 +83,7 @@ public final class OrphanReport {
             for (String id : collections) {
                 data.counts.remove(id);
                 data.grantedStages.remove(id);
+                data.grantedKeys.remove(id);
             }
             profile.getCollectionManager().loadData(data);
             removed += collections.size();
