@@ -185,11 +185,9 @@ public class StatManager {
         effectiveStats.clear();
         effectiveStats.putAll(baseStats);
 
-        for (PotionEffect effect : player.getActivePotionEffects()) {
-            if (effect.getDuration() > 20 * 60 * 60) {
-                player.removePotionEffect(effect.getType());
-            }
-        }
+        // Clear the passive effects Valmora applied (they're re-applied below by current gear's
+        // passive abilities). Only Valmora's own — other plugins' permanent effects stay.
+        org.nakii.valmora.module.item.PassiveEffects.clear(player);
 
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         ItemStack offHand = player.getInventory().getItemInOffHand();

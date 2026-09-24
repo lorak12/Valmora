@@ -86,6 +86,28 @@ public class ZoneManager {
         getZoneAt(player.getLocation()).ifPresent(z -> playerZones.put(player.getUniqueId(), z.getId()));
     }
 
+    /** Current player → zone membership, to carry across a reload. */
+    public Map<UUID, String> snapshotMembership() {
+        return new HashMap<>(playerZones);
+    }
+
+    /**
+     * Restores membership after a reload without firing enter/exit events (players didn't move).
+     * Players with no carried entry are seeded from their location, like on join. Without this,
+     * `$zone.*$` was empty after every reload and everyone got a fresh ZoneEnterEvent on their
+     * next step.
+     */
+    public void restoreMembership(Map<UUID, String> previous) {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            String id = previous.get(player.getUniqueId());
+            if (id != null && registry.get(id).isPresent()) {
+                playerZones.put(player.getUniqueId(), id);
+            } else {
+                onPlayerJoin(player);
+            }
+        }
+    }
+
     public void onPlayerQuit(UUID uuid) {
         playerZones.remove(uuid);
         visualizingPlayers.remove(uuid);

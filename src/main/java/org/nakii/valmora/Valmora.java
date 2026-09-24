@@ -265,6 +265,12 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // 4. Enable Modules
         moduleManager.enableModules();
 
+        // Leftover presentation entities (damage indicators, pets) from a crash: remove the loaded
+        // ones now, and the rest as their chunks load. Plugin-lifetime listener, not reloaded.
+        int swept = org.nakii.valmora.util.TransientEntities.sweepLoadedWorlds();
+        if (swept > 0) getLogger().info("Removed " + swept + " leftover temporary entities.");
+        getServer().getPluginManager().registerEvents(new org.nakii.valmora.util.TransientEntities.Sweeper(), this);
+
         // 5. Commands
         QuestCommand questCommand = new QuestCommand(this);
         getCommand("quest").setExecutor(questCommand);
@@ -331,6 +337,19 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
      @Override
     public void onDisable() {
+        // Server shutdown / plugin unload (not /valmora reload): strip Valmora's attribute values
+        // and passive effects from online players, so nothing Valmora-specific is written into
+        // vanilla player data. Re-applied on the next join.
+        if (statModule != null) {
+            for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
+                try {
+                    statModule.resetAttributes(online);
+                    org.nakii.valmora.module.item.PassiveEffects.clear(online);
+                } catch (RuntimeException e) {
+                    getLogger().warning("Failed to reset attributes of " + online.getName() + ": " + e.getMessage());
+                }
+            }
+        }
         if (moduleManager != null) {
             moduleManager.disableModules();
         }

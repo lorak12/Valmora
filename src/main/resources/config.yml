@@ -267,6 +267,15 @@ items:
       format: "{color}<bold>{rarity}{type}"
 
 # ========================================================== #
+#                       Mob Settings                         #
+# ========================================================== #
+mobs:
+  # What happens to a live custom mob whose mobs/*.yml definition was deleted (and isn't listed
+  # in another mob's previous-ids): "keep" leaves it in the world as a plain mob (no custom loot,
+  # abilities or boss bar), "remove" despawns it the next time it's loaded.
+  orphan-policy: keep
+
+# ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
 alchemy:

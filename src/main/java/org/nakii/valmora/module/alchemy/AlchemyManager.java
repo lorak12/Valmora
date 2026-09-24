@@ -132,6 +132,25 @@ public class AlchemyManager {
         return Collections.unmodifiableList(effects);
     }
 
+    /**
+     * Replaces an entity's active effects with {@code saved}, dropping expired ones and effects
+     * whose definition no longer exists (see PlayerState: alchemy effects are saved with the
+     * profile, since they used to be lost on every restart while their vanilla part stayed).
+     */
+    public void restoreEffects(UUID uuid, List<ActiveEffect> saved) {
+        long now = System.currentTimeMillis();
+        List<ActiveEffect> kept = new ArrayList<>();
+        if (saved != null) {
+            for (ActiveEffect effect : saved) {
+                if (effect.expiresAtMs() <= now) continue;
+                if (getEffect(effect.effectId()).isEmpty() && !hardcodedEffects.containsKey(effect.effectId().toLowerCase())) continue;
+                kept.add(effect);
+            }
+        }
+        if (kept.isEmpty()) activeEffects.remove(uuid);
+        else activeEffects.put(uuid, kept);
+    }
+
     public void clearAllEffects(UUID uuid) {
         activeEffects.remove(uuid);
     }

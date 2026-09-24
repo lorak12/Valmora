@@ -78,6 +78,7 @@ public class StatModule implements ReloadableModule {
     private static final String ATTACK_SPEED_KEY = "attack_speed";
 
     public void recalculateAttributes(Player player, StatManager statManager) {
+        java.util.Set<String> applied = new java.util.LinkedHashSet<>();
         for (StatDefinition def : statRegistry.values()) {
             if (def.getVanillaAttribute() == null) continue;
 
@@ -89,6 +90,7 @@ public class StatModule implements ReloadableModule {
 
             AttributeInstance attrInst = player.getAttribute(attr);
             if (attrInst == null) continue;
+            applied.add(attrKey.toString());
 
             double statValue = statManager.getStat(def.getId());
 
@@ -116,6 +118,43 @@ public class StatModule implements ReloadableModule {
                 attrInst.setBaseValue(0.1 * statValue / 100.0);
             }
         }
+
+        // Attributes set on a previous run whose stat mapping was since removed (or re-pointed)
+        // go back to vanilla; they'd otherwise keep the last value forever (it's saved with the
+        // player). The set is kept in the player's PDC so this works across restarts.
+        var pdc = player.getPersistentDataContainer();
+        String previous = pdc.get(Keys.TOUCHED_ATTRIBUTES_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+        if (previous != null) {
+            for (String key : previous.split(",")) {
+                if (!key.isBlank() && !applied.contains(key)) resetAttribute(player, key);
+            }
+        }
+        pdc.set(Keys.TOUCHED_ATTRIBUTES_KEY, org.bukkit.persistence.PersistentDataType.STRING, String.join(",", applied));
+    }
+
+    /**
+     * Returns every vanilla attribute Valmora's stats changed on {@code player} to its vanilla
+     * state (on quit and plugin shutdown), so the player's saved data never carries Valmora values
+     * — e.g. if the plugin is removed, or a stat's mapping changes while they're offline.
+     */
+    public void resetAttributes(Player player) {
+        var pdc = player.getPersistentDataContainer();
+        String previous = pdc.get(Keys.TOUCHED_ATTRIBUTES_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+        if (previous == null) return;
+        for (String key : previous.split(",")) {
+            if (!key.isBlank()) resetAttribute(player, key);
+        }
+        pdc.remove(Keys.TOUCHED_ATTRIBUTES_KEY);
+    }
+
+    private void resetAttribute(Player player, String key) {
+        NamespacedKey attrKey = NamespacedKey.fromString(key);
+        Attribute attr = attrKey != null ? Registry.ATTRIBUTE.get(attrKey) : null;
+        AttributeInstance inst = attr != null ? player.getAttribute(attr) : null;
+        if (inst == null) return;
+        inst.removeModifier(MINING_SPEED_MOD_KEY);
+        inst.removeModifier(ATTACK_SPEED_MOD_KEY);
+        inst.setBaseValue(inst.getDefaultValue());
     }
 
     /**

@@ -197,7 +197,7 @@ public class NpcManager {
 
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             World w = Bukkit.getWorld(def.getWorldName());
-            if (w == null) return;
+            if (w == null || !isNpcChunkLoaded(def, w)) return; // never force-load the chunk
             applyHologramVisibility(def, w, holo, conditions);
         }, holo.getCheckInterval(), holo.getCheckInterval());
 
@@ -345,8 +345,18 @@ public class NpcManager {
         if (lookTask != null) { lookTask.cancel(); lookTask = null; }
     }
 
+    /** Whether the chunk an NPC stands in is loaded (with its entities). */
+    private static boolean isNpcChunkLoaded(NpcDefinition def, World world) {
+        int cx = (int) Math.floor(def.getX()) >> 4, cz = (int) Math.floor(def.getZ()) >> 4;
+        return world.isChunkLoaded(cx, cz) && world.getChunkAt(cx, cz).isEntitiesLoaded();
+    }
+
     private void checkRespawn() {
         for (NpcDefinition def : registry.values()) {
+            // An entity in an unloaded chunk can't be found, which used to look like "despawned":
+            // every check then spawned a replacement, force-loading the chunk each time.
+            World world = Bukkit.getWorld(def.getWorldName());
+            if (world == null || !isNpcChunkLoaded(def, world)) continue;
             UUID uuid = npcEntityMap.get(def.getId());
             if (uuid == null || Bukkit.getEntity(uuid) == null) {
                 entityNpcMap.remove(uuid);

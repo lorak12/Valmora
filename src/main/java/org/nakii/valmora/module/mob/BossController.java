@@ -68,7 +68,27 @@ public class BossController {
 
     /** Registers a freshly spawned boss and fires its ON_SPAWN abilities. */
     public void register(LivingEntity entity, MobDefinition definition) {
-        if (!definition.isBoss()) return;
+        BossInstance instance = track(entity, definition);
+        if (instance == null) return;
+        for (MobAbility ability : definition.getAbilities()) {
+            if (ability.getTrigger() == MobAbilityTrigger.ON_SPAWN) {
+                fire(instance, ability, null);
+            }
+        }
+    }
+
+    /**
+     * Re-attaches control (boss bar, timed/event abilities) to a boss that already exists: after a
+     * reload or restart, or when its chunk loads again. ON_SPAWN abilities don't re-fire. Bosses
+     * used to silently lose their bar and every ability after any of those.
+     */
+    public void attach(LivingEntity entity, MobDefinition definition) {
+        if (instances.containsKey(entity.getUniqueId())) return;
+        track(entity, definition);
+    }
+
+    private BossInstance track(LivingEntity entity, MobDefinition definition) {
+        if (!definition.isBoss()) return null;
 
         BossInstance instance = new BossInstance(entity, definition);
         BossBarConfig barConfig = definition.getBossBar();
@@ -81,12 +101,7 @@ public class BossController {
             );
         }
         instances.put(entity.getUniqueId(), instance);
-
-        for (MobAbility ability : definition.getAbilities()) {
-            if (ability.getTrigger() == MobAbilityTrigger.ON_SPAWN) {
-                fire(instance, ability, null);
-            }
-        }
+        return instance;
     }
 
     public void unregister(UUID entityId) {

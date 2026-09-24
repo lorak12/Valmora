@@ -53,6 +53,10 @@ public class WarpManager {
     }
 
     public void teleport(Player player, WarpDefinition warp) {
+        teleport(player, warp, false);
+    }
+
+    private void teleport(Player player, WarpDefinition warp, boolean warmupDone) {
         if (!isUnlocked(player, warp)) {
             player.sendMessage(Formatter.format("<red>This warp is locked! Condition: <gray>" + warp.getUnlockCondition()));
             return;
@@ -95,7 +99,7 @@ public class WarpManager {
             player.sendMessage(Formatter.format("<green>Teleported to <white>" + warp.getDisplayName()));
         });
 
-        if (warp.getWarmupSeconds() <= 0) {
+        if (warmupDone || warp.getWarmupSeconds() <= 0) {
             doTeleport.run();
             return;
         }
@@ -112,7 +116,17 @@ public class WarpManager {
                 player.sendMessage(Formatter.format("<red>Warp cancelled — you moved."));
                 return;
             }
-            doTeleport.run();
+            // Re-resolve everything after the warmup instead of using what was captured before it:
+            // the warp may have been edited or deleted by a reload meanwhile, the profile object
+            // replaced (its cooldown would be set on a discarded one), or the coins spent.
+            // The warp module may have reloaded, replacing this manager — use the live one.
+            WarpManager live = plugin.getWarpManager();
+            WarpDefinition current = live != null ? live.getRegistry().get(warp.getId()).orElse(null) : null;
+            if (current == null) {
+                player.sendMessage(Formatter.format("<red>That warp no longer exists."));
+                return;
+            }
+            live.teleport(player, current, true);
         }, warp.getWarmupSeconds() * 20L);
     }
 

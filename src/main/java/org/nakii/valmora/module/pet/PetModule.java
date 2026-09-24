@@ -31,6 +31,8 @@ public class PetModule implements ReloadableModule {
     // Keyed by a per-item PET_INSTANCE_KEY tag (stamped on first summon) rather than an inventory
     // slot index — the pet item can be moved anywhere in the player's inventory and still resolve.
     private final Map<UUID, UUID> activePetInstance = new HashMap<>();
+    /** player → pet instance that was summoned when the module last disabled (see onDisable). */
+    private final Map<UUID, UUID> resummonAfterReload = new HashMap<>();
     private final Map<UUID, Entity> activePetEntity = new HashMap<>();
 
     private PetListener listener;
@@ -61,6 +63,24 @@ public class PetModule implements ReloadableModule {
         if (plugin.getServer() != null && plugin.getServer().getScheduler() != null) {
             followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), 5L, 5L);
         }
+
+        resummonPetsAfterReload();
+    }
+
+    private void resummonPetsAfterReload() {
+        for (Map.Entry<UUID, UUID> entry : resummonAfterReload.entrySet()) {
+            Player player = plugin.getServer().getPlayer(entry.getKey());
+            if (player == null) continue;
+            var contents = player.getInventory().getContents();
+            for (int slot = 0; slot < contents.length; slot++) {
+                ItemStack item = contents[slot];
+                if (item != null && entry.getValue().equals(instanceIdOf(item))) {
+                    toggleSummon(player, slot);
+                    break;
+                }
+            }
+        }
+        resummonAfterReload.clear();
     }
 
     @Override
@@ -69,6 +89,10 @@ public class PetModule implements ReloadableModule {
         for (Entity entity : activePetEntity.values()) {
             if (entity.isValid()) entity.remove();
         }
+        // Remember who had which pet out, so the next enable (a reload) re-summons them instead of
+        // every pet silently vanishing.
+        resummonAfterReload.clear();
+        resummonAfterReload.putAll(activePetInstance);
         if (listener != null) {
             HandlerList.unregisterAll(listener);
             listener = null;
@@ -205,6 +229,12 @@ public class PetModule implements ReloadableModule {
         Location loc = player.getLocation().add(1, 0, 0);
         try {
             LivingEntity entity = (LivingEntity) player.getWorld().spawnEntity(loc, def.getEntityType());
+            // Tagged, non-persistent and invulnerable: a pet is a visual companion, not a mob. It
+            // used to be saved with the chunk (orphaned forever after a crash) and could be killed
+            // for vanilla drops.
+            org.nakii.valmora.util.TransientEntities.mark(entity, "pets");
+            entity.setInvulnerable(true);
+            entity.setRemoveWhenFarAway(false);
             entity.customName(Formatter.format("<gold>" + def.getName()));
             entity.setCustomNameVisible(true);
             entity.setAI(false);

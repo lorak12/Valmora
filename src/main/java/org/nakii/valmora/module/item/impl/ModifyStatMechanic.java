@@ -49,10 +49,18 @@ public class ModifyStatMechanic implements AbilityMechanic {
         // Timed modifier: track it so it survives recalculations until it expires, then
         // recalculate now (to apply) and again when it expires (to remove).
         TemporaryStatService.add(player.getUniqueId(), stat, amount, duration);
+        // Recalculate the player's CURRENT active profile when these run, not the one captured
+        // now: after a reload or profile switch the captured object is stale, so the expiry
+        // recalculated the wrong profile and the buff (and its attribute effect) stuck.
         Valmora plugin = Valmora.getInstance();
-        plugin.getServer().getScheduler().runTask(plugin,
-                () -> profile.getStatManager().recalculateStats(player));
-        plugin.getServer().getScheduler().runTaskLater(plugin,
-                () -> profile.getStatManager().recalculateStats(player), (long) (duration * 20) + 1);
+        java.util.UUID playerId = player.getUniqueId();
+        Runnable recalc = () -> {
+            Player online = plugin.getServer().getPlayer(playerId);
+            var session = online != null ? plugin.getPlayerManager().getSession(playerId) : null;
+            var active = session != null ? session.getActiveProfile() : null;
+            if (active != null) active.getStatManager().recalculateStats(online);
+        };
+        plugin.getServer().getScheduler().runTask(plugin, recalc);
+        plugin.getServer().getScheduler().runTaskLater(plugin, recalc, (long) (duration * 20) + 1);
     }
 }
