@@ -1,0 +1,41 @@
+# =====================================================================
+# NPCs for the shipped example quest packages
+#   thorin, bjorn -> quests/forgotten_mine/ (bound via its quest.yml npc_conversations:)
+#   blacksmith    -> quests/blacksmith_hub/  (bound via its quest.yml npc_conversations:)
+#
+# The conversation itself is bound by the quest package, so no conversation: field is needed
+# here. Move them with /npc move <id> or edit x/y/z and run /valmora reload.
+# =====================================================================
+
+thorin:
+  display-name: "<gold>Elder Thorin"
+  entity-type: VILLAGER
+  world: world
+  x: 4
+  y: 65
+  z: 0
+  yaw: 90
+  look-at-player: true
+  show-name: true
+
+bjorn:
+  display-name: "<gold>Bjorn the Smith"
+  entity-type: VILLAGER
+  world: world
+  x: 4
+  y: 65
+  z: 4
+  yaw: 90
+  look-at-player: true
+  show-name: true
+
+blacksmith:
+  display-name: "<gray>Blacksmith"
+  entity-type: VILLAGER
+  world: world
+  x: 4
+  y: 65
+  z: -4
+  yaw: 90
+  look-at-player: true
+  show-name: true

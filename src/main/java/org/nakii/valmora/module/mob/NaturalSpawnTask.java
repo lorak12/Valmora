@@ -19,8 +19,11 @@ import java.util.Random;
  */
 public class NaturalSpawnTask implements Runnable {
 
-    private static final double SEARCH_RADIUS = 32.0;
-    private static final int ATTEMPT_OFFSET = 24;
+    // HC-086: spawn density/safety tuning, read once per task construction (module re-created
+    // per /valmora reload, same as every other module-owned task in this codebase).
+    private final double searchRadius;
+    private final double minDistance;
+    private final double maxDistance;
 
     private final Valmora plugin;
     private final MobManager mobManager;
@@ -31,6 +34,9 @@ public class NaturalSpawnTask implements Runnable {
         this.plugin = plugin;
         this.mobManager = mobManager;
         this.mobRegistry = mobRegistry;
+        this.searchRadius = plugin.getConfig().getDouble("mobs.natural-spawn.search-radius", 32.0);
+        this.minDistance = plugin.getConfig().getDouble("mobs.natural-spawn.min-distance", 8.0);
+        this.maxDistance = plugin.getConfig().getDouble("mobs.natural-spawn.max-distance", 24.0);
     }
 
     @Override
@@ -53,7 +59,7 @@ public class NaturalSpawnTask implements Runnable {
 
     private int countNearby(Location center, String mobId) {
         int count = 0;
-        for (LivingEntity entity : center.getWorld().getNearbyLivingEntities(center, SEARCH_RADIUS)) {
+        for (LivingEntity entity : center.getWorld().getNearbyLivingEntities(center, searchRadius)) {
             String id = entity.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
             if (mobId.equals(id)) count++;
         }
@@ -66,7 +72,7 @@ public class NaturalSpawnTask implements Runnable {
         if (world == null) return null;
 
         double angle = random.nextDouble() * Math.PI * 2;
-        double dist = 8 + random.nextDouble() * (ATTEMPT_OFFSET - 8);
+        double dist = minDistance + random.nextDouble() * (maxDistance - minDistance);
         int x = origin.getBlockX() + (int) (Math.cos(angle) * dist);
         int z = origin.getBlockZ() + (int) (Math.sin(angle) * dist);
         int y = world.getHighestBlockYAt(x, z) + 1;

@@ -1,0 +1,70 @@
+---
+title: Machines
+summary: Crafting stations — how players open them, the shipped crafting table, forge, press, anvil and alchemy table, and building your own machine.
+---
+
+A **machine** is a crafting station: a [menu](/docs/guis) with INPUT and OUTPUT slots that
+[recipes](/docs/recipes) are matched against. Each machine is declared in
+`plugins/Valmora/machines/*.yml`.
+
+## Shipped machines
+
+| Machine id | Menu | Slots | Opens by default via |
+|---|---|---|---|
+| `crafting_table` | `guis/crafting.yml` | 3×3 → 1 | `/gui open <player> crafting_table` only |
+| `forge` | `guis/forge.yml` | 1×2 → 1 | `/gui open <player> forge` only |
+| `press` | `guis/press.yml` | 1×3 → 1 | right-clicking a **lodestone** |
+| `anvil` | `guis/anvil.yml` | 2 → 1 | `/gui open <player> anvil` only — see [Anvil](/docs/anvil) |
+| `alchemy` | `guis/alchemy.yml` | brewing | `/alchemy` — see [Alchemy](/docs/alchemy) |
+| `enchanting_table` | `guis/enchanting.yml` | — | `/enchanting` — see [Enchants](/docs/enchants) |
+
+<Callout type="tip" title="Replace vanilla workstations">
+Add `open-triggers: ["block CRAFTING_TABLE"]` to `crafting_table`, `["block SMITHING_TABLE"]` to
+`forge` and `["block ANVIL"]` to `anvil` to open Valmora's versions from the real blocks. The
+vanilla menu is cancelled.
+</Callout>
+
+## A machine file
+
+```yaml
+# plugins/Valmora/machines/ore_processor.yml
+ore_processor:
+  gui: ore_processor
+  input-slots: 1
+  output-slots: 2
+  open-triggers:
+    - "block BLAST_FURNACE"
+    - "zone foundry"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| (key) | — | The machine id. Recipes use it in `machine:`. |
+| `gui` | the machine id | The [menu](/docs/guis) it opens. That menu's `machine:` must be this id (it defaults to the menu's own id). |
+| `input-slots` / `output-slots` | — | How many INPUT and OUTPUT slots the menu should have. A mismatch logs a warning. |
+| `shape` | none | `"ROWSxCOLS"` — the input grid, for SHAPED recipes. Must equal `input-slots`. |
+| `logic` | `custom` | A label only; it doesn't change behavior. |
+| `open-triggers` | none | [Conditions](/docs/conditions); when any becomes true the menu opens. |
+
+## Opening a machine
+
+`open-triggers` are checked when a player **right-clicks** (block or air) and when they **enter a
+zone**. The first machine with a true trigger opens:
+
+| Trigger | Opens when |
+|---|---|
+| `block <MATERIAL>` | the player right-clicks while looking at that block (within 6 blocks) |
+| `zone <id>` | the player walks into that zone |
+| `tag <name>`, `quest …`, expressions… | combine with the above as a separate machine, or use them to gate |
+
+Other ways to open any machine menu: its menu's `command:`, `open_gui <id>` from an NPC or button,
+or `/gui open <player> <id>`.
+
+## Building your own machine
+
+1. **A menu** with INPUT slots, OUTPUT slots and `machine: <id>` — see [GUIs](/docs/guis#machines).
+   The INPUT slots are numbered left to right, top to bottom; that order is the recipe grid.
+2. **A machine file** as above, with `shape` if you want SHAPED recipes.
+3. **Recipes** with `machine: <id>`.
+
+<SeeAlso slugs={["recipes", "guis", "anvil", "tutorial-first-recipe"]} />

@@ -2,6 +2,7 @@ package org.nakii.valmora.module.mob;
 
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.combat.DamageType;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 
@@ -48,10 +49,23 @@ public class MobDefinition {
     // -1 on either means "leave vanilla behavior alone" (no FOLLOW_RANGE override / no leash reset).
     private final double aggroRange;
     private final double leashRange;
+    // VANILLA_CONTROL_AUDIT.md §18 gap fix: EntityTargetEvent listener (MobTargetListener) evaluates
+    // this against every candidate target — an empty/no-op condition (the default) means "allow
+    // vanilla's own target selection unchanged". Each string is the same condition-language used by
+    // GUI/machine/quest conditions (tag, health, zone, variable, or a raw expression), evaluated with
+    // the *candidate target* as the condition's caster.
+    private final List<String> targetConditionStrings;
+    private final Condition compiledTargetCondition;
+    private final boolean ignoreNpcs;
     // Natural spawning (zone-driven periodic spawn attempts — see NaturalSpawnTask).
     private final boolean naturalSpawn;
     private final double naturalSpawnChance;
     private final int naturalSpawnMaxNearby;
+    // VANILLA_CONTROL_AUDIT.md §17 gap fix: opt-in flag marking this definition as the one applied
+    // (stats/equipment/visuals — never a re-spawn) to a *vanilla-originated* CreatureSpawnEvent of
+    // the same entity type (natural spawns, monster spawners, spawn eggs) by VanillaSpawnUpgradeListener.
+    // Distinct from `natural-spawn` above, which drives Valmora's own zone-scheduled spawn attempts.
+    private final boolean vanillaDefault;
 
     private MobDefinition(Builder builder) {
         this.id = builder.id;
@@ -85,9 +99,16 @@ public class MobDefinition {
         this.preventSunBurn = builder.preventSunBurn;
         this.aggroRange = builder.aggroRange;
         this.leashRange = builder.leashRange;
+        this.targetConditionStrings = builder.targetConditionStrings;
+        this.compiledTargetCondition = builder.targetConditionStrings.isEmpty()
+                ? null
+                : org.nakii.valmora.api.ValmoraAPI.getInstance().getScriptModule().getConditionParser()
+                        .parseList(builder.targetConditionStrings);
+        this.ignoreNpcs = builder.ignoreNpcs;
         this.naturalSpawn = builder.naturalSpawn;
         this.naturalSpawnChance = builder.naturalSpawnChance;
         this.naturalSpawnMaxNearby = builder.naturalSpawnMaxNearby;
+        this.vanillaDefault = builder.vanillaDefault;
     }
 
     public String getId() { return id; }
@@ -121,9 +142,17 @@ public class MobDefinition {
     public boolean isPreventSunBurn() { return preventSunBurn; }
     public double getAggroRange() { return aggroRange; }
     public double getLeashRange() { return leashRange; }
+    public List<String> getTargetConditionStrings() { return targetConditionStrings; }
+    public boolean isIgnoreNpcs() { return ignoreNpcs; }
+
+    /** True if the candidate target passes this mob's configured target-conditions (always true if none configured). */
+    public boolean canTarget(org.nakii.valmora.api.execution.ExecutionContext candidateContext) {
+        return compiledTargetCondition == null || compiledTargetCondition.evaluate(candidateContext);
+    }
     public boolean isNaturalSpawn() { return naturalSpawn; }
     public double getNaturalSpawnChance() { return naturalSpawnChance; }
     public int getNaturalSpawnMaxNearby() { return naturalSpawnMaxNearby; }
+    public boolean isVanillaDefault() { return vanillaDefault; }
 
     /** Resistance fraction (0..1) for a damage type; 0 if none configured. */
     public double getResistance(DamageType type) {
@@ -135,11 +164,41 @@ public class MobDefinition {
         return (abilities != null && !abilities.isEmpty()) || (bossBar != null && bossBar.isEnabled());
     }
 
+    /**
+     * HC-081: damage-per-level curve, configurable via {@code mobs.damage-scaling} (an
+     * {@code Expression} evaluated with {@code $mob.base_damage$}/{@code $mob.level$}) — falls
+     * back to the original hardcoded {@code baseDamage + (level-1)} linear curve when unset or
+     * when the script module isn't available (e.g. unit tests).
+     */
     public double getScaledDamage() {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("mobs.damage-scaling", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("mob:base_damage", baseDamage);
+            ctx.set("mob:level", (double) level);
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.doubleValue();
+        }
         return baseDamage + (level - 1);
     }
 
+    /**
+     * HC-082: XP-reward curve, configurable via {@code mobs.xp-reward-formula} — falls back to the
+     * original hardcoded {@code baseXp * level} linear curve when unset.
+     */
     public int getXpReward() {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("mobs.xp-reward-formula", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("mob:base_xp", (double) baseXp);
+            ctx.set("mob:level", (double) level);
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.intValue();
+        }
         return baseXp * level;
     }
 
@@ -175,16 +234,24 @@ public class MobDefinition {
         private boolean preventSunBurn = false;
         private double aggroRange = -1.0;
         private double leashRange = -1.0;
+        private List<String> targetConditionStrings = new ArrayList<>();
+        private boolean ignoreNpcs = true;
         private boolean naturalSpawn = false;
-        private double naturalSpawnChance = 0.1;
-        private int naturalSpawnMaxNearby = 3;
+        private double naturalSpawnChance;
+        private int naturalSpawnMaxNearby;
+        private boolean vanillaDefault = false;
 
+        // HC-083: mobs.defaults.* — global fallback when a mob's own YAML omits these fields.
         public Builder(String id) {
             this.id = id;
-            this.baseDamage = 5.0;
+            var plugin = org.nakii.valmora.Valmora.getInstance();
+            var cfg = plugin != null ? plugin.getConfig() : null;
+            this.baseDamage = cfg != null ? cfg.getDouble("mobs.defaults.base-damage", 5.0) : 5.0;
             this.level = 1;
-            this.baseXp = 2;
-            this.goldReward = 0;
+            this.baseXp = cfg != null ? cfg.getInt("mobs.defaults.base-xp", 2) : 2;
+            this.goldReward = cfg != null ? cfg.getInt("mobs.defaults.gold-reward", 0) : 0;
+            this.naturalSpawnChance = cfg != null ? cfg.getDouble("mobs.defaults.natural-spawn-chance", 0.1) : 0.1;
+            this.naturalSpawnMaxNearby = cfg != null ? cfg.getInt("mobs.defaults.natural-spawn-max-nearby", 3) : 3;
             this.damageType = DamageType.MELEE;
             this.lootTable = LootTable.empty();
         }
@@ -219,9 +286,12 @@ public class MobDefinition {
         public Builder preventSunBurn(boolean preventSunBurn) { this.preventSunBurn = preventSunBurn; return this; }
         public Builder aggroRange(double aggroRange) { this.aggroRange = aggroRange; return this; }
         public Builder leashRange(double leashRange) { this.leashRange = leashRange; return this; }
+        public Builder targetConditions(List<String> targetConditionStrings) { this.targetConditionStrings = targetConditionStrings; return this; }
+        public Builder ignoreNpcs(boolean ignoreNpcs) { this.ignoreNpcs = ignoreNpcs; return this; }
         public Builder naturalSpawn(boolean naturalSpawn) { this.naturalSpawn = naturalSpawn; return this; }
         public Builder naturalSpawnChance(double naturalSpawnChance) { this.naturalSpawnChance = naturalSpawnChance; return this; }
         public Builder naturalSpawnMaxNearby(int naturalSpawnMaxNearby) { this.naturalSpawnMaxNearby = naturalSpawnMaxNearby; return this; }
+        public Builder vanillaDefault(boolean vanillaDefault) { this.vanillaDefault = vanillaDefault; return this; }
 
         public MobDefinition build() {
             return new MobDefinition(this);

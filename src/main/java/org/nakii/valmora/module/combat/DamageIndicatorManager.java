@@ -55,14 +55,18 @@ public class DamageIndicatorManager {
         lastIndicatorSpawned.put(victimId, now);
 
         Location baseLoc = result.getVictim().getEyeLocation();
-        
-        // Random offset to prevent overlap
-        double offsetX = (random.nextDouble() - 0.5) * 0.5;
-        double offsetY = (random.nextDouble() - 0.5) * 0.5;
-        double offsetZ = (random.nextDouble() - 0.5) * 0.5;
+
+        // Random offset to prevent overlap — HC-028
+        double offsetSpread = plugin.getConfig().getDouble("combat.damage-indicator.offset", 0.5);
+        double offsetX = (random.nextDouble() - 0.5) * offsetSpread;
+        double offsetY = (random.nextDouble() - 0.5) * offsetSpread;
+        double offsetZ = (random.nextDouble() - 0.5) * offsetSpread;
         Location spawnLocation = baseLoc.clone().add(offsetX, offsetY, offsetZ);
 
-        TextDisplay display = spawnLocation.getWorld().spawn(spawnLocation, TextDisplay.class);
+        // Tagged + non-persistent inside the spawn consumer, so the display is never saved to disk
+        // (it used to be: a crash or a chunk unload during its lifetime left it floating forever).
+        TextDisplay display = spawnLocation.getWorld().spawn(spawnLocation, TextDisplay.class,
+                entity -> org.nakii.valmora.util.TransientEntities.mark(entity, "combat"));
         display.text(getIndicatorComponent(result));
         display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
         display.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
@@ -75,15 +79,19 @@ public class DamageIndicatorManager {
         }, lifetimeTicks);
     }
 
+    /** HC-028: crit-format/normal-format/show-as-int are configurable — placeholders {color}, {damage}. */
     private Component getIndicatorComponent(DamageResult result) {
-        String damageStr = String.valueOf((int) result.getFinalDamage());
+        boolean showAsInt = plugin.getConfig().getBoolean("combat.damage-indicator.show-as-int", true);
+        String damageStr = showAsInt ? String.valueOf((int) result.getFinalDamage()) : String.valueOf(result.getFinalDamage());
         String color = result.getDamageType().getColor();
-        
+
         if (result.isCritical()) {
-            // Shiny critical hit symbols
-            return Formatter.format("<gold>✧ " + color + "<b>" + damageStr + "<gold> ✧");
+            String critFormat = plugin.getConfig().getString("combat.damage-indicator.crit-format",
+                    "<gold>✧ {color}<b>{damage}<gold> ✧");
+            return Formatter.format(critFormat.replace("{color}", color).replace("{damage}", damageStr));
         }
-        
-        return Formatter.format(color + damageStr);
+
+        String normalFormat = plugin.getConfig().getString("combat.damage-indicator.normal-format", "{color}{damage}");
+        return Formatter.format(normalFormat.replace("{color}", color).replace("{damage}", damageStr));
     }
 }

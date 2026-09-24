@@ -1,0 +1,41 @@
+---
+title: Shipped default files
+summary: Everything Valmora seeds — config, content counts, seeding rules, and where to look next.
+---
+
+Valmora seeds ~138 files on first run and **never overwrites** existing files (tracked by
+`plugins/Valmora/.resources_seeded`). For the folder map and reload rules, see
+[Folder layout](/docs/file-layout) and [config.yml](/docs/config-yml).
+
+## Root files
+
+<RefTable kind="shippedFiles" />
+
+Single-file configs: `config.yml`, `plugin.yml`, `ui.yml`, `rarities.yml`, `item_types.yml`,
+`mob_categories.yml`, `entity_categories.yml`, plus the empty-by-default pipelines
+`combat_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`, `resource_pipeline.yml`,
+`fishing_pipeline.yml`, `death_pipeline.yml`.
+
+## Content folders
+
+<RefTable kind="shippedFiles" prefix="items/" />
+
+| Folder | Ships | Start with |
+|---|---|---|
+| `items/` (19) | swords, bows, wands, armor sets, accessories, backpacks, Shardworks tools and ores | [Items](/docs/items), [first item](/docs/tutorial-first-item) |
+| `guis/` (27) | bank, crafting, forge, press, alchemy, enchanting, anvil, collections, skills, slayers, quest board, shops | [GUIs](/docs/guis), [first menu](/docs/tutorial-first-menu) |
+| `skills/` (9) | mining, combat, farming, foraging, fishing, alchemy, carpentry, enchanting, taming | [Skills](/docs/skills) |
+| `mobs/` (5) | Shardworks guardians and demo mobs | [Mobs](/docs/mobs), [first mob](/docs/tutorial-first-mob) |
+| `machines/` (5) | crafting table, forge, press and demos | [Machines](/docs/machines) |
+| `recipes/` + `recipes/anvil/` | machine recipes plus anvil upgrades | [Recipes](/docs/recipes), [first recipe](/docs/tutorial-first-recipe) |
+| `modifiers/` | 3 definitions, 2 groups, 2 recipes | [Modifiers](/docs/modifiers), [first reforge](/docs/tutorial-first-reforge) |
+| `npcs/` (3) | shardworks, shopkeeper, quest examples | [NPCs](/docs/npcs) |
+| `pets/` (2) | three pets plus defaults | [Pets](/docs/pets) |
+| `zones/` (2) | shardworks hub, multi-stage demo | [Zones](/docs/zones), [first zone](/docs/tutorial-first-zone) |
+| `quests/` | flat `shardworks_quests.yml` + `blacksmith_hub`, `forgotten_mine`, `slayers` packages | [Quests](/docs/quests), [first quest](/docs/tutorial-first-quest) |
+| `collections/` | 5 categories + combat/farming/fishing/foraging/mining tracks | [Collections](/docs/collections) |
+| `damage_types/` | damage type registry | [Combat](/docs/combat) |
+| `enchants/` | enchant registry | [Enchants](/docs/enchants) |
+| `fishing/`, `hud-items/`, `alchemy/` (2), `block_loot/`, `calendar/`, `warps/`, `stats/`, `set_bonuses/` (3), `quest_boards/`, `progression/` | one demo each | Linked pages in the sidebar |
+
+<SeeAlso slugs={["file-layout", "config-yml", "content-packs", "installation"]} />

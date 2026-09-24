@@ -108,6 +108,24 @@ public class AlchemyModule implements ReloadableModule {
         alchemyManager.registerHardcodedEffect(new VanillaAlchemyEffect("invisibility",  PotionEffectType.INVISIBILITY,    false));
         alchemyManager.registerHardcodedEffect(new VanillaAlchemyEffect("fire_resistance", PotionEffectType.FIRE_RESISTANCE, false));
 
+        // HC-192: alchemy.effects.vanilla.<id>: {type, amplifier-scales} — additional
+        // vanilla-potion-backed alchemy effects without a code change (e.g. "blindness").
+        var vanillaSec = plugin.getConfig().getConfigurationSection("alchemy.effects.vanilla");
+        if (vanillaSec != null) {
+            for (String effectId : vanillaSec.getKeys(false)) {
+                var entrySec = vanillaSec.getConfigurationSection(effectId);
+                if (entrySec == null) continue;
+                String typeName = entrySec.getString("type", effectId);
+                PotionEffectType type = org.bukkit.Registry.POTION_EFFECT_TYPE.get(org.bukkit.NamespacedKey.minecraft(typeName.toLowerCase()));
+                if (type == null) {
+                    plugin.getLogger().warning("[Alchemy] alchemy.effects.vanilla." + effectId + ": unknown potion type '" + typeName + "'.");
+                    continue;
+                }
+                boolean amplifierScales = entrySec.getBoolean("amplifier-scales", false);
+                alchemyManager.registerHardcodedEffect(new VanillaAlchemyEffect(effectId, type, amplifierScales));
+            }
+        }
+
         // Custom mechanics
         alchemyManager.registerHardcodedEffect(new HealingAlchemyEffect());
         alchemyManager.registerHardcodedEffect(new PoisonAlchemyEffect());

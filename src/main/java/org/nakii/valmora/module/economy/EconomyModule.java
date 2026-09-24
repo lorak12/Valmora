@@ -47,11 +47,13 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     private final Map<UUID, Deque<EconomyLedgerEntry>> recentTransactions = new ConcurrentHashMap<>();
     private EconomyListener listener;
     private BukkitTask flushTask;
+    private volatile java.util.concurrent.CompletableFuture<Void> inFlightFlush;
     private BukkitTask interestTask;
 
     private static final EconomyData EMPTY = new EconomyData(0, 0);
-    /** How many recent transactions the bank GUI displays / are kept in the in-memory ring buffer. */
-    private static final int LEDGER_DISPLAY_LIMIT = 5;
+    /** How many recent transactions the bank GUI displays / are kept in the in-memory ring buffer.
+     *  HC-010: {@code economy.ledger-display-limit}. */
+    private int ledgerDisplayLimit = 5;
 
     public EconomyModule(Valmora plugin, DataStore dataStore) {
         this.plugin = plugin;
@@ -60,6 +62,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
     @Override
     public void onEnable() {
+        this.ledgerDisplayLimit = plugin.getConfig().getInt("economy.ledger-display-limit", 5);
         this.listener = new EconomyListener(this);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
@@ -72,8 +75,8 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
         // Load economy data for players already online (handles hot-reload)
         for (Player player : Bukkit.getOnlinePlayers()) {
-            double[] row = dataStore.loadEconomy(player.getUniqueId()).join();
-            cache.put(player.getUniqueId(), row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0));
+            if (cache.containsKey(player.getUniqueId())) continue;
+            handleJoin(player.getUniqueId());
         }
 
         long intervalTicks = plugin.getConfig().getLong("economy.autosave-interval-seconds", 60) * 20L;
@@ -102,6 +105,10 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             flushTask.cancel();
             flushTask = null;
         }
+        // Cancelling the timer doesn't stop a flush that's already writing; wait for it so its
+        // older snapshot can't commit after (and overwrite) the final flush below.
+        java.util.concurrent.CompletableFuture<Void> pending = inFlightFlush;
+        if (pending != null) pending.join();
         if (interestTask != null) {
             interestTask.cancel();
             interestTask = null;
@@ -115,7 +122,11 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             snapshot.put(entry.getKey(), entry.getValue().snapshot());
         }
         dirty.clear();
-        dataStore.saveEconomyBatch(snapshot).join();
+        dataStore.saveEconomyBatch(snapshot).exceptionally(ex -> {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Final economy save failed — balance changes since the last flush may be lost.", ex);
+            return null;
+        }).join();
         cache.clear();
         recentTransactions.clear();
     }
@@ -148,13 +159,27 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         // and it closes the previous race where a transaction landing between "join fires" and
         // "the async load completes" would seed a zero-balance cache entry that putIfAbsent then
         // refused to overwrite — silently eclipsing the real DB-loaded balance for the session.
-        double[] row = dataStore.loadEconomy(uuid).join();
+        double[] row;
+        try {
+            row = dataStore.loadEconomy(uuid).join();
+        } catch (java.util.concurrent.CompletionException e) {
+            // A failed read must never be cached as 0/0 — the first transaction would mark it
+            // dirty and the next flush would overwrite the real balance. Disconnect instead.
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Economy load failed for " + uuid
+                    + " — disconnecting instead of risking a zeroed balance.", e);
+            Player online = Bukkit.getPlayer(uuid);
+            if (online != null) {
+                Bukkit.getScheduler().runTask(plugin, () -> online.kick(org.nakii.valmora.util.Formatter.format(
+                        "<red>Your balance could not be loaded.\n<gray>Nothing was changed — please try rejoining in a moment.")));
+            }
+            return;
+        }
         EconomyData data = row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0);
         cache.putIfAbsent(uuid, data);
 
         // Seed the in-memory transaction ring buffer from DB history so a fresh session doesn't
         // show an empty "Recent Transactions" list when history actually exists.
-        dataStore.loadRecentLedger(uuid, LEDGER_DISPLAY_LIMIT).thenAcceptAsync(entries -> {
+        dataStore.loadRecentLedger(uuid, ledgerDisplayLimit).thenAcceptAsync(entries -> {
             if (entries.isEmpty()) return;
             Bukkit.getScheduler().runTask(plugin, () ->
                     recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>(entries)));
@@ -170,7 +195,8 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         EconomyData data = cache.get(uuid);
         if (data != null) {
             dirty.remove(uuid);
-            dataStore.saveEconomy(uuid, data.getPurse(), data.getBank());
+            dataStore.saveEconomy(uuid, data.getPurse(), data.getBank())
+                    .exceptionally(ex -> { dirty.add(uuid); return null; }); // retried by the next flush
         }
     }
 
@@ -189,7 +215,12 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             EconomyData data = cache.get(id);
             if (data != null) snapshot.put(id, data.snapshot());
         }
-        if (!snapshot.isEmpty()) dataStore.saveEconomyBatch(snapshot);
+        if (snapshot.isEmpty()) return;
+        inFlightFlush = dataStore.saveEconomyBatch(snapshot).exceptionally(ex -> {
+            // Previously the keys were already cleared, so a failed batch was never retried.
+            dirty.addAll(snapshot.keySet());
+            return null;
+        });
     }
 
     // --- Read ---
@@ -215,7 +246,12 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             callback.accept(new double[]{cached.getPurse(), cached.getBank()});
             return;
         }
-        dataStore.loadEconomy(uuid).thenAccept(row -> {
+        dataStore.loadEconomy(uuid).whenComplete((row, error) -> {
+            if (error != null) {
+                // Don't report 0/0 — a caller doing read-modify-write would persist it.
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Offline economy read for " + uuid + " failed.", error);
+                return;
+            }
             double[] result = row != null ? row : new double[]{0, 0};
             Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
         });
@@ -237,7 +273,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         dataStore.saveEconomy(uuid, purse, bank).thenRun(() -> Bukkit.getScheduler().runTask(plugin, onComplete));
     }
 
-    /** Most recent bank transactions for this player, newest first, capped at {@link #LEDGER_DISPLAY_LIMIT}. Synchronous — served from the in-memory ring buffer, not a DB read. */
+    /** Most recent bank transactions for this player, newest first, capped at {@code economy.ledger-display-limit}. Synchronous — served from the in-memory ring buffer, not a DB read. */
     public List<EconomyLedgerEntry> getRecentTransactions(UUID uuid) {
         Deque<EconomyLedgerEntry> deque = recentTransactions.get(uuid);
         return deque == null ? Collections.emptyList() : List.copyOf(deque);
@@ -250,7 +286,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         EconomyLedgerEntry entry = new EconomyLedgerEntry(type, amount, data.getPurse(), data.getBank(), System.currentTimeMillis());
         Deque<EconomyLedgerEntry> deque = recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>());
         deque.addFirst(entry);
-        while (deque.size() > LEDGER_DISPLAY_LIMIT) deque.removeLast();
+        while (deque.size() > ledgerDisplayLimit) deque.removeLast();
         dataStore.appendLedgerEntry(uuid, type, amount, entry.purseAfter(), entry.bankAfter());
     }
 
@@ -330,19 +366,31 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
     // --- Formatting ---
 
+    /** HC-011: compact-suffix format patterns are configurable via {@code economy.format.*}
+     *  (branding — some servers want a "$" symbol/different precision instead of the built-in
+     *  patterns). This is also the single source of truth {@link #formatCoinsDisplay} below and
+     *  {@code EcoCommand} should both call, instead of each keeping its own copy. */
     public static String formatCoins(double amount) {
         long r = Math.round(amount);
-        if (r >= 1_000_000_000) return String.format("%.2fb", amount / 1_000_000_000.0);
-        if (r >= 1_000_000)     return String.format("%.2fm", amount / 1_000_000.0);
-        if (r >= 1_000)         return String.format("%.1fk", amount / 1_000.0);
+        var cfg = org.nakii.valmora.Valmora.getInstance() != null ? org.nakii.valmora.Valmora.getInstance().getConfig() : null;
+        String billionFmt = cfg != null ? cfg.getString("economy.format.billion", "%.2fb") : "%.2fb";
+        String millionFmt = cfg != null ? cfg.getString("economy.format.million", "%.2fm") : "%.2fm";
+        String thousandFmt = cfg != null ? cfg.getString("economy.format.thousand", "%.1fk") : "%.1fk";
+        if (r >= 1_000_000_000) return String.format(billionFmt, amount / 1_000_000_000.0);
+        if (r >= 1_000_000)     return String.format(millionFmt, amount / 1_000_000.0);
+        if (r >= 1_000)         return String.format(thousandFmt, amount / 1_000.0);
         return String.valueOf(r);
     }
 
-    /** Formats a coin amount with dot-separated thousands and a coin emoji, e.g. "🪙 1.000.000". */
+    /** Formats a coin amount with a configurable thousands separator and coin symbol
+     *  ({@code economy.format.thousands-separator}/{@code coin-symbol}), e.g. "🪙 1.000.000". */
     public static String formatCoinsDisplay(double amount) {
         long r = Math.round(amount);
-        String num = String.format(java.util.Locale.US, "%,d", r).replace(",", ".");
-        return "🪙 " + num;
+        var cfg = org.nakii.valmora.Valmora.getInstance() != null ? org.nakii.valmora.Valmora.getInstance().getConfig() : null;
+        String separator = cfg != null ? cfg.getString("economy.format.thousands-separator", ".") : ".";
+        String symbol = cfg != null ? cfg.getString("economy.format.coin-symbol", "🪙 ") : "🪙 ";
+        String num = String.format(java.util.Locale.US, "%,d", r).replace(",", separator);
+        return symbol + num;
     }
 
     // --- EconomyService compat (operates on purse) ---

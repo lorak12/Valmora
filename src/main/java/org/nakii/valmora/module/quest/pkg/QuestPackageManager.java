@@ -200,6 +200,13 @@ public class QuestPackageManager {
                 QuestObjective obj = parseObjectiveDsl(key, objSec.getString(key, ""), pkg);
                 if (obj != null) pkg.getObjectives().put(key.toLowerCase(), obj);
             }
+            // Package-level objectives are parsed (and inherited through templates) but no quest
+            // ever reads them — only objectives declared under a quest's own objectives: block count.
+            if (!objSec.getKeys(false).isEmpty()) {
+                log.warning("[QuestPackages] Package '" + pkg.getPath() + "' declares top-level objectives: "
+                        + objSec.getKeys(false) + " — these are not used by any quest. Declare objectives under"
+                        + " quests.<questId>.objectives instead.");
+            }
         }
 
         // quests:
@@ -324,7 +331,8 @@ public class QuestPackageManager {
         }
 
         List<String> resolvedEvents = resolveEventRefs(events, pkg);
-        return new QuestObjective(id, type, target, required, conditions, resolvedEvents, persistent, autoOnce, notifyInterval);
+        return new QuestObjective(id, type, target, required, resolveObjectiveConditionRefs(conditions, pkg),
+                resolvedEvents, persistent, autoOnce, notifyInterval);
     }
 
     /** Parses: delay <amount> [ticks] [interval:<n>] [events:...] */
@@ -386,7 +394,7 @@ public class QuestPackageManager {
             else notifyInterval = 1;
         }
 
-        List<String> conditions = parseStringOrList(sec, "conditions");
+        List<String> conditions = resolveObjectiveConditionRefs(parseStringOrList(sec, "conditions"), pkg);
         List<String> events = resolveEventRefs(parseStringOrList(sec, "events"), pkg);
 
         return new QuestObjective(id, type, target, required, conditions, events, persistent, autoOnce, notifyInterval);
@@ -468,13 +476,17 @@ public class QuestPackageManager {
                 List<String> conditions = resolveConditionRefs(parseStringOrList(ns, "conditions"), pkg, convId + ".player." + nodeId);
                 List<String> pointers = parseStringOrList(ns, "pointers");
 
+                // The option's events belong to the node itself, so they fire exactly once when
+                // it's chosen — previously they were copied onto each pointer, which meant an option
+                // with no pointers (a plain "accept" that just ends the conversation) never fired
+                // its events at all, and one whose first pointer failed its conditions fired twice.
                 List<DialogueChoice> pointerChoices = new ArrayList<>();
                 for (String ptr : pointers) {
                     String resolved = resolvePointerTarget(ptr, playerOptionKeys);
-                    pointerChoices.add(new DialogueChoice("__ptr__", resolved, events));
+                    pointerChoices.add(new DialogueChoice("__ptr__", resolved, List.of()));
                 }
                 nodes.put("player." + nodeId, new DialogueNode("player." + nodeId,
-                        ns.getString("text", ""), List.of(), conditions, pointerChoices,
+                        ns.getString("text", ""), events, conditions, pointerChoices,
                         DialogueNode.NodeType.PLAYER));
             }
         }
@@ -532,6 +544,27 @@ public class QuestPackageManager {
             List<String> named = pkg.getEvents().get(trimmed.toLowerCase());
             if (named != null) resolved.addAll(named);
             else resolved.add(trimmed); // inline DSL
+        }
+        return resolved;
+    }
+
+    /**
+     * Resolves objective conditions: a token naming one of the package's conditions (with optional
+     * {@code !} prefix) expands to that condition's DSL; anything else is kept as an inline condition
+     * string. Previously objective conditions were never resolved at all, so a named reference like
+     * {@code conditions:in_mine} was evaluated as a raw expression and the objective never counted.
+     */
+    private List<String> resolveObjectiveConditionRefs(List<String> refs, QuestPackage pkg) {
+        if (refs.isEmpty()) return List.of();
+        List<String> resolved = new ArrayList<>();
+        for (String ref : refs) {
+            String trimmed = ref.trim();
+            if (trimmed.isEmpty()) continue;
+            boolean negate = trimmed.startsWith("!");
+            String name = negate ? trimmed.substring(1).trim() : trimmed;
+            String dsl = pkg.getConditions().get(name.toLowerCase());
+            if (dsl != null) resolved.add(negate ? "!" + dsl : dsl);
+            else resolved.add(trimmed); // inline condition
         }
         return resolved;
     }

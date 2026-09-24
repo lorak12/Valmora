@@ -13,9 +13,11 @@ public class NotifyManager {
     private final Map<String, Map<String, String>> categories = new HashMap<>();
 
     public NotifyManager() {
-        // Built-in category defaults
-        categories.put("info", Map.of("io", "chat"));
-        categories.put("error", Map.of("io", "actionbar"));
+        // Built-in category defaults — HC-270: overridable via notify.categories.<id>.io.
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        var cfg = plugin != null ? plugin.getConfig() : null;
+        categories.put("info", Map.of("io", cfg != null ? cfg.getString("notify.categories.info.io", "chat") : "chat"));
+        categories.put("error", Map.of("io", cfg != null ? cfg.getString("notify.categories.error.io", "actionbar") : "actionbar"));
     }
 
     public void registerIO(NotifyIO io) {

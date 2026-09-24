@@ -6,6 +6,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.TargetResolver;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
@@ -22,10 +23,10 @@ public class HealMechanic implements AbilityMechanic {
     public void execute(ExecutionContext context) {
         double healAmount = context.resolveDouble("heal", 0.0);
         if (healAmount <= 0) return;
-        String selector = context.getString("target", "@player");
+        String selector = context.getString("target", MechanicDefaults.getString("heal", "target", "@player"));
 
         int ticks = Math.max(1, context.getInt("ticks", 1));
-        double intervalSeconds = context.getDouble("interval", 1.0);
+        double intervalSeconds = context.getDouble("interval", MechanicDefaults.getDouble("heal", "interval", 1.0));
 
         applyOnce(context, selector, healAmount);
         if (ticks <= 1) return;

@@ -1,0 +1,52 @@
+---
+title: Developer API
+summary: ValmoraAPI accessors, ExecutionContext, registries, and the supporting api/ packages.
+---
+
+**ValmoraAPI** is the entry point for Java code: `ValmoraAPI.getInstance()` exposes every
+manager. The provider (`api/ValmoraAPIImpl`) resolves through the `ModuleManager`, so handles
+stay valid across `/valmora reload`. For reload-safe module patterns, see
+[Extending Valmora](/docs/developer-extending); for script-side hooks, see the
+[HookBus](/docs/developer-hookbus).
+
+```java
+ValmoraAPI api = ValmoraAPI.getInstance();
+ItemManager items = api.getItemManager();
+SkillManager skills = api.getSkillManager();
+QuestManager quests = api.getQuestManager();
+EconomyService economy = api.getEconomy();
+```
+
+## Managers
+
+| Area | Accessors |
+|---|---|
+| Infrastructure | `getModuleManager()`, `getScriptModule()`, `getHookBus()`, `getTimeManager()` |
+| Player | `getPlayerManager()`, `getStatModule()`, `getStatRegistry()`, `getStatRoleRegistry()`, `getSystemStats()`, `getUIManager()`, `getSkillManager()` |
+| Content | `getItemManager()`, `getMobManager()`, `getAbilityManager()`, `getDamageIndicatorManager()`, `getEnchantModule()`, `getAlchemyManager()`, `getZoneManager()`, `getRarityModule()`, `getModifierModule()`, `getRecipeModule()`, `getGuiModule()` |
+| Gameplay | `getNpcManager()`, `getDialogueManager()`, `getWarpManager()`, `getQuestManager()`, `getQuestPackageManager()`, `getPointsManager()`, `getNotifyManager()`, `getProgressionManager()`, `getResourceModule()`, `getFishingModule()`, `getBlockLootModule()`, `getCollectionManager()`, `getHudItemModule()`, `getCalendarEventModule()`, `getPetModule()`, `getPackModule()`, `getDeathModule()`, `getCombatModule()` |
+
+Supporting packages under `api/`: `ReloadableModule`, `execution/ExecutionContext`
+(+ `SimpleExecutionContext`), `registry/Registry` (+ `SimpleRegistry`, case-insensitive,
+lowercase keys), `scripting/` (`Expression`, `ExpressionEvaluator`, `Condition`,
+`VariableResolver`, `TagService`, `CompiledEvent`), `pipeline/` (`HookBus`, `PipelineHook`,
+`PipelineStage`, `CompiledPipelineStage`, `StageResult`), `quest/ObjectiveHandler`,
+`config/`, `economy/`.
+
+## ExecutionContext
+
+Every mechanic, event and hook receives an `ExecutionContext` — never store it (not
+thread-safe, single-invocation scope):
+
+```java
+LivingEntity caster = context.getCaster();
+Optional<LivingEntity> target = context.getTarget();
+VariableResolver vars = context.getVariableResolver();
+ConfigurationSection params = context.getParams();
+context.resolveDouble("damage", 10.0);
+```
+
+Plus `getPlayerCaster()`, `getLocation()`, `getTagService()`, transient `get` / `set` /
+`remove` / `has("ns:key")` attachments, and `resolveInt` / `resolveString`.
+
+<SeeAlso slugs={["developer-extending", "developer-hookbus", "developer-events", "pipelines"]} />

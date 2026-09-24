@@ -121,7 +121,9 @@ public final class AbilityExecutor {
 
         LivingEntity resolvedTarget = target;
         if (resolvedTarget == null && ability.getTargetRange() > 0) {
-            resolvedTarget = (LivingEntity) player.getTargetEntity((int) ability.getTargetRange(), false);
+            // instanceof, not a cast: aiming at an item frame, boat or painting used to throw.
+            resolvedTarget = player.getTargetEntity((int) ability.getTargetRange(), false) instanceof LivingEntity living
+                    ? living : null;
             if (resolvedTarget == null) {
                 if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<red>No target in range!", 10, 2);
                 return;

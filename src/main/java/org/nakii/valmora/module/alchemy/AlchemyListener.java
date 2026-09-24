@@ -51,7 +51,12 @@ public class AlchemyListener implements Listener {
         event.setCancelled(true);
 
         Player player = event.getPlayer();
-        alchemyManager.applyEffect(player, effectId, level, duration);
+        if (!alchemyManager.applyEffect(player, effectId, level, duration)) {
+            // The effect this potion was brewed with no longer exists (or the player is at the
+            // active-effect cap) — don't eat it for nothing.
+            player.sendMessage(org.nakii.valmora.util.Formatter.format("<red>This potion has no effect right now."));
+            return;
+        }
 
         // Consume from whichever hand actually holds the drunk item
         ItemStack mainHand = player.getInventory().getItemInMainHand();

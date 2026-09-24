@@ -45,17 +45,26 @@ public class DamageApplier {
             PlayerState state = profile.getPlayerState();
             double before = state.getCurrentHealth();
 
-            // Apply damage to virtual health
-            state.reduceHealth(damageResult.getFinalDamage());
+            // Totem of Undying interception (VANILLA_CONTROL_AUDIT.md §9) — must run before the
+            // virtual-health reduction below, since vanilla's own totem-death-protection check never
+            // fires against this pipeline (see TotemProtectionService's class doc).
+            if (TotemProtectionService.tryProtect(player, state, profile.getStatManager(), damageResult.getFinalDamage())) {
+                state.setInCombat();
+                debug("player victim=" + player.getName() + " TOTEM SAVED — virtualHealth " + before + " -> "
+                        + state.getCurrentHealth() + " (would-have-dealt=" + damageResult.getFinalDamage() + ")");
+            } else {
+                // Apply damage to virtual health
+                state.reduceHealth(damageResult.getFinalDamage());
 
-            // Sync to visual hearts
-            api.getPlayerManager().syncVisualHealth(player, state, profile.getStatManager());
+                // Sync to visual hearts
+                api.getPlayerManager().syncVisualHealth(player, state, profile.getStatManager());
 
-            // Set combat timer
-            state.setInCombat();
+                // Set combat timer
+                state.setInCombat();
 
-            debug("player victim=" + player.getName() + " virtualHealth " + before + " -> " + state.getCurrentHealth()
-                    + " (dealt=" + damageResult.getFinalDamage() + ")");
+                debug("player victim=" + player.getName() + " virtualHealth " + before + " -> " + state.getCurrentHealth()
+                        + " (dealt=" + damageResult.getFinalDamage() + ")");
+            }
 
         } else {
             // --- MOB VICTIM LOGIC ---

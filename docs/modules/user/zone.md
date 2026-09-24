@@ -47,7 +47,7 @@ Everything in this module is **admin-facing**. Regular players experience zones 
    - Drop quantities scale with your **Mining Fortune** stat, and the **Mining Spread** stat can AOE-mine adjacent matching blocks.
 4. **Fishing in a fishing zone** uses the zone's linked loot table instead of vanilla loot (see the Fishing module docs, `docs/modules/user/fishing.md`).
 5. **Teleportation** may be blocked in some zones (only enforced by scripted `teleport` events — warps are not affected).
-6. **PvP zones** (`allow.pvp: true`) allow player-vs-player damage; everywhere else PvP is cancelled.
+6. **PvP inside zones** follows the zone's `allow.pvp` (default `false` — no PvP). Outside every zone, vanilla rules (the server's `pvp` setting) apply.
 
 ### Player commands
 
@@ -94,7 +94,9 @@ Tab completion is provided for sub-commands, zone IDs, flag names, mob IDs (on `
 2. **Left-click** a block to set **Pos1**, **right-click** a block to set **Pos2** (`ZoneWandListener.java:23-50`). A live preview shows Pos1 in blue, Pos2 in red, and the resulting box in green.
 3. Optionally fine-tune with `/zone pos1` / `/zone pos2` (set at your feet) or `/zone clear`.
 4. Run `/zone create my_area My Area` — the zone is registered and written to `plugins/Valmora/zones/my_area.yml`.
-5. Run `/zone flag my_area pvp true` (or any of the eight flags) to configure it.
+5. Run `/zone flag my_area pvp true` (or any of the twelve flags — `keep-inventory-on-death`/
+   `keep-experience-on-death` also accept `default` to clear an override back to inheriting the
+   server-wide setting) to configure it.
 6. Run `/zone visualize` to see the borders as yellow particles.
 7. Add mob spawners (below), extra boxes (Workflow 3), or hand-edit the file for resource blocks/fishing/actions, then `/valmora reload`.
 
@@ -182,9 +184,9 @@ my_zone:
   min: [0, 60, 0]
   max: [10, 70, 10]
   enter-actions:
-    - notify title:"<red>Entering" subtitle:"My Zone"
+    - "notify <red>Entering My Zone io:title"
   exit-actions:
-    - notify title:"<gray>Leaving"
+    - "notify <gray>Leaving My Zone io:actionbar"
 ```
 
 Any script DSL lines are run when a player enters/exits (see the Script module docs for available events).
@@ -221,6 +223,10 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
     entry: true                      # players may enter
     teleportation: true              # teleports allowed
     leaf-decay: true                 # leaves decay normally
+    sleeping: true                   # beds usable
+    natural-block-changes: true      # ambient fade/form changes (ice/snow melt, water freeze, etc.)
+    keep-inventory-on-death: <unset> # optional; unset = inherit server death.keep-inventory-default
+    keep-experience-on-death: <unset> # optional; unset = inherit server death.keep-experience-default
 
   extra-boxes:                       # optional extra sub-regions
     - min: [x, y, z]
@@ -277,8 +283,12 @@ File location: `plugins/Valmora/zones/*.yml`. Each **top-level key is a zone ID*
 | `allow.entry` | `true` | If `false`, players are pushed back when they try to walk into the zone. |
 | `allow.teleportation` | `true` | If `false`, scripted `teleport` events are blocked (warps and other teleports are NOT affected). |
 | `allow.leaf-decay` | `true` | If `false`, leaves in the zone never decay. |
+| `allow.sleeping` | `true` | If `false`, players can't enter a bed in this zone (e.g. a boss arena or dungeon). See `docs/modules/user/death.md`. |
+| `allow.natural-block-changes` | `true` | If `false`, ambient block-state transitions are frozen in the zone: ice/snow won't melt, coral won't die, water won't freeze into ice (including Frost Walker), redstone-ore glow won't fade, etc. Useful for e.g. keeping a themed "always frozen" zone frozen regardless of biome/light. Does not affect player mining/building (`block-breaking`/`block-placing` cover that). |
+| `allow.keep-inventory-on-death` | *(unset)* | Overrides the server's `death.keep-inventory-default` for a death in this zone. Set/clear with `/zone flag <id> keep-inventory-on-death <true\|false\|default>`. |
+| `allow.keep-experience-on-death` | *(unset)* | Same, for kept XP on death. |
 
-> Legacy: if the `allow:` section is omitted, a `pvp-enabled:` key is honored and the other seven flags fall back to their defaults.
+> Legacy: if the `allow:` section is omitted, a `pvp-enabled:` key is honored and the other flags fall back to their defaults.
 
 ### Shape
 

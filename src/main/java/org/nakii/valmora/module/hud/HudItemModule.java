@@ -77,8 +77,28 @@ public class HudItemModule implements ReloadableModule {
     }
 
     public void giveHudItems(org.bukkit.entity.Player player) {
+        var inv = player.getInventory();
+
+        // 1. Drop HUD items whose definition was removed or moved to another slot — otherwise
+        //    they'd linger as locked, unusable items forever (they're saved with the inventory).
+        for (int slot = 0; slot < inv.getSize(); slot++) {
+            ItemStack item = inv.getItem(slot);
+            if (!isHudItem(item)) continue;
+            String id = item.getItemMeta().getPersistentDataContainer().get(Keys.HUD_ITEM_KEY, PersistentDataType.STRING);
+            HudItemDefinition def = id != null ? definitions.get(id) : null;
+            if (def == null || def.getSlot() != slot) inv.setItem(slot, null);
+        }
+
+        // 2. Place each HUD item. A real item already in that slot (e.g. the slot was newly
+        //    assigned to a HUD item by a config change) is moved elsewhere, never overwritten.
         for (HudItemDefinition def : definitions.values()) {
-            player.getInventory().setItem(def.getSlot(), def.getItem());
+            ItemStack displaced = inv.getItem(def.getSlot());
+            inv.setItem(def.getSlot(), def.getItem());
+            if (displaced != null && !displaced.getType().isAir() && !isHudItem(displaced)) {
+                for (ItemStack leftover : inv.addItem(displaced).values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                }
+            }
         }
     }
 
@@ -101,6 +121,13 @@ public class HudItemModule implements ReloadableModule {
                 return LoadResult.failure("[" + filePath + "] HUD item '" + id + "' missing 'item' section.");
             }
 
+            // HC-172 fix: a silent "STONE" fallback when `material:` is omitted hides a real
+            // authoring mistake (the player sees a plain stone block instead of the intended
+            // icon) — warn instead of guessing, same as other components in this codebase already
+            // warn on a missing required field.
+            if (!itemSec.contains("material")) {
+                return LoadResult.failure("[" + filePath + "] HUD item '" + id + "': missing required 'item.material'.");
+            }
             String materialStr = itemSec.getString("material", "STONE");
             Material material = Material.matchMaterial(materialStr);
             if (material == null) {

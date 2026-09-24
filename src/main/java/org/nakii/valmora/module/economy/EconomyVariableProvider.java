@@ -45,7 +45,12 @@ public class EconomyVariableProvider implements VariableProvider {
                     yield null;
                 }
                 List<EconomyLedgerEntry> entries = module.getRecentTransactions(uuid);
-                if (index == 0 && entries.isEmpty()) yield "<gray>There are no recent transactions!";
+                if (index == 0 && entries.isEmpty()) {
+                    var plugin = org.nakii.valmora.Valmora.getInstance();
+                    yield plugin != null
+                            ? plugin.getConfig().getString("economy.messages.no-transactions", "<gray>There are no recent transactions!")
+                            : "<gray>There are no recent transactions!";
+                }
                 yield (index >= 0 && index < entries.size()) ? entries.get(index).formatLine() : "";
             }
             default      -> null;

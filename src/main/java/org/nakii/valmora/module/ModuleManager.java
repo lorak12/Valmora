@@ -20,6 +20,12 @@ public class ModuleManager {
     private final Valmora plugin;
     private final Map<String, ReloadableModule> modules = new LinkedHashMap<>();
 
+    /** Ids of modules whose last onEnable/onDisable threw — reported back to the reload caller. */
+    private final List<String> lastFailures = new java.util.ArrayList<>();
+
+    /** True while a reload is tearing modules down and bringing them back up. */
+    private boolean reloading;
+
     public ModuleManager(Valmora plugin) {
         this.plugin = plugin;
     }
@@ -42,8 +48,12 @@ public class ModuleManager {
                 module.onEnable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+                lastFailures.add(module.getId());
             }
         }
+        // Only now is every module's script events registered — report names nobody provides.
+        var script = plugin.getScriptModule();
+        if (script != null && script.getEventParser() != null) script.getEventParser().reportUnresolved();
     }
 
     /**
@@ -60,6 +70,7 @@ public class ModuleManager {
                 module.onDisable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+                lastFailures.add(module.getId());
             }
         }
     }
@@ -67,12 +78,89 @@ public class ModuleManager {
     /**
      * Reloads all modules.
      */
-    public void reloadModules() {
+    /**
+     * Outcome of a reload: modules whose enable/disable threw (possibly half-loaded), and content
+     * errors reported by the loaders. Content entries that failed kept their last working version
+     * where one existed (see YamlLoader), so a content error never removes live content.
+     */
+    public record ReloadResult(List<String> failedModules, List<String> contentErrors) {
+        public boolean clean() {
+            return failedModules.isEmpty() && contentErrors.isEmpty();
+        }
+    }
+
+    public ReloadResult reloadModules() {
         plugin.getLogger().info("Reloading all modules...");
-        disableModules();
-        // Here we'd ideally re-initialize things if needed, but for now we just call enable again
-        enableModules();
-        plugin.getLogger().info("Reload complete.");
+        lastFailures.clear();
+        org.nakii.valmora.infrastructure.config.YamlLoader.beginReport();
+        reloading = true;
+        try {
+            disableModules();
+            enableModules();
+        } finally {
+            reloading = false;
+        }
+        afterReload(modules.values());
+        ReloadResult result = new ReloadResult(List.copyOf(lastFailures),
+                org.nakii.valmora.infrastructure.config.YamlLoader.drainReport());
+        plugin.getLogger().info(result.clean() ? "Reload complete."
+                : "Reload finished with " + result.failedModules().size() + " module failure(s) and "
+                + result.contentErrors().size() + " content error(s).");
+        return result;
+    }
+
+    /**
+     * Whether a reload is in progress. Modules come back one at a time, so anything computed
+     * mid-reload (notably player stats, recalculated when profiles reload) sees an incomplete
+     * picture — e.g. with enchants/modifiers/set bonuses not yet re-enabled, max HP is lower
+     * than it really is, and capping current HP/mana to it would permanently cut them down.
+     */
+    public boolean isReloading() {
+        return reloading;
+    }
+
+    /** Runs once every reloaded module is back up: recompute state that spans modules. */
+    private void afterReload(java.util.Collection<ReloadableModule> reloaded) {
+        // Content may have changed: re-fingerprint item content and bring every online player's
+        // items up to date now (other items refresh lazily as they're encountered).
+        if (plugin.getItemManager() != null) {
+            org.nakii.valmora.module.item.ItemRefresher.recomputeEpoch(plugin);
+            for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+                try {
+                    org.nakii.valmora.module.item.ItemRefresher.refresh(plugin, player);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to refresh items of " + player.getName() + " after reload", e);
+                }
+            }
+        }
+
+        var playerManager = plugin.getPlayerManager();
+        if (playerManager == null) {
+            fireReloaded(reloaded);
+            return;
+        }
+        for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+            var session = playerManager.getSession(player.getUniqueId());
+            var profile = session != null ? session.getActiveProfile() : null;
+            if (profile == null) continue;
+            try {
+                profile.getStatManager().recalculateAttributes(player);
+                profile.getStatManager().recalculateStats(player);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to recalculate stats for " + player.getName() + " after reload", e);
+            }
+        }
+        fireReloaded(reloaded);
+    }
+
+    private void fireReloaded(java.util.Collection<ReloadableModule> reloaded) {
+        Set<String> ids = new java.util.HashSet<>();
+        for (ReloadableModule module : reloaded) ids.add(module.getId().toLowerCase());
+        try {
+            new org.nakii.valmora.api.event.ValmoraReloadedEvent(ids).callEvent();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "A post-reload listener failed", e);
+        }
     }
 
     /**
@@ -104,20 +192,26 @@ public class ModuleManager {
         plugin.getLogger().info("Reloading modules: " + moduleIds);
         List<ReloadableModule> reversed = new java.util.ArrayList<>(subset);
         Collections.reverse(reversed);
-        for (ReloadableModule module : reversed) {
-            try {
-                module.onDisable();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+        reloading = true;
+        try {
+            for (ReloadableModule module : reversed) {
+                try {
+                    module.onDisable();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+                }
             }
-        }
-        for (ReloadableModule module : subset) {
-            try {
-                module.onEnable();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+            for (ReloadableModule module : subset) {
+                try {
+                    module.onEnable();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+                }
             }
+        } finally {
+            reloading = false;
         }
+        afterReload(subset);
         plugin.getLogger().info("Reload of " + moduleIds + " complete.");
     }
 
@@ -147,12 +241,16 @@ public class ModuleManager {
         ReloadableModule module = modules.get(id.toLowerCase());
         if (module != null) {
             plugin.getLogger().info("Reloading module: " + module.getName());
+            reloading = true;
             try {
                 module.onDisable();
                 module.onEnable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to reload module: " + id, e);
+            } finally {
+                reloading = false;
             }
+            afterReload(List.of(module));
         }
     }
 }

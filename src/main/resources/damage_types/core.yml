@@ -59,3 +59,13 @@ explosion:
   color: "<red>"
   ignores-defense: false
   on-hit: []
+
+lightning:
+  color: "<yellow>"
+  ignores-defense: false
+  on-hit: []
+
+freeze:
+  color: "<aqua>"
+  ignores-defense: false
+  on-hit: []

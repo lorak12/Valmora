@@ -31,6 +31,15 @@ public class TimeManager {
     private Season lastSeason;
     private boolean scoreboardEnabled = true;
 
+    // HC-253: calendar shape — days-per-phase is the one piece that's safe to make server-tunable
+    // without restructuring the Phase/Season enums themselves (a fixed 3 phases/4 seasons). A
+    // custom "28-day month" calendar just needs a different days-per-phase; phases-per-season and
+    // seasons-per-year stay derived from the enums (Phase.values().length / Season.values().length)
+    // rather than becoming independent literals, since those enums have a fixed number of constants.
+    private int daysPerPhase = 30;
+    private int daysPerSeason;
+    private int daysPerYear;
+
     private BukkitTask dayCheckTask;
 
     public TimeManager(Valmora plugin) {
@@ -43,6 +52,9 @@ public class TimeManager {
         seasonNames = cfg.getStringList("time.season-names");
         phaseNames = cfg.getStringList("time.phase-names");
         scoreboardEnabled = cfg.getBoolean("time.scoreboard-enabled", true);
+        daysPerPhase = Math.max(1, cfg.getInt("time.calendar.days-per-phase", 30));
+        daysPerSeason = daysPerPhase * Phase.values().length;
+        daysPerYear = daysPerSeason * Season.values().length;
 
         File timeFile = new File(plugin.getDataFolder(), "time.yml");
         Long lastKnownWorldDay = null;
@@ -74,7 +86,10 @@ public class TimeManager {
         // manipulation (another plugin/command fast-forwarding the world clock, or a
         // hand-edited time.yml) rather than something that fires on every restart.
         if (lastKnownWorldDay != null && lastKnownWorldDay < currentWorldDay) {
-            reconcileMissedTransitions(lastKnownWorldDay);
+            // Deferred one tick: the time module enables second, so firing now would reach none of
+            // the later modules' listeners (calendar, quests, ...) — they'd miss the catch-up.
+            final long fromDay = lastKnownWorldDay;
+            Bukkit.getScheduler().runTask(plugin, () -> reconcileMissedTransitions(fromDay));
         }
         lastWorldDay = currentWorldDay;
 
@@ -117,10 +132,10 @@ public class TimeManager {
     /** Reconstructs a {@link TimeSnapshot} for an arbitrary world-day count (hour/minute pinned to midday — only phase/season/dayInPhase matter for the catch-up comparison). */
     private TimeSnapshot snapshotForWorldDay(long worldDay) {
         long totalDays = worldDay + dayOffset;
-        int dayInPhase = (int) Math.floorMod(totalDays, 30) + 1;
-        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / 30, 3)];
-        Season season = Season.values()[(int) Math.floorMod(totalDays / 90, 4)];
-        int year = Math.max(1, (int) (totalDays / 360) + 1);
+        int dayInPhase = (int) Math.floorMod(totalDays, daysPerPhase) + 1;
+        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / daysPerPhase, Phase.values().length)];
+        Season season = Season.values()[(int) Math.floorMod(totalDays / daysPerSeason, Season.values().length)];
+        int year = Math.max(1, (int) (totalDays / daysPerYear) + 1);
         String phaseName = phase.ordinal() < phaseNames.size() ? phaseNames.get(phase.ordinal()) : capitalize(phase.name());
         String seasonName = season.ordinal() < seasonNames.size() ? seasonNames.get(season.ordinal()) : capitalize(season.name());
         return new TimeSnapshot(12, 0, dayInPhase, phase, season, year, totalDays, phaseName, seasonName);
@@ -200,10 +215,10 @@ public class TimeManager {
 
         int hour = (int) ((mcTick / 1000 + 6) % 24);
         int minute = (int) ((mcTick % 1000) * 60 / 1000);
-        int dayInPhase = (int) (Math.floorMod(totalDays, 30)) + 1;
-        Phase phase = Phase.values()[(int) (Math.floorMod(totalDays / 30, 3))];
-        Season season = Season.values()[(int) (Math.floorMod(totalDays / 90, 4))];
-        int year = Math.max(1, (int) (totalDays / 360) + 1);
+        int dayInPhase = (int) (Math.floorMod(totalDays, daysPerPhase)) + 1;
+        Phase phase = Phase.values()[(int) (Math.floorMod(totalDays / daysPerPhase, Phase.values().length))];
+        Season season = Season.values()[(int) (Math.floorMod(totalDays / daysPerSeason, Season.values().length))];
+        int year = Math.max(1, (int) (totalDays / daysPerYear) + 1);
 
         String phaseName = phase.ordinal() < phaseNames.size()
                 ? phaseNames.get(phase.ordinal()) : capitalize(phase.name());
@@ -221,12 +236,12 @@ public class TimeManager {
         save();
     }
 
-    /** Jumps the calendar to an explicit date — backs {@code /time set}. {@code day} is 1-indexed day-of-phase, clamped to `[1, 30]`. */
+    /** Jumps the calendar to an explicit date — backs {@code /time set}. {@code day} is 1-indexed day-of-phase, clamped to `[1, days-per-phase]`. */
     public void setDate(int year, Season season, Phase phase, int day) {
-        int clampedDay = Math.max(1, Math.min(30, day));
-        long targetDays = (long) (Math.max(1, year) - 1) * 360
-                + season.ordinal() * 90L
-                + phase.ordinal() * 30L
+        int clampedDay = Math.max(1, Math.min(daysPerPhase, day));
+        long targetDays = (long) (Math.max(1, year) - 1) * daysPerYear
+                + season.ordinal() * (long) daysPerSeason
+                + phase.ordinal() * (long) daysPerPhase
                 + (clampedDay - 1);
         long currentWorldDays = getWorldDay();
         dayOffset = targetDays - currentWorldDays;
@@ -258,9 +273,9 @@ public class TimeManager {
         Phase startPhase = parsePhase(cfg.getString("time.start-phase", "EARLY"));
         int startDay = Math.max(1, cfg.getInt("time.start-day", 1));
 
-        long targetDays = (long) (startYear - 1) * 360
-                + startSeason.ordinal() * 90L
-                + startPhase.ordinal() * 30L
+        long targetDays = (long) (startYear - 1) * daysPerYear
+                + startSeason.ordinal() * (long) daysPerSeason
+                + startPhase.ordinal() * (long) daysPerPhase
                 + (startDay - 1);
 
         World world = Bukkit.getWorld(worldName);

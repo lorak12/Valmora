@@ -90,7 +90,12 @@ public class ModifierEngine {
             return new ApplyOutcome(ApplyResult.REQUIREMENTS_NOT_MET, baseItem);
         }
 
-        List<ModifierInstance> current = store.read(meta, groupId);
+        // Instances whose definition no longer exists (deleted, and not reachable through a
+        // previous-ids alias) are dropped here: they grant nothing and render as "unknown", so
+        // letting them count toward capacity — or permanently block an EXCLUSIVE group that
+        // disallows replacement — would lock the slot forever. Applying a new modifier removes them.
+        List<ModifierInstance> current = new ArrayList<>(store.read(meta, groupId));
+        current.removeIf(instance -> modifiers.get(instance.getModifierId()).isEmpty());
 
         // Conflicts: check against every OTHER attached modifier across ALL groups on this item.
         Map<String, List<ModifierInstance>> everything = store.readAll(meta, groups);
@@ -204,9 +209,24 @@ public class ModifierEngine {
      */
     private int effectiveTier(ModifierGroupDefinition group, ModifierDefinition def, ModifierInstance instance, RarityDefinition rarity) {
         if (group.getTierSource() == TierSource.RARITY_RANK && rarity != null) {
-            return Math.max(1, Math.min(rarity.getRank() + 1, def.getMaxTier()));
+            return Math.max(1, Math.min(rarityRankTier(rarity), def.getMaxTier()));
         }
         return instance.getTier();
+    }
+
+    /** HC-122: {@code modifiers.tier-source.formula} — an Expression evaluated with
+     *  {@code $rarity.rank$}; falls back to the original hardcoded {@code rank + 1}. */
+    private int rarityRankTier(RarityDefinition rarity) {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("modifiers.tier-source.formula", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("rarity:rank", (double) rarity.getRank());
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.intValue();
+        }
+        return rarity.getRank() + 1;
     }
 
     /**
@@ -449,16 +469,14 @@ public class ModifierEngine {
 
     public RarityDefinition readRarity(ItemStack item) {
         if (!item.hasItemMeta()) return null;
-        String raw = item.getItemMeta().getPersistentDataContainer().get(Keys.RARITY_KEY, PersistentDataType.STRING);
+        // Live from the item definition (falling back to the stored copy) — see ItemView.
+        String raw = org.nakii.valmora.module.item.ItemView.rarityKey(item);
         if (raw == null) return null;
         return rarities.getByKey(raw).orElse(null);
     }
 
     private ItemType readItemType(ItemStack item) {
-        if (!item.hasItemMeta()) return ItemType.NONE;
-        String raw = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-        if (raw == null) return ItemType.NONE;
-        return ItemType.find(raw).orElse(ItemType.NONE);
+        return org.nakii.valmora.module.item.ItemView.templateType(item);
     }
 
     private ExecutionContext minimalContext(ItemStack item) {

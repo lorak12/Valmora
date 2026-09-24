@@ -63,7 +63,9 @@ public class QuiverListener implements Listener {
                 // Inventory was (unexpectedly) full — put back only what didn't fit.
                 quiver[i] = leftover.values().iterator().next();
             }
-            profile.putStorage(STORAGE_ID, quiver);
+            // Persist, not just mirror in memory: otherwise the DB still holds the arrows just
+            // moved into the inventory, and they come back on the next join (a dupe).
+            plugin.getGuiModule().persistPlayerStorage(profile, STORAGE_ID, quiver);
             return;
         }
     }
@@ -76,7 +78,9 @@ public class QuiverListener implements Listener {
     }
 
     private boolean isArrow(Material material) {
-        return material == Material.ARROW || material == Material.SPECTRAL_ARROW || material == Material.TIPPED_ARROW;
+        // HC-048 fix: use the vanilla arrow tag instead of an enumerated list, so any future
+        // arrow variant (added by a data pack or a Minecraft update) is picked up automatically.
+        return org.bukkit.Tag.ITEMS_ARROWS.isTagged(material);
     }
 
     private ValmoraProfile getActiveProfile(Player player) {

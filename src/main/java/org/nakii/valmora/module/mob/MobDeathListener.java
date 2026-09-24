@@ -66,8 +66,11 @@ public class MobDeathListener implements Listener {
                     luck = statManager.getStat(plugin.getStatModule().getSystemStats().getLuck())
                             + statManager.getStat("pet_luck");
 
+                    // HC-091: mobs.combat-skill-id — which skill mob kills grant XP to, so renaming
+                    // the core "combat" skill id doesn't silently break XP gain.
+                    String combatSkillId = plugin.getConfig().getString("mobs.combat-skill-id", "combat");
                     int xpReward = definition.getXpReward();
-                    profile.getSkillManager().addXp("combat", (double) xpReward, killer);
+                    profile.getSkillManager().addXp(combatSkillId, (double) xpReward, killer);
 
                     int goldReward = definition.getGoldReward();
                     if (goldReward > 0) {

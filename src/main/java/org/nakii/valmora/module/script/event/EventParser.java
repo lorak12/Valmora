@@ -62,13 +62,18 @@ public class EventParser {
         final int finalDelay = delay;
         var factoryOpt = module.getEventFactoryRegistry().get(eventName);
 
-        // Validate at compile time — fail fast with a clear message
-        if (factoryOpt.isEmpty()) {
-            module.getValmora().getLogger().warning("[DSL] Unknown event '" + eventName + "' in script: \"" + raw + "\"");
-            return context -> {};
+        CompiledEvent compiled;
+        if (factoryOpt.isPresent()) {
+            compiled = factoryOpt.get().compile(args, options);
+        } else {
+            // Not registered (yet). Many events are registered by modules that enable AFTER the
+            // modules whose YAML uses them (e.g. `warp_to` from the warp module, used by GUIs;
+            // `notify`, quest and point events), so failing here turned those scripts into
+            // permanent no-ops. Resolve on first execution instead. Names still unknown once
+            // every module is up are reported by reportUnresolved().
+            unresolvedNames.add(eventName.toLowerCase());
+            compiled = new LazyEvent(eventName, args, options, raw);
         }
-
-        CompiledEvent compiled = factoryOpt.get().compile(args, options);
 
         // Wrap with condition guard if conditions: token was present
         CompiledEvent event;
@@ -96,13 +101,61 @@ public class EventParser {
         };
 
         if (finalDelay > 0) {
-            return context -> Bukkit.getScheduler().runTaskLater(
-                module.getValmora(),
-                () -> debuggedEvent.execute(context),
-                finalDelay
-            );
+            // Tracked, so a reload or the player quitting cancels it instead of it running later
+            // against discarded state (see DelayedEventTracker).
+            return context -> module.getDelayedEvents().schedule(context, () -> debuggedEvent.execute(context), finalDelay);
         }
         return debuggedEvent;
+    }
+
+    /** Event names seen at compile time with no registered factory. */
+    private final java.util.Set<String> unresolvedNames = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final java.util.Set<String> warnedUnresolved = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Logs every event name used in scripts that no module registered. Call once all modules are
+     * enabled. Earlier, a name may simply belong to a module that hasn't enabled yet.
+     */
+    public void reportUnresolved() {
+        for (String name : unresolvedNames) {
+            if (module.getEventFactoryRegistry().get(name).isEmpty() && warnedUnresolved.add(name)) {
+                module.getValmora().getLogger().warning("[DSL] Unknown event '" + name
+                        + "' is used in scripts but no module provides it — those lines do nothing.");
+            }
+        }
+    }
+
+    /** Compiles against its factory on first execution (see {@link #parse}). */
+    private final class LazyEvent implements CompiledEvent {
+        private final String eventName;
+        private final String[] args;
+        private final EventOptions options;
+        private final String raw;
+        private volatile CompiledEvent resolved;
+
+        LazyEvent(String eventName, String[] args, EventOptions options, String raw) {
+            this.eventName = eventName;
+            this.args = args;
+            this.options = options;
+            this.raw = raw;
+        }
+
+        @Override
+        public void execute(org.nakii.valmora.api.execution.ExecutionContext context) {
+            CompiledEvent target = resolved;
+            if (target == null) {
+                var factory = module.getEventFactoryRegistry().get(eventName);
+                if (factory.isEmpty()) {
+                    if (warnedUnresolved.add(eventName.toLowerCase())) {
+                        module.getValmora().getLogger().warning("[DSL] Unknown event '" + eventName + "' in script: \"" + raw + "\"");
+                    }
+                    return;
+                }
+                target = factory.get().compile(args, options);
+                resolved = target;
+            }
+            target.execute(context);
+        }
     }
 
     /**

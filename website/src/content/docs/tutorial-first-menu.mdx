@@ -1,0 +1,172 @@
+---
+title: "Tutorial: your first menu"
+summary: Build an inventory menu with buttons, live text, a command to open it, conditional clicks, and a button that changes its look.
+---
+
+You'll build a **server menu**: a 3-row inventory opened with `/menu`, with buttons for your
+stats, fast travel and the quest journal, a coin display that updates live, and a daily-reward
+button that only works once per day.
+
+## Step 1 — Layout and components
+
+Menus live in `plugins/Valmora/guis/`. Create `plugins/Valmora/guis/server_menu.yml`:
+
+```yaml
+# plugins/Valmora/guis/server_menu.yml
+server_menu:
+  title: "<dark_aqua><bold>Server Menu"
+  command: menu
+  layout:
+    - "#########"
+    - "#S#W#Q#C#"
+    - "#########"
+  components:
+    "#":
+      type: DISPLAY
+      display-item:
+        material: GRAY_STAINED_GLASS_PANE
+        name: " "
+    S:
+      type: DISPLAY
+      display-item:
+        material: PLAYER_HEAD
+        name: "<gold>Your stats"
+        lore:
+          - "<gray>Health: <red>$player.hp$/$player.max_hp$"
+          - "<gray>Strength: <red>$player.stat.strength$"
+      actions:
+        LEFT:
+          actions:
+            - "open_gui stats"
+    W:
+      type: DISPLAY
+      display-item:
+        material: COMPASS
+        name: "<aqua>Fast travel"
+      actions:
+        LEFT:
+          actions:
+            - "open_gui fast_travel"
+    Q:
+      type: DISPLAY
+      display-item:
+        material: WRITABLE_BOOK
+        name: "<yellow>Quest journal"
+      actions:
+        LEFT:
+          actions:
+            - "journal"
+    C:
+      type: DISPLAY
+      display-item:
+        material: GOLD_NUGGET
+        name: "<gold>Purse: $economy.purse.formatted$"
+        lore:
+          - "<gray>Bank: <gold>$economy.bank$"
+```
+
+How it works:
+
+- `server_menu:` — the menu's id, used by `open_gui server_menu` and `/gui open`.
+- `command: menu` — registers `/menu`. Anyone can run it; add `command-permission: some.node`
+  to restrict it.
+- `layout` — one string per row, **exactly 9 characters** per row. Each character is a slot; the
+  character says which component goes there.
+- `components` — what each character is. `DISPLAY` is a button (or decoration). Quote keys that
+  are symbols, like `"#"`.
+- `display-item` — the item shown: `material`, `name`, `lore`, and optionally `amount` and
+  `custom-model-data`. Text can contain [variables](/docs/variables) like `$player.hp$`.
+- `actions.LEFT.actions` — [script events](/docs/events) run on left-click. Other keys: `RIGHT`,
+  `SHIFT_LEFT`, `SHIFT_RIGHT`, `MIDDLE`, `DROP`, … (any Bukkit click type).
+
+`/valmora reload`, then `/menu`. Clicking a button runs its events. Players can't take the items
+out of a menu.
+
+## Step 2 — Keep it live
+
+Values in names and lore are filled in when the menu is drawn. To redraw it regularly, add:
+
+```yaml
+  update-interval: 20        # redraw every 20 ticks (1 second)
+```
+
+right under `title:`. Now the purse updates while the menu is open.
+
+## Step 3 — A conditional button
+
+A button can check [conditions](/docs/conditions) first and do something else when they fail.
+Add a `D` to the middle row (for example replace the `#` between `Q` and `C`: `"#S#W#QDC#"`) and
+this component:
+
+```yaml
+    D:
+      type: DISPLAY
+      display-item:
+        material: CHEST
+        name: "<green>Daily reward"
+        lore:
+          - "<gray>Claim 500 coins once a day."
+      actions:
+        LEFT:
+          conditions:
+            - "$system.time$ - $player.var.last_daily$ >= 86400000"
+          actions:
+            - "variable set player.var.last_daily $system.time$"
+            - "economy_add 500"
+            - "notify <green>You claimed 500 coins!"
+            - "sound player entity.player.levelup"
+          fail-actions:
+            - "notify <red>Come back tomorrow!"
+            - "sound player entity.villager.no"
+```
+
+- `conditions` — all must be true for `actions` to run; otherwise `fail-actions` run.
+- `$system.time$` is the current time in milliseconds, and `player.var.last_daily` is a variable
+  saved on the player's profile. 86 400 000 ms is one day. A player who has never claimed has no
+  `last_daily`, which counts as 0, so the first claim always works.
+
+## Step 4 — A button that changes its look
+
+`states` pick the button's item and actions by condition. The first state whose `condition` is
+true is used; `default` always matches, so put it last:
+
+```yaml
+    D:
+      type: DISPLAY
+      states:
+        ready:
+          condition: "$system.time$ - $player.var.last_daily$ >= 86400000"
+          display-item:
+            material: CHEST
+            name: "<green>Daily reward <gray>(ready!)"
+          actions:
+            LEFT:
+              actions:
+                - "variable set player.var.last_daily $system.time$"
+                - "economy_add 500"
+                - "notify <green>You claimed 500 coins!"
+        waiting:
+          condition: "default"
+          display-item:
+            material: BARRIER
+            name: "<red>Daily reward <gray>(come back tomorrow)"
+```
+
+With `update-interval: 20` the chest turns into a barrier right after claiming.
+
+## Step 5 — Open it from anywhere
+
+A menu opens from any script, so you can wire it into the rest of the server:
+
+- an NPC: `on-right-click: ["open_gui server_menu"]`
+- a hotbar item that's always in slot 9: see [HUD items](/docs/hud-items)
+- another menu's button: `open_gui server_menu`, and `gui_back` to return
+
+## Where to go next
+
+- Input slots, paged lists of items, per-session values (`prop`), and machines:
+  [GUIs](/docs/guis).
+- The shipped menus in `plugins/Valmora/guis/` (stats, bank, skills, collections) are complete
+  examples to copy from.
+
+<SeeAlso slugs={["guis", "events", "variables", "hud-items"]} />

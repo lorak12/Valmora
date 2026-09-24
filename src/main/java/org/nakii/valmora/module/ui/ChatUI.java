@@ -6,11 +6,14 @@ import org.nakii.valmora.util.Formatter;
 
 public class ChatUI {
     
-    // Standardized prefix for system messages
-    private final String PREFIX = "<dark_gray>[<gold>Valmora<dark_gray>] <white>";
+    // Standardized prefix for system messages — HC-178: ui.chat.prefix (branding).
+    private String prefix() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getString("ui.chat.prefix", "<dark_gray>[<gold>Valmora<dark_gray>] <white>") : "<dark_gray>[<gold>Valmora<dark_gray>] <white>";
+    }
 
     public void sendReward(Player player, String rewardName, int amount) {
-        String msg = PREFIX + "You received: <green>" + amount + "x " + rewardName;
+        String msg = prefix() + "You received: <green>" + amount + "x " + rewardName;
         player.sendMessage(Formatter.format(msg));
     }
 
@@ -27,6 +30,6 @@ public class ChatUI {
     }
 
     public void sendError(Player player, String error) {
-        player.sendMessage(Formatter.format(PREFIX + "<red>" + error));
+        player.sendMessage(Formatter.format(prefix() + "<red>" + error));
     }
 }

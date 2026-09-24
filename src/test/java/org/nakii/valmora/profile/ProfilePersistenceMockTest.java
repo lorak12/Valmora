@@ -120,6 +120,74 @@ class ProfilePersistenceMockTest {
     }
 
     @Test
+    void corruptProfileDataFailsTheLoadInsteadOfLookingLikeANewPlayer(@TempDir Path dir) throws Exception {
+        HikariDataSource ds = newDataSource(dir.resolve("corrupt.db"));
+        SQLDataStore store = new SQLDataStore(ds, false, LOGGER);
+        try {
+            store.init();
+            UUID playerId = UUID.randomUUID();
+            UUID profileId = UUID.randomUUID();
+            try (java.sql.Connection c = ds.getConnection()) {
+                var ps = c.prepareStatement("INSERT INTO valmora_players (uuid, active_profile) VALUES (?, ?)");
+                ps.setString(1, playerId.toString());
+                ps.setString(2, profileId.toString());
+                ps.execute();
+                ps = c.prepareStatement("INSERT INTO valmora_profiles (id, player_uuid, name, stats) VALUES (?, ?, 'Earth', ?)");
+                ps.setString(1, profileId.toString());
+                ps.setString(2, playerId.toString());
+                ps.setString(3, "{not valid json");
+                ps.execute();
+            }
+            // Returning null here would make PlayerManager create a blank profile whose next
+            // save hides the real one.
+            var ex = assertThrows(java.util.concurrent.CompletionException.class, () -> store.loadPlayer(playerId).join());
+            assertInstanceOf(org.nakii.valmora.database.DataLoadException.class, ex.getCause());
+        } finally {
+            store.close();
+        }
+    }
+
+    @Test
+    void undecodableItemIsPreservedForRecovery(@TempDir Path dir) throws Exception {
+        HikariDataSource ds = newDataSource(dir.resolve("undecodable.db"));
+        SQLDataStore store = new SQLDataStore(ds, false, LOGGER, dir.toFile());
+        try {
+            store.init();
+            UUID playerId = UUID.randomUUID();
+            ValmoraPlayer player = new ValmoraPlayer(playerId);
+            ValmoraProfile profile = new ValmoraProfile("Earth");
+            ItemStack[] inventory = new ItemStack[36];
+            inventory[0] = new ItemStack(Material.DIAMOND, 1);
+            profile.setSavedInventory(inventory);
+            player.addProfile(profile);
+            player.setActiveProfile(profile.getId());
+            store.savePlayer(player).join();
+
+            // Corrupt slot 1 directly in the stored JSON.
+            try (java.sql.Connection c = ds.getConnection()) {
+                var ps = c.prepareStatement("SELECT inventory FROM valmora_profiles WHERE id = ?");
+                ps.setString(1, profile.getId().toString());
+                var rs = ps.executeQuery();
+                assertTrue(rs.next());
+                String[] slots = new com.google.gson.Gson().fromJson(rs.getString(1), String[].class);
+                slots[1] = "bm90IGFuIGl0ZW0="; // valid base64, not an item
+                ps = c.prepareStatement("UPDATE valmora_profiles SET inventory = ? WHERE id = ?");
+                ps.setString(1, new com.google.gson.Gson().toJson(slots));
+                ps.setString(2, profile.getId().toString());
+                ps.execute();
+            }
+
+            ValmoraProfile reloaded = store.loadPlayer(playerId).join().getActiveProfile();
+            assertEquals(Material.DIAMOND, reloaded.getSavedInventory()[0].getType(), "readable items still load");
+            assertNull(reloaded.getSavedInventory()[1]);
+            String recovered = java.nio.file.Files.readString(dir.resolve("recovery").resolve("undecodable_items.log"));
+            assertTrue(recovered.contains("bm90IGFuIGl0ZW0="), "raw bytes of the unreadable item are kept for recovery");
+        } finally {
+            store.close();
+        }
+    }
+
+    @Test
     void unknownPlayerLoadsAsNull(@TempDir Path dir) {
         HikariDataSource ds = newDataSource(dir.resolve("empty.db"));
         SQLDataStore store = new SQLDataStore(ds, false, LOGGER);

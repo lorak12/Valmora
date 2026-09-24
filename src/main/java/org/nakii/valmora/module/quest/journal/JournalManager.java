@@ -35,7 +35,9 @@ public class JournalManager implements Listener {
         ValmoraProfile profile = vp.getActiveProfile();
         if (profile == null) return;
 
-        Inventory inv = Bukkit.createInventory(null, 54, Formatter.format("<dark_green><bold>" + TITLE));
+        JournalHolder holder = new JournalHolder();
+        Inventory inv = Bukkit.createInventory(holder, 54, Formatter.format("<dark_green><bold>" + TITLE));
+        holder.inventory = inv;
         int slot = 0;
 
         for (QuestDefinition quest : qm.getRegistry().values()) {
@@ -51,9 +53,30 @@ public class JournalManager implements Listener {
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
-        Component title = event.getView().title();
-        if (!title.equals(Formatter.format("<dark_green><bold>" + TITLE))) return;
+        if (!(event.getView().getTopInventory().getHolder() instanceof JournalHolder)) return;
         event.setCancelled(true);
+    }
+
+    /**
+     * Closes every open journal. Called on module disable: once this listener is unregistered an
+     * open journal would no longer have its clicks cancelled, letting players take the icons out.
+     */
+    public void closeAll() {
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (online.getOpenInventory().getTopInventory().getHolder() instanceof JournalHolder) {
+                online.closeInventory();
+            }
+        }
+    }
+
+    /** Identifies journal inventories by holder rather than by title (titles are player-forgeable). */
+    private static final class JournalHolder implements org.bukkit.inventory.InventoryHolder {
+        private Inventory inventory;
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -87,7 +110,7 @@ public class JournalManager implements Listener {
             List<QuestObjective> objectives = quest.getObjectives();
             for (int i = 0; i < objectives.size(); i++) {
                 QuestObjective obj = objectives.get(i);
-                String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+                String key = quest.progressKey(i);
                 int progress = getProgressByKey(profile, quest.getId(), key, qm);
                 int required = obj.getRequired();
                 boolean done = progress >= required;

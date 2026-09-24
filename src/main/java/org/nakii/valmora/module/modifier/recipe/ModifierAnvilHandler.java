@@ -106,9 +106,7 @@ public class ModifierAnvilHandler implements DynamicMachineHandler {
     }
 
     private ItemType readItemType(ItemStack item) {
-        if (!item.hasItemMeta()) return ItemType.NONE;
-        String raw = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-        return raw == null ? ItemType.NONE : ItemType.find(raw).orElse(ItemType.NONE);
+        return org.nakii.valmora.module.item.ItemView.templateType(item);
     }
 
     private boolean isEmpty(ItemStack item) {

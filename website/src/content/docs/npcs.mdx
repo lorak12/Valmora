@@ -1,0 +1,64 @@
+---
+title: NPCs
+summary: Static characters — placement, click events, conversations, holograms, and /npc.
+---
+
+An **NPC** is a static character: a villager (or any living entity, or a `MANNEQUIN` skin) that
+stands somewhere, looks at players, and runs [script events](/docs/events) or a
+[conversation](/docs/conversations) on click. NPCs auto-spawn on load and respawn on a timer.
+
+## Files
+
+`plugins/Valmora/npcs/*.yml` — e.g. `shardworks_npcs.yml`, `shopkeeper.yml`,
+`example_quests.yml`. `/valmora reload` re-reads them.
+
+## A complete NPC
+
+```yaml
+# plugins/Valmora/npcs/shardworks_npcs.yml
+shardworks_prospector:
+  display-name: "<yellow>Prospector Kade"
+  entity-type: VILLAGER
+  world: world
+  x: -100
+  y: 20
+  z: -100
+  yaw: 0
+  look-at-player: true
+  show-name: true
+  on-right-click:
+    - "quest_board_assign shardworks"
+    - "open_gui shardworks_quest_board"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `display-name` | `<white>` + id | MiniMessage nameplate. |
+| `entity-type` | `VILLAGER` | Any living entity type; `MANNEQUIN` enables player skins. |
+| `world` / `x` / `y` / `z` / `yaw` | `world` / `0` / `64` / `0` / `0` | Spawn position. |
+| `conversation` | none | Conversation id — when set, right-click runs it **instead of** `on-right-click`. |
+| `on-right-click` / `on-left-click` | none | [Events](/docs/events) on click. The shopkeeper runs `open_gui general_store`. |
+| `look-at-player` | `false` | Track nearby players' heads. |
+| `show-name` | `true` | Show the nameplate. |
+| `skin-texture` / `signature` | none | `MANNEQUIN` only (see `/npc skin`). |
+| `holograms[]` | none | `{ name, text, vector: {x,y,z}, conditions, check_interval: 60 }` floating lines. |
+
+Right-click runs the `conversation` if set, else `on-right-click`; left-click runs
+`on-left-click`. Either click also counts for `talk_to_npc` [objectives](/docs/quest-packages).
+Quest packages attach dialogue with `npc_conversations: { thorin: thorin_main }`, overriding the
+NPC's `conversation:`. Respawn interval is `npcs.respawn-interval` in
+[config.yml](/docs/config-yml#npcs).
+
+## /npc
+
+```text
+/npc create <id> <entity_type> | delete <id> | list | info <id> | tp <id>
+/npc move <id> | rename <id> <name> | settype <id> <type> | setyaw <id> [yaw]
+/npc conversation <id> <dialogue_id> | clearconv <id>
+/npc skin <id> player|url|file|reset [value]
+/npc near [radius=32] | look <id> | showname <id> | reload
+```
+
+All need `valmora.admin`. `skin … file` reads from `plugins/Valmora/skins/`, `MANNEQUIN` only.
+
+<SeeAlso slugs={["conversations", "quests", "quest-packages", "guis", "zones"]} />

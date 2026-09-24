@@ -24,6 +24,14 @@ public class RegenTask implements Runnable {
         this.plugin = plugin;
     }
 
+    private boolean healthBlockedInCombat() {
+        return !plugin.getConfig().getBoolean("combat.regen.health-in-combat", false);
+    }
+
+    private boolean manaBlockedInCombat() {
+        return !plugin.getConfig().getBoolean("combat.regen.mana-in-combat", true);
+    }
+
     @Override
     public void run() {
         SystemStats sys = plugin.getStatModule().getSystemStats();
@@ -48,16 +56,21 @@ public class RegenTask implements Runnable {
 
             boolean needsHealthSync = false;
 
-            if (state.getCurrentHealth() < maxHealth && !state.isInCombat()) {
+            // HC-022: whether combat blocks health/mana regen is now configurable — was hardcoded
+            // to "health blocked in combat, mana always regens".
+            boolean healthBlockedInCombat = healthBlockedInCombat();
+            boolean manaBlockedInCombat = manaBlockedInCombat();
+
+            if (state.getCurrentHealth() < maxHealth && !(state.isInCombat() && healthBlockedInCombat)) {
                 double healthRegen = stats.getStat(sys.getHealthRegen());
                 state.heal(healthRegen, stats);
                 needsHealthSync = true;
                 healedCount++;
-            } else if (state.getCurrentHealth() < maxHealth && state.isInCombat()) {
+            } else if (state.getCurrentHealth() < maxHealth && state.isInCombat() && healthBlockedInCombat) {
                 skippedInCombat++;
             }
 
-            if (state.getCurrentMana() < maxMana) {
+            if (state.getCurrentMana() < maxMana && !(state.isInCombat() && manaBlockedInCombat)) {
                 double manaRegen = stats.getStat(sys.getManaRegen());
                 state.restoreMana(manaRegen, stats);
                 manaRestoredCount++;

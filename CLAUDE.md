@@ -46,7 +46,7 @@ This is a **modular RPG plugin**. Every major feature lives in its own `Reloadab
 Before implementing any feature, open and read:
 
 - **`docs/MODULE_DEVELOPMENT.md`** — complete lifecycle guide for creating, registering, enabling, and hot-reloading modules.
-- **`docs/modules/design/<module>.md`** and **`docs/modules/user/<module>.md`** for the module(s) you're touching — these are the current, per-module, verified-against-code reference (architecture/internals in `design/`, admin/player-facing YAML + commands in `user/`). Start from `docs/modules/design/INTEGRATION.md` / `docs/modules/user/INTEGRATION.md` for the cross-module map, and `docs/modules/modules.md` for the full module list.
+- **`docs/modules/design/<module>.md`** and **`docs/modules/user/<module>.md`** for the module(s) you're touching — these are the current, per-module, verified-against-code reference (architecture/internals in `design/`, admin/player-facing YAML + commands in `user/`). Start from `docs/modules/design/INTEGRATION.md` / `docs/modules/user/INTEGRATION.md` for the cross-module map (the module list itself is §5 below / `Valmora.java`).
 - **`docs/VALMORA_DOCUMENTATION.md`** — an older, broader single-file reference. Prefer the per-module docs above where they overlap (they're more current); this file is kept for content not yet migrated (e.g. §1–20 general engine architecture) and is being corrected in place as drift is found, not as a replacement for the per-module docs.
 - **`docs/Valmora_Modifier_Framework_Design.docx`** — if you're touching reforges, gemstones, or anything that grants stats/abilities from an attachable item component, read this first, then `docs/modules/design/modifier.md`/`docs/modules/user/modifier.md`. It's a hard rule, not a suggestion: **no new group-specific Java** (no `if group == "my_new_group"` in the engine, no dedicated `MyGroupModule`) — express new content as a modifier group + modifiers in `modifiers/groups/*.yml` / `modifiers/definitions/*.yml` instead. `docs/MODIFIER_FRAMEWORK_BACKLOG.md` tracks what's implemented vs. still deferred (trigger-bound STATE effects, a Java builder API, item-upgrade inheritance) — check it before assuming a described behavior already works.
 
@@ -90,8 +90,7 @@ valmora/
 │   ├── MODULE_DEVELOPMENT.md       ← READ THIS
 │   ├── modules/
 │   │   ├── design/<module>.md      ← READ THIS (per module you touch — architecture/internals)
-│   │   ├── user/<module>.md        ← READ THIS (per module you touch — admin/player-facing)
-│   │   └── modules.md              # index of all modules
+│   │   └── user/<module>.md        ← READ THIS (per module you touch — admin/player-facing)
 │   └── VALMORA_DOCUMENTATION.md    # broader older reference; per-module docs above take priority
 └── plugins/Valmora/                # Runtime data (generated, not committed)
     ├── config.yml
@@ -146,10 +145,21 @@ pack manager, see `docs/modules/design/pack.md` — it must stay last, since it 
 modules' existing reload machinery and must never be a dependency of anything else):
 
 ```
-script → time → rarity → stat → player → economy → ui → ability → item → mob → skill → combat →
-gui → recipe → machine → modifier → alchemy → enchant → zone → resource → fishing → npc → warp →
-points → notify → quest → collection → hud → calendar → pet → progression → pack
+script → world_rules → time → rarity → stat → player → economy → ui → ability → item → mob → skill →
+combat → gui → recipe → machine → modifier → alchemy → enchant → zone → death → resource → fishing →
+block_loot → npc → warp → points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
+
+`world_rules` (`WorldRulesModule`, VANILLA_CONTROL_AUDIT.md §8) was added right after `script` — no
+dependencies, purely applies `world.gamerules.*` from config.yml to every loaded/loading world.
+
+`death` (`DeathModule`, VANILLA_CONTROL_AUDIT.md §9) was previously missing from this list despite
+already being registered right after `zone` in code — corrected here to match `Valmora.java`.
+
+`block_loot` (`BlockLootModule`, see `docs/modules/design/blockloot.md`/`docs/modules/user/blockloot.md`)
+was added right after `fishing` and before `npc` — a global per-block-type loot override, with no
+`onEnable()`-time dependency on `item` (it reaches `ItemManager` only at event time, the same
+already-proven-safe pattern `item`'s own `LootListener` uses to reach the later `resource` module).
 
 Later modules may depend on earlier ones (e.g. `skill` can access `stat`). Earlier modules must not depend on later ones. If you add a new module, insert it at the correct position — document the reason in `Valmora.java` (the file already carries inline comments next to several entries explaining a dependency, e.g. `notify` before `quest`, `hud` after `script`, `modifier` after `recipe`).
 
@@ -198,6 +208,19 @@ this.listener = null;
 ### 6.3 Never Register Commands in a Module
 
 Commands are registered **after** all modules are enabled, directly in `Valmora.onEnable()`. If you need a new command, add it there — do not call `getCommand(...).setExecutor(...)` inside any module's `onEnable()`.
+
+### 6.3a Reload & Versioning
+
+Read `docs/modules/design/versioning.md` before touching persistence, item/mob templates or reload
+code. The short version:
+- Items and mobs read template values (stats, rarity, type, attributes) **live** from their
+  definition via `ItemView`/`MobLifecycleListener`. Only instance data is stored on them.
+- Every persisted shape has a version ladder: DB (`SQLDataStore`), profile JSON (`ProfileMigrator`),
+  items (`ItemMigrator`), `config.yml` (`ConfigUpdater`), default files (`ResourceManifest`).
+- Renames go through `previous-ids:` (`IdAliases`).
+- `YamlLoader` keeps the last good version of every entry.
+- Never capture profiles, managers or players in delayed tasks. Use `PlayerProfileLoadedEvent`
+  for join logic and `ValmoraReloadedEvent` for post-reload reconciliation.
 
 ### 6.4 Accessing Other Modules from Within a Module
 

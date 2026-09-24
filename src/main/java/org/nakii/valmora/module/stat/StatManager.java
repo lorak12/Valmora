@@ -37,6 +37,46 @@ public class StatManager {
         return new HashMap<>(baseStats);
     }
 
+    /**
+     * What gets persisted (profile data v3+): each base stat as its offset from the stat's
+     * CURRENT default, i.e. only what was actually allocated (admin commands, rewards). Saving
+     * the absolute value froze the default at whatever it was when the profile was created, so
+     * changing a stat's {@code default} in YAML never reached existing players.
+     */
+    public Map<String, Double> getAllocationSaveData() {
+        StatRegistry registry = ValmoraAPI.getInstance().getStatRegistry();
+        Map<String, Double> deltas = new HashMap<>();
+        baseStats.forEach((id, value) -> {
+            double def = registry.get(id).map(StatDefinition::getDefaultValue).orElse(0.0);
+            double delta = value - def;
+            if (delta != 0.0) deltas.put(id, delta);
+        });
+        return deltas;
+    }
+
+    /**
+     * Loads {@link #getAllocationSaveData()} output: base = current default + saved offset.
+     * Unrecognized ids are returned (not applied) for quarantine, like
+     * {@link #loadDataAndQuarantineUnrecognized}.
+     */
+    public Map<String, Double> loadAllocationsAndQuarantineUnrecognized(Map<String, Double> deltas) {
+        if (deltas == null) return Map.of();
+        StatRegistry registry = ValmoraAPI.getInstance().getStatRegistry();
+        Map<String, Double> absolute = new HashMap<>();
+        Map<String, Double> quarantined = new HashMap<>();
+        deltas.forEach((rawKey, delta) -> {
+            String key = rawKey.toLowerCase();
+            var def = registry.get(key);
+            if (def.isPresent()) {
+                absolute.put(key, def.get().getDefaultValue() + delta);
+            } else {
+                quarantined.put(key, delta);
+            }
+        });
+        loadData(absolute);
+        return quarantined;
+    }
+
     public void loadData(Map<String, Double> savedData) {
         if (savedData == null) return;
         // Normalize keys to lowercase to handle any legacy uppercase keys
@@ -145,11 +185,9 @@ public class StatManager {
         effectiveStats.clear();
         effectiveStats.putAll(baseStats);
 
-        for (PotionEffect effect : player.getActivePotionEffects()) {
-            if (effect.getDuration() > 20 * 60 * 60) {
-                player.removePotionEffect(effect.getType());
-            }
-        }
+        // Clear the passive effects Valmora applied (they're re-applied below by current gear's
+        // passive abilities). Only Valmora's own — other plugins' permanent effects stay.
+        org.nakii.valmora.module.item.PassiveEffects.clear(player);
 
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         ItemStack offHand = player.getInventory().getItemInOffHand();
@@ -195,8 +233,10 @@ public class StatManager {
             for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
                 var enchantDef = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
                 if (enchantDef == null) continue;
+                int enchantLevel = org.nakii.valmora.module.enchant.EnchantmentDefinition.effectiveLevel(enchantDef, entry.getValue());
+                if (enchantLevel <= 0) continue;
                 if (enchantDef.getLogic() != null) {
-                    enchantDef.getLogic().applyStats(player, entry.getValue(), this);
+                    enchantDef.getLogic().applyStats(player, enchantLevel, this);
                 }
                 // YAML-declared stats: block (Phase 4 of the enchant overhaul) — runs alongside the
                 // legacy Java hook above, not instead of it, matching every other tier's hybrid
@@ -204,7 +244,7 @@ public class StatManager {
                 if (!enchantDef.getStatBonuses().isEmpty()) {
                     var statCtx = new SimpleExecutionContext(player, null, null, null);
                     statCtx.set("enchant:id", enchantDef.getId());
-                    statCtx.set("enchant:level", entry.getValue());
+                    statCtx.set("enchant:level", enchantLevel);
                     for (Map.Entry<String, Expression> bonus : enchantDef.getStatBonuses().entrySet()) {
                         Object value = bonus.getValue().evaluate(statCtx);
                         if (value instanceof Number n) {
@@ -268,7 +308,11 @@ public class StatManager {
 
         ValmoraProfile profile = session.getActiveProfile();
         if (profile != null) {
-            if (!profile.getPlayerState().isInCombat()) {
+            // Skipped mid-reload: max values are understated until every module is back, and
+            // ModuleManager recalculates everyone once the reload completes.
+            var moduleManager = api.getModuleManager();
+            boolean reloading = moduleManager != null && moduleManager.isReloading();
+            if (!profile.getPlayerState().isInCombat() && !reloading) {
                 profile.getPlayerState().capToMax(this);
             }
             api.getPlayerManager().syncVisualHealth(player, profile.getPlayerState(), this);

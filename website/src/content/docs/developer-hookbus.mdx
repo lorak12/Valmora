@@ -1,0 +1,45 @@
+---
+title: HookBus & pipeline hooks
+summary: Java-side pipeline hooks — points, HookBus API, YAML interplay, and reload semantics.
+---
+
+The **HookBus** is the shared Java primitive behind [pipelines](/docs/pipelines): `domain:name`
+hook points where Java hooks run first, then YAML stages in order. Owned by `ScriptModule`,
+reached via `ValmoraAPI.getInstance().getHookBus()`. For YAML authoring, see
+[Pipelines](/docs/pipelines); for module patterns, see
+[Extending Valmora](/docs/developer-extending).
+
+## Points
+
+Real points: `combat:pre_damage`, `post_calculation`, `post_application`, `on_dmg_dealt`,
+`on_death`; `item:pre_ability`, `post_ability`; `mob:pre_ability`, `post_ability`;
+`resource:pre_break`, `post_break`; `fishing:pre_catch`, `post_catch`; `death:on_death`,
+`on_respawn`; plus `gui:<id>:on_open` and `enchant:<id>:<TRIGGER>`. YAML counterparts ship as
+`combat_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`, `resource_pipeline.yml`,
+`fishing_pipeline.yml`, `death_pipeline.yml` (empty/default).
+
+## API
+
+```java
+HookBus bus = ValmoraAPI.getInstance().getHookBus();
+bus.registerHook("combat:pre_damage", "myplugin:flat-cap", ctx -> {
+  double dmg = ctx.resolveDouble("damage", 0.0);
+  ctx.set("hook:damage", Math.min(dmg, 500.0));
+  return StageResult.CONTINUE;
+});
+// on shutdown:
+bus.unregisterHook("combat:pre_damage", "myplugin:flat-cap");
+```
+
+`registerHook(point, id, PipelineHook)` / `unregisterHook(point, id)`,
+`registerYamlStage(point, stage)` / `clearYamlStages(prefix)`, `hasStages(point)` /
+`hasAnyStages(…)`, `runPoint(point, ctx)` (Java first, then YAML; `StageResult.INTERRUPT`
+stops; exceptions are logged and skipped), `getRegisteredPoints()` / `getJavaHookIds()` /
+`getYamlStageIds()`, `clearAll()` (shutdown only). `PipelineHook` is a functional interface:
+`StageResult handle(ExecutionContext)`.
+
+Semantics: YAML stages rebuild on every `/valmora reload`; Java hooks **survive** reload, so
+the registrant must `unregisterHook` on its own shutdown. Zero-cost when unused — guard hot
+paths with `hasStages()` before building a context. Debug with `/valmora pipeline list [point]`.
+
+<SeeAlso slugs={["pipelines", "developer-api", "developer-extending", "developer-events"]} />

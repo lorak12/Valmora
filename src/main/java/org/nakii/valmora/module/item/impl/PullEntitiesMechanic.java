@@ -10,6 +10,7 @@ import org.bukkit.util.Vector;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.item.TargetResolver;
 
 import java.util.List;
@@ -25,7 +26,7 @@ import java.util.List;
  */
 public class PullEntitiesMechanic implements AbilityMechanic {
 
-    private static final long PERIOD_TICKS = 4L;
+    private static final long PERIOD_TICKS = MechanicDefaults.getLong("pull-entities", "period-ticks", 4L);
 
     @Override
     public String getId() {
@@ -36,12 +37,13 @@ public class PullEntitiesMechanic implements AbilityMechanic {
     public void execute(ExecutionContext context) {
         if (!(context.getCaster() instanceof Player player)) return;
 
+        double defaultStrength = MechanicDefaults.getDouble("pull-entities", "strength-default", 1.0);
         double strength = context.getParams().contains("strength")
-                ? context.resolveDouble("strength", 1.0)
-                : context.resolveDouble("force", 1.0);
-        double range = Math.max(1.0, context.resolveDouble("range", 20.0));
-        double durationSeconds = Math.max(0.05, context.resolveDouble("duration", 2.0));
-        String targetSelector = context.getString("target", "@enemies_in_radius{r=10}");
+                ? context.resolveDouble("strength", defaultStrength)
+                : context.resolveDouble("force", defaultStrength);
+        double range = Math.max(1.0, context.resolveDouble("range", MechanicDefaults.getDouble("pull-entities", "range-default", 20.0)));
+        double durationSeconds = Math.max(0.05, context.resolveDouble("duration", MechanicDefaults.getDouble("pull-entities", "duration-default", 2.0)));
+        String targetSelector = context.getString("target", MechanicDefaults.getString("pull-entities", "target-default", "@enemies_in_radius{r=10}"));
 
         Location well = findWellLocation(player, range);
         long totalTicks = Math.round(durationSeconds * 20);

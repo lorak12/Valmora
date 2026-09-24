@@ -32,7 +32,7 @@ public class PotionCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "alchemy")) {
             sender.sendMessage(net.kyori.adventure.text.Component.text("No permission."));
             return true;
         }
@@ -80,7 +80,7 @@ public class PotionCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) return List.of();
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "alchemy")) return List.of();
 
         if (args.length == 1) {
             return filter(List.of("give"), args[0]);

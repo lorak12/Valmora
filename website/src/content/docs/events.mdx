@@ -1,0 +1,64 @@
+---
+title: Events
+summary: Every script event — what it does and its exact syntax. Generated from the plugin's source, so nothing is missing.
+---
+
+Events are the "do something" lines in quest rewards, menu buttons, NPC clicks, abilities and
+everywhere else. How to write them — options like `delay:`, quoting, and who "the player" is — is
+on the [Scripting overview](/docs/scripting). In the syntax column, `<x>` is required, `[x]` is
+optional, and `a|b` means one of.
+
+Where an event takes a **selector** (`@self`, `@target`, `@enemies_in_radius{r=5}`…), see
+[Target selectors](/docs/target-selectors).
+
+## Core
+
+<RefTable kind="events" group="core" />
+
+## Economy
+
+Amounts accept shorthand and maths: `2.5k`, `1m`, `(1k+500)*2`.
+
+<RefTable kind="events" group="economy" />
+
+## Quests, NPCs, points, progression, warps
+
+<RefTable kind="events" group="world" />
+
+## Menus (GUIs)
+
+<RefTable kind="events" group="gui" />
+
+## Combat and enchants
+
+<RefTable kind="events" group="combat" />
+
+## Examples
+
+```yaml
+# a quest objective reward
+events:
+  - "notify <gold>Quest complete! category:quest_complete"
+  - "economy_add 500"
+  - "point reputation add 10"
+  - "tag add helped_the_village"
+  - "sound player entity.player.levelup"
+
+# a menu button that costs coins
+actions:
+  LEFT:
+    conditions:
+      - "$economy.purse$ >= 1000"
+    actions:
+      - "economy_remove 1000"
+      - "give ENCHANTED_GOLDEN_APPLE:1"
+    fail-actions:
+      - "notify <red>You need 1,000 coins."
+
+# a server-wide announcement from a calendar event
+on-start:
+  - "notifyall <gold>The Harvest Festival has begun! io:title"
+  - "foreach @all give BREAD:16"
+```
+
+<SeeAlso slugs={["scripting", "conditions", "variables", "target-selectors"]} />

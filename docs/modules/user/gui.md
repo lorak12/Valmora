@@ -16,7 +16,7 @@
 
 ## 1. Overview
 
-The **GUI module** is Valmora's menu system. Every screen in the plugin — your stats page, the skill tree, the collections browser, the bank, and all crafting machines (crafting table, anvil, forge, enchanting table, alchemy table, reforge) — is a **GUI defined entirely in YAML** and rendered live into your inventory.
+The **GUI module** is Valmora's menu system. Every screen in the plugin — your stats page, the skill tree, the collections browser, the bank, and all crafting machines (crafting table, anvil, forge, press, enchanting table, alchemy table) — is a **GUI defined entirely in YAML** and rendered live into your inventory.
 
 Nothing is hardcoded. An administrator can redesign any menu, change button behavior, add new pages, or point buttons at other GUIs by editing a file and running `/valmora reload`.
 
@@ -34,7 +34,7 @@ Menus open through a few entry points, depending on how the server is set up:
 
 - **Commands** — `/skills`, `/collections`, `/geomancy` (permission-gated; see §3.4).
 - **NPC dialogue** — an NPC dialogue can open a GUI as its response.
-- **Machines** — right-click a machine block (alchemy table, anvil, forge, crafting table, enchanting table) or interact with its NPC.
+- **Machines** — via a machine's `open-triggers:` in `machines/*.yml` (e.g. `block LODESTONE` for the shipped press), a GUI `command:`, an NPC, or a menu button. The shipped crafting table, forge and anvil have no trigger by default.
 - **Admin command** — an admin can open any GUI on you with `/gui open <yourname> <gui-id>`.
 
 ### 2.2 Navigation
@@ -94,31 +94,37 @@ The bank GUI (opened from its NPC) shows your balance. **Deposit** and **withdra
 ### 3.2 Anatomy of a GUI definition
 
 ```yaml
-bank:
-  title: "<dark_aqua>Grand Bank"
-  rows: 4
+server_menu:
+  title: "<dark_aqua>Server Menu"
+  rows: 3
   layout:
-    - "aaaaaaaaaaa"
-    - "abcdefghijk"
-    - "aaaaaaaaaaa"
+    - "#########"
+    - "#S#W#Q#X#"
+    - "#########"
   components:
-    a:
+    "#":
       type: DISPLAY
       display-item:
         material: GRAY_STAINED_GLASS_PANE
-        name: "<gray> "
-    b:
-      type: INPUT
-      id: deposit_value
+        name: " "
+    S:
+      type: DISPLAY
+      display-item:
+        material: PLAYER_HEAD
+        name: "<gold>Your stats"
+      actions:
+        LEFT:
+          actions:
+            - "open_gui stats"
     ...
   on-open:
     actions:
-      - "open_dialog_input pending_amount ..."
+      - "sound player ui.button.click"
 ```
 
 Key ideas:
 
-- **`layout:`** is a list of strings. Each string is one inventory row; every character is one slot. The GUI height equals the number of layout rows, or `rows:` if it's larger (extra rows are padded blank). Long component keys can span many characters — every character maps to the same component.
+- **`layout:`** is a list of strings. Each string is one inventory row of **9** characters; every character is one slot. The GUI height equals the number of layout rows, or `rows:` if it's larger (extra rows are padded blank). A component key longer than one character (`abc:`) makes every one of those characters map to that same component.
 - **`components:`** maps each character (or multi-char key) to a component describing what that slot does.
 - **`on-open` / `on-close` / `on-slot-update` / `on-update`** attach script blocks to GUI lifecycle events.
 
@@ -131,6 +137,7 @@ Key ideas:
 | `OUTPUT` | The auto-filled craft result slot. `id:` names it. |
 | `PAGINATED` | A dynamic list rendered across many slots (`list:`, `iterator:`, `sort:`, `states:`). See §3.6. |
 | `PREVIOUS_PAGE` / `NEXT_PAGE` | Page-turn buttons with a `display-item` and a `fallback` for the disabled look. |
+| `STORAGE` | Slots that save their contents — backpacks, accessory bags. `id`, `owner: PLAYER\|ITEM`, `storage-id`, `condition` (which items may go in, via `$candidate.item.*$`), `open-container`. |
 
 ### 3.4 Permissions
 
@@ -155,7 +162,7 @@ b:
   actions:
     LEFT:
       conditions:
-        - "$prop.pending_amount$ != ''"
+        - "$prop.pending_amount$ != null"
       actions:
         - "open_gui bank"
         - "sound player CLICK"
@@ -176,7 +183,7 @@ states:
     condition: "default"
     display-item: { material: GLASS_PANE, name: "<gray>Not selectable" }
   selected:
-    condition: "$prop.selected_enchant$ == 'sharpness'"
+    condition: "$prop.selected_enchant$ == sharpness"
     display-item: { material: GLOWSTONE_DUST, name: "<gold>Sharpness" }
     actions:
       LEFT:
@@ -199,13 +206,13 @@ p:
   path: abcdefghijklmnopqrstuvwxy         # defaults to the component key
   states:
     available:
-      condition: "$iterator.state$ == 'available'"
+      condition: "$iterator.state$ == available"
       display-item: { material: ENCHANTED_BOOK, name: "<green>Level $iterator.level$" }
       actions:
         LEFT:
           actions: [ "enchant_select input $iterator.id$ $iterator.level$" ]
     locked:
-      condition: "$iterator.state$ == 'locked'"
+      condition: "$iterator.state$ == locked"
       display-item: { material: BARRIER, name: "<dark_red>Locked" }
 ```
 
@@ -218,9 +225,13 @@ p:
 ```yaml
 forge:
   title: "<gold>Forge"
-  layout: ["abcdefghijklmnopqrstu"]
+  layout:
+    - "#########"
+    - "##c#d#e##"
+    - "#########"
   machine: forge                     # must match recipe definitions' machine id
   components:
+    "#": { type: DISPLAY, display-item: { material: BLACK_STAINED_GLASS_PANE, name: " " } }
     c: { type: INPUT,  id: base }
     d: { type: INPUT,  id: extra }
     e: { type: OUTPUT, id: result }
@@ -350,7 +361,10 @@ All components share:
 | `anvil` | `anvil.yml` | anvil machine |
 | `forge` | `forge.yml` | forge machine |
 | `crafting_table` | `crafting.yml` | crafting machine |
-| `reforge`, `reforge_anvil` | `reforge.yml`, `reforge_anvil.yml` | reforge flow |
+| `press` | `press.yml` | example 3-slot machine, opened by right-clicking a lodestone |
+| `fast_travel` | `fast_travel.yml` | `/warp` with no argument |
+| `accessory_bag`, `backpack_tier1`…`5`, `bait_bag`, `quiver` | matching files | STORAGE containers |
+| `general_store`, `slayers` | matching files | shop and slayer menus |
 | `shardworks_quest_board` | `shardworks_quest_board.yml` | quest board |
 | `active_effects` | `active_effects.yml` | opened by `/effects` |
 
@@ -359,4 +373,3 @@ All components share:
 - GUI ids are **case-sensitive**; always use the exact id shown in the file.
 - A dynamic `command:` name that collides with a `plugin.yml` command is silently won by the `plugin.yml` one.
 - The `destructure:` key is accepted but has no effect.
-- `fast_travel` (used by `/warp`) has **no shipped definition** — create `guis/fast_travel.yml` or `/warp` has nothing to open.

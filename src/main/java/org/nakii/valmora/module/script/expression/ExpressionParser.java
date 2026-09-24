@@ -38,8 +38,20 @@ public class ExpressionParser {
     private final List<String> tokens = new ArrayList<>();
     private int cursor = 0;
 
+    // HC-291: guards against a malformed/malicious content-pack expression (e.g. thousands of
+    // nested parens) blowing the call stack during parsing — this recursive-descent parser
+    // recurses once per nesting level, so unbounded input depth previously meant an unbounded
+    // StackOverflowError risk on the main thread. scripting.limits.max-expression-depth.
+    private static final int DEFAULT_MAX_DEPTH = 100;
+    private int maxDepth = DEFAULT_MAX_DEPTH;
+    private int depth = 0;
+
     public Expression parse(String input) {
         if (input == null || input.isEmpty()) return new LiteralNode(null);
+
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        maxDepth = plugin != null ? plugin.getConfig().getInt("scripting.limits.max-expression-depth", DEFAULT_MAX_DEPTH) : DEFAULT_MAX_DEPTH;
+        depth = 0;
 
         tokens.clear();
         Matcher matcher = TOKEN_PATTERN.matcher(input);
@@ -56,6 +68,18 @@ public class ExpressionParser {
             LOGGER.warning("[Script] Failed to parse expression '" + input + "': " + e);
             return new LiteralNode(null);
         }
+    }
+
+    /** Bumps the recursion-depth counter, throwing once {@code maxDepth} is exceeded — call at
+     *  the top of every method that recurses back into the grammar (parseTernary and down). */
+    private void enterRecursion() {
+        if (++depth > maxDepth) {
+            throw new IllegalStateException("expression nesting exceeds scripting.limits.max-expression-depth (" + maxDepth + ")");
+        }
+    }
+
+    private void exitRecursion() {
+        depth--;
     }
 
     private Expression parseTernary() {
@@ -122,7 +146,9 @@ public class ExpressionParser {
         if (token == null) return new LiteralNode(null);
 
         if (token.equals("(")) {
+            enterRecursion();
             Expression expr = parseTernary();
+            exitRecursion();
             consume(")");
             return expr;
         }
@@ -133,7 +159,9 @@ public class ExpressionParser {
         // naturally with the existing BinaryOpNode arithmetic (and binds at primary precedence,
         // so "-2*3" correctly parses as (-2)*3, not -(2*3)).
         if (token.equals("-")) {
+            enterRecursion();
             Expression operand = parsePrimary();
+            exitRecursion();
             return new BinaryOpNode(new LiteralNode(0.0), "-", operand);
         }
 
@@ -145,6 +173,7 @@ public class ExpressionParser {
             return new LiteralNode(token.substring(1, token.length() - 1));
         }
 
+        if (token.equalsIgnoreCase("null")) return new LiteralNode(null);
         if (token.equalsIgnoreCase("true")) return new LiteralNode(true);
         if (token.equalsIgnoreCase("false")) return new LiteralNode(false);
 
@@ -155,6 +184,7 @@ public class ExpressionParser {
         // Function call: identifier immediately followed by '('
         if (Character.isLetter(token.charAt(0)) && peek("(")) {
             consume("(");
+            enterRecursion();
             List<Expression> args = new ArrayList<>();
             if (!peek(")")) {
                 args.add(parseTernary());
@@ -162,6 +192,7 @@ public class ExpressionParser {
                     args.add(parseTernary());
                 }
             }
+            exitRecursion();
             consume(")");
             return new FunctionNode(token, args);
         }

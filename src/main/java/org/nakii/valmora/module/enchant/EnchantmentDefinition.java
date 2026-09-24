@@ -88,6 +88,16 @@ public class EnchantmentDefinition {
         return etableMaxLevel;
     }
 
+    /**
+     * The level an enchant actually acts at: the stored level capped at the CURRENT
+     * {@code absolute-max-level}, so lowering the cap in YAML applies to items that already carry
+     * a higher level (the stored level is kept, and comes back if the cap is raised again).
+     */
+    public static int effectiveLevel(EnchantmentDefinition def, int storedLevel) {
+        int cap = def.getAbsoluteMaxLevel();
+        return cap > 0 ? Math.min(storedLevel, cap) : storedLevel;
+    }
+
     public int getAbsoluteMaxLevel() {
         return absoluteMaxLevel;
     }

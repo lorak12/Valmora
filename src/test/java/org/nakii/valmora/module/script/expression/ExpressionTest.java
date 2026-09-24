@@ -8,6 +8,8 @@ import org.nakii.valmora.api.scripting.VariableResolver;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 public class ExpressionTest {
 
@@ -67,6 +69,24 @@ public class ExpressionTest {
         assertEquals("hello", evaluate("\"hello\""));
         assertEquals(true, evaluate("\"hello\" == \"hello\""));
         assertEquals(false, evaluate("\"hello\" == \"world\""));
+    }
+
+    @Test
+    public void unsetVariableCountsAsZeroInArithmeticAndOrdering() {
+        when(variableResolver.resolve(eq("$player.var.unset$"), any())).thenReturn(null);
+        assertEquals(5.0, evaluate("$player.var.unset$ + 5"));
+        assertEquals(true, evaluate("100 - $player.var.unset$ >= 100"));
+        // equality still distinguishes "unset" from 0
+        assertEquals(true, evaluate("$player.var.unset$ == null"));
+        assertEquals(false, evaluate("$player.var.unset$ == 0"));
+    }
+
+    @Test
+    public void numericStringsCompareAsNumbers() {
+        when(variableResolver.resolve(eq("$player.var.kills$"), any())).thenReturn("12");
+        assertEquals(true, evaluate("$player.var.kills$ > 10"));
+        assertEquals(true, evaluate("$player.var.kills$ == 12"));
+        assertEquals(22.0, evaluate("$player.var.kills$ + 10"));
     }
 
     @Test

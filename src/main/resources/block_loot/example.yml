@@ -1,0 +1,24 @@
+# Global Block Loot Overrides — VANILLA_CONTROL_AUDIT.md §1/§4
+#
+# Every entry here changes what a vanilla block drops SERVER-WIDE, everywhere, regardless of zone.
+# For a zone-scoped mineable node with regen/progression instead, use a zone's `resource-blocks:`
+# (see docs/modules/user/zone.md) — that system takes precedence over this one for any block it
+# also configures.
+#
+# The top-level key below is an arbitrary id, NOT the material name (content-pack namespacing can
+# rewrite it) — the actual block type is the required `material:` field inside the entry.
+#
+# This file ships with every example commented out: installing/updating this plugin changes no
+# vanilla block behavior until you opt in by uncommenting or writing your own entries.
+#
+# stone_override:
+#   material: STONE
+#   drops:
+#     - item: iron_dust      # a Valmora item id OR a vanilla material name
+#       min: 1
+#       max: 1
+#       chance: 1.0
+#     - item: DIAMOND
+#       min: 1
+#       max: 1
+#       chance: 0.02

@@ -956,33 +956,11 @@ plugins/Valmora/
 
 ## 22. config.yml Reference
 
-```yaml
-database:
-  # Which database engine to use.
-  # Options: sqlite, mysql
-  type: sqlite
-
-  # Only used when type is 'mysql'.
-  # mysql:
-  #   host: "127.0.0.1"
-  #   port: 3306
-  #   database: "valmora"
-  #   username: "root"
-  #   password: "password123"
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `database.type` | String | `sqlite` | `sqlite` uses a local `database.db` file. `mysql` requires the block below. |
-| `database.mysql.host` | String | — | MySQL server hostname or IP address. |
-| `database.mysql.port` | Integer | — | MySQL port (typically 3306). |
-| `database.mysql.database` | String | — | Database/schema name. Must exist and the user must have all privileges on it. |
-| `database.mysql.username` | String | — | MySQL user. |
-| `database.mysql.password` | String | — | MySQL password. |
-
-**SQLite** is recommended for single-server setups. It requires no external software and stores all data in `plugins/Valmora/database.db`.
-
-**MySQL** is recommended for networks with multiple servers sharing player data.
+> **Moved:** the full field-by-field reference (every top-level section of `config.yml`, not just
+> `database`) now lives in its own page: **[`docs/CONFIG_REFERENCE.md`](CONFIG_REFERENCE.md)**. This
+> stub is kept only so the numbered TOC link above still resolves — follow it for the current
+> content rather than duplicating it here (this section previously only documented `database`,
+> which had drifted badly out of date with the rest of the file).
 
 ---
 

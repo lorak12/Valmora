@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 
 /**
  * Launches the caster through the air (e.g. Leaping Sword). {@code y-force} controls the upward
@@ -23,9 +24,9 @@ public class LaunchPlayerMechanic implements AbilityMechanic {
     public void execute(ExecutionContext context) {
         if (!(context.getCaster() instanceof Player player)) return;
 
-        double yForce = context.resolveDouble("y-force", 1.0);
-        double forwardForce = context.resolveDouble("forward-force", 1.0);
-        boolean noFallDamage = context.getBoolean("no-fall-damage", false);
+        double yForce = context.resolveDouble("y-force", MechanicDefaults.getDouble("launch-player", "y-force-default", 1.0));
+        double forwardForce = context.resolveDouble("forward-force", MechanicDefaults.getDouble("launch-player", "forward-force-default", 1.0));
+        boolean noFallDamage = context.getBoolean("no-fall-damage", MechanicDefaults.getBoolean("launch-player", "no-fall-damage-default", false));
 
         Vector dir = player.getLocation().getDirection().normalize();
         Vector velocity = dir.multiply(forwardForce);

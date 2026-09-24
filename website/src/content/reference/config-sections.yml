@@ -1,0 +1,73 @@
+# One short introduction per top-level config.yml section, shown above that section's real
+# commented YAML on the config.yml page. Checked against config.yml at build time.
+
+database:
+  intro: "Where player data is saved. SQLite needs no setup; MySQL is for networks sharing player data. Changing anything here needs a restart."
+world:
+  intro: "Vanilla gamerules and weather locks Valmora applies to every world. Nothing is changed unless you uncomment it."
+permissions:
+  intro: "Which permission node each admin command checks. Change one key to give staff a single command — see Commands & permissions."
+economy:
+  intro: "Purse and bank: autosave, death loss, bank interest, number formatting, and bank messages."
+profiles:
+  intro: "How many character profiles a player can have and what they're named."
+time:
+  intro: "The RPG calendar: which world's clock drives it, the starting date, season/phase names, and days per phase."
+progression:
+  intro: "Refunds when a progression tree is reset, and the daily bonus window."
+combat:
+  intro: "Which stats play which role in the damage formula, environmental damage scaling, damage numbers, the in-combat window, regeneration, shields, attack-cooldown scaling, and damage-cause mapping."
+skills:
+  intro: "Fallback max level and XP curve for skills that don't set their own."
+mobs:
+  intro: "Mob AI/spawn task timing, natural spawning distances, boss announcements, damage and XP scaling formulas, and defaults for mob fields."
+mining:
+  intro: "Which stats play the mining roles (fortune, speed, breaking power, spread)."
+resource:
+  intro: "Zone resource nodes: how often their state is saved, the minimum regen delay, and Silk Touch behavior."
+block-loot:
+  intro: "The master switch and Silk Touch behavior for server-wide block drop overrides in block_loot/."
+quests:
+  intro: "How often timer and NPC-range objectives are checked, and the minimum delay-objective interval."
+scripting:
+  intro: "A safety limit on how deeply formulas can nest."
+npc-skin-server:
+  intro: "A small built-in web server that lets `/npc skin <id> file <name.png>` apply skins from plugins/Valmora/skins/."
+anvil:
+  intro: "Anvil XP costs for merging and repairing, repair materials for custom tool tiers, and the prior-work penalty cap."
+recipes:
+  intro: "Which machines fall back to vanilla crafting recipes when no custom recipe matches."
+pack:
+  intro: "Safety limits and the download index for `/valmora pack install`."
+items:
+  intro: "Vanilla item translation (breaking power, rarity and stats by tier), target-selector default radii, and the lore layout of every item."
+mechanics:
+  intro: "Default values for ability mechanic params that an ability doesn't set itself."
+enchants:
+  intro: "Enchanting-table cost per level, the built-in enchant logics' default strength, global level caps, and combo-state cleanup."
+pets:
+  intro: "How summoned pets follow their owner."
+modifiers:
+  intro: "Default rules for modifier groups that don't set their own, and the rarity-to-tier formula."
+alchemy:
+  intro: "Splash radius, effect tick rate, the active-effect cap, and the built-in healing/absorption curves."
+fishing:
+  intro: "The default weight of fishing loot entries that don't set one."
+notify:
+  intro: "Where each notification category is shown (chat, action bar, title…)."
+zones:
+  intro: "Zone task timing, border particles, spawner behavior, the zone wand item, and the wilderness name."
+death:
+  intro: "Keep-inventory/XP defaults, death messages per damage type, phantoms, and per-zone respawn points."
+warps:
+  intro: "Defaults for warp fields, and when a warp warmup is cancelled."
+gui:
+  intro: "Defaults for menu fields, the lore line cap, and the mass-craft limit."
+ui:
+  intro: "How often the scoreboard/action bar refresh, and the chat prefix."
+hud:
+  intro: "When HUD items are given back after respawning."
+npc:
+  intro: "NPC look range, hologram height, respawn/look task timing, message prefix, and skin lookup endpoints."
+dialogue:
+  intro: "Conversation pacing: NPC-to-NPC auto-advance speed, chat clearing, hints, and history."

@@ -43,6 +43,7 @@ public class ScriptModule implements ReloadableModule {
     private ExpressionEvaluator expressionEvaluator;
     private ConditionParser conditionParser;
     private EventParser eventParser;
+    private DelayedEventTracker delayedEvents;
 
     public ScriptModule(Valmora plugin) {
         this.plugin = plugin;
@@ -58,6 +59,11 @@ public class ScriptModule implements ReloadableModule {
         this.expressionEvaluator = new ExpressionEvaluatorImpl(this);
         this.conditionParser = new ConditionParser(this.expressionParser);
         this.eventParser = new EventParser(this);
+        this.delayedEvents = new DelayedEventTracker(plugin);
+        // No server in plain unit tests (they build a ScriptModule off a mocked plugin).
+        if (plugin.getServer() != null && plugin.getServer().getPluginManager() != null) {
+            plugin.getServer().getPluginManager().registerEvents(delayedEvents, plugin);
+        }
 
         // Register default providers
         registerProvider(new PlayerVariableProvider());
@@ -113,6 +119,11 @@ public class ScriptModule implements ReloadableModule {
     @Override
     public void onDisable() {
         plugin.getLogger().info("Disabling Script Engine...");
+        if (delayedEvents != null) {
+            delayedEvents.cancelAll();
+            org.bukkit.event.HandlerList.unregisterAll(delayedEvents);
+            delayedEvents = null;
+        }
         variableProviderRegistry.clear();
         eventFactoryRegistry.clear();
     }
@@ -139,6 +150,11 @@ public class ScriptModule implements ReloadableModule {
      */
     public Registry<EventFactory> getEventFactoryRegistry() {
         return eventFactoryRegistry;
+    }
+
+    /** Owner of scripts' {@code delay:} tasks. */
+    public DelayedEventTracker getDelayedEvents() {
+        return delayedEvents;
     }
 
     public VariableResolver getVariableResolver() {

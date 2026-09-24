@@ -16,15 +16,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class LethalityLogic implements EnchantmentLogic {
 
-    private static final int MAX_STACKS = 4;
-    private static final long STACK_DURATION_MS = 4_000;
+    private static final int DEFAULT_MAX_STACKS = 4;
+    private static final long DEFAULT_STACK_DURATION_MS = 4_000;
 
     private final double percentPerLevelPerStack;
+    // HC-114: per-enchant stacking balance, overridable via `logic-params: {max-stacks, stack-duration-ms}`.
+    private final int maxStacks;
+    private final long stackDurationMs;
     // victim uuid -> [stackCount, expiryMillis]
     private final Map<UUID, long[]> stacks = new ConcurrentHashMap<>();
 
     public LethalityLogic(double percentPerLevelPerStack) {
+        this(percentPerLevelPerStack, DEFAULT_MAX_STACKS, DEFAULT_STACK_DURATION_MS);
+    }
+
+    public LethalityLogic(double percentPerLevelPerStack, int maxStacks, long stackDurationMs) {
         this.percentPerLevelPerStack = percentPerLevelPerStack;
+        this.maxStacks = maxStacks;
+        this.stackDurationMs = stackDurationMs;
     }
 
     @Override
@@ -45,7 +54,7 @@ public class LethalityLogic implements EnchantmentLogic {
         long now = System.currentTimeMillis();
         long[] state = stacks.computeIfAbsent(victim.getUniqueId(), k -> new long[]{0, 0});
         int current = now < state[1] ? (int) state[0] : 0;
-        state[0] = Math.min(MAX_STACKS, current + 1);
-        state[1] = now + STACK_DURATION_MS;
+        state[0] = Math.min(maxStacks, current + 1);
+        state[1] = now + stackDurationMs;
     }
 }

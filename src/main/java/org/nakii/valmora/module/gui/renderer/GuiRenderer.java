@@ -36,6 +36,12 @@ public class GuiRenderer {
      */
     private static final Map<String, org.nakii.valmora.api.scripting.Condition> CONDITION_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Drops cached conditions (module disable), so conditions compiled against a previous script
+     *  engine generation, or strings no longer used by any GUI, don't outlive a reload. */
+    public static void clearConditionCache() {
+        CONDITION_CACHE.clear();
+    }
+
     public GuiRenderer(Valmora plugin) {
         this.plugin = plugin;
     }
@@ -374,9 +380,18 @@ public class GuiRenderer {
             for (String line : def.lore()) {
                 lore.add(resolveVariables(line, session, loopItem, iteratorName));
             }
+            // HC-292: guards against exceeding the client's ~256-line lore cap — a runaway
+            // dynamic/looped lore list (e.g. resolveVariables expanding a long collection) used to
+            // just get sent as-is with no warning.
+            int maxLoreLines = plugin != null ? plugin.getConfig().getInt("gui.max-lore-lines", 0) : 0;
+            if (maxLoreLines > 0 && lore.size() > maxLoreLines) {
+                plugin.getLogger().warning("[GUI] Item '" + def.material() + "' lore has " + lore.size()
+                        + " lines, exceeding gui.max-lore-lines (" + maxLoreLines + ") — truncated.");
+                lore = new ArrayList<>(lore.subList(0, maxLoreLines));
+            }
             meta.lore(Formatter.formatList(lore));
 
-            if (def.customModelData() != 0) {
+            if (def.customModelData() != null) {
                 meta.setCustomModelData(def.customModelData());
             }
             item.setItemMeta(meta);

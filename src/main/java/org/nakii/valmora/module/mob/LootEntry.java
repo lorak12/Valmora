@@ -37,9 +37,12 @@ public class LootEntry {
         return luckAffected;
     }
 
+    /** HC-089: {@code mobs.loot.luck-divisor} — how much 1 point of luck is worth (default 100 = +1%/point). */
     public double getEffectiveChance(double luck) {
         if (luckAffected && luck > 0) {
-            return chance + (luck / 100.0) * chance;
+            var plugin = org.nakii.valmora.Valmora.getInstance();
+            double divisor = plugin != null ? plugin.getConfig().getDouble("mobs.loot.luck-divisor", 100.0) : 100.0;
+            return chance + (luck / divisor) * chance;
         }
         return chance;
     }

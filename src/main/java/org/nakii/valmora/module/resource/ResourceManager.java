@@ -7,6 +7,7 @@ import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -48,6 +49,9 @@ public class ResourceManager {
 
     private final Valmora plugin;
     private final Map<String, ResourceTracker> trackedBlocks = new HashMap<>();
+    /** Saved entries whose world isn't loaded yet — kept and written back until it is. */
+    private final List<Map<?, ?>> pendingStateEntries = new ArrayList<>();
+    private BukkitTask pendingSave;
 
     public ResourceManager(Valmora plugin) {
         this.plugin = plugin;
@@ -105,13 +109,27 @@ public class ResourceManager {
         }
 
         ResourceStage stage = config.getStage(stageIndex);
-        double miningFortune = getPlayerMiningFortune(player);
 
-        for (ZoneResourceDrop drop : stage.getDrops()) {
-            if (Math.random() < drop.getChance()) {
-                int amount = applyFortune(drop.rollAmount(), miningFortune);
-                ItemStack item = createItem(drop.getItemId(), amount);
-                if (item != null) player.getInventory().addItem(item);
+        // Vanilla Silk Touch (VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction") — this
+        // resource system replaces vanilla's own drop calculation entirely (event.setDropItems(false)
+        // in ResourceListener), so a Silk Touch tool would otherwise still yield the configured loot
+        // table instead of the block itself. Mirrors vanilla: exactly 1 of the current-stage block,
+        // ignoring the loot table and Mining Fortune (vanilla Silk Touch ignores Fortune too).
+        // `resource.silk-touch.enabled` (default true) lets a server opt out entirely.
+        boolean silkTouch = plugin.getConfig().getBoolean("resource.silk-touch.enabled", true)
+                && player.getInventory().getItemInMainHand().containsEnchantment(Enchantment.SILK_TOUCH);
+
+        if (silkTouch) {
+            ItemStack item = createItem(originalMaterial.name(), 1);
+            if (item != null) player.getInventory().addItem(item);
+        } else {
+            double miningFortune = getPlayerMiningFortune(player);
+            for (ZoneResourceDrop drop : stage.getDrops()) {
+                if (Math.random() < drop.getChance()) {
+                    int amount = applyFortune(drop.rollAmount(), miningFortune);
+                    ItemStack item = createItem(drop.getItemId(), amount);
+                    if (item != null) player.getInventory().addItem(item);
+                }
             }
         }
 
@@ -129,12 +147,15 @@ public class ResourceManager {
         final Material finalOriginal = originalMaterial;
         plugin.getServer().getScheduler().runTask(plugin, () -> block.setType(nextMat, false));
 
-        long regenAtMillis = System.currentTimeMillis() + config.getRegenDelayTicks() * 50L;
+        // HC-241: guards a malformed resource config (e.g. `regen-delay: 1`) from scheduling a
+        // near-per-tick task storm on every mined block of that type.
+        long regenDelayTicks = clampRegenDelay(config.getRegenDelayTicks());
+        long regenAtMillis = System.currentTimeMillis() + regenDelayTicks * 50L;
         BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             block.setType(finalOriginal, false);
             trackedBlocks.remove(key);
             playRegenFeedback(block.getLocation(), finalOriginal);
-        }, config.getRegenDelayTicks());
+        }, regenDelayTicks);
 
         int depletedIndex = config.getStageCount(); // past end = depleted sentinel
         int nextStageIndex = isLastStage ? depletedIndex : stageIndex + 1;
@@ -143,10 +164,12 @@ public class ResourceManager {
             ResourceTracker newTracker = new ResourceTracker(originalMaterial, config, block.getLocation(), nextStageIndex, regenTask);
             newTracker.regenAtMillis = regenAtMillis;
             trackedBlocks.put(key, newTracker);
+            requestSave();
         } else {
             tracker.stageIndex = nextStageIndex;
             tracker.regenTask = regenTask;
             tracker.regenAtMillis = regenAtMillis;
+            requestSave();
         }
 
         return BreakResult.HANDLED;
@@ -165,6 +188,12 @@ public class ResourceManager {
         World world = loc.getWorld();
         if (world == null) return;
         world.playSound(loc, Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
+    }
+
+    /** HC-241: floors a configured regen delay to {@code resource.limits.min-regen-delay-ticks}. */
+    private long clampRegenDelay(long configuredTicks) {
+        long minTicks = plugin.getConfig().getLong("resource.limits.min-regen-delay-ticks", 20L);
+        return Math.max(minTicks, configuredTicks);
     }
 
     private void playRegenFeedback(Location loc, Material restoredMaterial) {
@@ -213,6 +242,18 @@ public class ResourceManager {
         return new File(plugin.getDataFolder(), "resource_state.yml");
     }
 
+    /**
+     * Saves soon (debounced ~2s) after a block is depleted. The 30s timer alone left up to 30s of
+     * depleted blocks unrecorded, so they stayed broken forever after a crash.
+     */
+    private void requestSave() {
+        if (pendingSave != null) return;
+        pendingSave = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            pendingSave = null;
+            saveState();
+        }, 40L);
+    }
+
     /** Snapshots {@link #trackedBlocks} to disk. Called on a periodic autosave timer by {@link ResourceModule}. */
     public void saveState() {
         YamlConfiguration yaml = new YamlConfiguration();
@@ -229,6 +270,7 @@ public class ResourceManager {
             entry.put("regen-at", tracker.regenAtMillis);
             entries.add(entry);
         }
+        entries.addAll((List) pendingStateEntries);
         yaml.set("tracked", entries);
         try {
             yaml.save(stateFile());
@@ -239,6 +281,7 @@ public class ResourceManager {
 
     /** Restores trackers (and reschedules their regen timers) from a prior unclean shutdown. Called once from {@code onEnable()}. */
     public void loadState() {
+        pendingStateEntries.clear();
         File file = stateFile();
         if (!file.exists()) return;
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
@@ -250,7 +293,11 @@ public class ResourceManager {
                 if (!(raw instanceof Map<?, ?> map)) continue;
                 try {
                     World world = plugin.getServer().getWorld(String.valueOf(map.get("world")));
-                    if (world == null) continue;
+                    if (world == null) {
+                        // World not loaded (yet): keep the entry instead of deleting it with the file.
+                        pendingStateEntries.add(map);
+                        continue;
+                    }
                     int x = ((Number) map.get("x")).intValue();
                     int y = ((Number) map.get("y")).intValue();
                     int z = ((Number) map.get("z")).intValue();
@@ -261,9 +308,14 @@ public class ResourceManager {
 
                     Location loc = new Location(world, x, y, z);
                     ZoneDefinition zone = plugin.getZoneManager().getZoneAt(loc).orElse(null);
-                    if (zone == null) continue;
-                    ZoneResourceConfig config = zone.getResourceBlocks().get(original);
-                    if (config == null) continue;
+                    ZoneResourceConfig config = zone != null ? zone.getResourceBlocks().get(original) : null;
+                    if (config == null) {
+                        // The zone or resource config was removed meanwhile — nothing will ever
+                        // regenerate this block, so put the original back now instead of leaving
+                        // it depleted forever.
+                        loc.getBlock().setType(original, false);
+                        continue;
+                    }
 
                     String key = locationKey(loc);
                     long remainingTicks = Math.max(1L, (regenAt - now) / 50L);
@@ -285,28 +337,29 @@ public class ResourceManager {
         if (restored > 0) {
             plugin.getLogger().info("[Resource] Restored " + restored + " mid-progress resource block(s) after an unclean shutdown.");
         }
-        // Consume the file — it's only meant to bridge a single unclean restart.
+        // Consume the file — it's only meant to bridge a single unclean restart. Entries for worlds
+        // that aren't loaded are written back so they survive until those worlds are.
         file.delete();
+        if (!pendingStateEntries.isEmpty()) saveState();
     }
 
     /** Deletes the persisted state file. Called on a clean {@code onDisable()} since {@link #cancelAll()} already restores the world. */
     public void clearStateFile() {
+        if (pendingSave != null) { pendingSave.cancel(); pendingSave = null; }
         File file = stateFile();
+        if (!pendingStateEntries.isEmpty()) {
+            saveState(); // trackedBlocks is empty after cancelAll(); only unloaded-world entries remain
+            return;
+        }
         if (file.exists()) file.delete();
     }
 
     private double getPlayerMiningFortune(Player player) {
-        ValmoraPlayer session = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
-        if (session == null) return 0.0;
-        var profile = session.getActiveProfile();
-        if (profile == null) return 0.0;
-        return profile.getStatManager().getStat(ValmoraAPI.getInstance().getSystemStats().getMiningFortune());
+        return org.nakii.valmora.util.MiningFortune.getPlayerMiningFortune(player);
     }
 
     private int applyFortune(int baseAmount, double miningFortune) {
-        if (miningFortune <= 0) return baseAmount;
-        double multiplier = 1.0 + miningFortune / 100.0;
-        return (int) Math.max(baseAmount, Math.round(baseAmount * multiplier));
+        return org.nakii.valmora.util.MiningFortune.applyFortune(baseAmount, miningFortune);
     }
 
     private ItemStack createItem(String itemId, int amount) {

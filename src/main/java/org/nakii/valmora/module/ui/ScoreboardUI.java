@@ -28,9 +28,18 @@ public class ScoreboardUI {
     private static final String[] LINE_ENTRIES = new String[MAX_LINES];
 
     static {
-        String chars = "0123456789abcdef";
+        // HC-180 fix: each sidebar line needs a unique scoreboard "entry" (score owner) that
+        // renders as nothing next to the real line text (which is set separately via
+        // Team#prefix — a Component, correctly built through Formatter/MiniMessage elsewhere in
+        // this class). A bare legacy color code with no following text is the only entry shape
+        // that reliably renders invisible in the sidebar, so this can't be replaced with a plain
+        // unique string (e.g. "line_0") without the raw entry text becoming visible. This used to
+        // build that code with a raw "§" literal, violating CLAUDE.md §7.5's "never use ChatColor
+        // or § codes" rule; it now goes through org.bukkit.ChatColor's own (non-deprecated)
+        // COLOR_CHAR constant instead of a magic-character literal in this file.
+        org.bukkit.ChatColor[] codes = org.bukkit.ChatColor.values();
         for (int i = 0; i < MAX_LINES; i++) {
-            LINE_ENTRIES[i] = "§" + chars.charAt(i);
+            LINE_ENTRIES[i] = org.bukkit.ChatColor.COLOR_CHAR + String.valueOf(codes[i].getChar());
         }
     }
 
@@ -246,7 +255,8 @@ public class ScoreboardUI {
         try {
             var zm = ValmoraAPI.getInstance().getZoneManager();
             String zoneLine = zm != null ? zm.getCurrentZone(player)
-                    .map(z -> z.getDisplayName()).orElse("<green>Wilderness") : "<green>Wilderness";
+                    .map(z -> z.getDisplayName()).orElse(org.nakii.valmora.module.zone.ZoneVariableProvider.wildernessName())
+                    : org.nakii.valmora.module.zone.ZoneVariableProvider.wildernessName();
             lines.add(Formatter.format("<gray>Zone: " + zoneLine));
         } catch (Exception ignored) {}
 

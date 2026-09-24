@@ -1,6 +1,6 @@
 # Recipe Module — User Documentation
 
-> The Valmora machine/crafting engine. Powered by custom **machines** (crafting table, forge, anvil, alchemy table, reforge) defined in GUI files and backed by recipes in `plugins/Valmora/recipes/*.yml`.
+> The Valmora machine/crafting engine. Powered by custom **machines** (crafting table, forge, press, anvil, alchemy table) defined in GUI files and backed by recipes in `plugins/Valmora/recipes/*.yml`.
 > Module ID: `recipe` — has no commands and no permissions of its own; everything is driven through GUIs.
 
 ---
@@ -39,10 +39,11 @@ Each machine is a menu opened by the server. Recipes match automatically as you 
 |---|---|---|
 | **Crafting Table** | Crafting Table GUI | 3×3 grid. Place a pattern in the input slots on the left; the result appears on the right. Works with shaped, shapeless, and vanilla recipes. |
 | **Forge** | Forge GUI | 2 input slots: left = **base item**, right = **material**. A positional (SHAPED) recipe, like the crafting table just narrower. |
-| **Anvil** | Anvil GUI | Left = **item to upgrade**, middle = **upgrade material**. Combines Valmora enchantments. |
+| **Anvil** | Anvil GUI | Left = **item to upgrade**, right = **material**. Explicit `recipes/anvil/` upgrades, reforges and gemstones (the modifier framework), enchant merging and repair — see `docs/modules/user/modifier.md` and the website's Anvil page. |
 | **Alchemy Table** | Alchemy Table GUI | Ingredient in the top slot, potions/bottles below. Brews Valmora potions on a timer. |
-| **Reforge Anvil** | Reforge Anvil GUI | Left = **item**, right = **Reforge Stone**. Applies the stone's reforge to the item for a coin cost. |
-| **Reforge Item** | Reforge GUI | One input slot. Applies a **random** valid reforge for a coin cost. |
+
+Reforging has no machine of its own any more: reforge stones and the random reforge are anvil
+recipes of the modifier framework (`modifiers/recipes/reforges.yml`).
 
 ### Crafting tips
 
@@ -73,16 +74,16 @@ An `item:` value can be either:
 
 The `machine:` key must match the `machine:` key of a GUI definition file in `plugins/Valmora/guis/*.yml`. Machine IDs in use:
 
-| Machine ID | GUI file |
-|---|---|
-| `crafting_table` | `guis/crafting.yml` |
-| `forge` | `guis/forge.yml` |
-| `alchemy` | `guis/alchemy.yml` |
-| `anvil` | `guis/anvil.yml` (dynamic, no YAML recipes) |
-| `reforge_anvil` | `guis/reforge_anvil.yml` (dynamic) |
-| `forge_random` | `guis/reforge.yml` (dynamic) |
+| Machine ID | GUI file | Recipes |
+|---|---|---|
+| `crafting_table` | `guis/crafting.yml` | YAML (`recipes/*.yml`), then vanilla crafting |
+| `forge` | `guis/forge.yml` | YAML |
+| `press` | `guis/press.yml` | YAML (`recipes/press_examples.yml`) |
+| `alchemy` | `guis/alchemy.yml` | Code (`alchemy/*.yml` effects) |
+| `anvil` | `guis/anvil.yml` | `recipes/anvil/*.yml` UPGRADE/TRANSMUTE, then `modifiers/recipes/*.yml`, then enchant merge/repair |
 
-Dynamic machines (anvil, reforge) are handled in code — you do **not** define their recipes in YAML. Defining a recipe under a machine ID without a matching GUI does nothing.
+Each machine is also declared in `machines/*.yml` (which GUI it opens and how players open it — see
+`open-triggers`). Defining a recipe under a machine ID without a matching GUI does nothing.
 
 ### Recipe types
 
@@ -245,7 +246,7 @@ File: `plugins/Valmora/recipes/<name>.yml`
 | Key | Required | Default | Description |
 |---|---|---|---|
 | `ingredients.<letter>` | Yes | — | Single-character key, referenced by `pattern:`. |
-| `ingredients.<letter>.material` | Yes | — | Required item (custom ID or material). |
+| `ingredients.<letter>.material` | Yes | — | Required item (custom ID or material). `item:` is accepted as an alias. |
 | `ingredients.<letter>.amount` | No | `1` | Quantity required in that one slot. |
 
 ### Permissions

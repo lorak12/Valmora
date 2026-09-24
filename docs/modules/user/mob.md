@@ -238,7 +238,7 @@ Folder: `plugins/Valmora/mobs/`. Every `*.yml` is scanned; each top-level key be
 | Key | Type | Required | Default | Explanation |
 |---|---|---|---|---|
 | `<mob-id>` | map key | **yes** | — | The mob's ID, used by `/mob spawn`, zone spawners, quests, slayers, scripts. |
-| `name` | String (MiniMessage) | no | *(none)* | Display name on the nameplate. ⚠ **Set it** — omitting it breaks spawning (capitalize NPE). |
+| `name` | String (MiniMessage) | no | the mob id | Display name on the nameplate. Falls back to the mob's own id when omitted. |
 | `category` | String enum | **yes** | — | One of `UNDEAD`, `ENDER`, `NETHER`, `BEAST`, `AQUATIC`, `ARTHROPOD`, `ILLAGER`, `GOLEM`, `BOSS`, `OTHER`. |
 | `type` | String enum | **yes** | — | Bukkit `EntityType`, e.g. `ZOMBIE`, `IRON_GOLEM`, `VEX`, `MAGMA_CUBE`. |
 | `level` | Integer | no | `1` | Shown on the nameplate. Raises damage (`+level−1`) and XP reward (`×level`). |
@@ -259,7 +259,7 @@ Canonical place for stats. Legacy flat keys (`health`, `base-damage`, `speed`, `
 
 | Key | Type | Default | Explanation |
 |---|---|---|---|
-| `stats.health` / `health` | Double | `0.0` | Max HP and starting HP. ⚠ **Always set it** — the default is 0 HP. |
+| `stats.health` / `health` | Double | `20.0` | Max HP and starting HP. Defaults to 20 (one vanilla heart bar) when omitted. |
 | `stats.damage` / `base-damage` | Double | `5.0` | Base melee attack damage before level scaling. |
 | `stats.speed` / `speed` | Double | `0.0` | Vanilla movement-speed attribute (`0.25` ≈ normal walk). |
 | `stats.defense` / `defense` | Double | `0.0` | Reduces damage taken via `100/(defense+100)`. |
@@ -298,7 +298,7 @@ Values are vanilla materials or Valmora item IDs.
 
 | Key | Type | Required | Default | Explanation |
 |---|---|---|---|---|
-| `item` | String | **yes** | — | Material name or Valmora item ID. Invalid entries are skipped. |
+| `item` | String | **yes** | — | Material name or Valmora item ID. An id that doesn't resolve fails the **whole mob's** load (logged as a warning), not just that drop. |
 | `min-amount` | Integer | no | `1` | Minimum stack size. |
 | `max-amount` | Integer | no | `= min-amount` | Maximum stack size (random between min and max). |
 | `chance` | Double | no | `1.0` | Probability `0.0`–`1.0` this drop rolls. |
@@ -341,7 +341,7 @@ Map of ability-ID → ability config. Any ability makes the mob a **boss** (trac
 | `gold-reward` | `0` |
 | `damage-type` | `MELEE` |
 | `stats.damage` | `5.0` |
-| `stats.health` | `0.0` ⚠ |
+| `stats.health` | `20.0` |
 | `knockback-resistance` | `-1.0` (vanilla) |
 | `no-ai` / `silent` / `glowing` / `persistent` / `baby` / `prevent-sun-burn` | `false` |
 | `loot drop: min-amount` / `max-amount` / `chance` / `luck-affected` | `1` / `= min` / `1.0` / `false` |

@@ -10,6 +10,10 @@ public class SkillRegistry extends SimpleRegistry<SkillDefinition> {
     // The "default" curve here always matches the exact original hardcoded threshold table.
     private final XpCurveRegistry xpCurveRegistry = new XpCurveRegistry();
 
+    public SkillRegistry() {
+        super(org.nakii.valmora.infrastructure.versioning.IdAliases.SKILLS);
+    }
+
     public void registerSkill(SkillDefinition definition) {
         register(definition.getId(), definition);
     }

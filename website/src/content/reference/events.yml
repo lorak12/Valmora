@@ -1,0 +1,245 @@
+# Every script event the plugin registers. Keys must match the plugin exactly — the build fails
+# (scripts/extract-reference.mjs) if an event exists in the Java source but not here, or vice versa.
+# group: which table on the Events page the row appears in.
+
+# --- Core ------------------------------------------------------------------------------------
+give:
+  group: core
+  syntax: "give <MATERIAL>:<amount>"
+  description: "Gives the player a stack of a vanilla item, e.g. `give DIAMOND:3`. Vanilla materials only — it cannot give Valmora items."
+variable:
+  group: core
+  syntax: "variable <set|add|remove> <path> <value>"
+  description: "Writes a variable. `path` is `player.var.<name>` (saved on the profile), `player.stat.<id>`, or inside a GUI `prop.<key>`. `value` may contain `$variables$`. A value of `true`/`false` is stored as a real boolean."
+tag:
+  group: core
+  syntax: "tag <add|remove> <tagName>"
+  description: "Adds or removes a named tag on the player's profile. Read it back with the `tag` condition."
+condition:
+  group: core
+  syntax: "condition <condition>"
+  description: "Stops the rest of the current action list if the condition is false, and runs `fail-actions` instead when the block has them. Accepts any condition string."
+teleport:
+  group: core
+  syntax: "teleport warp:<id> | teleport @look <blocks> | teleport <x> <y> <z> | teleport <world> <x> <y> <z>"
+  description: "Teleports the player to a warp (respecting its unlock condition), forward along their view, or to coordinates."
+spawn_mob:
+  group: core
+  syntax: "spawn_mob <mobId> [count] [radius:<blocks>]"
+  description: "Spawns one or more custom mobs around the player."
+stat_modify:
+  group: core
+  syntax: "stat_modify <add|set|reset> <statId> [value]"
+  description: "Changes the player's base value of a stat. Permanent until changed again — use the `MODIFY_STAT` mechanic for temporary buffs."
+foreach:
+  group: core
+  syntax: "foreach @all <event…> | foreach @nearby:<radius> <event…>"
+  description: "Runs the inner event once for every online player (`@all`) or every player within the radius. Inside the inner event, that player is the caster. Don't put `notify` or `delay:` in the inner event."
+run_script:
+  group: core
+  syntax: "run_script <intervalTicks> <times> <event…>"
+  description: "Runs the inner event `times` times, `intervalTicks` apart. `run_script 20 5 spawn_mob zombie_minion` spawns one per second for 5 seconds."
+interrupt:
+  group: core
+  syntax: "interrupt"
+  description: "Stops everything after it at the current pipeline point, including later stages. At an interruptible point it also cancels the underlying action (the hit, the break, the ability)."
+counter:
+  group: core
+  syntax: "counter <increment|decrement|add|reset> player.var.<name> [amount]"
+  description: "Numeric shortcut for a `player.var` counter. `amount` defaults to 1."
+entity:
+  group: core
+  syntax: "entity set <health|max_health|name> <value> [selector]"
+  description: "Sets a vanilla property on the target entity (default: the caster). Changes vanilla health, not a player's Valmora HP — use `heal`/`damage` for players."
+apply_potion:
+  group: core
+  syntax: "apply_potion <effect> <level> <seconds> [selector]"
+  description: "Applies a vanilla potion effect. `level` starts at 1. Selector defaults to `@self`."
+give_coins:
+  group: core
+  syntax: "give_coins <amount> [selector]"
+  description: "Adds coins to the target's purse (default `@self`)."
+take_coins:
+  group: core
+  syntax: "take_coins <amount> [selector]"
+  description: "Removes coins from the target's purse (default `@self`)."
+heal:
+  group: core
+  syntax: "heal <selector> <amount>"
+  description: "Heals the target(s). Players heal their Valmora HP. `amount` can be a formula, e.g. `heal @self $player.max_hp$ * 0.05`."
+damage:
+  group: core
+  syntax: "damage <selector> <amount> [damageType]"
+  description: "Deals damage of a damage type (default `MAGIC`) to the target(s). Wrap a formula with spaces in double quotes: `damage @target \"$player.stat.strength$ * 2\" FIRE`."
+strike_lightning:
+  group: core
+  syntax: "strike_lightning [selector]"
+  description: "Strikes lightning at the target(s) (default `@target`)."
+notify:
+  group: core
+  syntax: "notify <message> [category:<name>] [io:<chat|actionbar|title|subtitle|bossbar|sound|advancement>]"
+  description: "Sends the player a MiniMessage message through the notification system. A word containing `:` is read as an option, not message text."
+notifyall:
+  group: core
+  syntax: "notifyall <message> [category:<name>] [io:<type>]"
+  description: "Like `notify`, but sends to every online player."
+sound:
+  group: core
+  syntax: "sound <sound.key> | sound player <sound.key>"
+  description: "Plays a sound to the player at their location. The optional first word is ignored, so both shapes work."
+
+# --- Economy ---------------------------------------------------------------------------------
+economy_add:
+  group: economy
+  syntax: "economy_add <amount>"
+  description: "Adds coins to the player's purse. Amounts accept `2.5k`, `1m` and arithmetic like `(1k+500)*2`."
+economy_remove:
+  group: economy
+  syntax: "economy_remove <amount>"
+  description: "Removes coins from the player's purse."
+economy_deposit:
+  group: economy
+  syntax: "economy_deposit <amount|all|half>"
+  description: "Moves coins from purse to bank."
+economy_withdraw:
+  group: economy
+  syntax: "economy_withdraw <amount|all|half|N%>"
+  description: "Moves coins from bank to purse."
+economy_deposit_all:
+  group: economy
+  syntax: "economy_deposit_all"
+  description: "Moves the whole purse into the bank."
+
+# --- Combat / enchants -------------------------------------------------------------------------
+multiply_damage:
+  group: combat
+  syntax: "multiply_damage <factor>"
+  description: "Only inside `combat_pipeline.yml`: multiplies the current hit's damage. Several calls multiply together (1.5 × 1.5 = 2.25)."
+enchant_state:
+  group: combat
+  syntax: "enchant_state <increment|add|set|reset> <key> [amount]"
+  description: "Only inside an enchant's `triggers:`: changes one of that enchant's `state:` counters."
+
+# --- GUI -------------------------------------------------------------------------------------
+open_gui:
+  group: gui
+  syntax: "open_gui <guiId> [key=value…]"
+  description: "Opens a GUI, optionally pre-setting `prop.<key>` values in it."
+gui_back:
+  group: gui
+  syntax: "gui_back"
+  description: "Returns to the GUI that opened the current one."
+close:
+  group: gui
+  syntax: "close"
+  description: "Closes the player's open GUI."
+gui_force_craft:
+  group: gui
+  syntax: "gui_force_craft"
+  description: "Crafts whatever recipe the GUI's INPUT slots currently match and puts the result in its OUTPUT slots."
+givexp:
+  group: gui
+  syntax: "givexp player <SKILL> <amount>"
+  description: "Gives skill XP, e.g. `givexp player MINING 50`."
+recalculate_stats:
+  group: gui
+  syntax: "recalculate_stats"
+  description: "Recalculates the player's stats immediately — put it in a storage GUI's `on-close` so accessory changes apply at once."
+open_dialog_input:
+  group: gui
+  syntax: "open_dialog_input <propKey> [title] [label] [placeholder…] [return=<guiId>]"
+  description: "Asks the player to type a value in a dialog, stores it in `prop.<propKey>`, then reopens `return` (default: the current GUI)."
+open_sign_input:
+  group: gui
+  syntax: "open_sign_input <propKey> [placeholder…]"
+  description: "Same as `open_dialog_input`, but using a sign editor."
+enchant_apply:
+  group: gui
+  syntax: "enchant_apply <inputSlotId> <enchantId> <level>"
+  description: "Enchanting-table GUI internal: applies an enchant to the item in that INPUT slot, charging XP."
+enchant_select:
+  group: gui
+  syntax: "enchant_select <inputSlotId> <enchantId>"
+  description: "Enchanting-table GUI internal: selects an enchant and shows its level list."
+enchant_remove:
+  group: gui
+  syntax: "enchant_remove <inputSlotId> <enchantId>"
+  description: "Enchanting-table GUI internal: removes an enchant from the item."
+enchant_back:
+  group: gui
+  syntax: "enchant_back"
+  description: "Enchanting-table GUI internal: returns from the level list to the enchant list."
+gui_alchemy_start:
+  group: gui
+  syntax: "gui_alchemy_start"
+  description: "Alchemy-table GUI internal: starts a timed brew."
+gui_alchemy_brew:
+  group: gui
+  syntax: "gui_alchemy_brew"
+  description: "Alchemy-table GUI internal: checks and finishes a brew."
+
+# --- NPC / quests / points / progression / warps -----------------------------------------------
+dialogue:
+  group: world
+  syntax: "dialogue start <conversationId>"
+  description: "Starts a conversation for the player."
+gui:
+  group: world
+  syntax: "gui open <guiId>"
+  description: "Opens a GUI. Same as `open_gui`, kept for NPC scripts."
+quest_start:
+  group: world
+  syntax: "quest_start <questId>"
+  description: "Starts a quest for the player."
+quest_complete:
+  group: world
+  syntax: "quest_complete <questId>"
+  description: "Marks a quest completed, regardless of progress. Does not fire any objective's events."
+quest_cancel:
+  group: world
+  syntax: "quest_cancel <questId>"
+  description: "Resets a quest back to not started."
+quest_fail:
+  group: world
+  syntax: "quest_fail <questId>"
+  description: "Marks a quest failed."
+objective_start:
+  group: world
+  syntax: "objective_start <objectiveId>"
+  description: "Starts one objective by id — used to kick off `delay`/`timer` objectives."
+objective_delete:
+  group: world
+  syntax: "objective_delete <objectiveId>"
+  description: "Clears one objective's progress."
+quest_board_assign:
+  group: world
+  syntax: "quest_board_assign <boardId>"
+  description: "Fills the player's slots on a quest board."
+quest_board_collect:
+  group: world
+  syntax: "quest_board_collect <boardId> <slot>"
+  description: "If the quest in that board slot is complete, fires its `reward-events` and rerolls the slot."
+journal:
+  group: world
+  syntax: "journal [open]"
+  description: "Opens the player's quest journal."
+point:
+  group: world
+  syntax: "point <category> <add|set|take> <amount>"
+  description: "Changes the player's balance in a points category (any name you choose, e.g. `currency`)."
+progression_levelup:
+  group: world
+  syntax: "progression_levelup <treeId> <nodeId>"
+  description: "Spends the player's currency to level a node in a progression tree."
+progression_unlock_tier:
+  group: world
+  syntax: "progression_unlock_tier <treeId>"
+  description: "Unlocks the next tier of a progression tree."
+progression_reset:
+  group: world
+  syntax: "progression_reset <treeId>"
+  description: "Resets a progression tree and refunds `progression.refund-percent` of what was spent."
+warp_to:
+  group: world
+  syntax: "warp_to <warpId>"
+  description: "Teleports the player to a warp."

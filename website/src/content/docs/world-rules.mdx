@@ -1,0 +1,39 @@
+---
+title: World rules
+summary: "Server-wide gamerules and weather lock — the world section of config.yml."
+---
+
+**World rules** are server-wide gamerules plus an optional weather lock, applied to every loaded
+world on enable/reload and to future worlds on `WorldLoadEvent`. There are no content files and
+no command — just the `world:` section of [config.yml](/docs/config-yml#world).
+
+## Config
+
+```yaml
+# plugins/Valmora/config.yml
+world:
+  gamerules:
+    # keepInventory: false
+    # naturalRegeneration: true
+    # doFireTick: true
+    # doWeatherCycle: true
+    # doDaylightCycle: true
+    # doMobSpawning: true
+    # doMobLoot: true
+    # doImmediateRespawn: false
+    # fallDamage: true
+    # fireDamage: true
+    # drowningDamage: true
+    # playersSleepingPercentage: 100
+    # randomTickSpeed: 3
+    # spawnChunkRadius: 2
+  # weather-lock:
+  #   world: CLEAR
+```
+
+Only uncommented keys apply — commented lines are documentation. `weather-lock` maps a world
+name to `CLEAR`, `RAIN` or `THUNDER` and re-enforces it on every weather/thunder change;
+unlisted worlds are untouched. Per-region overrides (PvP, hunger, mob spawning) belong in
+[zones](/docs/zones), not here.
+
+<SeeAlso slugs={["config-yml", "zones", "time-calendar", "death", "troubleshooting"]} />

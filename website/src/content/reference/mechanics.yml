@@ -1,0 +1,54 @@
+# Every ability mechanic (the `type:` of an entry in an ability's `mechanics:` list). Case-insensitive
+# in YAML. Keys must match the plugin exactly — checked at build time.
+
+DAMAGE:
+  params: "`damage` (number or formula, default 1), `damage-type` (any damage type id, `PHYSICAL` = `MELEE`; default `MAGIC`), `target` (default `@target`), `ticks` (default 1), `interval` (seconds, default 1)"
+  description: "Deals damage. With `ticks` > 1 the first hit lands immediately and the rest follow `interval` seconds apart."
+HEAL:
+  params: "`heal` (number or formula), `target` (default `@player`), `ticks`, `interval`"
+  description: "Heals players. The amount key is `heal`, not `amount`."
+APPLY_EFFECT:
+  params: "`effect` (vanilla effect key, e.g. `slowness`), `duration` (seconds, default 5, `-1` = infinite), `amplifier` (level, 1 = level I), `hide-particles` (true/false), `target`"
+  description: "Applies a vanilla potion effect."
+SCRIPT:
+  params: "`events` (list of script event strings)"
+  description: "Runs script events — the bridge from abilities to everything in the Script Events reference."
+MODIFY_STAT:
+  params: "`stat` (stat id), `amount` (number or formula), `duration` (seconds, `-1` = while the ability applies)"
+  description: "Changes one of the caster's stats, temporarily or for as long as the item is used (with `PASSIVE`)."
+TELEPORT:
+  params: "`distance` (blocks, default 8)"
+  description: "Teleports the caster forward along their view, stopping before solid blocks."
+PUSH_ENTITIES:
+  params: "`force` (default 1), `target`"
+  description: "Knocks the targets away from the caster."
+PULL_ENTITIES:
+  params: "`strength` (default 1), `range` (default 20), `duration` (seconds, default 2), `target` (default `@enemies_in_radius{r=10}`)"
+  description: "Pulls the targets toward the caster over `duration`."
+GIVE_COINS:
+  params: "`amount`"
+  description: "Adds coins to the caster's purse."
+TAKE_COINS:
+  params: "`amount`"
+  description: "Removes coins from the caster's purse."
+IGNITE:
+  params: "`duration` (seconds, default 3), `target` (default `@target`)"
+  description: "Sets the targets on fire."
+LAUNCH_PLAYER:
+  params: "`y-force` (default 1), `forward-force` (default 1), `no-fall-damage` (true/false)"
+  description: "Launches the caster into the air."
+LAUNCH_PROJECTILE:
+  params: "`projectile` (`arrow`, `snowball`, `ender_pearl`, `fireball`, `wither_skull`, `egg`), `velocity` (default 2), `count` (default 1), `spread` (degrees), `damage` (on impact), `damage-type`, `pierce` (true/false), `on-hit` (nested mechanics list)"
+  description: "Fires projectiles. Mechanics under `on-hit` (aliases `on-impact`, `on-land`) run at the impact point, with the hit entity as `@target`."
+AOE_MINE:
+  params: "`radius` (default 1)"
+  description: "Breaks matching zone resource blocks around the mined block. Use with a mining trigger such as `LEFT_CLICK`."
+CANCEL_TRAMPLE:
+  params: "none"
+  description: "While worn, the wearer can't trample farmland. The trigger is ignored — `PASSIVE` by convention."
+CHARGE_JUMP:
+  params: "`max-charge-ms` (default 2000), `min-y-force` (default 0.4), `max-y-force` (default 2.2)"
+  description: "Charge-by-sneaking jump: bind it to `SNEAK`. The longer the player sneaks, the higher they launch when they release."
+OPEN_CONTAINER_GUI:
+  params: "none"
+  description: "Opens the storage GUI named in the item's `container-gui:` field — how backpacks work. Bind it to `RIGHT_CLICK`."

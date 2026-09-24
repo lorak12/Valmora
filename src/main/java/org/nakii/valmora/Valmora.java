@@ -100,6 +100,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private CombatModule combatModule;
     private ScriptModule scriptModule;
     private TimeModule timeModule;
+    private org.nakii.valmora.module.worldrules.WorldRulesModule worldRulesModule;
 
     private UIManager uiManager;
     private org.nakii.valmora.module.gui.GuiModule guiModule;
@@ -129,6 +130,8 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     private org.nakii.valmora.module.machine.MachineModule machineModule;
     private org.nakii.valmora.module.pack.PackModule packModule;
     private org.nakii.valmora.module.pack.PackFileIndex packFileIndex;
+    private org.nakii.valmora.module.death.DeathModule deathModule;
+    private org.nakii.valmora.module.blockloot.BlockLootModule blockLootModule;
 
     @Override
     public void onEnable() {
@@ -153,11 +156,20 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         ValmoraAPI.setProvider(apiImpl);
 
         saveDefaultConfig();
+        // Add settings introduced by plugin updates to the admin's config.yml (see ConfigUpdater).
+        try {
+            org.nakii.valmora.infrastructure.config.ConfigUpdater.update(
+                    new File(getDataFolder(), "config.yml"), () -> getResource("config.yml"), getLogger());
+            reloadConfig();
+        } catch (IOException e) {
+            getLogger().warning("Could not update config.yml with new default settings: " + e.getMessage());
+        }
         saveAllResources();
 
 
         // Initialize Keys
         Keys.init(this);
+        org.nakii.valmora.infrastructure.versioning.IdAliases.setLogger(getLogger());
 
         // 1. Initialize Database first
         this.dataStore = DatabaseFactory.createDataStore(this);
@@ -188,6 +200,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.combatModule = new CombatModule(this);
         this.scriptModule = new ScriptModule(this);
         this.timeModule = new TimeModule(this);
+        this.worldRulesModule = new org.nakii.valmora.module.worldrules.WorldRulesModule(this);
         this.rarityModule = new org.nakii.valmora.module.rarity.RarityModule(this);
         this.uiManager = new UIManager(this);
         this.guiModule = new GuiModule(this, dataStore);
@@ -197,8 +210,10 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         this.alchemyModule = new AlchemyModule(this);
         this.enchantModule = new EnchantModule(this);
         this.zoneModule = new ZoneModule(this);
+        this.deathModule = new org.nakii.valmora.module.death.DeathModule(this);
         this.resourceModule = new ResourceModule(this);
         this.fishingModule = new FishingModule(this);
+        this.blockLootModule = new org.nakii.valmora.module.blockloot.BlockLootModule(this);
         this.npcModule = new NpcModule(this);
         this.warpModule = new WarpModule(this);
         this.questModule = new QuestModule(this);
@@ -214,6 +229,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // 3. Register Modules in Order
         // Foundational Modules (No dependencies)
         moduleManager.registerModule(scriptModule);
+        moduleManager.registerModule(worldRulesModule); // No dependencies; purely config-driven GameRule application (VANILLA_CONTROL_AUDIT.md §8)
         moduleManager.registerModule(timeModule);    // No dependencies; scoreboard and scripts read from it
         moduleManager.registerModule(rarityModule);  // No dependencies; item stats/lore and the modifier engine read rarity metadata
         moduleManager.registerModule(statModule);
@@ -234,8 +250,16 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         moduleManager.registerModule(alchemyModule);
         moduleManager.registerModule(enchantModule);
         moduleManager.registerModule(zoneModule);
+        // Depends on stat/economy/combat/zone, all already enabled above; nothing later depends on
+        // it. VANILLA_CONTROL_AUDIT.md §9 — see docs/modules/design/death.md.
+        moduleManager.registerModule(deathModule);
         moduleManager.registerModule(resourceModule);
         moduleManager.registerModule(fishingModule);
+        // Depends on itemManager (ItemManager.createItemStack/giveOrPrivateDrop) at event time only
+        // — item.LootListener already reaches into the even-later resourceModule the same way, so
+        // this is a proven-safe pattern. Grouped with resource/fishing as the other loot-source
+        // modules. VANILLA_CONTROL_AUDIT.md §1/§4 — see docs/modules/design/blockloot.md.
+        moduleManager.registerModule(blockLootModule);
         moduleManager.registerModule(npcModule);
         moduleManager.registerModule(warpModule);
         moduleManager.registerModule(pointsModule);
@@ -255,6 +279,12 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
         // 4. Enable Modules
         moduleManager.enableModules();
+
+        // Leftover presentation entities (damage indicators, pets) from a crash: remove the loaded
+        // ones now, and the rest as their chunks load. Plugin-lifetime listener, not reloaded.
+        int swept = org.nakii.valmora.util.TransientEntities.sweepLoadedWorlds();
+        if (swept > 0) getLogger().info("Removed " + swept + " leftover temporary entities.");
+        getServer().getPluginManager().registerEvents(new org.nakii.valmora.util.TransientEntities.Sweeper(), this);
 
         // 5. Commands
         QuestCommand questCommand = new QuestCommand(this);
@@ -322,6 +352,19 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
      @Override
     public void onDisable() {
+        // Server shutdown / plugin unload (not /valmora reload): strip Valmora's attribute values
+        // and passive effects from online players, so nothing Valmora-specific is written into
+        // vanilla player data. Re-applied on the next join.
+        if (statModule != null) {
+            for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
+                try {
+                    statModule.resetAttributes(online);
+                    org.nakii.valmora.module.item.PassiveEffects.clear(online);
+                } catch (RuntimeException e) {
+                    getLogger().warning("Failed to reset attributes of " + online.getName() + ": " + e.getMessage());
+                }
+            }
+        }
         if (moduleManager != null) {
             moduleManager.disableModules();
         }
@@ -343,7 +386,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             // this is the defensive fallback for any session that somehow wasn't covered by that.
             java.util.List<java.util.concurrent.CompletableFuture<Void>> saves = new java.util.ArrayList<>();
             for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
-                saves.add(dataStore.savePlayer(player));
+                saves.add(playerManager.save(player));
             }
             java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
             dataStore.close();
@@ -491,6 +534,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.death.DeathModule getDeathModule() {
+        return deathModule;
+    }
+
+    @Override
     public ResourceModule getResourceModule() {
         return resourceModule;
     }
@@ -498,6 +546,11 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     @Override
     public FishingModule getFishingModule() {
         return fishingModule;
+    }
+
+    @Override
+    public org.nakii.valmora.module.blockloot.BlockLootModule getBlockLootModule() {
+        return blockLootModule;
     }
 
     @Override
@@ -602,38 +655,40 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         }
     }
 
+    /**
+     * Installs and updates the default content files shipped in the jar through
+     * {@link org.nakii.valmora.infrastructure.versioning.ResourceManifest}. New default files
+     * appear on existing installs, unedited ones follow plugin updates
+     * ({@code resources.auto-update-unmodified-defaults}), edited ones get a {@code .new}
+     * alongside, and files an admin deleted stay deleted.
+     *
+     * <p>History: until 2026-08-07 this re-copied every missing file on every startup, so deleting a
+     * shipped default never stuck. It then became a one-shot pass behind a {@code .resources_seeded}
+     * marker, so plugin updates never delivered new or changed defaults (e.g. the whole
+     * {@code machines/} folder). The manifest replaces both behaviours; an existing marker switches
+     * the first manifest run into legacy mode (see ResourceManifest).
+     */
     private void saveAllResources() {
-        // Fixed 2026-08-07: previously ran this "copy if missing" pass on every startup, which
-        // meant deleting a shipped default (a zone, a mob, a GUI, ...) never actually stuck — it
-        // came right back on the next restart, since "the file is missing" looked identical
-        // whether it was never seeded or an admin deliberately removed it. Now it only runs once
-        // per install (marked by this file); an intentional deletion after that stays deleted.
-        // The tradeoff: a plugin update that ships a brand-new default file under one of the
-        // seeded folders won't auto-appear on existing installs either — same as most plugins'
-        // one-time config-seeding behavior.
-        File seededMarker = new File(getDataFolder(), ".resources_seeded");
-        if (seededMarker.exists()) return;
-
         try {
+            java.util.Map<String, byte[]> shipped = new java.util.TreeMap<>();
             File codeSource = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
 
             if (codeSource.isFile()) {
                 try (ZipInputStream zip = new ZipInputStream(new FileInputStream(codeSource))) {
                     ZipEntry entry;
                     while ((entry = zip.getNextEntry()) != null) {
-                        if (!entry.isDirectory()) seedResourceIfSeedable(entry.getName());
+                        if (!entry.isDirectory() && isSeedableResource(entry.getName())) {
+                            shipped.put(entry.getName(), zip.readAllBytes());
+                        }
                     }
                 }
             } else if (codeSource.isDirectory()) {
-                // Fixed 2026-08-07: dev/exploded-classpath runs (e.g. `./gradlew runServer`, or
-                // any IDE launch where the plugin's classes/resources sit as loose files rather
-                // than a packaged jar) previously hit `!jarFile.isFile() -> return` and silently
-                // seeded nothing at all. A directory code source is a real filesystem directory
-                // in this case, so it can be walked directly instead of zip-scanned.
+                // Dev/exploded-classpath runs (e.g. `./gradlew runServer`, IDE launches): the
+                // resources sit as loose files, so walk the directory instead of zip-scanning.
                 try (var stream = java.nio.file.Files.walk(codeSource.toPath())) {
                     for (java.nio.file.Path path : (Iterable<java.nio.file.Path>) stream.filter(java.nio.file.Files::isRegularFile)::iterator) {
                         String name = codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/');
-                        seedResourceIfSeedable(name);
+                        if (isSeedableResource(name)) shipped.put(name, java.nio.file.Files.readAllBytes(path));
                     }
                 }
             } else {
@@ -641,29 +696,29 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             }
 
             getDataFolder().mkdirs();
-            seededMarker.createNewFile();
+            File legacyMarker = new File(getDataFolder(), ".resources_seeded");
+            org.nakii.valmora.infrastructure.versioning.ResourceManifest.sync(getDataFolder(), shipped,
+                    legacyMarker.exists(),
+                    getConfig().getBoolean("resources.auto-update-unmodified-defaults", true),
+                    getLogger());
         } catch (IOException | URISyntaxException e) {
-            getLogger().warning("Failed to auto-save resources: " + e.getMessage());
+            getLogger().warning("Failed to install/update default content files: " + e.getMessage());
         }
     }
 
-    /** Copies one jar/classpath resource entry into the data folder if it's one of the seedable default-content files and doesn't already exist there. */
-    private void seedResourceIfSeedable(String name) {
+    /** Whether a jar/classpath resource is a default content file managed by {@link #saveAllResources()}. */
+    private static boolean isSeedableResource(String name) {
         if (name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
-            return;
+            return false;
         }
-
         if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
                 || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
                 || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
-                || name.equals("mob_pipeline.yml") || name.equals("rarities.yml")) {
-            if (!new File(getDataFolder(), name).exists()) {
-                saveResource(name, false);
-            }
-            return;
+                || name.equals("mob_pipeline.yml") || name.equals("death_pipeline.yml") || name.equals("rarities.yml")
+                || name.equals("ui.yml")) {
+            return true;
         }
-
-        if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
+        return name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                 name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
                 name.startsWith("enchant/") ||
                 name.startsWith("alchemy/") || name.startsWith("stats/") || name.startsWith("damage_types/") ||
@@ -673,13 +728,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 name.startsWith("collections/") || name.startsWith("hud-items/") ||
                 name.startsWith("calendar/") ||
                 name.startsWith("modifiers/") ||
+                name.startsWith("machines/") || name.startsWith("block_loot/") ||
                 name.startsWith("pets/") ||
                 name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
-                name.startsWith("quest_boards/")) {
-            // Only save if the file doesn't already exist — don't overwrite server edits
-            if (!new File(getDataFolder(), name).exists()) {
-                saveResource(name, false);
-            }
-        }
+                name.startsWith("quest_boards/");
     }
 }

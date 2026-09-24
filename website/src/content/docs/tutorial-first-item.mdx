@@ -1,0 +1,165 @@
+---
+title: "Tutorial: your first item"
+summary: Build a sword with stats, lore and a right-click ability, test it in-game, and learn what to do when it doesn't load.
+---
+
+You'll make **Frostbrand**, an epic sword with extra damage and strength and a right-click ability
+that slows every nearby enemy. About ten minutes.
+
+You need: a running server with Valmora installed and the `valmora.admin` permission.
+
+## Step 1 — Create the file
+
+Items live in `plugins/Valmora/items/`. Any file name works, and a file can hold many items.
+Create `plugins/Valmora/items/my_items.yml` and add:
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+frostbrand:
+  name: "Frostbrand"
+  material: DIAMOND_SWORD
+  rarity: EPIC
+  item-type: SWORD
+  stats:
+    damage: 35
+    strength: 8
+    crit_chance: 10
+```
+
+What each line does:
+
+- `frostbrand:` — the item's **id**. Commands, recipes, mob drops and quests refer to it by this.
+- `name` — the display name. Leave out the color: Valmora colors it by rarity (purple for EPIC).
+- `material` — the vanilla item it looks like. Any [Bukkit material](https://jd.papermc.io/paper/1.21.11/org/bukkit/Material.html).
+- `rarity` — `COMMON` up to `DIVINE`. Sets the name color and the `EPIC SWORD` line at the bottom of the lore.
+- `item-type` — what kind of item it is. Enchants and reforges use this to decide what they can
+  go on.
+- `stats` — added to the player while they hold it. Stat ids are listed on the [Stats](/docs/stats) page.
+
+## Step 2 — Load it
+
+```text
+/valmora reload
+/item give frostbrand
+```
+
+You should get a purple **Frostbrand** with a stat block in its lore (`Damage: +35`,
+`Strength: +8`, `Crit Chance: +10`). Hold it and run `/stats`: your damage and strength include
+the sword's.
+
+<Callout type="warning" title="Nothing happened?">
+Scroll the console up to the reload. If you see `Failed to load some items`, the next line says
+exactly what's wrong, e.g. `[items/my_items.yml] In item 'frostbrand': Unknown stat 'crit-chance'`.
+Fix that line and reload. If `/item give` says the item doesn't exist but there's no error, check
+the file is in `plugins/Valmora/items/` and ends in `.yml`.
+</Callout>
+
+## Step 3 — Add lore
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+frostbrand:
+  name: "Frostbrand"
+  material: DIAMOND_SWORD
+  rarity: EPIC
+  item-type: SWORD
+  lore:
+    - "<gray>Forged in the glaciers"
+    - "<gray>of the far north."
+  stats:
+    damage: 35
+    strength: 8
+    crit_chance: 10
+```
+
+`lore` lines appear above the stats and use [MiniMessage](/docs/core-concepts#text-and-colors)
+colors. Reload and `/item give frostbrand` again.
+
+<Callout type="note" title="Existing copies don't update their stats or lore">
+An item's stats and lore are written onto it when it's created. Copies players already own keep
+the old ones after you change the YAML; only new copies get the change. Abilities are different:
+they always use the current YAML, so ability edits apply to every copy at once.
+</Callout>
+
+## Step 4 — Add an ability
+
+Abilities go under `abilities:`. Each one has a **trigger** (what fires it) and a list of
+**mechanics** (what it does). This one fires on right-click, costs 25 mana, has an 8-second
+cooldown, and applies Slowness IV to every enemy within 6 blocks:
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+frostbrand:
+  name: "Frostbrand"
+  material: DIAMOND_SWORD
+  rarity: EPIC
+  item-type: SWORD
+  lore:
+    - "<gray>Forged in the glaciers"
+    - "<gray>of the far north."
+  stats:
+    damage: 35
+    strength: 8
+    crit_chance: 10
+  abilities:
+    frost_nova:
+      name: "Frost Nova"
+      trigger: RIGHT_CLICK
+      cooldown: 8
+      mana-cost: 25
+      description:
+        - "<gray>Freezes every enemy within"
+        - "<gray><aqua>6</aqua> blocks for 4 seconds."
+      mechanics:
+        - type: APPLY_EFFECT
+          params:
+            effect: slowness
+            amplifier: 4
+            duration: 4
+            target: "@enemies_in_radius{r=6}"
+```
+
+- `frost_nova:` — the ability's id, unique within this item.
+- `trigger: RIGHT_CLICK` — other triggers include `ON_HIT`, `ON_KILL`, `SNEAK` and `PASSIVE`; see
+  [Abilities](/docs/abilities#triggers).
+- `cooldown` is in **seconds**. `mana-cost` is taken from the player's mana bar.
+- `description` is shown in the lore under an `Ability: Frost Nova` header, with the mana cost and
+  cooldown.
+- `target: "@enemies_in_radius{r=6}"` — a **target selector**. See [Target selectors](/docs/target-selectors).
+
+Reload, give yourself the sword again, spawn a few zombies and right-click. They slow down; a
+second right-click within 8 seconds shows the remaining cooldown instead.
+
+## Step 5 — Add a second mechanic
+
+Mechanics run top to bottom, so one right-click can do several things. Add damage to the same
+ability, scaled by the player's strength:
+
+```yaml
+      mechanics:
+        - type: APPLY_EFFECT
+          params:
+            effect: slowness
+            amplifier: 4
+            duration: 4
+            target: "@enemies_in_radius{r=6}"
+        - type: DAMAGE
+          params:
+            damage: "50 + $player.stat.strength$ * 2"
+            damage-type: MAGIC
+            target: "@enemies_in_radius{r=6}"
+```
+
+`damage` can be a number or a **formula**. `$player.stat.strength$` is a
+[variable](/docs/variables): it's replaced with the player's current strength each time the ability
+fires. Quote formulas.
+
+## Where to go next
+
+- Give the sword to players as a [mob drop](/docs/tutorial-first-mob) or a
+  [crafting recipe](/docs/tutorial-first-recipe).
+- Read [Items](/docs/items) for every field (custom model data, lore templates, armor sets) and
+  [Abilities](/docs/abilities) for all 17 mechanics and 14 triggers.
+- The [item generator](/generators/item) builds item YAML for you in the browser.
+
+<SeeAlso slugs={["items", "abilities", "stats", "tutorial-first-mob"]} />

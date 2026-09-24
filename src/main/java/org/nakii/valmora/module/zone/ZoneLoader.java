@@ -44,10 +44,14 @@ public class ZoneLoader {
                     allowSec.getBoolean("hunger", true),
                     allowSec.getBoolean("entry", true),
                     allowSec.getBoolean("teleportation", true),
-                    allowSec.getBoolean("leaf-decay", true)
+                    allowSec.getBoolean("leaf-decay", true),
+                    allowSec.isSet("keep-inventory-on-death") ? allowSec.getBoolean("keep-inventory-on-death") : null,
+                    allowSec.isSet("keep-experience-on-death") ? allowSec.getBoolean("keep-experience-on-death") : null,
+                    allowSec.getBoolean("sleeping", true),
+                    allowSec.getBoolean("natural-block-changes", true)
                 );
             } else {
-                flags = new ZoneFlags(sec.getBoolean("pvp-enabled", false), false, false, false, true, true, true, true);
+                flags = new ZoneFlags(sec.getBoolean("pvp-enabled", false), false, false, false, true, true, true, true, null, null, true, true);
             }
 
             List<Integer> minList = sec.getIntegerList("min");

@@ -13,9 +13,12 @@ public final class EtableCostCalculator {
     private EtableCostCalculator() {
     }
 
-    /** XP levels required to apply {@code level} levels of an enchant at the table. */
+    /** XP levels required to apply {@code level} levels of an enchant at the table.
+     *  HC-110: cost-per-level configurable via {@code enchants.etable.cost-per-level}. */
     public static int cost(int level) {
         if (level <= 0) return 0;
-        return level * 2;
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        int costPerLevel = plugin != null ? plugin.getConfig().getInt("enchants.etable.cost-per-level", 2) : 2;
+        return level * costPerLevel;
     }
 }

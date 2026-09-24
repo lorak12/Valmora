@@ -16,6 +16,7 @@ public final class ItemTypeLoader {
     private ItemTypeLoader() {}
 
     public static void load(Valmora plugin) {
+        ItemType.resetToBuiltins(); // types removed from the file don't linger across reloads
         File file = new File(plugin.getDataFolder(), "item_types.yml");
         if (!file.exists()) return;
 

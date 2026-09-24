@@ -1,0 +1,81 @@
+---
+title: Conversations & dialogue
+summary: Branching NPC dialogue — nodes, player options, conditions, and events.
+---
+
+A **conversation** is a branching dialogue tree an [NPC](/docs/npcs) runs when right-clicked.
+NPC nodes show text with clickable player replies; each reply can check
+[conditions](/docs/conditions), fire [events](/docs/events), and point at the next node.
+Conversations live inside [quest packages](/docs/quest-packages).
+
+## Files
+
+`plugins/Valmora/quests/<package>/conversations.yml` — a `conversations:` map. Each key is one
+conversation, attached to an NPC via `npc_conversations:` in `quest.yml` or the NPC's
+`conversation:` field.
+
+## A complete conversation
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/conversations.yml
+conversations:
+  thorin_main:
+    quester: "<gold><bold>Elder Thorin"
+    stop: true
+    first:
+      - greeting_new
+      - greeting_progress
+      - greeting_done
+    final_events:
+      - "sound player entity.villager.no"
+    NPC_options:
+      greeting_new:
+        text: "<yellow>The mine has gone silent…"
+        conditions: "mine_not_started, mine_not_completed"
+        pointers: [accept_quest, decline_quest]
+    player_options:
+      accept_quest:
+        text: "<white>I will investigate."
+        events: "start_forgotten_mine"
+        pointers: [quest_accepted]
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `quester` | the id | Speaker name shown on NPC lines (MiniMessage). |
+| `stop` | `false` | `true` blocks the player from walking away mid-conversation. |
+| `first` | none | String or list of node ids tried in order — the first whose `conditions` pass opens. |
+| `final_events` | none | [Events](/docs/events) fired when the conversation ends. |
+| `NPC_options.<node>.text` | none | What the NPC says. |
+| `NPC_options.<node>.conditions` | none | **Named** conditions only (comma-separated or list); inline script is ignored. |
+| `NPC_options.<node>.pointers` | none | Next node ids — `player_options` keys, NPC nodes, or cross-conversation refs. |
+| `player_options.<reply>.text` | none | The clickable reply. |
+| `player_options.<reply>.events` | none | Named event or inline script fired when picked. |
+| `player_options.<reply>.pointers` | none | Where the dialogue goes next. |
+
+Pointer matching is case-insensitive: a `player_options` key is preferred, otherwise an NPC node
+or another conversation.
+
+## Conditions in dialogue
+
+Dialogue conditions must reference **named** conditions declared in the same package:
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/conversations.yml
+conditions:
+  mine_not_started: "!quest forgotten_mine in_progress"
+  mine_completed: "quest forgotten_mine completed"
+events:
+  start_forgotten_mine: "quest_start forgotten_mine"
+```
+
+Chain quests by gating nodes on earlier quests — e.g. Bjorn's offer requires
+`mine_completed, smith_not_started, smith_not_completed`.
+
+<Callout type="warning" title="Named conditions only">
+Inside `NPC_options`, `conditions:` accepts only named references. An inline condition warns in
+the console and is ignored, so the node always shows. Objectives and `player_hider` are the
+exception — they accept inline conditions directly.
+</Callout>
+
+<SeeAlso slugs={["quest-packages", "quests", "npcs", "conditions", "events"]} />

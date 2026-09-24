@@ -36,28 +36,73 @@ public class ValmoraCommand implements TabExecutor {
             return true;
         }
 
-        if (!sender.hasPermission("valmora.admin")) {
-            sender.sendMessage(Formatter.format("<red>No permission!"));
-            return true;
-        }
-
+        // HC-006/HC-013: each subcommand now checks its own permission key (falling back to
+        // permissions.admin / "valmora.admin" by default — see PermissionResolver) instead of one
+        // blanket gate, so a server can hand out e.g. reload without pack-install access.
         if (args.length == 0) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             sendHelp(sender);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("reload")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "reload")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             sender.sendMessage(Formatter.format("<aqua>Reloading Valmora Engine..."));
             // Re-read config.yml from disk first — modules read plugin.getConfig() live at point
             // of use (no per-module caching), so without this a reload wouldn't pick up config.yml
             // edits (e.g. items.lore) at all, only YAML content under resources/*.
             plugin.reloadConfig();
-            plugin.getModuleManager().reloadModules();
-            sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
+            var result = plugin.getModuleManager().reloadModules();
+            if (result.clean()) {
+                sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
+            } else {
+                if (!result.failedModules().isEmpty()) {
+                    sender.sendMessage(Formatter.format("<red>Modules that failed to reload: <yellow>"
+                            + String.join(", ", result.failedModules()) + "<red> — they may be partially loaded; see the console."));
+                }
+                if (!result.contentErrors().isEmpty()) {
+                    sender.sendMessage(Formatter.format("<gold>" + result.contentErrors().size()
+                            + " content error(s). Entries that broke kept their previous working version:"));
+                    result.contentErrors().stream().limit(10).forEach(err ->
+                            sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(err))));
+                    if (result.contentErrors().size() > 10) {
+                        sender.sendMessage(Formatter.format("<gray>... and " + (result.contentErrors().size() - 10) + " more in the console."));
+                    }
+                }
+            }
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("validate")) {
+            // Dry run: re-parses content on disk without changing anything live.
+            var problems = org.nakii.valmora.infrastructure.config.YamlLoader.validateAll(plugin);
+            if (problems.isEmpty()) {
+                sender.sendMessage(Formatter.format("<green>No content problems found — safe to /valmora reload."));
+            } else {
+                sender.sendMessage(Formatter.format("<gold>" + problems.size() + " content problem(s) found (nothing was changed):"));
+                problems.stream().limit(15).forEach(p -> sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(p))));
+                if (problems.size() > 15) sender.sendMessage(Formatter.format("<gray>... and " + (problems.size() - 15) + " more."));
+                problems.forEach(p -> plugin.getLogger().warning("[validate] " + p));
+            }
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("orphans")) {
+            handleOrphans(sender, args);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("variable") && args.length >= 3) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             if (args[1].equalsIgnoreCase("get")) {
                 handleVariableGet(sender, args[2]);
                 return true;
@@ -65,20 +110,36 @@ public class ValmoraCommand implements TabExecutor {
         }
 
         if (args[0].equalsIgnoreCase("pipeline")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handlePipeline(sender, args);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("pack")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "pack")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handlePack(sender, args);
             return true;
         }
 
         if (args[0].equalsIgnoreCase("debug")) {
+            if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+                sender.sendMessage(Formatter.format("<red>No permission!"));
+                return true;
+            }
             handleDebug(sender, args);
             return true;
         }
 
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "admin")) {
+            sender.sendMessage(Formatter.format("<red>No permission!"));
+            return true;
+        }
         sendHelp(sender);
         return true;
     }
@@ -326,7 +387,7 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "variable", "pipeline", "pack", "debug")
+            return Stream.of("reload", "validate", "variable", "pipeline", "pack", "debug", "orphans")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -382,12 +443,51 @@ public class ValmoraCommand implements TabExecutor {
         return new ArrayList<>();
     }
 
+    /**
+     * {@code /valmora orphans <player> [purge]} — lists (or deletes) the online player's saved
+     * progress that points at content which no longer exists. See OrphanReport.
+     */
+    private void handleOrphans(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Formatter.format("<red>Usage: /valmora orphans <player> [purge]"));
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[1]);
+        var session = target != null ? plugin.getPlayerManager().getSession(target.getUniqueId()) : null;
+        var profile = session != null ? session.getActiveProfile() : null;
+        if (profile == null) {
+            sender.sendMessage(Formatter.format("<red>That player isn't online or their profile isn't loaded."));
+            return;
+        }
+        if (args.length >= 3 && args[2].equalsIgnoreCase("purge")) {
+            int removed = org.nakii.valmora.module.profile.OrphanReport.purge(profile);
+            plugin.getPlayerManager().save(session);
+            sender.sendMessage(Formatter.format("<green>Removed " + removed + " orphaned entr" + (removed == 1 ? "y" : "ies")
+                    + " from " + target.getName() + "'s profile '" + profile.getName() + "'."));
+            return;
+        }
+        var orphans = org.nakii.valmora.module.profile.OrphanReport.find(profile);
+        if (orphans.isEmpty()) {
+            sender.sendMessage(Formatter.format("<green>" + target.getName() + "'s profile '" + profile.getName()
+                    + "' has no progress pointing at missing content."));
+            return;
+        }
+        sender.sendMessage(Formatter.format("<gold>Orphaned progress in " + target.getName() + "'s profile '" + profile.getName() + "':"));
+        orphans.forEach((category, ids) -> sender.sendMessage(Formatter.format(
+                "<yellow>" + category + ": <gray>" + String.join(", ", ids))));
+        sender.sendMessage(Formatter.format("<gray>Kept so restoring the content (or listing the old id under its "
+                + "<white>previous-ids:</white>) brings it back. <yellow>/valmora orphans " + target.getName()
+                + " purge <gray>deletes it."));
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Formatter.format("<gold>--- Valmora Engine ---"));
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora validate <gray>- Check content files for errors without reloading"));
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pack ... <gray>- Manage content packs (see /valmora pack)"));
         sender.sendMessage(Formatter.format("<yellow>/valmora debug <module|all> <gray>- Toggle verbose debug logging"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora orphans <player> [purge] <gray>- Saved progress pointing at deleted content"));
     }
 }

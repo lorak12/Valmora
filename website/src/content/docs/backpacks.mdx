@@ -1,0 +1,104 @@
+---
+title: Backpacks & storage
+summary: Items that open their own storage, player-bound bags like the accessory bag and quiver, and restricting what goes in.
+---
+
+Any menu can have **storage slots** that remember their contents. That's how backpacks, the
+accessory bag, the quiver and the bait bag work — no special system, just an item and a menu.
+
+## Where the contents are saved
+
+| `owner:` | Saved on | Example | If the item is lost… |
+|---|---|---|---|
+| `ITEM` | the item that opened the menu | backpacks | its contents go with it |
+| `PLAYER` | the player's profile | accessory bag, quiver | nothing is lost |
+
+## A backpack
+
+1. A menu with a `STORAGE` component:
+
+```yaml
+# plugins/Valmora/guis/explorer_pack.yml
+explorer_pack:
+  title: "<gold>Explorer's Pack"
+  layout:
+    - "SSSSSSSSS"
+    - "SSSSSSSSS"
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: ITEM
+  on-open:
+    actions:
+      - "sound player block.chest.open"
+```
+
+2. An item that opens it:
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+explorer_pack:
+  name: "Explorer's Pack"
+  material: LEATHER_HORSE_ARMOR
+  rarity: RARE
+  item-type: BACKPACK
+  container-gui: explorer_pack
+  abilities:
+    open:
+      trigger: RIGHT_CLICK
+      display: SIMPLE
+      description:
+        - "<gray>Right-click to open."
+      mechanics:
+        - type: OPEN_CONTAINER_GUI
+```
+
+`/valmora reload`, `/item give explorer_pack`, right-click it. Five ready-made tiers ship as
+`backpack_tier1`…`backpack_tier5` (9 to 45 slots).
+
+## A player-bound bag
+
+```yaml
+# plugins/Valmora/guis/ore_pouch.yml
+ore_pouch:
+  title: "<gray>Ore Pouch"
+  command: orepouch
+  layout:
+    - "SSSSSSSSS"
+  components:
+    S:
+      type: STORAGE
+      id: storage
+      owner: PLAYER
+      storage-id: ore_pouch
+      condition: "$candidate.item.material$ == RAW_IRON or $candidate.item.material$ == RAW_GOLD"
+```
+
+- `storage-id` — the name the contents are saved under. Two menus with the same `storage-id` show
+  the same contents.
+- `condition` — which items may be put in. `$candidate.item.material$`, `$candidate.item.type$`
+  (Valmora item type) and `$candidate.item.amount$` describe the item being placed.
+
+## STORAGE fields
+
+| Field | Default | What it does |
+|---|---|---|
+| `id` | — | The component's name. |
+| `owner` | `PLAYER` | `ITEM` or `PLAYER` (see above). |
+| `storage-id` | the `id` | For `PLAYER` storage: which saved bag this is. **Give every player bag its own** — two bags with the same `storage-id` share one inventory. |
+| `condition` | anything | Which items are allowed in. |
+| `open-container` | `true` | Clicking a container item (like a backpack) inside this storage opens it instead of picking it up. |
+
+## Shipped bags
+
+| Command | Bag | Holds |
+|---|---|---|
+| `/accessories` | Accessory bag | `ACCESSORY` items (their stats apply while inside) and backpacks |
+| `/quiver` | Quiver | Arrows. Refills your inventory when you run out while shooting. |
+| `/baitbag` | Bait bag | `FISHING_BAIT` items |
+
+Put `recalculate_stats` in a stat-granting bag's `on-close` so changes apply immediately — the
+accessory bag already does.
+
+<SeeAlso slugs={["guis", "items", "abilities"]} />

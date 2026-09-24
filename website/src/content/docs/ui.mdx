@@ -1,0 +1,56 @@
+---
+title: Scoreboard, action bar & tab
+summary: The ui.yml HUD — scoreboard lines, action-bar template, tab header/footer, and /ui toggle.
+---
+
+The **UI** module renders the scoreboard, action bar and tab list from a single file. All text
+is MiniMessage plus `$var$` [variables](/docs/variables) — zone, purse, time, profile and health
+all update live on a 10 Hz clock.
+
+## Files
+
+`plugins/Valmora/ui.yml` — one file. Edit it and `/valmora reload`.
+
+## The shipped HUD
+
+```yaml
+# plugins/Valmora/ui.yml
+scoreboard:
+  title: "<gold><bold>VALMORA RPG"
+  lines:
+    - "<yellow>pay.valmora.net"
+    - ""
+    - "<aqua>⏰ <white>$time.formatted_time$  $time.color$$time.emote$ <gold>$time.phase$ $time.season$"
+    - "<gray>Day <white>$time.day$  <dark_gray>│  <gray>Year <white>$time.year$"
+    - ""
+    - "$dynamic$"
+    - "<gray>Profile: <yellow>$player.profile$"
+    - "<gray>Zone: $zone.current$"
+    - "<gray>Purse: <gold>$economy.purse.formatted$"
+action-bar:
+  default: "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana"
+tab:
+  header: "<gold><bold>VALMORA</bold></gold>"
+  footer: "<gray>Players online: <white>$server.online$"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `scoreboard.title` / `scoreboard.lines` | none | Max 16 lines; `$dynamic$` is a reserved splice (currently unused). |
+| `action-bar.default` | none | `""` falls back to the built-in health/defense/mana bar. |
+| `tab.header` / `tab.footer` | none | `""` disables that half. |
+
+Tick rate (`ui.tick-interval-ticks: 2`) and chat prefix (`ui.chat.prefix`) are in
+[config.yml](/docs/config-yml#ui). `time.scoreboard-enabled` is currently ignored — `ui.yml`
+governs.
+
+## /ui
+
+```text
+/ui toggle
+```
+
+Player-only, no permission. Toggles the scoreboard for the current session; action bar and tab
+are unaffected.
+
+<SeeAlso slugs={["guis", "hud-items", "notifications", "variables", "time-calendar"]} />

@@ -188,6 +188,39 @@ class SQLDataStoreTest {
     }
 
     @Test
+    void newerSchemaVersionRefusesToStart(@TempDir Path dir) throws Exception {
+        HikariDataSource ds = newDataSource(dir.resolve("newer.db"));
+        SQLDataStore store = new SQLDataStore(ds, false, LOGGER);
+        try {
+            store.init();
+            try (Connection c = ds.getConnection()) {
+                c.prepareStatement("UPDATE valmora_schema_version SET version = 999 WHERE id = 1").execute();
+            }
+            // A downgraded plugin must not run against (and write back) data it doesn't understand.
+            assertThrows(IllegalStateException.class, store::init);
+        } finally {
+            store.close();
+        }
+    }
+
+    @Test
+    void economyLoadFailureIsNotReportedAsMissingRow(@TempDir Path dir) throws Exception {
+        HikariDataSource ds = newDataSource(dir.resolve("economy-fail.db"));
+        SQLDataStore store = new SQLDataStore(ds, false, LOGGER);
+        try {
+            store.init();
+            ds.close(); // every connection attempt now fails
+            // null means "no row" (a new player, cached as 0/0). A failed read must be
+            // distinguishable, or the zero balance would be flushed over the real one.
+            java.util.concurrent.CompletionException ex = assertThrows(java.util.concurrent.CompletionException.class,
+                    () -> store.loadEconomy(UUID.randomUUID()).join());
+            assertInstanceOf(DataLoadException.class, ex.getCause());
+        } finally {
+            store.close();
+        }
+    }
+
+    @Test
     void economyBatchWithEmptyMapIsNoOp(@TempDir Path dir) throws Exception {
         HikariDataSource ds = newDataSource(dir.resolve("economy-empty-batch.db"));
         SQLDataStore store = new SQLDataStore(ds, false, LOGGER);

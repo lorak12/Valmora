@@ -342,7 +342,10 @@ Migrations (`applyMigrations`, `:104-115`):
     `inventory`, `created_at`, `last_used` (`:147-152`) so pre-versioning databases migrate in place.
 - **v2** (`migrateToV2`, `:117-120`): adds `quiver TEXT` to `valmora_profiles`.
 
-`addColumnIfMissing` (`:164-171`) swallows "already exists" errors so re-runs are safe.
+`addColumnIfMissing` and `dropColumnIfPresent` check column existence through JDBC metadata first,
+so re-runs are safe and real failures propagate. Each migration step and its version stamp run in
+one transaction (`runMigrationStep`). A database whose schema is newer than the plugin supports
+makes `init()` throw, and the plugin disables instead of writing back data it doesn't understand.
 
 ### Profile serialization
 
@@ -360,8 +363,8 @@ Migrations (`applyMigrations`, `:104-115`):
 `loadPlayer` (`:174-264`) is the mirror: reads `active_profile`, then all profiles ordered by
 `created_at ASC, id ASC` (`:188-191`), and hydrates a fresh `ValmoraProfile` per row (Gson
 deserialization for each column; item arrays via base64). The active profile ID is applied last
-(`:254-256`). Returns `null` for unknown players (`:182`), which `PlayerManager` treats as a
-new-player session.
+(`:254-256`). Returns `null` for unknown players, which `PlayerManager` treats as a new-player
+session. A failed read completes exceptionally instead (see below).
 
 `deleteProfile(UUID)` (`:341-351`): `DELETE FROM valmora_profiles WHERE id = ?`.
 
@@ -376,25 +379,37 @@ Item serialization helpers:
 
 ### Async save pattern & thread safety
 
-- **DB reads/writes** always run on `dbExecutor` (`Executors.newFixedThreadPool(4)`,
-  `SQLDataStore.java:34`), returning `CompletableFuture`s.
-- **Join**: the DB load is async; the session-insert + inventory/stat application is scheduled back to
-  the main thread (`PlayerManager.java:89-93`).
-- **Quit**: `dataStore.savePlayer(stored)` is fire-and-forget (`:135`).
-- **Disable/shutdown**: `onDisable` (`PlayerManager.java:116-118`) and `Valmora.onDisable()`
-  (`Valmora.java:270-274`) both `.join()` the saves synchronously so nothing is lost on clean
-  shutdown/reload, then `dataStore.close()` (`:274`) drains the executor (`SQLDataStore.java:507-521`).
-- **SQLite WAL** is enabled in `DatabaseFactory` (`:41`) so the infrequent writer doesn't block readers.
+(Rewritten 2026-09-24 for the Phase 0 data-safety pass — see `docs/VERSIONING_AND_RELOAD_PLAN.md`.)
 
-> **Threading caveat:** in the async join path, the `processor` lambda
-> (`PlayerManager.java:61-94`) runs on the DB executor thread (via `thenAcceptAsync`). It reads
-> `plugin.getConfig()`, `plugin.getStatModule().getSystemStats()`, and constructs a `PlayerState`
-> (which touches `ValmoraAPI.getInstance().getStatRegistry()`) off the main thread
-> (`PlayerManager.java:64-72`). Only the `finalize` Runnable is guaranteed main-thread. This works in
-> practice because the executor is fixed at 4 threads and those reads are effectively read-only, but
-> it is not a strict application of the AGENTS §7.4 rule.
-
----
+- **Per-player lanes.** Everything that reads or writes one player's data (`loadPlayer`,
+  `savePlayer`, `deleteProfile`, `loadStorage`/`saveStorage` for their profiles, and their economy
+  row) runs on one of 4 single-threaded "lanes" chosen by the player's UUID. A player's operations
+  run strictly in order, so a quick quit→rejoin load always sees the quit save. Different players
+  still run in parallel. Economy batches, the ledger and the pack ledger stay on the shared pool.
+- **Snapshot on the caller's thread.** `savePlayer` and `saveStorage` serialize everything (Gson
+  JSON, `ItemStack.serializeAsBytes`) on the calling thread (the main thread for live sessions).
+  Only JDBC runs on the lane, so the DB thread never reads maps or items that gameplay is changing.
+- **A failed load is never "no data".** `loadPlayer`, `loadStorage` and `loadEconomy` return `null`
+  only when there is no row. Any read or parse failure completes the future exceptionally with
+  `DataLoadException`. `PlayerManager` then kicks the player ("profile could not be loaded,
+  nothing was changed") instead of creating a blank profile over the real one. `EconomyModule`
+  does the same instead of caching 0/0, and GUI storage refuses to open.
+- **Unreadable items** (corrupt, or written by a newer server) load as an empty slot. Their raw
+  base64 is appended to `plugins/Valmora/recovery/undecodable_items.log` for manual recovery, so
+  it is not silently lost.
+- **Join ordering.** Each `handleJoin` gets a generation number, and a load installs its session
+  only if its generation is still current and the player is still online. This prevents ghost
+  sessions after quitting mid-load, and stops a stale load replacing a newer session.
+  `PlayerProfileLoadedEvent` fires **after** the saved inventory and stats are applied; use it
+  rather than `PlayerJoinEvent` for anything that needs the profile or the inventory (HUD items and
+  quest join triggers do).
+- **Autosave.** `profiles.autosave-interval-seconds` (default 300, minimum 30) captures every online
+  player's live inventory and saves their session.
+- **Save failures** are logged through `PlayerManager.save(vp)`, which every caller uses and whose
+  future never completes exceptionally.
+- **Disable/shutdown**: `onDisable` and `Valmora.onDisable()` save all sessions and wait for them,
+  then `dataStore.close()` drains the lanes and the pool.
+- **SQLite WAL** is enabled in `DatabaseFactory` so the infrequent writer doesn't block readers.
 
 ## API Exposed
 

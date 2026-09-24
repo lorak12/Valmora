@@ -7,8 +7,9 @@ import org.nakii.valmora.api.ReloadableModule;
 
 public class ResourceModule implements ReloadableModule {
 
-    /** Autosave interval for crash-recovery state — 30s (600 ticks). Cheap: usually a handful of tracked blocks. */
-    private static final long AUTOSAVE_INTERVAL_TICKS = 600L;
+    /** Autosave interval for crash-recovery state — 30s (600 ticks) default. Cheap: usually a
+     *  handful of tracked blocks. HC-240: {@code resource.autosave-interval-seconds}. */
+    private static final long DEFAULT_AUTOSAVE_INTERVAL_TICKS = 600L;
 
     private final Valmora plugin;
     private ResourceManager resourceManager;
@@ -34,8 +35,11 @@ public class ResourceModule implements ReloadableModule {
         this.environmentListener = new ResourceEnvironmentListener(resourceManager);
         plugin.getServer().getPluginManager().registerEvents(environmentListener, plugin);
 
+        long autosaveIntervalTicks = plugin.getConfig().contains("resource.autosave-interval-seconds")
+                ? plugin.getConfig().getLong("resource.autosave-interval-seconds") * 20L
+                : DEFAULT_AUTOSAVE_INTERVAL_TICKS;
         this.autosaveTask = plugin.getServer().getScheduler().runTaskTimer(
-                plugin, resourceManager::saveState, AUTOSAVE_INTERVAL_TICKS, AUTOSAVE_INTERVAL_TICKS);
+                plugin, resourceManager::saveState, autosaveIntervalTicks, autosaveIntervalTicks);
 
         // Resource pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md) — depends on scriptModule, which
         // registers/enables before this module (see module order in Valmora.onEnable()).

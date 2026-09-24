@@ -23,13 +23,16 @@ public class GuiDefinitionParser {
 
     public LoadResult<GuiDefinition, String> parse(String id, ConfigurationSection section, String filePath) {
         try {
-            String titleStr = section.getString("title", "Inventory");
-            int updateInterval = section.getInt("update-interval", 0);
+            // HC-162: gui.defaults.* — global fallback when an individual GUI's own YAML omits
+            // these fields.
+            var cfg = plugin != null ? plugin.getConfig() : null;
+            String titleStr = section.getString("title", cfg != null ? cfg.getString("gui.defaults.title", "Inventory") : "Inventory");
+            int updateInterval = section.getInt("update-interval", cfg != null ? cfg.getInt("gui.defaults.update-interval-ticks", 0) : 0);
             List<String> layoutRows = section.getStringList("layout");
             // `rows:` can explicitly request a taller inventory than the layout lines provide
             // (e.g. to leave blank rows for padding). It can never shrink below the layout size.
             int rows = Math.max(section.getInt("rows", layoutRows.size()), layoutRows.size());
-            String machine = section.getString("machine", id);
+            String machine = section.getString("machine", cfg != null ? cfg.getString("gui.defaults.machine", id) : id);
 
             List<List<Character>> layout = new ArrayList<>();
             for (String rowStr : layoutRows) {
@@ -68,7 +71,10 @@ public class GuiDefinitionParser {
             GuiEventBlock onUpdate = parseEventBlock(section.getConfigurationSection("on-update"));
 
             String command = section.getString("command", null);
-            String commandPermission = section.getString("command-permission", null);
+            // HC-167: gui.defaults.command-permission — stays null (permissive) by default,
+            // matching the original hardcoded behavior; a server can opt into a safer default.
+            String commandPermission = section.getString("command-permission",
+                    cfg != null ? cfg.getString("gui.defaults.command-permission", null) : null);
 
             GuiDefinition def = new GuiDefinition(id, titleStr, updateInterval, rows, machine, layout, components, onOpen, onClose, onSlotUpdate, onUpdate, command, commandPermission);
             return LoadResult.success(def);
@@ -164,7 +170,8 @@ public class GuiDefinitionParser {
         String matStr = section.getString("material", section.getString("item", "AIR"));
         String name = section.getString("name", "");
         List<String> lore = section.getStringList("lore");
-        int cmd = section.getInt("custom-model-data", 0);
+        // HC-164: null (not 0) means "not set" — 0 is a valid custom-model-data value.
+        Integer cmd = section.contains("custom-model-data") ? section.getInt("custom-model-data") : null;
         int amount = section.getInt("amount", 1);
         return new GuiItemStack(matStr, name, lore, cmd, amount);
     }

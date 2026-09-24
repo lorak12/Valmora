@@ -1,0 +1,64 @@
+---
+title: Extending Valmora
+summary: Writing a ReloadableModule — lifecycle, listeners, commands, cross-module rules, async safety.
+---
+
+A **module** is a `ReloadableModule` with `onEnable()`, `onDisable()` and `getId()`. Full contract
+and examples are in `docs/MODULE_DEVELOPMENT.md`; cross-module rules in
+`docs/modules/design/INTEGRATION.md`. Module order is fixed — later modules may use earlier
+ones, never the reverse.
+
+## The contract
+
+```java
+public final class MyModule implements ReloadableModule {
+  private MyListener listener;
+
+  @Override public void onEnable() {
+    this.listener = new MyListener(plugin);
+    plugin.getServer().getPluginManager().registerEvents(listener, plugin);
+  }
+
+  @Override public void onDisable() {
+    HandlerList.unregisterAll(listener);
+    this.listener = null;
+  }
+
+  @Override public String getId() { return "mymodule"; }
+}
+```
+
+- Init in `onEnable()`, never the constructor; `onEnable()` must be idempotent (hot reload
+  re-runs it). Clear everything in `onDisable()`.
+- Listeners: register in `onEnable`, `HandlerList.unregisterAll(listener)` in `onDisable` —
+  skipping this double-handles events after reload.
+- **Never register commands in a module.** All commands live in `Valmora.onEnable()` (declared
+  in `plugin.yml`) after modules enable.
+- Cross-module access only via `ValmoraAPI.getInstance()` — never direct sibling references.
+- YAML via `infrastructure/config/YamlLoader`; registries clear and repopulate on reload, so
+  look up at use-time. Keys are lowercase.
+- Database work is async (HikariCP) — schedule Bukkit API back on the main thread with
+  `runTask(plugin, …)`. Text is MiniMessage/Adventure `Component`, never `ChatColor` or `§`.
+
+## Module order
+
+`script → worldrules → time → rarity → stat → player(economy) → ui → ability → item → mob →
+skill → combat → gui → recipe → machine → modifier → alchemy → enchant → zone → death →
+resource → fishing → block_loot → npc → warp → points → notify → quest → collection → hud →
+calendar → pet → progression → pack` (last). `pack` is the terminal orchestrator; `HookBus` is
+the shared primitive owned by `ScriptModule`.
+
+`ModuleManager` drives it: `registerModule()`, `enableModules()` (forward, per-module
+try/catch), `disableModules()` (reverse), `reloadModules()` / `reloadModules(Set)` (targeted,
+used by packs) / `reloadModule(String)`.
+
+## Extension points
+
+| To add… | Implement |
+|---|---|
+| `$namespace.key$` variables | `script/variable/VariableProvider` (`getNamespace()`, `resolve(path, ctx)`) |
+| `event_name args` script events | `script/event/EventFactory` |
+| Quest objective types | `api/quest/ObjectiveHandler` + `QuestManager.registerObjectiveHandler()` |
+| Pack reference checks | `PackReferenceCheckerRegistry` |
+
+<SeeAlso slugs={["developer-api", "developer-hookbus", "developer-events", "content-packs"]} />

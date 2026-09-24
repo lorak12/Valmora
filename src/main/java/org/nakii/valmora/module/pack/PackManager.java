@@ -143,7 +143,9 @@ public class PackManager {
             report.merge(outcome.mergeWarnings());
             dataStore.savePackRecord(outcome.record()).join();
             installedByPackId.put(manifest.id().toLowerCase(java.util.Locale.ROOT), outcome.record());
-            reloadAffectedModules(manifest.providesContent());
+            Set<String> affected = new HashSet<>(manifest.providesContent());
+            affected.addAll(outcome.record().sharedDiff().keySet()); // shared configs it merged into
+            reloadAffectedModules(affected);
             return OperationResult.success(report, "Installed pack '" + manifest.id() + "' v" + manifest.version());
         } catch (IOException e) {
             report.addError("Failed to install pack '" + manifest.id() + "': " + e.getMessage());
@@ -236,7 +238,9 @@ public class PackManager {
             installer.uninstall(record);
             dataStore.deletePackRecord(record.packId()).join();
             installedByPackId.remove(record.packId().toLowerCase(java.util.Locale.ROOT));
-            reloadAffectedModules(contentFoldersOwnedBy(record));
+            Set<String> affected = new HashSet<>(contentFoldersOwnedBy(record));
+            affected.addAll(record.sharedDiff().keySet()); // shared configs it had merged into
+            reloadAffectedModules(affected);
             return OperationResult.success(new PackValidationReport(), "Uninstalled pack '" + record.packId() + "'");
         } catch (IOException e) {
             PackValidationReport report = new PackValidationReport();

@@ -32,6 +32,16 @@ public class PlayerManager implements ReloadableModule {
     }
 
     private PlayerConnectionListener connectionListener;
+    private org.bukkit.scheduler.BukkitTask autosaveTask;
+
+    /**
+     * Join generation per player, bumped on every join and cleared on quit. An async load only
+     * installs its session if its generation is still current — otherwise the player quit (or
+     * quit and rejoined) while it was in flight, and installing it would either leave a ghost
+     * session for an offline player or replace a newer session with a stale one.
+     */
+    private final Map<UUID, Long> joinGeneration = new HashMap<>();
+    private long nextGeneration = 0;
 
     @Override
     public void onEnable() {
@@ -42,7 +52,53 @@ public class PlayerManager implements ReloadableModule {
 
         // Load existing players SYNCHRONOUSLY if this was a hot-reload to prevent async gap NPEs
         for (Player online : Bukkit.getOnlinePlayers()) {
-            handleJoin(online.getUniqueId(), true);
+            try {
+                handleJoin(online.getUniqueId(), true);
+            } catch (RuntimeException e) {
+                // One bad profile must not stop every later player from loading.
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Failed to reload session for " + online.getName(), e);
+            }
+        }
+
+        // Periodic autosave: previously profiles were only written on quit/switch/shutdown, so a
+        // crash lost everything since each player's join.
+        long intervalTicks = Math.max(30L, plugin.getConfig().getLong("profiles.autosave-interval-seconds", 300L)) * 20L;
+        autosaveTask = Bukkit.getScheduler().runTaskTimer(plugin, this::autosaveAll, intervalTicks, intervalTicks);
+    }
+
+    /** Captures every online player's live inventory and saves their session (main thread). */
+    public void autosaveAll() {
+        for (Map.Entry<UUID, ValmoraPlayer> entry : activeSession.entrySet()) {
+            Player online = Bukkit.getPlayer(entry.getKey());
+            ValmoraProfile active = entry.getValue().getActiveProfile();
+            if (online != null && active != null) {
+                savePlayerInventory(online, active);
+            }
+            save(entry.getValue());
+        }
+    }
+
+    /**
+     * Saves a session, logging (rather than dropping) any failure. The returned future never
+     * completes exceptionally, so callers may join on it freely.
+     */
+    public java.util.concurrent.CompletableFuture<Void> save(ValmoraPlayer player) {
+        return dataStore.savePlayer(player).exceptionally(ex -> {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Failed to save player " + player.getUuid() + " — changes since the last successful save may be lost.", ex);
+            return null;
+        });
+    }
+
+    private void onLoadFailed(UUID uuid, Throwable error) {
+        plugin.getLogger().log(java.util.logging.Level.SEVERE, "Profile load failed for " + uuid
+                + " — disconnecting instead of creating a blank profile over the real data.", error);
+        joinGeneration.remove(uuid);
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) {
+            player.kick(org.nakii.valmora.util.Formatter.format(
+                    "<red>Your profile data could not be loaded.\n<gray>Nothing was changed — please try rejoining in a moment."));
         }
     }
 
@@ -51,6 +107,8 @@ public class PlayerManager implements ReloadableModule {
     }
 
     public void handleJoin(UUID uuid, boolean sync) {
+        long generation = ++nextGeneration;
+        joinGeneration.put(uuid, generation);
         java.util.function.Consumer<ValmoraPlayer> processor = (player) -> {
             ValmoraPlayer finalPlayer = player != null ? player : new ValmoraPlayer(uuid);
             if (finalPlayer.getProfiles().isEmpty()) {
@@ -67,8 +125,12 @@ public class PlayerManager implements ReloadableModule {
             }   
 
             Runnable finalize = () -> {
+                Long current = joinGeneration.get(uuid);
+                if (current == null || current != generation || Bukkit.getPlayer(uuid) == null) {
+                    DebugManager.log("profiles", "discarding stale session load for " + uuid);
+                    return;
+                }
                 activeSession.put(uuid, finalPlayer);
-                new PlayerProfileLoadedEvent(uuid, finalPlayer).callEvent();
                 Player bukkitPlayer = Bukkit.getPlayer(uuid);
                 if (bukkitPlayer != null) {
                     ValmoraProfile active = finalPlayer.getActiveProfile();
@@ -79,6 +141,10 @@ public class PlayerManager implements ReloadableModule {
                     DebugManager.log("profiles", bukkitPlayer.getName() + " session loaded, active profile="
                             + active.getId() + " (" + active.getName() + "), profiles=" + finalPlayer.getProfiles().size());
                 }
+                // Fired last, once the saved inventory and stats are applied, so listeners (HUD
+                // items, quest join triggers, ...) act on the player's real state — anything they
+                // put in the inventory before this point was wiped by applyPlayerInventory.
+                new PlayerProfileLoadedEvent(uuid, finalPlayer).callEvent();
             };
 
             if (sync) {
@@ -89,15 +155,33 @@ public class PlayerManager implements ReloadableModule {
         };
 
         if (sync) {
-            processor.accept(dataStore.loadPlayer(uuid).join());
+            ValmoraPlayer loaded;
+            try {
+                loaded = dataStore.loadPlayer(uuid).join();
+            } catch (java.util.concurrent.CompletionException e) {
+                onLoadFailed(uuid, e.getCause() != null ? e.getCause() : e);
+                return;
+            }
+            processor.accept(loaded);
         } else {
-            dataStore.loadPlayer(uuid).thenAcceptAsync(processor);
+            dataStore.loadPlayer(uuid).whenComplete((loaded, error) -> {
+                if (error != null) {
+                    Bukkit.getScheduler().runTask(plugin, () -> onLoadFailed(uuid, error));
+                } else {
+                    processor.accept(loaded);
+                }
+            });
         }
     }
 
     @Override
     public void onDisable() {
         ProfileGui.unregister();
+
+        if (autosaveTask != null) {
+            autosaveTask.cancel();
+            autosaveTask = null;
+        }
 
         if (connectionListener != null) {
             org.bukkit.event.HandlerList.unregisterAll(connectionListener);
@@ -125,10 +209,11 @@ public class PlayerManager implements ReloadableModule {
         // thousands of cached players × per-save latency, all blocking plugin shutdown/reload).
         java.util.List<java.util.concurrent.CompletableFuture<Void>> saves = new java.util.ArrayList<>();
         for (ValmoraPlayer player : activeSession.values()) {
-            saves.add(dataStore.savePlayer(player));
+            saves.add(save(player));
         }
         java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
         activeSession.clear();
+        joinGeneration.clear();
     }
 
     @Override
@@ -143,17 +228,24 @@ public class PlayerManager implements ReloadableModule {
         if (player != null && vp != null && vp.getActiveProfile() != null) {
             savePlayerInventory(player, vp.getActiveProfile());
         }
+        joinGeneration.remove(uuid);
+        // Temporary buffs belong to this session; they used to leak into the next one.
+        org.nakii.valmora.module.item.TemporaryStatService.clear(uuid);
+        if (player != null) {
+            // Leave no Valmora values in the vanilla player file (attributes, passive effects) —
+            // they're re-applied from the profile on the next join.
+            try {
+                plugin.getStatModule().resetAttributes(player);
+                org.nakii.valmora.module.item.PassiveEffects.clear(player);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to reset attributes of " + player.getName(), e);
+            }
+        }
         ValmoraPlayer stored = activeSession.remove(uuid);
         if (stored != null) {
-            // Not truly guarded against a hard process kill mid-write (that's an OS-level
-            // concern no application code can fully close), but at minimum a save failure is no
-            // longer silently swallowed — previously fire-and-forget with nothing observing the
-            // future at all.
-            dataStore.savePlayer(stored).exceptionally(ex -> {
-                plugin.getLogger().log(java.util.logging.Level.SEVERE,
-                        "Failed to save player " + uuid + " on quit — data for this session may be lost.", ex);
-                return null;
-            });
+            // The data store runs a player's saves and loads in order, so a quick rejoin's load
+            // is guaranteed to see this save.
+            save(stored);
         }
     }
 
@@ -173,6 +265,8 @@ public class PlayerManager implements ReloadableModule {
         if (vp == null) return;
         ValmoraProfile current = vp.getActiveProfile();
         if (current != null) savePlayerInventory(player, current);
+        // Buffs from the previous profile must not carry over into this one.
+        org.nakii.valmora.module.item.TemporaryStatService.clear(player.getUniqueId());
         vp.setActiveProfile(profileId);
         ValmoraProfile next = vp.getActiveProfile();
         if (next != null) {
@@ -183,7 +277,7 @@ public class PlayerManager implements ReloadableModule {
         }
         // Persist the new active-profile id immediately — previously only saved on quit/disable,
         // so a crash right after switching would revert the selection on next join.
-        dataStore.savePlayer(vp);
+        save(vp);
         DebugManager.log("profiles", player.getName() + " switched profile: " + (current != null ? current.getId() : "none")
                 + " -> " + profileId);
     }
@@ -211,18 +305,21 @@ public class PlayerManager implements ReloadableModule {
             ValmoraProfile active = cached.getActiveProfile();
             if (active == null) { onComplete.accept(false); return; }
             mutator.accept(active);
-            dataStore.savePlayer(cached);
+            save(cached);
             onComplete.accept(true);
             return;
         }
 
-        dataStore.loadPlayer(uuid).thenAccept(vp -> {
+        dataStore.loadPlayer(uuid).whenComplete((vp, error) -> {
             boolean ok = false;
-            if (vp != null) {
+            if (error != null) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                        "Offline edit of " + uuid + " aborted: profile failed to load.", error);
+            } else if (vp != null) {
                 ValmoraProfile active = vp.getActiveProfile();
                 if (active != null) {
                     mutator.accept(active);
-                    dataStore.savePlayer(vp);
+                    save(vp);
                     ok = true;
                 }
             }
@@ -269,7 +366,7 @@ public class PlayerManager implements ReloadableModule {
         }
         ValmoraProfile newProfile = new ValmoraProfile(profileName);
         vp.addProfile(newProfile);
-        dataStore.savePlayer(vp);
+        save(vp);
         return CreateResult.OK;
     }
 
@@ -300,7 +397,7 @@ public class PlayerManager implements ReloadableModule {
 
         vp.removeProfile(profileId);
         dataStore.deleteProfile(profileId);
-        dataStore.savePlayer(vp);
+        save(vp);
         return DeleteResult.OK;
     }
 
@@ -316,6 +413,20 @@ public class PlayerManager implements ReloadableModule {
     }
 
     private void savePlayerInventory(Player player, ValmoraProfile profile) {
+        // Snapshot the player's live alchemy effects into the profile too (same call sites: quit,
+        // autosave, switch, disable), so they survive restarts.
+        var alchemy = plugin.getAlchemyManager();
+        if (alchemy != null) {
+            java.util.List<PlayerState.SavedEffect> saved = new java.util.ArrayList<>();
+            for (var effect : alchemy.getActiveEffects(player.getUniqueId())) {
+                PlayerState.SavedEffect s = new PlayerState.SavedEffect();
+                s.effectId = effect.effectId();
+                s.level = effect.level();
+                s.expiresAtMs = effect.expiresAtMs();
+                saved.add(s);
+            }
+            profile.getPlayerState().setAlchemyEffects(saved);
+        }
         PlayerInventory inv = player.getInventory();
         profile.setSavedInventory(inv.getStorageContents().clone());
         profile.setSavedArmor(inv.getArmorContents().clone());
@@ -324,6 +435,14 @@ public class PlayerManager implements ReloadableModule {
     }
 
     private void applyPlayerInventory(Player player, ValmoraProfile profile) {
+        var alchemy = plugin.getAlchemyManager();
+        if (alchemy != null) {
+            java.util.List<org.nakii.valmora.module.alchemy.effect.ActiveEffect> restored = new java.util.ArrayList<>();
+            for (PlayerState.SavedEffect s : profile.getPlayerState().getAlchemyEffects()) {
+                if (s.effectId != null) restored.add(new org.nakii.valmora.module.alchemy.effect.ActiveEffect(s.effectId, s.level, s.expiresAtMs));
+            }
+            alchemy.restoreEffects(player.getUniqueId(), restored);
+        }
         PlayerInventory inv = player.getInventory();
         inv.clear();
         if (profile.getSavedInventory() != null) inv.setStorageContents(profile.getSavedInventory());

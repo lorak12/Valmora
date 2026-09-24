@@ -1,0 +1,44 @@
+---
+title: Objective types
+summary: Every quest objective type — what each tracks, what target means, and the shared flags.
+---
+
+An **objective type** is the lowercase `type:` of a quest objective — what the player must do.
+`target` narrows it (a mob, item, material, or `any`) and `amount` sets how many. Types are
+case-insensitive; `target` matches case-insensitively or `any`. Custom types can be added from
+Java — see [Extending Valmora](/docs/developer-extending).
+
+## Every type
+
+<RefTable kind="objectives" />
+
+Common examples from the shipped quests:
+
+```yaml
+# a quest objective
+- { id: mine_coal, type: block_break, target: COAL_ORE, amount: 20, notify: 5 }
+- { id: kill_spiders, type: kill, target: cave_spider, amount: 5, conditions: "in_mine" }
+- { id: catch_fish, type: fish, target: any, amount: 3, conditions: "is_day" }
+- { id: bonus_mining, type: block_break, target: any, amount: 50, persistent: true, auto-once: true, notify: 10, events: "reward_coins_small" }
+```
+
+- `kill` targets a mob id or a [mob category](/docs/mobs) (`UNDEAD`); `collect` targets an
+  [item](/docs/items) id.
+- `block_break` / `block_place` target a vanilla material. [Resource nodes](/docs/resource-nodes)
+  count as `block_break`.
+- `fish` with `any` counts every catch; `craft`, `smelt`, `enchant`, `brew` target materials.
+- `reach_zone`, `location`, `talk_to_npc`, `npcrange` target zones or [NPCs](/docs/npcs).
+- `delay` matches by objective id (not a target) and takes `delay:` / `ticks:` / `interval:`.
+- `consume` generalizes drinking potions; `action` fires on four interaction variants.
+
+## Flags on every objective
+
+| Flag | Default | What it does |
+|---|---|---|
+| `conditions` | none | Named `conditions:` ref or inline [condition](/docs/conditions). |
+| `events` | none | Named event or inline [script](/docs/events) fired when this objective completes. |
+| `persistent` | `false` | `true` never completes the quest — a repeatable bonus objective. |
+| `auto-once` | `false` | `true` activates on join via a profile tag. |
+| `notify` | none | Action-bar progress every `N` steps; always notifies on completion. |
+
+<SeeAlso slugs={["quests", "quest-packages", "conditions", "events", "variables"]} />

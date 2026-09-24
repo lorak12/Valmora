@@ -1,0 +1,51 @@
+---
+title: Introduction
+summary: What Valmora is, what you can build with it, and how these docs are organised.
+---
+
+Valmora is an RPG engine for **Paper 1.21.11** servers. It gives you custom items with stats and
+abilities, levelled mobs and bosses, quests with NPC conversations, crafting machines, zones,
+skills, an economy, menus and more. You configure all of it in YAML files: no Java, no
+recompiling, and `/valmora reload` applies most changes without a restart.
+
+## What you can build
+
+- **Items** with stats, rarities, lore and right-click/on-hit/passive abilities, plus armor set
+  bonuses, backpacks, custom enchants, reforges and gemstones.
+- **Mobs and bosses** with levels, loot tables, boss bars and timed or health-triggered abilities.
+- **Quests** — kill/collect/talk/reach objectives, NPCs with branching conversations, repeatable
+  quest boards.
+- **Crafting** — a custom crafting table, forge, anvil, alchemy table, or any machine you design.
+- **A world** — zones with their own rules, regenerating ore nodes, mob spawners, fishing loot,
+  warps, an RPG calendar with seasonal events.
+- **Progression** — nine skills, collections, skill trees, pets, a purse-and-bank economy and
+  multiple character profiles per player.
+- **Interface** — any inventory menu, the sidebar scoreboard, action bar and tab list, all as YAML.
+
+The pieces all share one scripting language: a line like `give DIAMOND:3` or
+`quest_start wolf_problem` works the same in a quest reward, a menu button, an item ability and
+an NPC's click action. Learn it once and it applies everywhere.
+
+## How the docs are organised
+
+<Callout type="tip" title="Where to start">
+If you've never used Valmora, read [Installation](/docs/installation) and
+[Core concepts](/docs/core-concepts), then do the tutorials in order. Each one builds a working
+feature in about ten minutes.
+</Callout>
+
+- **Getting Started** — install the plugin, understand the folder layout, the rules every YAML
+  file follows, and every command.
+- **Tutorials** — step-by-step builds: your first item, mob, boss, quest, recipe, zone, menu and
+  reforge.
+- **System pages** (Items & Combat, Crafting, World, Quests, Progression, Interface) — one page per
+  system. Each page covers what the system does, where its files live, a complete working example,
+  **every field** with its default, its commands, and common mistakes.
+- **Scripting** — the events, conditions, variables and expressions shared by every system, plus
+  pipelines for reacting to combat, mining, fishing and abilities server-wide.
+- **Reference** — every `config.yml` setting, every shipped default file, and troubleshooting.
+- **Developer API** — for Java developers writing addon plugins against Valmora.
+
+The events, mechanics, triggers, objective types, conditions, variables and commands listed in
+these docs are checked against the plugin's source every time the site is built, so those lists
+can't fall out of date.

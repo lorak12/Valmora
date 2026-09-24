@@ -31,6 +31,8 @@ public class PetModule implements ReloadableModule {
     // Keyed by a per-item PET_INSTANCE_KEY tag (stamped on first summon) rather than an inventory
     // slot index — the pet item can be moved anywhere in the player's inventory and still resolve.
     private final Map<UUID, UUID> activePetInstance = new HashMap<>();
+    /** player → pet instance that was summoned when the module last disabled (see onDisable). */
+    private final Map<UUID, UUID> resummonAfterReload = new HashMap<>();
     private final Map<UUID, Entity> activePetEntity = new HashMap<>();
 
     private PetListener listener;
@@ -59,8 +61,28 @@ public class PetModule implements ReloadableModule {
 
         if (followTask != null) followTask.cancel();
         if (plugin.getServer() != null && plugin.getServer().getScheduler() != null) {
-            followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), 5L, 5L);
+            // HC-231: follow-poll rate — CPU vs. smoothness.
+            long followIntervalTicks = plugin.getConfig().getLong("pets.follow.tick-interval-ticks", 5L);
+            followTask = plugin.getServer().getScheduler().runTaskTimer(plugin, new PetFollowTask(plugin, activePetEntity), followIntervalTicks, followIntervalTicks);
         }
+
+        resummonPetsAfterReload();
+    }
+
+    private void resummonPetsAfterReload() {
+        for (Map.Entry<UUID, UUID> entry : resummonAfterReload.entrySet()) {
+            Player player = plugin.getServer().getPlayer(entry.getKey());
+            if (player == null) continue;
+            var contents = player.getInventory().getContents();
+            for (int slot = 0; slot < contents.length; slot++) {
+                ItemStack item = contents[slot];
+                if (item != null && entry.getValue().equals(instanceIdOf(item))) {
+                    toggleSummon(player, slot);
+                    break;
+                }
+            }
+        }
+        resummonAfterReload.clear();
     }
 
     @Override
@@ -69,6 +91,10 @@ public class PetModule implements ReloadableModule {
         for (Entity entity : activePetEntity.values()) {
             if (entity.isValid()) entity.remove();
         }
+        // Remember who had which pet out, so the next enable (a reload) re-summons them instead of
+        // every pet silently vanishing.
+        resummonAfterReload.clear();
+        resummonAfterReload.putAll(activePetInstance);
         if (listener != null) {
             HandlerList.unregisterAll(listener);
             listener = null;
@@ -84,7 +110,11 @@ public class PetModule implements ReloadableModule {
     @Override
     public String getName() { return "Pet System"; }
 
-    public PetDefinition getDefinition(String id) { return definitions.get(id.toLowerCase()); }
+    public PetDefinition getDefinition(String id) {
+        PetDefinition def = definitions.get(id.toLowerCase());
+        // Renamed pet (previous-ids): existing pet items still carry the old id.
+        return def != null ? def : definitions.get(org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(org.nakii.valmora.infrastructure.versioning.IdAliases.PETS, id));
+    }
     public Collection<PetDefinition> getDefinitions() { return definitions.values(); }
     public Map<UUID, Entity> getActivePetEntities() { return activePetEntity; }
 
@@ -120,14 +150,38 @@ public class PetModule implements ReloadableModule {
         if (item == null) return null;
         String petId = item.getItemMeta().getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
-        return petId != null ? definitions.get(petId) : null;
+        return petId != null ? getDefinition(petId) : null;
     }
 
     public int getActivePetLevel(Player player) {
         ItemStack item = findActivePetItem(player);
         if (item == null) return 1;
-        return item.getItemMeta().getPersistentDataContainer()
-                .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        ItemMeta meta = item.getItemMeta();
+        String petId = meta.getPersistentDataContainer().get(Keys.PET_ID_KEY, PersistentDataType.STRING);
+        return levelOf(meta, petId != null ? getDefinition(petId) : null);
+    }
+
+    /**
+     * A pet item's level, clamped to its definition's current {@code max-level} — lowering the cap
+     * in YAML applies to pets that already passed it instead of leaving them over-cap.
+     */
+    public int levelOf(ItemMeta meta, PetDefinition def) {
+        int level = meta.getPersistentDataContainer().getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        if (def != null) level = Math.min(level, def.getMaxLevel());
+        return Math.max(1, level);
+    }
+
+    /**
+     * Renders a pet item's display name from its CURRENT definition and level. The name used to
+     * be written once when the item was created, so it never showed level-ups or a renamed pet.
+     * Returns false (leaving the name alone) for items that aren't pets or whose pet no longer exists.
+     */
+    public boolean applyPetDisplay(ItemMeta meta) {
+        String petId = meta.getPersistentDataContainer().get(Keys.PET_ID_KEY, PersistentDataType.STRING);
+        PetDefinition def = petId != null ? getDefinition(petId) : null;
+        if (def == null) return false;
+        meta.displayName(Formatter.format("<gold>" + def.getName() + " <gray>[Lvl " + levelOf(meta, def) + "]"));
+        return true;
     }
 
     public double getActivePetXp(Player player) {
@@ -159,7 +213,7 @@ public class PetModule implements ReloadableModule {
         String petId = petMeta.getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
         if (petId == null) return;
-        PetDefinition def = definitions.get(petId);
+        PetDefinition def = getDefinition(petId);
         if (def == null) return;
 
         // Stamp an instance id if this item predates the instance-tracking system (e.g. an
@@ -177,6 +231,12 @@ public class PetModule implements ReloadableModule {
         Location loc = player.getLocation().add(1, 0, 0);
         try {
             LivingEntity entity = (LivingEntity) player.getWorld().spawnEntity(loc, def.getEntityType());
+            // Tagged, non-persistent and invulnerable: a pet is a visual companion, not a mob. It
+            // used to be saved with the chunk (orphaned forever after a crash) and could be killed
+            // for vanilla drops.
+            org.nakii.valmora.util.TransientEntities.mark(entity, "pets");
+            entity.setInvulnerable(true);
+            entity.setRemoveWhenFarAway(false);
             entity.customName(Formatter.format("<gold>" + def.getName()));
             entity.setCustomNameVisible(true);
             entity.setAI(false);
@@ -230,8 +290,7 @@ public class PetModule implements ReloadableModule {
         if (def == null) return;
 
         ItemMeta meta = petItem.getItemMeta();
-        int level = meta.getPersistentDataContainer()
-                .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        int level = levelOf(meta, def);
         int initialLevel = level;
         double xp = meta.getPersistentDataContainer()
                 .getOrDefault(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, 0.0);
@@ -251,6 +310,7 @@ public class PetModule implements ReloadableModule {
 
         meta.getPersistentDataContainer().set(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, level);
         meta.getPersistentDataContainer().set(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, xp);
+        if (level != initialLevel) applyPetDisplay(meta);
         petItem.setItemMeta(meta);
 
         if (level > initialLevel) triggerStatRecalc(player);
@@ -278,6 +338,15 @@ public class PetModule implements ReloadableModule {
      */
     private void loadPetDefaultsConfig() {
         java.io.File file = new java.io.File(plugin.getDataFolder(), "pets/defaults.yml");
+        // HC-232 fix: this bundled resource previously only got read if an admin happened to
+        // create it themselves — nothing ever extracted the shipped default onto disk, so
+        // defaultXpFormula/defaultMaxLevel above (this class's own copy of the same numbers) was
+        // silently the only source of truth in practice. Extract it like every other bundled
+        // single-file config in this codebase (ui.yml, config.yml, etc.) so the documented,
+        // editable file actually exists after first launch.
+        if (!file.exists()) {
+            plugin.saveResource("pets/defaults.yml", false);
+        }
         if (!file.exists()) return;
         var config = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
         ConfigurationSection section = config.getConfigurationSection("pet_defaults");

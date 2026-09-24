@@ -73,7 +73,19 @@ public final class PackContentFolders {
             Map.entry("set_bonuses", "items"),
             Map.entry("progression", "progression"),
             Map.entry("machines", "machine"),
-            Map.entry("quest_boards", "quest")
+            Map.entry("quest_boards", "quest"),
+            // Shared single-file configs a pack can merge into — their owning modules must reload
+            // too, or merged keys (e.g. a pack's new rarity) stay invisible until a full reload.
+            Map.entry("ui.yml", "ui"),
+            Map.entry("mob_categories.yml", "mobs"),
+            Map.entry("entity_categories.yml", "mobs"),
+            Map.entry("mob_pipeline.yml", "mobs"),
+            Map.entry("item_types.yml", "items"),
+            Map.entry("item_pipeline.yml", "items"),
+            Map.entry("combat_pipeline.yml", "combat"),
+            Map.entry("resource_pipeline.yml", "resource"),
+            Map.entry("fishing_pipeline.yml", "fishing"),
+            Map.entry("rarities.yml", "rarity")
     );
 
     private static final Set<String> CONTENT_FOLDERS_LOWER = toLowerSet(CONTENT_FOLDERS);

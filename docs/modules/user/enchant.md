@@ -169,7 +169,7 @@ much faster than reading a schema table.
 | `ON_ATTACK_POST` | after your hit lands, for your weapon's enchants | the attacker | the victim |
 | `ON_DEFEND_POST` | after you take a hit, for your armor's enchants | **the wearer** (you) | **the attacker** |
 | `ON_KILL` | you land the killing blow, for your weapon's enchants | the attacker | the victim (dead) |
-| `ON_DEATH` | reserved for future use | — | — |
+| `ON_DEATH` | the holder/wearer dies, for every enchanted item they hold or wear | the player who died | their killer (if any) |
 
 Note `ON_DEFEND_POST`'s selectors are intentionally swapped relative to `ON_ATTACK_POST` — a thorns-
 style "hit the attacker back" action always means "hit `@target`", regardless of which side of the
@@ -236,11 +236,13 @@ entries are silently ignored at load time.
         crit-chance: "<formula>"
         crit-damage: "<formula>"
         defense-shred-percent: "<formula>"
+        knockback-multiplier: "<formula>"
     modify-defend:
       conditions: ["<condition>"]
       modifiers:
         damage-multiplier: "<formula>"
         damage-reduction-percent: "<formula>"
+        knockback-multiplier: "<formula>"
 
   triggers:
     ON_ATTACK_POST: # or ON_DEFEND_POST / ON_KILL

@@ -199,6 +199,11 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     }
 
     @Override
+    public org.nakii.valmora.module.death.DeathModule getDeathModule() {
+        return module("death", org.nakii.valmora.module.death.DeathModule.class);
+    }
+
+    @Override
     public NpcManager getNpcManager() {
         NpcModule m = getNpcModule();
         return m != null ? m.getNpcManager() : null;
@@ -289,6 +294,11 @@ public class ValmoraAPIImpl implements ValmoraAPI {
     @Override
     public FishingModule getFishingModule() {
         return module("fishing", FishingModule.class);
+    }
+
+    @Override
+    public org.nakii.valmora.module.blockloot.BlockLootModule getBlockLootModule() {
+        return module("block_loot", org.nakii.valmora.module.blockloot.BlockLootModule.class);
     }
 
     @Override

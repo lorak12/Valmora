@@ -3,7 +3,7 @@ import { ModulePipeline } from "@/components/ModulePipeline";
 import { Badge } from "@/components/Badge";
 import { CodeBlock } from "@/components/CodeBlock";
 import { PricingSection } from "@/components/PricingSection";
-import { DOCS } from "@/lib/docsContent";
+import { getAllDocs } from "@/lib/docs";
 import { HERO_MODULES, MODULE_CHAIN } from "@/lib/modules";
 
 const PILLARS = [
@@ -20,7 +20,7 @@ const PILLARS = [
   {
     title: "GUIs & Machines",
     body: "Data-driven inventory screens with typed slots, event blocks, and a three-tier crafting engine.",
-    href: "/docs/gui-machines",
+    href: "/docs/guis",
   },
   {
     title: "Scripting DSL",
@@ -104,7 +104,7 @@ export default function Home() {
       <section className="py-16 border-t border-[var(--line)]">
         <h2 className="font-display text-3xl sm:text-4xl mb-3">The real load order.</h2>
         <p className="text-[var(--ink-muted)] max-w-2xl mb-8">
-          This is the actual 28-module registration chain from{" "}
+          This is the actual {MODULE_CHAIN.length}-module registration chain from{" "}
           <code className="font-mono text-[13px] text-[var(--ink)]">Valmora.java</code> —
           not a marketing diagram. Later modules can depend on earlier ones; never the
           reverse.
@@ -123,14 +123,14 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
-          {DOCS.slice(0, 3).map((d) => (
+          {getAllDocs().filter((d) => d.section === "Tutorials").slice(0, 3).map((d) => (
             <Link
               key={d.slug}
               href={`/docs/${d.slug}`}
               className="rounded-xl border border-[var(--line)] p-6 hover:border-[var(--amber)]/50 transition-colors"
             >
               <span className="font-mono text-xs uppercase tracking-wider text-[var(--ink-dim)]">
-                {d.category}
+                {d.section}
               </span>
               <h3 className="font-display text-xl mt-2 mb-2">{d.title}</h3>
               <p className="text-sm text-[var(--ink-muted)] leading-relaxed">{d.summary}</p>

@@ -11,7 +11,7 @@ events:
   bonus_mining_reward: "folder reward_coins_small"
 
 conditions:
-  in_mine:        "zone coal_mine"
+  in_mine:        "zone mine"   # zones/test_zones.yml
   is_day:         "$time.is_day$ == true"
   mine_done:      "tag forgotten_mine.done"
 
@@ -44,7 +44,7 @@ quests:
 
       reach_mine:
         type: REACH_ZONE
-        target: coal_mine
+        target: mine
         amount: 1
         events:
           - "notify <green>You have completed <bold>A Miner's Burden<reset><green>! category:quest_complete"

@@ -1,0 +1,81 @@
+---
+title: Progression trees
+summary: Spendable talent trees — tiers, nodes, cost curves, and the points currencies behind them.
+---
+
+A **progression tree** is a spendable talent grid: players spend [points](/docs/quest-boards-points)
+to unlock tiers and level up nodes, each level granting [stat](/docs/stats) bonuses or daily
+income. The shipped tree is `geomancy`, opened with `/geomancy`.
+
+## Files
+
+`plugins/Valmora/progression/*.yml` — each top-level key is a tree. Currencies are points
+categories earned through quests (`point <category> add <n>`).
+
+## A complete tree
+
+```yaml
+# plugins/Valmora/progression/geomancy.yml
+geomancy:
+  name: "<aqua>Geomancy"
+  description: "<gray>Master the Shardworks."
+  level-currency: ferrite_powder
+  tier-currency: geomancy_tokens
+  tiers:
+    0: { name: Novice, unlock-cost: 0, nodes: [mining_speed_root] }
+    1: { name: Adept, unlock-cost: 3, nodes: [mining_fortune_vein, mining_spread_focus] }
+  nodes:
+    mining_speed_root:
+      name: "<gray>Mining Speed"
+      description: "<gray>+4 mining speed per level."
+      icon: IRON_PICKAXE
+      tier: 0
+      max-level: 10
+      cost-curve: "floor(5 * pow(1.12, $level$))"
+      stat-bonus: { stat: mining_speed, per-level: 4 }
+    daily_ferrite_cache:
+      tier: 2
+      max-level: 5
+      cost-curve: "floor(20 * pow(1.2, $level$))"
+      daily-bonus: { category: ferrite_powder, per-level: 25 }
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `level-currency` | — **required** | Points category spent on node levels. |
+| `tier-currency` | — **required** | Points category spent on tier unlocks. |
+| `tiers.<i>.unlock-cost` | `0` | Tier-currency cost to unlock the tier. |
+| `tiers.<i>.nodes` | none | Node ids in this tier. |
+| `nodes.<id>.tier` | `0` | Which tier gates the node. |
+| `nodes.<id>.max-level` | `1` | Times the node can be leveled. |
+| `nodes.<id>.cost-curve` | none | [Expression](/docs/expressions) with `$level$` for the next level's cost. |
+| `nodes.<id>.prerequisites` | none | Node ids that must be leveled first. |
+| `nodes.<id>.stat-bonus` | none | `{ stat, per-level }` added per level. |
+| `nodes.<id>.daily-bonus` | none | `{ category, per-level }` points granted per claim window. |
+
+Daily bonuses re-arm every `progression.daily-bonus.window-hours` (24); refunds return
+`progression.refund-percent` (100%) in [config.yml](/docs/config-yml#progression).
+
+## Scripting
+
+```yaml
+- "progression_levelup geomancy mining_speed_root"
+- "progression_unlock_tier geomancy"
+- "progression_reset geomancy"
+```
+
+| Variable | Meaning |
+|---|---|
+| `$progression.<tree>.tier$` | Highest unlocked tier |
+| `$progression.<tree>.<node>.level$` / `.max_level$` | Current / max level |
+| `$progression.<tree>.<node>.next_cost$` / `.unlocked$` | Next cost / whether usable |
+| `$point.<category>$` | The currency balance |
+
+```text
+/geomancy
+/progression list
+/progression info <tree>
+/progression reset <tree>
+```
+
+<SeeAlso slugs={["quest-boards-points", "skills", "collections", "stats", "economy"]} />

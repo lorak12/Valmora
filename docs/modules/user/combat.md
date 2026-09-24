@@ -92,7 +92,7 @@ Defense reduction = 100 / (Defense + 100)
 ### What players DON'T control here
 
 - There are **no player commands** in the Combat module. You can't "toggle" damage numbers or change combat feel in-game.
-- Vanilla attack cooldowns, knockback, and crit particles are left as-is — the module only replaces the damage math, the numbers, and health/regen.
+- Vanilla attack-charge scales melee damage (`combat.attack-cooldown`, down to 20% when spam-clicking), shields block frontal hits (`combat.shield`), and enchants can scale knockback (`knockback-multiplier`).
 
 ### Combat interaction with other systems
 
@@ -129,9 +129,9 @@ To change the feel:
 - **Raise or lower the Damage stat** baseline — edit `damage.default-value` in `stats/core.yml` (default `5.0`). This is the single biggest lever for player power.
 - **Buff Defense's value** — increase `defense.default-value` or add Defense to mobs/armor. Defense is most impactful early (0→100 Defense is a 50% reduction; 100→200 only drops you to 33% taken).
 - **Crit pacing** — `crit_chance.default-value` (30) and `crit_damage.default-value` (50). Chance is capped at 100; crit damage is uncapped.
-- **Regen** — `health_regen.default-value` (1.0, out of combat) and `mana_regen.default-value` (2.0, always). The "in combat" window is **hardcoded to 3 seconds** — you can't change it without a plugin update.
+- **Regen** — `health_regen.default-value` (1.0, out of combat) and `mana_regen.default-value` (2.0, always). The "in combat" window is `combat.combat-window-ms` (3000) in `config.yml`.
 - **Health pool** — `health.default-value` (100) and `health.max-value` (10,000) control how much punishment players can take and how big the damage numbers feel relative to health.
-- **Environmental damage feel** — the **×5 multiplier is hardcoded** (in `DamageCalculator`). If environmental damage feels too weak or too punishing, it can't be tuned via config in 0.1.
+- **Environmental damage feel** — the ×5 multiplier is `combat.environment-damage-multiplier` in `config.yml`.
 
 ### Mobs
 
@@ -175,7 +175,7 @@ plugins/Valmora/
 └── mobs/*.yml            # per-mob combat stats
 ```
 
-The Combat module ships **no dedicated combat YAML folder**.
+Damage types live in `damage_types/*.yml` (color, `ignores-defense`, `on-hit` events); everything else is `config.yml` → `combat:`.
 
 ### `config.yml` → `combat:` keys
 

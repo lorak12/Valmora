@@ -78,6 +78,8 @@ public class NpcModule implements ReloadableModule {
     @Override
     public void onDisable() {
         plugin.getLogger().info("Disabling NPC Module...");
+        // Before the packet manager goes: ending a session also releases its packet interception.
+        if (dialogueManager != null) dialogueManager.endAllSessions();
         if (packetManager != null) { packetManager.unregister(); packetManager = null; }
         if (npcManager != null) { npcManager.stopRespawnTask(); npcManager.stopLookTask(); npcManager.despawnAll(); }
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }

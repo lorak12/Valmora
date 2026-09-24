@@ -1,0 +1,79 @@
+---
+title: Combat & damage types
+summary: How Valmora calculates damage, health and regeneration, the damage types and what they do, and the settings that tune combat.
+---
+
+Valmora replaces vanilla damage with a stat-based formula. Health becomes a large pool (100 by
+default, not 20 half-hearts) shown on a scaled 10-heart bar, and every hit shows a floating damage
+number colored by its damage type.
+
+## The damage formula
+
+```text
+damage = Damage × (1 + Strength / 100)
+if the hit is critical (Crit Chance %): × (1 + Crit Damage / 100)
+× enchant multipliers  × pipeline multipliers
+× 100 / (Defense + 100)            victim's defense — skipped for types that ignore defense
+− damage reduction, × (1 − victim's resistance to the damage type)
+rounded down
+```
+
+- **Players** use their stats (Damage 5, Crit Chance 30%, Crit Damage 50% by default) plus
+  weapon, armor and bonuses.
+- **Custom mobs** use their `stats:` and level (see [Mobs](/docs/mobs#stats)). Plain vanilla mobs
+  hit for `combat.fallback-base-damage`.
+- 100 Defense halves damage, 300 cuts it to a quarter.
+- Spam-clicking deals less: the vanilla attack-charge is applied (down to 20% at no charge,
+  `combat.attack-cooldown`).
+- Shields block 90% of a frontal hit; axes disable them (`combat.shield`).
+
+## Environmental damage
+
+Falling, fire, lava, drowning, explosions, poison and the like are multiplied by
+`combat.environment-damage-multiplier` (5 by default) so they still matter against large health
+pools, then mitigated by defense unless their damage type ignores it.
+
+## Health, mana and regeneration
+
+- Health regenerates `health_regen` per second, **except** within `combat.combat-window-ms` (3
+  seconds) of dealing or taking damage.
+- Mana regenerates `mana_regen` per second, always.
+- Vanilla food regeneration is turned off for players; healing comes from stats, abilities and
+  events.
+
+All of these are in [config.yml → combat](/docs/config-yml#combat).
+
+## Damage types
+
+Every hit has a damage type. It sets the color of the damage number, whether defense applies,
+and which mob `resistances:` reduce it.
+
+<RefTable kind="damageTypes" />
+
+They're defined in `plugins/Valmora/damage_types/*.yml`. You can add your own:
+
+```yaml
+# plugins/Valmora/damage_types/custom.yml
+frost:
+  color: "<aqua>"
+  ignores-defense: false
+  on-hit:
+    - "apply_potion slowness 1 2 @target"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `color` | `<white>` | Color of the damage number. |
+| `ignores-defense` | `false` | Skip the victim's defense for this type. |
+| `on-hit` | none | [Events](/docs/events) run every time a hit of this type lands. |
+
+Use a type in `damage-type:` on the `DAMAGE` mechanic or a mob, in the `damage` event, and in mob
+`resistances:` (`FROST: 0.5` = half damage, `1.0` = immune). Map vanilla damage causes to your
+types with `combat.cause-mapping` in config.yml.
+
+## Server-wide combat rules
+
+To change damage in situations — low-health bonuses, zone rules, executes — use
+`combat_pipeline.yml`. See [Pipelines](/docs/pipelines).
+
+<SeeAlso slugs={["stats", "mobs", "pipelines", "death"]} />

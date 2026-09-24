@@ -208,7 +208,7 @@ When the item loader parses a definition, it validates:
   Unknown types throw `UnknownMechanicException` and fail the load.
 - `trigger` — must be a valid `AbilityTrigger` enum value.
 
-If an item fails to load, it is silently skipped (a warning is logged). Use
+If an item fails to load, it is skipped and a warning naming the file, item and problem is logged to the console. Use
 `/item list` to confirm your item registered successfully.
 
 ### 3.5 Editing While the Server Is Running
@@ -303,7 +303,7 @@ The `type` key is case-insensitive (normalized by `MechanicRegistry`). The
 
 ## 6. Available Mechanics Reference
 
-All 14 mechanics are registered in `AbilityManager.registerMechanics()`. Their
+All 17 mechanics are registered in `AbilityManager.registerMechanics()` (`CANCEL_TRAMPLE`, `CHARGE_JUMP` and `OPEN_CONTAINER_GUI` aren't in the table below yet — see the website's mechanics reference). Their
 IDs (as used in the `type:` field) are listed below with their parameters.
 
 > **Note on case:** Mechanic IDs are matched **case-insensitively** by
@@ -410,9 +410,9 @@ context)`. The following selectors are supported:
 |---|---|
 | `@player` / `@self` | The caster (player who activated the ability) |
 | `@target` | The context target entity (default when selector is blank or unknown) |
-| `@enemies_in_radius{r=X}` | Hostile mobs (any non-player living entity) within X blocks |
-| `@allies_in_radius{r=X}` | Players within X blocks (includes the caster) |
-| `@cone{range=X, angle=Y}` | Enemies in a forward-facing cone (X blocks range, Y degrees) |
+| `@enemies_in_radius{r=X}` | The caster's enemies within X blocks — every non-player living entity for a player caster, players for a mob caster (boss abilities) |
+| `@allies_in_radius{r=X}` | The caster's side within X blocks — players (including the caster) for a player caster, other mobs for a mob caster |
+| `@cone{range=X, angle=Y}` | Enemies (as above) in a forward-facing cone (X blocks range, Y degrees) |
 
 **Default radius:** `@enemies_in_radius` and `@allies_in_radius` default to 5
 blocks when `r=` is omitted.

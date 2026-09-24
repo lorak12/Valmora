@@ -455,6 +455,25 @@ public void onDisable() {
 }
 ```
 
+### Reload & Versioning Rules (read `docs/modules/design/versioning.md`)
+
+- **Close what your listener guards** in `onDisable` (open inventories, dialogues). Once the
+  listener is gone, an open custom inventory is a plain chest (a dupe).
+- **Never capture** a `ValmoraProfile`, manager or `Player` in a delayed task or long-lived
+  closure. Capture ids and re-resolve at run time, because reloads replace those objects.
+- **Need the profile or inventory on join?** Listen to `PlayerProfileLoadedEvent`, not
+  `PlayerJoinEvent`. It fires after the saved inventory and stats are applied.
+- **World state derived from content** (spawned entities, bars, trackers) reconciles on
+  `ValmoraReloadedEvent` and `EntitiesLoadEvent`. Presentation-only entities use
+  `TransientEntities.mark`.
+- **Persisted references to content** go by id and are resolved through the registry
+  (`SimpleRegistry(aliasType)` follows `previous-ids`), never by list index or other positions that
+  change when YAML changes.
+- **Changing a persisted shape** (DB, profile JSON, item PDC, `config.yml`) means adding a step to
+  that shape's ladder — see §2 of the versioning design doc.
+- **Script events** registered in your `onEnable` can be used by earlier modules' YAML: unknown
+  names resolve lazily on first execution.
+
 ---
 
 ## 8. Exposing Module via API

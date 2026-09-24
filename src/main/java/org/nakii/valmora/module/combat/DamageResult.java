@@ -12,6 +12,10 @@ public class DamageResult {
     private final LivingEntity attacker;
     private final LivingEntity victim;
     private boolean immune = false;
+    /** See {@link DamageModifierContext#getKnockbackMultiplier()} — VANILLA_CONTROL_AUDIT.md §14
+     *  Medium #22. Defaults to 1.0 (vanilla knockback unchanged) for any {@code DamageResult} built
+     *  outside {@link DamageCalculator} (e.g. the shield-block reconstruction in {@code CombatListener}). */
+    private double knockbackMultiplier = 1.0;
 
     public DamageResult(double finalDamage, DamageType damageType, boolean isCritical, LivingEntity attacker, LivingEntity victim) {
         this.finalDamage = finalDamage;
@@ -55,5 +59,13 @@ public class DamageResult {
 
     public LivingEntity getVictim() {
         return victim;
+    }
+
+    public double getKnockbackMultiplier() {
+        return knockbackMultiplier;
+    }
+
+    public void setKnockbackMultiplier(double knockbackMultiplier) {
+        this.knockbackMultiplier = knockbackMultiplier;
     }
 }

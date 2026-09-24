@@ -1,0 +1,177 @@
+---
+title: Pipelines
+summary: Server-wide rules that react to — or cancel — hits, deaths, item and boss abilities, mining and fishing, written as YAML stages.
+---
+
+A **pipeline** lets you add a rule that applies everywhere, without editing every item or mob:
+"abilities don't work in the hub", "players below 25% HP deal 50% more damage", "ancient debris
+has a rare bonus drop", "bosses switch attacks at half health". Each rule is a **stage**: some
+conditions, and events to run when they pass.
+
+A server that never touches its pipeline files runs exactly as if pipelines didn't exist.
+
+## Files and points
+
+Each file hooks one system. A stage says **when** it runs with one of that file's points:
+
+| File | `when:` | Runs | `interrupt` |
+|---|---|---|---|
+| `combat_pipeline.yml` | `pre_damage` | before a hit's damage is calculated | cancels the hit |
+| | `post_calculation` | damage is known, health not yet reduced | the hit doesn't land |
+| | `post_application` | health reduced, damage number shown | no effect |
+| | `on_dmg_dealt` | after `ON_HIT` abilities and boss triggers | no effect |
+| | `on_death` | a custom mob was killed by a player | no effect |
+| `item_pipeline.yml` | `pre_ability` | an item ability passed its cooldown/mana check | cancels that use (cooldown and mana stay spent) |
+| | `post_ability` | after its mechanics ran | no effect |
+| `mob_pipeline.yml` | `pre_ability` | a boss ability is about to fire | cancels that firing |
+| | `post_ability` | after its mechanics ran | no effect |
+| `resource_pipeline.yml` | `pre_break` | a zone resource node passed its power check | cancels the break (tell the player yourself) |
+| | `post_break` | drops given, block advanced | no effect |
+| `fishing_pipeline.yml` | `pre_catch` | before the catch is rolled | cancels the catch |
+| | `post_catch` | the catch was given | no effect |
+| `death_pipeline.yml` | `on_death` | a player died | no effect |
+| | `on_respawn` | a player respawned | no effect |
+
+Menus and enchants also run on pipeline points (`gui:<guiId>:on_open`, `enchant:<id>:<TRIGGER>`),
+but you write those as the menu's `on-open` blocks and the enchant's `triggers:`.
+
+## A stage
+
+```yaml
+# plugins/Valmora/combat_pipeline.yml
+stages:
+  - id: berserker_rage
+    when: pre_damage
+    conditions:
+      - "$player.health_percent$ < 25"
+    on-pass:
+      - "multiply_damage 1.5"
+      - "notify <red>Berserker rage! io:actionbar"
+    on-fail: []
+```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `id` | yes | A unique name, shown by `/valmora pipeline list`. |
+| `when` | yes | One of the file's points above, without the `combat:` part. |
+| `conditions` | no | All must be true for `on-pass`; otherwise `on-fail` runs. |
+| `on-pass` | no | Events to run. `interrupt` here stops the stages after it and, at an interruptible point, cancels the action. |
+| `on-fail` | no | Events to run when a condition is false. |
+
+Addon plugins' Java hooks run first, then stages in the order they appear in the file. A mistake (missing `id`/`when`, or an unknown
+point) skips that stage with a `[PipelineYamlLoader]` warning in the console.
+
+## What each point knows
+
+Inside a stage, "the player" is the attacker (combat), the ability user (item), the miner, the
+fisher, or the player who died. `@target` / `$target.*$` is the victim or ability target. Extra
+variables:
+
+| Point | Variables |
+|---|---|
+| `combat:post_calculation`, `post_application`, `on_dmg_dealt` | `$dmg.final_damage$`, `$dmg.is_critical$`, `$dmg.damage_type$`, `$dmg.is_immune$` |
+| `combat:on_death` | `$mob.id$`, `$mob.level$` |
+| `item:pre_ability`, `post_ability` | `$item.ability_id$`, `$item.ability_trigger$` |
+| `mob:pre_ability`, `post_ability` | `$mob.id$`, `$mob.level$`, `$mob.health$`, `$mob.max_health$`, `$mob.health_percent$`, `$mob.ability_id$`, `$mob.ability_trigger$` — the **boss**, not its target |
+| `resource:pre_break`, `post_break` | `$resource.material$`, `$resource.stage$` |
+| `fishing:pre_catch` | `$fishing.table$`, `$fishing.sea_creature$` |
+| `fishing:post_catch` | as above, plus `$fishing.item$`, `$fishing.amount$` |
+
+<Callout type="warning">
+In `mob_pipeline.yml` the one running the stage is the boss, so `notify`, `give` and other
+player events do nothing. Use `interrupt` and the boss's own `announce:` messages.
+</Callout>
+
+## Where damage multipliers apply
+
+`multiply_damage` only works in `combat_pipeline.yml`. The damage of a hit is worked out in this
+order:
+
+```text
+damage = base damage × (1 + strength / 100)
+if critical: damage × (1 + crit damage / 100)
+damage × enchant multipliers
+damage × pipeline multipliers        <- multiply_damage
+damage × 100 / (defense + 100)       (skipped for damage types that ignore defense)
+then damage reduction, the victim's resistance to the damage type, rounding down
+```
+
+Several `multiply_damage` calls on one hit multiply together (1.5 × 1.5 = 2.25).
+
+## Examples
+
+### No abilities in the hub
+
+```yaml
+# plugins/Valmora/item_pipeline.yml
+stages:
+  - id: no_abilities_in_hub
+    when: pre_ability
+    conditions:
+      - "zone hub"
+    on-pass:
+      - "notify <red>Abilities are disabled here. io:actionbar"
+      - "interrupt"
+```
+
+### Lifesteal as a new stat
+
+Add a stat to `stats/core.yml` (see [Stats](/docs/stats#adding-a-stat)), give it to items, then:
+
+```yaml
+# plugins/Valmora/combat_pipeline.yml
+stages:
+  - id: lifesteal
+    when: on_dmg_dealt
+    conditions:
+      - "$player.stat.lifesteal$ > 0"
+      - "$dmg.is_immune$ == false"
+    on-pass:
+      - "heal @self $dmg.final_damage$ * $player.stat.lifesteal$ / 100"
+```
+
+### Executioner
+
+```yaml
+# plugins/Valmora/combat_pipeline.yml
+stages:
+  - id: executioner
+    when: pre_damage
+    conditions:
+      - "tag executioner"
+      - "$target.hp_percent$ < 15"
+    on-pass:
+      - "multiply_damage 3"
+```
+
+Players with the `executioner` tag (from a quest reward, say) deal triple damage to anything below
+15% health. "The player" at a combat point is the **attacker**; `$target.*$` is the victim.
+
+### Bonus ore drops
+
+```yaml
+# plugins/Valmora/resource_pipeline.yml
+stages:
+  - id: debris_bonus
+    when: post_break
+    conditions:
+      - "$resource.material$ == ANCIENT_DEBRIS"
+      - "$math.random$ < $player.stat.luck$ / 200"
+    on-pass:
+      - "give_coins 500"
+      - "notify <gold>A vein of pure fortune! +500 coins"
+```
+
+Boss phases with `mob_pipeline.yml` are walked through in
+[Tutorial: a boss fight](/docs/tutorial-boss-fight#step-5--a-second-phase).
+
+## Checking what's loaded
+
+```text
+/valmora pipeline list
+/valmora pipeline list combat:pre_damage
+```
+
+lists every stage (and Java hook from addon plugins), optionally for one point.
+
+<SeeAlso slugs={["scripting", "combat", "developer-hookbus", "tutorial-boss-fight"]} />

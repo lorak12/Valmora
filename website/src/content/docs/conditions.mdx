@@ -1,0 +1,74 @@
+---
+title: Conditions
+summary: Every condition keyword, how lists of conditions combine, negation, and when a condition is just an expression.
+---
+
+A condition is a line that is true or false. Conditions gate abilities, menu buttons, quest
+objectives, conversation lines, pipeline stages, machine open triggers and more.
+
+## Keywords
+
+A condition that starts with one of these keywords does that check:
+
+<RefTable kind="conditions" />
+
+Anything else is an **expression** — maths and comparisons over [variables](/docs/variables),
+like `$player.hp$ < $player.max_hp$ * 0.25` or `$time.season$ == Winter`. See
+[Expressions](/docs/expressions) for operators and pitfalls.
+
+## Lists
+
+Wherever you write a `conditions:` list, **all** entries must be true:
+
+```yaml
+conditions:
+  - "zone mine"
+  - "!tag banned_from_mine"
+  - "$player.skill.mining.level$ >= 10"
+```
+
+- A leading `!` negates one entry: `!zone mine`, `!quest wolf_problem completed`.
+- For "either/or", write one expression with `or`:
+  `$player.skill.mining.level$ >= 10 or $player.var.vip$ == true`.
+
+## In one event line
+
+Any event can carry its own conditions with the `conditions:` option — comma-separated, no list:
+
+```yaml
+- "give DIAMOND:1 conditions:!tag got_diamond"
+- "tag add got_diamond"
+```
+
+See [Scripting overview](/docs/scripting#options-on-any-event).
+
+## Named conditions (quest packages)
+
+Inside a [quest package](/docs/quest-packages) you can name conditions once and refer to them by
+name in objectives and conversations:
+
+```yaml
+conditions:
+  in_mine: "zone mine"
+  veteran: "$player.skill.combat.level$ >= 20"
+```
+
+Conversations **only** accept named conditions.
+
+## Examples
+
+| Check | Condition |
+|---|---|
+| Has finished a quest | `quest wolf_problem completed` |
+| Hasn't started it | `quest wolf_problem not_started` |
+| Is below 25% HP | `$player.health_percent$ < 25` |
+| It's night | `$time.is_day$ == false` |
+| It's winter | `$time.season$ == Winter` (the display name from config) |
+| Has 1,000 coins | `$economy.purse$ >= 1000` |
+| Holds a tag | `tag vip` |
+| Has 50 reputation points | `point reputation 50` |
+| Is inside a zone | `zone frozen_caves` |
+| Right-clicked a lodestone | `block LODESTONE` (machine `open-triggers`) |
+| 30% chance | `$math.random$ < 0.3` |
+
+<SeeAlso slugs={["expressions", "variables", "scripting"]} />

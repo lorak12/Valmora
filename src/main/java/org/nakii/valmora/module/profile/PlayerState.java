@@ -87,6 +87,25 @@ public class PlayerState {
         public double mana;
         public long lastCombatTime;
         public String zoneId;
+        /** Active alchemy effects at save time (absent in older saves). */
+        public java.util.List<SavedEffect> alchemyEffects;
+    }
+
+    /** One persisted alchemy effect. */
+    public static class SavedEffect {
+        public String effectId;
+        public int level;
+        public long expiresAtMs;
+    }
+
+    private java.util.List<SavedEffect> alchemyEffects = new java.util.ArrayList<>();
+
+    public java.util.List<SavedEffect> getAlchemyEffects() {
+        return alchemyEffects;
+    }
+
+    public void setAlchemyEffects(java.util.List<SavedEffect> effects) {
+        this.alchemyEffects = effects != null ? new java.util.ArrayList<>(effects) : new java.util.ArrayList<>();
     }
 
     public SaveData getSaveData() {
@@ -95,6 +114,7 @@ public class PlayerState {
         data.mana = currentMana;
         data.lastCombatTime = lastCombatTime;
         data.zoneId = currentZoneId;
+        data.alchemyEffects = new java.util.ArrayList<>(alchemyEffects);
         return data;
     }
 
@@ -104,6 +124,7 @@ public class PlayerState {
         this.currentMana = data.mana;
         this.lastCombatTime = data.lastCombatTime;
         this.currentZoneId = data.zoneId;
+        setAlchemyEffects(data.alchemyEffects);
     }
 
     /** Back-compat for the pre-extension save format (a bare [health, mana] array). */

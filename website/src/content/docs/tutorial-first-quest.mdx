@@ -1,0 +1,179 @@
+---
+title: "Tutorial: your first quest"
+summary: A kill quest with rewards, an NPC that hands it out, and then a proper conversation that changes once the quest is done.
+---
+
+You'll build **The Wolf Problem**: an Elder NPC asks the player to kill five wolves and pays them
+when it's done. Part 1 gets a working quest in a few minutes; part 2 replaces the NPC's click with a
+real conversation.
+
+## Part 1 — A quest and an NPC
+
+### Step 1 — The quest
+
+Quests live in `plugins/Valmora/quests/`. Create `plugins/Valmora/quests/wolf_problem.yml`:
+
+```yaml
+# plugins/Valmora/quests/wolf_problem.yml
+wolf_problem:
+  name: "<yellow>The Wolf Problem"
+  objectives:
+    - id: kill_wolves
+      type: kill
+      target: WOLF
+      amount: 5
+      notify: 1
+      events:
+        - "notify <green>The wolves are dealt with! Return to the Elder."
+        - "give EMERALD:5"
+        - "economy_add 100"
+        - "sound player entity.player.levelup"
+```
+
+- `wolf_problem:` — the quest id.
+- `objectives` — what the player has to do. `type: kill` with `target: WOLF` counts vanilla
+  wolves; a custom mob id or a category like `UNDEAD` works too. The 38 types are listed on
+  [Objective types](/docs/objective-types).
+- `notify: 1` — shows progress (`1/5`, `2/5`…) every kill.
+- `events` — fire **the moment this objective is finished**. This is where rewards go: a quest
+  gives nothing on its own when it completes, only a "quest complete" chat message.
+
+### Step 2 — An NPC that starts it
+
+NPCs live in `plugins/Valmora/npcs/`. Stand where you want the Elder, press F3 to read your
+coordinates, and create `plugins/Valmora/npcs/village.yml`:
+
+```yaml
+# plugins/Valmora/npcs/village.yml
+elder:
+  display-name: "<gold>Village Elder"
+  entity-type: VILLAGER
+  world: world
+  x: 100
+  y: 64
+  z: 100
+  yaw: 180
+  look-at-player: true
+  on-right-click:
+    - "quest_start wolf_problem"
+    - "notify <yellow>Elder: Wolves are circling the village. Please, deal with five of them."
+```
+
+`on-right-click` runs script events when a player right-clicks the NPC. `quest_start` starts the
+quest for that player (it does nothing if they've already started or finished it).
+
+### Step 3 — Play it
+
+```text
+/valmora reload
+```
+
+Right-click the Elder, then check `/quest`: the journal shows *The Wolf Problem* in progress.
+Spawn wolves (`/summon wolf`) and kill five. Each kill shows your progress; the fifth gives you the
+emeralds, 100 coins and the level-up sound.
+
+<Callout type="warning" title="Quest not starting?">
+- No NPC? Check the console for an `NPCs` load error and that `world` is your world's folder name.
+- NPC there but nothing happens? Check for `Failed to load some Quests` in the console.
+- A quest can only be done once unless you give it `cooldown-seconds`. To replay it while
+  testing: `/quest reset <you> wolf_problem`.
+</Callout>
+
+## Part 2 — A conversation
+
+Conversations need a **quest package**: a folder in `quests/` that contains a file called
+`quest.yml`. Every `.yml` file in that folder is read together, so one feature's quests, named
+conditions and conversations can sit side by side.
+
+### Step 4 — Create the package
+
+Create the folder `plugins/Valmora/quests/village/` and this `quest.yml` in it:
+
+```yaml
+# plugins/Valmora/quests/village/quest.yml
+package:
+  enabled: true
+
+npc_conversations:
+  elder: elder_talk          # NPC "elder" now opens conversation "elder_talk"
+
+conditions:
+  not_started: "quest wolf_problem not_started"
+  in_progress: "quest wolf_problem in_progress"
+  done: "quest wolf_problem completed"
+```
+
+- `npc_conversations` — binds an NPC id to a conversation id. Once bound, right-clicking the NPC
+  opens the conversation instead of running its `on-right-click`.
+- `conditions` — **named** conditions. Conversations can only use conditions defined like this,
+  by name.
+
+### Step 5 — Write the conversation
+
+Create `plugins/Valmora/quests/village/conversations.yml`:
+
+```yaml
+# plugins/Valmora/quests/village/conversations.yml
+conversations:
+  elder_talk:
+    quester: "<gold>Village Elder"
+    first: [ask_for_help, still_waiting, thank_you]
+
+    NPC_options:
+      ask_for_help:
+        text: "<yellow>Wolves are circling the village. Will you help us?"
+        conditions: "not_started"
+        pointers: [accept, decline]
+      still_waiting:
+        text: "<yellow>The wolves are still out there. Please hurry."
+        conditions: "in_progress"
+      thank_you:
+        text: "<green>The village is safe, thanks to you."
+        conditions: "done"
+      grateful:
+        text: "<green>Bless you! Five should thin the pack."
+
+    player_options:
+      accept:
+        text: "I'll take care of it."
+        events: "quest_start wolf_problem"
+        pointers: [grateful]
+      decline:
+        text: "Not right now."
+```
+
+How it runs:
+
+1. `first` lists the possible opening lines. The first one whose `conditions` pass is shown, so
+   the Elder greets the player differently before, during and after the quest.
+2. An NPC line's `pointers` are the player's answers. They appear as numbered, clickable choices.
+3. Choosing an answer fires its `events`, then shows the NPC line in its `pointers` (if any).
+   A line with no pointers ends the conversation.
+
+### Step 6 — Clean up the NPC and test
+
+Remove the `on-right-click:` block from `npcs/village.yml` (the conversation replaces it), then:
+
+```text
+/valmora reload
+/quest reset <you> wolf_problem
+```
+
+Right-click the Elder: the question appears with two choices. Pick **I'll take care of it** by
+clicking it or typing `1`. The quest starts. Talk to him again while it's in progress, and again
+after killing the wolves: each time he says something different.
+
+<Callout type="tip" title="Players can navigate with the keyboard">
+While a conversation is open, players can click a choice, type its number, or use the movement
+keys to highlight one and jump to confirm. Other players' chat is hidden until it ends.
+</Callout>
+
+## Where to go next
+
+- Multi-step quests, `delay`/`timer` objectives, repeatable quests: [Quests](/docs/quests).
+- Named events, one-line objectives, templates: [Quest packages](/docs/quest-packages).
+- Every conversation option, including `stop` to keep the player in place:
+  [Conversations](/docs/conversations).
+- A board of random repeatable quests: [Quest boards & points](/docs/quest-boards-points).
+
+<SeeAlso slugs={["quests", "conversations", "npcs", "objective-types"]} />

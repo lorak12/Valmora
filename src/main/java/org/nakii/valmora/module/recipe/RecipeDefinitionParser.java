@@ -12,6 +12,19 @@ import java.util.Map;
 
 public class RecipeDefinitionParser {
 
+    /**
+     * Every smithing recipe this plugin registered with Bukkit. RecipeModule removes them all on
+     * disable, so a smithing recipe deleted from YAML is actually gone after a reload (it used to
+     * stay registered until restart, since removal only ran for ids that still existed).
+     */
+    static final java.util.Set<org.bukkit.NamespacedKey> REGISTERED_SMITHING_KEYS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Unregisters every smithing recipe registered through this parser. */
+    public static void unregisterSmithingRecipes(org.bukkit.Server server) {
+        for (org.bukkit.NamespacedKey key : REGISTERED_SMITHING_KEYS) server.removeRecipe(key);
+        REGISTERED_SMITHING_KEYS.clear();
+    }
+
     private final Valmora plugin;
 
     public RecipeDefinitionParser(Valmora plugin) {
@@ -54,6 +67,7 @@ public class RecipeDefinitionParser {
             Map<String, RecipeIngredient> inputMap = new HashMap<>();
             List<RecipeIngredient> inputList = new ArrayList<>();
             int gridWidth = 3;
+            Map<Character, RecipeIngredient> shapedLetters = new HashMap<>();
 
             if (type == RecipeType.SHAPELESS) {
                 // Plain list, order/position irrelevant — mirrors vanilla's own shapeless-recipe
@@ -88,13 +102,20 @@ public class RecipeDefinitionParser {
                             + " 2-slot machine).");
                 }
                 ConfigurationSection ingredientsSec = section.getConfigurationSection("ingredients");
-                Map<Character, RecipeIngredient> letters = new HashMap<>();
+                Map<Character, RecipeIngredient> letters = shapedLetters;
                 if (ingredientsSec != null) {
                     for (String key : ingredientsSec.getKeys(false)) {
                         if (key.length() != 1) continue;
                         ConfigurationSection ingSec = ingredientsSec.getConfigurationSection(key);
                         if (ingSec == null) continue;
-                        letters.put(key.charAt(0), new RecipeIngredient(ingSec.getString("material"), ingSec.getInt("amount", 1)));
+                        // `item:` accepted as an alias — SHAPELESS ingredients use `item:`, so writing
+                        // it here too used to produce a null ingredient that silently never matched.
+                        String material = ingSec.getString("material", ingSec.getString("item"));
+                        if (material == null || material.isBlank()) {
+                            return LoadResult.failure("[" + filePath + "] Recipe " + id
+                                    + ": ingredient '" + key + "' needs a material: (a material or Valmora item id)");
+                        }
+                        letters.put(key.charAt(0), new RecipeIngredient(material, ingSec.getInt("amount", 1)));
                     }
                 }
                 List<String> pattern = section.getStringList("pattern");
@@ -159,6 +180,19 @@ public class RecipeDefinitionParser {
 
             boolean keepDataOnUpgrade = section.getBoolean("keep-data-on-upgrade", true);
             String upgradeFrom = section.getString("upgrade-from", null);
+            // A SHAPED recipe names its upgraded ingredient by pattern letter, a SHAPELESS one by
+            // item id — neither is a key of the GUI's input map, so resolve both to "the first
+            // input holding this item" (see RecipeEngine#upgradeSource).
+            if (upgradeFrom != null && type == RecipeType.SHAPED && upgradeFrom.length() == 1) {
+                RecipeIngredient source = shapedLetters.get(upgradeFrom.charAt(0));
+                if (source == null) {
+                    return LoadResult.failure("[" + filePath + "] Recipe " + id
+                            + ": upgrade-from '" + upgradeFrom + "' is not a letter in ingredients:");
+                }
+                upgradeFrom = "item:" + source.item();
+            } else if (upgradeFrom != null && type == RecipeType.SHAPELESS) {
+                upgradeFrom = "item:" + upgradeFrom;
+            }
 
             RecipeDefinition def = new RecipeDefinition(id, machine, type, inputMap, inputList, outputs, onCraft,
                     gridWidth, keepDataOnUpgrade, upgradeFrom);
@@ -202,11 +236,14 @@ public class RecipeDefinitionParser {
             result.setAmount(resultAmount);
         }
 
-        org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "smithing_" + id);
-        plugin.getServer().removeRecipe(key); // idempotent re-registration across /valmora reload
-        org.bukkit.inventory.SmithingTransformRecipe recipe =
-                new org.bukkit.inventory.SmithingTransformRecipe(key, result, template, base, addition);
-        plugin.getServer().addRecipe(recipe);
+        if (!org.nakii.valmora.infrastructure.config.YamlLoader.isValidating()) { // no side effects in a dry run
+            org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "smithing_" + id);
+            plugin.getServer().removeRecipe(key); // idempotent re-registration across /valmora reload
+            org.bukkit.inventory.SmithingTransformRecipe recipe =
+                    new org.bukkit.inventory.SmithingTransformRecipe(key, result, template, base, addition);
+            plugin.getServer().addRecipe(recipe);
+            REGISTERED_SMITHING_KEYS.add(key);
+        }
 
         // Machine-less marker, skipped rather than registered under a null machine key
         // — see RecipeModule.loadRecipes().

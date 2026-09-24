@@ -1,0 +1,30 @@
+# Every item ability trigger (`trigger:` on an item ability). Checked against AbilityTrigger at build time.
+
+RIGHT_CLICK:
+  description: "Right-click with the item in the main hand. Set `target-range` to pick the entity being looked at as `@target`."
+LEFT_CLICK:
+  description: "Left-click with the item in the main hand."
+PASSIVE:
+  description: "Applied every time the player's stats recalculate, for held and worn items. Pair with `MODIFY_STAT` for always-on bonuses."
+EQUIP:
+  description: "The item is put into an armor slot."
+UNEQUIP:
+  description: "The item is taken out of an armor slot."
+ON_HIT:
+  description: "The holder hits an entity. The victim is `@target`, and `$player.last_damage$` holds the hit's damage."
+ON_KILL:
+  description: "The holder kills an entity."
+SNEAK:
+  description: "The player starts sneaking. Fires for the held item and every worn armor piece."
+ON_SHOOT:
+  description: "The player shoots a bow or crossbow."
+ON_DAMAGE_TAKEN:
+  description: "The holder takes damage (not when immune)."
+ON_TELEPORT:
+  description: "The player teleports (ender pearl, command, plugin). Held and worn items."
+ON_INTERACT_ENTITY:
+  description: "The player right-clicks an entity with the item. That entity is `@target`."
+ON_DEATH:
+  description: "The holder dies. Held items and armor."
+ON_RESPAWN:
+  description: "The holder respawns. Held items and armor."

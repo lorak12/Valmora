@@ -299,7 +299,7 @@ SQLDataStore.loadProfile()                         (SQLDataStore.java:296)
 
 ### 5.3 Save timing
 
-The stat module does not save profiles itself. The profile pipeline saves on: logout, regular autosave ticks, and when the profile's dirty flag is set. Because `addStat`/`reduceStat`/`setStat` mutate `baseStats` in place (the same map object saved by `getSaveData`), any subsequent save picks the change up automatically — there is no separate "flush" step. As with all Valmora DB work, these queries run on the async HikariCP executor (`AGENTS.md` §7.4, §8); Bukkit-API callbacks are re-scheduled to the main thread (`ValmoraProfile.java:58-60` constructs the manager, `PlayerManager.java:84-85` recalcs on the main thread after profile load).
+The stat module does not save profiles itself. The profile pipeline saves on: logout, profile switch, module disable, and the periodic `profiles.autosave-interval-seconds` autosave (there is no per-profile dirty flag). Because `addStat`/`reduceStat`/`setStat` mutate `baseStats` in place (the same map object saved by `getSaveData`), any subsequent save picks the change up automatically — there is no separate "flush" step. As with all Valmora DB work, these queries run on the async HikariCP executor (`AGENTS.md` §7.4, §8); Bukkit-API callbacks are re-scheduled to the main thread (`ValmoraProfile.java:58-60` constructs the manager, `PlayerManager.java:84-85` recalcs on the main thread after profile load).
 
 ### 5.4 Vanilla attribute sync (memory only)
 

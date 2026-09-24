@@ -1,0 +1,93 @@
+---
+title: Alchemy
+summary: Custom potion brewing — effects, ingredient tiers, level/duration/splash modifiers, active effects, and adding your own potions.
+---
+
+Valmora potions are brewed at the **alchemy table** (`/alchemy`) instead of a brewing stand. A
+potion carries its effect, level, duration and splash state on the item; drinking or splashing it
+gives an **active effect** that can grant stats while it lasts (`/effects` lists them).
+
+## Brewing
+
+1. **Water bottle + Nether Wart** → Awkward Potion.
+2. **Awkward Potion + an effect's ingredient** → that potion. Better ingredients give a higher
+   starting level (Sugar → Speed I, Enchanted Sugar → Speed III).
+3. **Optional modifiers**, each once per potion:
+   - **level** — Glowstone Dust +1, Enchanted Glowstone Dust +2, …
+   - **duration** — Redstone sets 8 minutes, Enchanted Redstone 16, …
+   - **splash** — Gunpowder makes it a splash potion.
+
+A brew takes 10 seconds. Higher **Alchemy** skill levels give +1% duration per level. The shipped
+effects and their ingredients are listed in `plugins/Valmora/alchemy/effects.yml`.
+
+Splash potions: buffs affect players in range, debuffs affect every living entity in range, with
+duration falling off towards the edge (`alchemy.splash-radius`).
+
+## Adding an effect
+
+```yaml
+# plugins/Valmora/alchemy/effects.yml
+stoneskin:
+  name: "<gray>Potion of Stoneskin"
+  type: BUFF
+  rarity: RARE
+  color: "#7A7A7A"
+  lore:
+    - "<gray>Hardens your skin."
+  max-level: 3
+  duration: [120, 180, 240]
+  stats:
+    defense: [30, 60, 100]
+  tiers:
+    - ingredient: "minecraft:cobblestone"
+      level: 1
+    - ingredient: compacted_stone        # a Valmora item id
+      level: 3
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `name` | the id | The potion's name. |
+| `type` | — | `BUFF` or `DEBUFF` — decides who a splash affects. |
+| `rarity` | `COMMON` | The potion item's rarity. |
+| `color` | — | Liquid color, `#RRGGBB`. |
+| `lore` | none | Extra lore lines. |
+| `max-level` | — | The highest level. Level modifiers can't go past it. |
+| `duration` | — | Seconds, **per level** (a list; missing levels use the last value). |
+| `stats` | none | Stat id → a list of values per level, granted while active. Unknown stat ids are dropped silently — check spelling. |
+| `tiers` | — **required** | `ingredient` + the `level` it brews at. Vanilla items as `minecraft:<material>`, Valmora items by id. |
+
+Healing, damage, poison, absorption, water breathing and burning have built-in behaviors on top of
+stats; jump boost, night vision, invisibility and fire resistance apply the vanilla effect. More
+vanilla-backed effects can be added under `alchemy.effects.vanilla` in
+[config.yml](/docs/config-yml#alchemy).
+
+## Brewing modifiers
+
+`plugins/Valmora/alchemy/modifiers.yml` has three lists — `level`, `duration`, `splash`:
+
+```yaml
+level:
+  - item: "minecraft:glowstone_dust"
+    bonus: 1
+    requires-max-base: false
+  - item: enchanted_glowstone_dust
+    bonus: 2
+    requires-max-base: true
+```
+
+`requires-max-base: true` means it only works on a potion brewed from the effect's best
+ingredient.
+
+## Commands
+
+| Command | Does |
+|---|---|
+| `/alchemy` | Opens the alchemy table. |
+| `/effects` | Your active effects. |
+| `/potion give <effect> <level> [player]` | Admin: a ready-made potion. |
+
+Active effects are kept through `/valmora reload` but lost on a restart; potion items are never
+lost.
+
+<SeeAlso slugs={["machines", "stats", "skills"]} />

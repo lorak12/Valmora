@@ -80,7 +80,9 @@ public class EnchantModule implements ReloadableModule {
         scriptModule.registerEvent(new EnchantStateEventFactory());
         // Sweeps stale transient entries every 5 minutes — the fix for the pre-overhaul logic
         // classes' unbounded per-victim map growth (see TransientStateTracker's class doc).
-        stateCleanupTask = plugin.getServer().getScheduler().runTaskTimer(plugin, stateTracker::cleanup, 6000L, 6000L);
+        // HC-112: cleanup interval — memory vs. CPU.
+        long cleanupIntervalTicks = configLong("enchants.transient.cleanup-interval-ticks", 6000L);
+        stateCleanupTask = plugin.getServer().getScheduler().runTaskTimer(plugin, stateTracker::cleanup, cleanupIntervalTicks, cleanupIntervalTicks);
 
         loadEnchants();
 
@@ -96,7 +98,7 @@ public class EnchantModule implements ReloadableModule {
         // valmora:sharpness` and no logic-params behave identically, while a new enchant can now
         // override the damage type or percent-per-level via YAML.
         logicFactories.put("valmora:sharpness", params ->
-            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0)));
+            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", defaultPercentPerLevel("sharpness", 5.0))));
 
         // Phase 4.5 (docs/REFACTOR/PROGRESS.md): "growth", "fortune", and "efficiency" used to be
         // separate hardcoded Java classes (GrowthLogic, FortuneLogic, EfficiencyLogic), each just
@@ -109,21 +111,21 @@ public class EnchantModule implements ReloadableModule {
         // renamed those roles keeps getting the right stat.
         logicFactories.put("valmora:growth", params ->
             new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getHealth()),
-                    params.getDouble("per-level", 10.0)));
+                    params.getDouble("per-level", defaultPercentPerLevel("growth", 10.0))));
         logicFactories.put("valmora:fortune", params ->
             new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getMiningFortune()),
-                    params.getDouble("per-level", 10.0)));
+                    params.getDouble("per-level", defaultPercentPerLevel("fortune", 10.0))));
         logicFactories.put("valmora:efficiency", params ->
             new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getMiningSpeed()),
-                    params.getDouble("per-level", 50.0)));
+                    params.getDouble("per-level", defaultPercentPerLevel("efficiency", 50.0))));
 
         // Parameterized generic logics
         logicFactories.put("valmora:stat_bonus", params ->
-            new StatBonusLogic(params.getString("stat", "strength"), params.getDouble("per-level", 1.0)));
+            new StatBonusLogic(params.getString("stat", "strength"), params.getDouble("per-level", defaultPercentPerLevel("stat_bonus", 1.0))));
         logicFactories.put("valmora:damage_multiplier", params ->
-            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", 5.0)));
+            new DamageMultiplierLogic(params.getString("type", "MELEE"), params.getDouble("percent-per-level", defaultPercentPerLevel("damage_multiplier", 5.0))));
         logicFactories.put("valmora:defense_reduction", params ->
-            new DefenseReductionLogic(params.getDouble("percent-per-level", 3.0)));
+            new DefenseReductionLogic(params.getDouble("percent-per-level", defaultPercentPerLevel("defense_reduction", 3.0))));
 
         // The 7 enchants shipped in enchants/example_enchantments.yml with a `logic:` id that
         // nothing registered (added 2026-08-07 — docs/IMPLEMENTATION_BACKLOG.md, Enchant module).
@@ -132,19 +134,47 @@ public class EnchantModule implements ReloadableModule {
         // needed real per-hit/conditional logic and got their own classes (module/enchant/logic/).
         logicFactories.put("valmora:protection", params ->
             new StatBonusLogic(params.getString("stat", ValmoraAPI.getInstance().getSystemStats().getDefense()),
-                    params.getDouble("per-level", 4.0)));
+                    params.getDouble("per-level", defaultPercentPerLevel("protection", 4.0))));
         logicFactories.put("valmora:execute", params ->
-            new ExecuteLogic(params.getDouble("percent-per-missing-percent", 0.2)));
+            new ExecuteLogic(params.getDouble("percent-per-missing-percent", defaultPercentPerLevel("execute", 0.2))));
+        // HC-115: max-hits/reset-window-ms overridable per-enchant via logic-params, falling back
+        // to enchants.defaults.first_strike.* (config.yml) then the class's own hardcoded default.
         logicFactories.put("valmora:first_strike", params ->
-            new FirstStrikeLogic(params.getDouble("percent-per-level", 25.0)));
+            new FirstStrikeLogic(params.getDouble("percent-per-level", defaultPercentPerLevel("first_strike", 25.0)),
+                    params.getInt("max-hits", configInt("enchants.defaults.first_strike.max-hits", 3)),
+                    (long) params.getDouble("reset-window-ms", configLong("enchants.defaults.first_strike.reset-window-ms", 10_000))));
         logicFactories.put("valmora:life_steal", params ->
-            new LifeStealLogic(params.getDouble("percent-per-level", 0.5)));
+            new LifeStealLogic(params.getDouble("percent-per-level", defaultPercentPerLevel("life_steal", 0.5))));
+        // HC-114: max-stacks/stack-duration-ms, same override chain as first-strike above.
         logicFactories.put("valmora:lethality", params ->
-            new LethalityLogic(params.getDouble("percent-per-level-per-stack", 0.2)));
+            new LethalityLogic(params.getDouble("percent-per-level-per-stack", defaultPercentPerLevel("lethality", 0.2)),
+                    params.getInt("max-stacks", configInt("enchants.defaults.lethality.max-stacks", 4)),
+                    (long) params.getDouble("stack-duration-ms", configLong("enchants.defaults.lethality.stack-duration-ms", 4_000))));
         logicFactories.put("valmora:respite", params ->
-            new RespiteLogic(params.getDouble("per-level", 0.5)));
+            new RespiteLogic(params.getDouble("per-level", defaultPercentPerLevel("respite", 0.5))));
         logicFactories.put("valmora:thorns", params ->
-            new ThornsLogic(params.getDouble("chance-percent", 15.0), params.getDouble("reflect-damage", 1.0)));
+            new ThornsLogic(params.getDouble("chance-percent", defaultPercentPerLevel("thorns", 15.0)), params.getDouble("reflect-damage", 1.0)));
+    }
+
+    /**
+     * HC-111: {@code enchants.defaults.<logic-id>.percent-per-level} — a global retune point for
+     * one logic's power curve without touching every enchant YAML that uses it. Falls back to
+     * {@code fallback} (the pre-existing hardcoded literal) when unset.
+     */
+    private double defaultPercentPerLevel(String logicId, double fallback) {
+        return plugin.getConfig() != null
+                ? plugin.getConfig().getDouble("enchants.defaults." + logicId + ".percent-per-level", fallback)
+                : fallback;
+    }
+
+    /** Null-safe {@code plugin.getConfig()} int read — {@code getConfig()} can be an unstubbed mock in tests. */
+    private int configInt(String path, int fallback) {
+        return plugin.getConfig() != null ? plugin.getConfig().getInt(path, fallback) : fallback;
+    }
+
+    /** Null-safe {@code plugin.getConfig()} long read. */
+    private long configLong(String path, long fallback) {
+        return plugin.getConfig() != null ? plugin.getConfig().getLong(path, fallback) : fallback;
     }
 
     @Override
@@ -225,8 +255,10 @@ public class EnchantModule implements ReloadableModule {
                     description = new ArrayList<>();
                 }
 
-                int etableMaxLevel = section.getInt("etable-max-level", 5);
-                int absoluteMaxLevel = section.getInt("absolute-max-level", 10);
+                // HC-117: enchants.defaults.etable-max-level/absolute-max-level — global caps
+                // used when an individual enchant's own YAML omits them.
+                int etableMaxLevel = section.getInt("etable-max-level", configInt("enchants.defaults.etable-max-level", 5));
+                int absoluteMaxLevel = section.getInt("absolute-max-level", configInt("enchants.defaults.absolute-max-level", 10));
 
                 List<ItemType> targets = parseTargets(section.getStringList("targets"));
                 List<String> conflicts = section.getStringList("conflicts");

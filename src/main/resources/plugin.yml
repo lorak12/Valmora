@@ -6,6 +6,10 @@ authors: [nakii]
 depend: [packetevents]
 description: A MMORPG engine for creating anything one can imagine.
 
+# Commands whose executor checks a config-driven permission key (config.yml permissions:, via
+# PermissionResolver) deliberately declare no permission: here — Bukkit checks a plugin.yml
+# permission before the executor runs, which would make those config keys impossible to loosen
+# (and blocked /valmora npc-choice, the command behind clickable dialogue choices, for non-ops).
 commands:
   ui:
     usage: /ui toggle
@@ -15,7 +19,6 @@ commands:
     aliases: [profiles]
   stat:
     usage: /stat help
-    permission: valmora.admin
     description: Directly edit a player's stats. Admin only.
   stats:
     usage: /stats
@@ -51,39 +54,32 @@ commands:
   calendar:
     usage: /calendar [list|preview|force-start|force-end <eventId>]
     description: Admin command for inspecting and forcing calendar events.
-    permission: valmora.admin
   modifier:
     usage: /modifier groups|list <group>|apply <group> <id> [tier]|remove <group> [id]
     description: Admin command for inspecting and force-applying modifiers (reforges, gemstones, traits, ...).
-    permission: valmora.admin
   potion:
     usage: /potion give <effect_id> <level> [player]
-    permission: valmora.admin
     description: Give an alchemy potion to a player.
   effects:
     usage: /effects
     description: Open the active effects GUI.
   eco:
     usage: /eco <get|set|add|remove> <player> [purse|bank] [amount]
-    permission: valmora.admin
     description: Admin command for manipulating player coin balances.
   warp:
     usage: /warp [id]
     description: Teleport to a warp point or open the fast travel menu.
   zone:
     usage: /zone <create|delete|info|list|wand|pos1|pos2|clear|flag|spawner|box|resource|visualize>
-    permission: valmora.admin
     description: Zone management command.
   quest:
     usage: /quest [journal]
     description: Open the quest journal or manage quests.
   npc:
     usage: /npc <create|delete|list|reload>
-    permission: valmora.admin
     description: NPC management command.
   valmora:
     usage: /valmora reload
-    permission: valmora.admin
     description: Master engine administrative command.
   collections:
     usage: /collections [view|force|reset <player> <collectionId> [count]]

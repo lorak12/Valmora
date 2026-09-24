@@ -1,0 +1,45 @@
+---
+title: Listening to Valmora events
+summary: Bukkit events Valmora fires and consumes — custom events, app events, and gotchas.
+---
+
+Two "events" concepts share a name. **Script events** (`quest_start`, `give`, `notify`…) are the
+YAML DSL — see [Events](/docs/events). This page is about **Bukkit events**: what Valmora fires
+for your plugin to listen to, and which vanilla events it consumes.
+
+## Custom Bukkit events
+
+All extend `Event`:
+
+| Event | Fired when |
+|---|---|
+| `NpcInteractEvent` | An NPC is clicked |
+| `SkillLevelUpEvent` / `SkillXpGainEvent` | A skill levels / gains XP |
+| `ZoneEnterEvent` / `ZoneExitEvent` | A player crosses a zone border |
+| `PointsChangedEvent` | `point … set` changes a balance (drives `point` objectives) |
+| `ProgressionTreeResetEvent` / `ProgressionTierUnlockedEvent` / `ProgressionNodeLevelUpEvent` | Tree resets, tier unlocks, node levels |
+| `StatModifyEvent` | A stat changes |
+| `ValmoraTimeTickEvent` / `ValmoraSeasonChangeEvent` / `ValmoraDayChangeEvent` | Clock ticks, season/day flips |
+| `TagAddedEvent` / `PlayerProfileLoadedEvent` | Profile tag added / profile loads |
+
+App-level events fired for cross-module flow: `ScriptExecuteEvent` (script), `ZoneEnterEvent`
+(zone), `QuestObjectiveUpdateEvent` (quest), `CombatStartEvent` (combat), `ItemUseEvent`
+(item), `MobSpawnEvent` (mob).
+
+```java
+@EventHandler
+public void onZoneEnter(ZoneEnterEvent event) {
+  Player player = event.getPlayer();
+  // ...
+}
+```
+
+## Vanilla events Valmora consumes
+
+`EntityDamageEvent` (combat), `EntityDeathEvent` (mob), `PlayerInteractEvent` (item — also check
+`event.getHand() == EquipmentSlot.HAND` to avoid double-firing), `InventoryClickEvent` (GUI —
+identify buttons via PDC `gui_action`, never display names), `PlayerJoin/QuitEvent` (profile),
+`ChunkLoadEvent` (zone), `PlayerDeath/RespawnEvent` (death), `EntityResurrectEvent` (combat
+totem), Paper's `io.papermc.paper.event.player.AsyncChatEvent` for chat.
+
+<SeeAlso slugs={["developer-api", "developer-extending", "developer-hookbus", "events"]} />

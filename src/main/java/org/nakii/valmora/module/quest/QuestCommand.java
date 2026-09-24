@@ -54,7 +54,7 @@ public class QuestCommand implements TabExecutor {
     }
 
     private boolean handleAdmin(CommandSender sender, String sub, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "quest")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return true;
         }

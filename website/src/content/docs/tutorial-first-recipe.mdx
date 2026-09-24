@@ -1,0 +1,158 @@
+---
+title: "Tutorial: your first recipe"
+summary: Make crafting tables open Valmora's crafting menu, add a shaped and a shapeless recipe, then a two-slot forge recipe.
+---
+
+You'll make Frostbrand craftable, open Valmora's crafting menu from normal crafting tables, and
+add a forge recipe. Do [your first item](/docs/tutorial-first-item) first.
+
+## How crafting works
+
+Valmora crafting happens in **machines**: inventory menus with input slots and an output slot. The
+plugin ships a 3×3 crafting table, a 2-slot forge, a 3-slot press, an anvil and an alchemy
+table. When the items in the input slots match a recipe, the result shows up in the output slot;
+the player clicks it to craft.
+
+Three kinds of file work together:
+
+| File | Says |
+|---|---|
+| `machines/<id>.yml` | Which menu a machine opens, and how players open it |
+| `guis/<id>.yml` | What the menu looks like and where its input/output slots are |
+| `recipes/*.yml` | What goes in and what comes out |
+
+## Step 1 — Open Valmora's crafting table from vanilla ones
+
+By default the machines can only be opened with `/gui open <player> <id>`. Open
+`plugins/Valmora/machines/crafting_table.yml` and add an `open-triggers` list:
+
+```yaml
+# plugins/Valmora/machines/crafting_table.yml
+crafting_table:
+  gui: crafting_table
+  logic: crafting_table
+  input-slots: 9
+  output-slots: 1
+  shape: 3x3
+  open-triggers:
+    - "block CRAFTING_TABLE"
+```
+
+`block CRAFTING_TABLE` is a [condition](/docs/conditions): "the player is looking at a crafting
+table". It's checked on every right-click, and when it's true Valmora opens its menu **instead of**
+the vanilla one. `/valmora reload`, right-click a crafting table: you get Valmora's crafting menu.
+Vanilla recipes (sticks, torches…) still work in it.
+
+## Step 2 — A shaped recipe
+
+Create `plugins/Valmora/recipes/my_recipes.yml`:
+
+```yaml
+# plugins/Valmora/recipes/my_recipes.yml
+frostbrand_recipe:
+  machine: crafting_table
+  type: SHAPED
+  ingredients:
+    i: { material: BLUE_ICE, amount: 4 }
+    d: { material: DIAMOND, amount: 1 }
+    s: { material: STICK, amount: 1 }
+  pattern:
+    - " i "
+    - " d "
+    - " s "
+  outputs:
+    - item: frostbrand
+      amount: 1
+  on-craft:
+    - "sound player block.glass.break"
+    - "notify <aqua>You forged Frostbrand!"
+```
+
+- `frostbrand_recipe:` — the recipe id (only used in error messages and `/recipe` commands).
+- `machine` — which machine this recipe works in.
+- `type: SHAPED` — position matters.
+- `ingredients` — one **letter** per ingredient. `material` is a vanilla material **or a Valmora
+  item id**. `amount` is how many must be in that one slot.
+- `pattern` — rows of letters, one character per slot; a space means "must be empty". The pattern
+  can be smaller than the grid and is matched wherever it fits, so this 1-wide column works in
+  the left, middle or right column.
+- `outputs` — what the player gets.
+- `on-craft` — [script events](/docs/events) run each time it's crafted.
+
+`/valmora reload`, then `/recipe list crafting_table` should include `frostbrand_recipe`. Put 4 blue
+ice, 1 diamond and 1 stick in a column and Frostbrand appears in the output slot. Click it to craft
+once; shift-click crafts as many as your ingredients allow.
+
+## Step 3 — A shapeless recipe
+
+When position doesn't matter, use `SHAPELESS`: `ingredients` becomes a **list** and there's no
+pattern.
+
+```yaml
+frost_essence_recipe:
+  machine: crafting_table
+  type: SHAPELESS
+  ingredients:
+    - { item: BLUE_ICE, amount: 1 }
+    - { item: PRISMARINE_CRYSTALS, amount: 2 }
+  outputs:
+    - item: PACKED_ICE
+      amount: 8
+```
+
+<Callout type="warning" title="material vs item">
+SHAPED ingredients use `material:`, SHAPELESS ingredients use `item:`. Both accept a vanilla
+material or a Valmora item id. Each SHAPELESS entry needs its own slot: two entries of `amount: 1`
+can't be satisfied by one stack of 2.
+</Callout>
+
+## Step 4 — A forge recipe
+
+The forge has two input slots side by side, so its recipes are SHAPED with a single two-letter
+row: left slot, right slot. Make forges open from smithing tables, in
+`plugins/Valmora/machines/forge.yml`:
+
+```yaml
+# plugins/Valmora/machines/forge.yml
+forge:
+  gui: forge
+  logic: custom
+  input-slots: 2
+  output-slots: 1
+  shape: 1x2
+  open-triggers:
+    - "block SMITHING_TABLE"
+```
+
+Then add a recipe that turns a Frostbrand plus 8 blue ice into an upgraded version (make a
+`frostbrand_plus` item first, the same way as in the [first tutorial](/docs/tutorial-first-item)):
+
+```yaml
+frostbrand_upgrade:
+  machine: forge
+  type: SHAPED
+  ingredients:
+    f: { material: frostbrand, amount: 1 }
+    i: { material: BLUE_ICE, amount: 8 }
+  pattern:
+    - "fi"
+  outputs:
+    - item: frostbrand_plus
+      amount: 1
+  upgrade-from: f
+```
+
+`upgrade-from: f` copies the enchantments, reforge, gemstones and custom name from the Frostbrand
+in slot `f` onto the result, so upgrading doesn't wipe what the player invested in it.
+
+## Troubleshooting
+
+- **Output never appears.** Check `/recipe list <machine>` includes the recipe. If not, the console
+  has a `Failed to load some Recipe` line explaining why. If it's listed, compare slot positions
+  and amounts: a SHAPED `amount: 4` needs 4 **in that slot**.
+- **Right-clicking the block opens the vanilla menu.** Check the `open-triggers` line spelling and
+  that you reloaded. The condition is about the block the player is *looking at*, within 6 blocks.
+- **A recipe for a custom machine does nothing.** `machine:` must match a machine in `machines/`
+  whose `gui` has a matching `machine:` field. See [Machines](/docs/machines).
+
+<SeeAlso slugs={["recipes", "machines", "anvil", "guis"]} />

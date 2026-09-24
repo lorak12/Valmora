@@ -1,0 +1,52 @@
+---
+title: Set bonuses
+summary: Armor sets that grant extra stats for wearing several pieces together.
+---
+
+A set bonus gives extra stats while a player wears enough pieces of the same armor set.
+
+## Define the set
+
+```yaml
+# plugins/Valmora/set_bonuses/my_sets.yml
+frost_guard:
+  name: "Frost Guard"
+  bonuses:
+    - pieces-required: 2
+      stats:
+        defense: 25
+    - pieces-required: 4
+      stats:
+        defense: 75
+        health: 100
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| (key) | — | The set's id. |
+| `name` | the id | Display name. |
+| `bonuses[].pieces-required` | — | How many worn pieces unlock this tier. |
+| `bonuses[].stats` | — | Stat id → amount. |
+
+Tiers **stack**: with 4 pieces a player gets both the 2-piece and the 4-piece stats (here +100
+Defense and +100 Health).
+
+## Link the pieces
+
+Each armor item names its set with `set:`:
+
+```yaml
+# plugins/Valmora/items/my_armor.yml
+frost_guard_helmet:
+  name: "Frost Guard Helm"
+  material: DIAMOND_HELMET
+  rarity: RARE
+  item-type: HELMET
+  set: frost_guard
+  stats:
+    defense: 40
+```
+
+Only worn armor counts. Set bonuses give stats only; for effects, give the pieces abilities.
+
+<SeeAlso slugs={["items", "stats"]} />

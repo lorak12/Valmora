@@ -78,6 +78,10 @@ public class UIManager implements ReloadableModule {
 
     private void startUIClock() {
         if (uiClockTask != null) uiClockTask.cancel();
+        // HC-174: how often (ticks) the scoreboard/actionbar clock runs — the hottest loop in this
+        // module, since it ticks every online player. Default 2 ticks (10 Hz); large servers may
+        // want 4-5 (5-2.5 Hz) to cut the per-player cost.
+        long tickIntervalTicks = plugin.getConfig().getLong("ui.tick-interval-ticks", 2L);
         uiClockTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 actionBar.tick(player);
@@ -88,12 +92,31 @@ public class UIManager implements ReloadableModule {
                 DebugManager.log("ui", "clock tick #" + clockRunCount + " — ticked "
                         + Bukkit.getOnlinePlayers().size() + " online player(s)");
             }
-        }, 0L, 2L);
+        }, 0L, tickIntervalTicks);
     }
 
-    private static final String DEFAULT_TITLE = "<gold><bold>VALMORA RPG";
-    private static final String DEFAULT_ACTION_BAR =
-            "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana";
+    // HC-175 fix: these used to be a second, independently-hardcoded copy of the same strings
+    // baked into the bundled ui.yml resource (src/main/resources/ui.yml), risking drift between
+    // the two. They're now read from that same bundled resource once at class-init, so the
+    // corrupt-config fallback branch below can never disagree with the shipped ui.yml defaults.
+    private static final String DEFAULT_TITLE;
+    private static final String DEFAULT_ACTION_BAR;
+
+    static {
+        String title = "<gold><bold>VALMORA RPG";
+        String actionBar = "<red>❤ $player.hp$/$player.max_hp$ <dark_gray>| <green>❈ $player.stat.defense$ Defense <dark_gray>| <aqua>⛨ $player.mana$/$player.max_mana$ Mana";
+        try (var in = UIManager.class.getClassLoader().getResourceAsStream("ui.yml")) {
+            if (in != null) {
+                YamlConfiguration bundled = YamlConfiguration.loadConfiguration(new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8));
+                title = bundled.getString("scoreboard.title", title);
+                actionBar = bundled.getString("action-bar.default", actionBar);
+            }
+        } catch (Exception ignored) {
+            // Fall back to the literal defaults above — this only affects the corrupt-ui.yml path.
+        }
+        DEFAULT_TITLE = title;
+        DEFAULT_ACTION_BAR = actionBar;
+    }
 
     private UIConfig loadUIConfig() {
         File file = new File(plugin.getDataFolder(), "ui.yml");

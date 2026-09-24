@@ -9,7 +9,6 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.util.DebugManager;
@@ -23,15 +22,20 @@ public class HudItemListener implements Listener {
     }
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        module.giveHudItems(event.getPlayer());
+    public void onProfileLoaded(org.nakii.valmora.module.profile.PlayerProfileLoadedEvent event) {
+        // Not PlayerJoinEvent: the profile's saved inventory is applied (inventory cleared first)
+        // only once the async load completes, which wiped anything given at join time.
+        Player player = org.bukkit.Bukkit.getPlayer(event.getUuid());
+        if (player != null) module.giveHudItems(player);
     }
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
-        // Schedule 1-tick delay to run after vanilla respawn inventory restore
+        // Schedule a delay to run after vanilla respawn inventory restore — HC-170: fragile on lag.
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        long delayTicks = plugin != null ? plugin.getConfig().getLong("hud.respawn-restore-delay-ticks", 1L) : 1L;
         event.getPlayer().getServer().getScheduler().runTaskLater(
-                org.nakii.valmora.Valmora.getInstance(), () -> module.giveHudItems(event.getPlayer()), 1L);
+                plugin, () -> module.giveHudItems(event.getPlayer()), delayTicks);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
