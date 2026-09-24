@@ -1,0 +1,14 @@
+# Every mob ability trigger. Checked against MobAbilityTrigger at build time.
+
+ON_TIMER:
+  description: "Every `interval` ticks (default 100) while the mob is alive and has a target, rolled against `chance`. The default trigger."
+ON_HEALTH:
+  description: "Once, the first time the mob's health drops to `health-percent` (default 50) or below — the usual way to start a boss phase."
+ON_ATTACK:
+  description: "The mob hits something."
+ON_DAMAGED:
+  description: "The mob takes damage."
+ON_SPAWN:
+  description: "The mob spawns."
+ON_DEATH:
+  description: "The mob dies."

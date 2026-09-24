@@ -1,0 +1,33 @@
+# Every condition keyword. Anything that doesn't start with one of these is evaluated as an
+# expression. Checked against ConditionParser at build time.
+
+tag:
+  syntax: "tag <tagName>"
+  description: "The player has this profile tag (set with the `tag add` event)."
+health:
+  syntax: "health <amount>"
+  description: "The player has at least this much **vanilla** health (hearts × 2), not Valmora HP — use `$player.hp$ >= N` for that."
+hunger:
+  syntax: "hunger <amount>"
+  description: "The player's food level is at least this (0–20)."
+location:
+  syntax: "location <x>;<y>;<z>;<world> <radius>"
+  description: "The player is within `radius` blocks of the point."
+zone:
+  syntax: "zone <zoneId>"
+  description: "The player is inside the zone."
+block:
+  syntax: "block <MATERIAL>"
+  description: "The player is looking at a block of this material, within 6 blocks. Used by machine `open-triggers`."
+variable:
+  syntax: "variable <path> <operator> <value>"
+  description: "Compares a variable without `$` signs, e.g. `variable player.var.kills >= 10`."
+objective:
+  syntax: "objective <objectiveId>"
+  description: "That quest objective is currently active for the player."
+quest:
+  syntax: "quest <questId> <not_started|in_progress|completed|failed>"
+  description: "The quest is in that status (case-insensitive)."
+point:
+  syntax: "point <category> <amount>"
+  description: "The player has at least `amount` points in the category."

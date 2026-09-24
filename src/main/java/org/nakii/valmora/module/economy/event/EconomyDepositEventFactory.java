@@ -14,7 +14,7 @@ import org.nakii.valmora.util.Formatter;
  */
 public class EconomyDepositEventFactory implements EventFactory {
 
-    private static final String PREFIX = "<dark_gray>[<gold>Bank<dark_gray>] ";
+    private static final String DEFAULT_PREFIX = "<dark_gray>[<gold>Bank<dark_gray>] ";
 
     private final EconomyModule module;
 
@@ -42,7 +42,7 @@ public class EconomyDepositEventFactory implements EventFactory {
                     if (success) module.depositAll(uuid);
                 }
                 case "half" -> {
-                    amount = Math.floor(module.getPurse(uuid) / 2.0);
+                    amount = halve(module.getPurse(uuid));
                     success = amount > 0;
                     if (success) module.deposit(uuid, amount);
                 }
@@ -70,7 +70,26 @@ public class EconomyDepositEventFactory implements EventFactory {
         return CoinExpressionParser.parse(str);
     }
 
+    /** HC-018: {@code economy.deposit-halving} — floor (default, matches the original hardcoded
+     *  behavior)/ceil/round. */
+    private double halve(double purse) {
+        double half = purse / 2.0;
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String mode = plugin != null ? plugin.getConfig().getString("economy.deposit-halving", "floor") : "floor";
+        return switch (mode == null ? "floor" : mode.toLowerCase()) {
+            case "ceil" -> Math.ceil(half);
+            case "round" -> Math.round(half);
+            default -> Math.floor(half);
+        };
+    }
+
+    /** HC-018: {@code economy.bank-messages.prefix}. */
+    private String prefix() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getString("economy.bank-messages.prefix", DEFAULT_PREFIX) : DEFAULT_PREFIX;
+    }
+
     private void sendMsg(Player player, String msg) {
-        player.sendMessage(Formatter.format(PREFIX + msg));
+        player.sendMessage(Formatter.format(prefix() + msg));
     }
 }

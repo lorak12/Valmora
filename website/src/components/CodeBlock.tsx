@@ -1,11 +1,11 @@
-export function CodeBlock({ lang, content }: { lang?: string; content: string }) {
+export function CodeBlock({ lang, content, title }: { lang?: string; content: string; title?: string }) {
   return (
     <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-inset)] overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-2">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--ink-dim)]">
-          {lang ?? "yaml"}
+      <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] px-4 py-2">
+        <span className="min-w-0 truncate font-mono text-[11px] tracking-wider text-[var(--ink-dim)]">
+          {title ?? <span className="uppercase">{lang ?? "yaml"}</span>}
         </span>
-        <span className="flex gap-1.5">
+        <span className="flex shrink-0 gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[var(--line-bright)]" />
           <span className="h-2 w-2 rounded-full bg-[var(--line-bright)]" />
           <span className="h-2 w-2 rounded-full bg-[var(--amber)]/70" />

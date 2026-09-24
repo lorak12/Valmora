@@ -20,7 +20,7 @@ Modules group into logical families:
 | **Items**         | item, enchant, modifier |
 | **Entities**      | mob, npc, quest                          |
 | **Skills**        | skill, alchemy                   |
-| **World**         | zone, resource, fishing, time, calendar  |
+| **World**         | zone, resource, fishing, block_loot, time, calendar  |
 | **Progression**   | collection, progression                  |
 | **User Interface**| gui, ui, hud, notify                     |
 | **Economy**       | economy                                  |
@@ -238,7 +238,7 @@ When an admin runs `/valmora reload`:
 | **Items**    | Custom weapons, armor, consumables   | item, enchant, modifier |
 | **Mobs**     | Custom enemy/NPC entities            | mob, npc, combat, quest     |
 | **Skills**   | Active and passive abilities         | skill, alchemy, combat      |
-| **World**    | Zones, events, environment           | zone, resource, time, fishing |
+| **World**    | Zones, events, environment           | zone, resource, time, fishing, block_loot |
 | **Quests**   | Mission objectives and rewards       | quest, npc, progression     |
 | **Slayer**   | Boss hunting system (quest + GUI content, not a module) | quest, gui, mob, combat |
 | **UI**       | Menus, HUD, notifications            | gui, ui, hud, notify        |

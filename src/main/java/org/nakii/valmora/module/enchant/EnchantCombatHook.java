@@ -38,6 +38,7 @@ public class EnchantCombatHook {
                 case "crit-chance" -> ctx.setCritChance(ctx.getCritChance() + value);
                 case "crit-damage" -> ctx.setCritDamage(ctx.getCritDamage() + value);
                 case "defense-shred-percent" -> ctx.addDefenseShredPercent(value);
+                case "knockback-multiplier" -> ctx.setKnockbackMultiplier(ctx.getKnockbackMultiplier() * value);
                 default -> { /* unknown modifier key — ignored, matches the load-time warning pattern elsewhere */ }
             }
         }
@@ -52,6 +53,7 @@ public class EnchantCombatHook {
             switch (entry.getKey().toLowerCase()) {
                 case "damage-reduction-percent" -> ctx.addDamageReductionPercent(value);
                 case "damage-multiplier" -> ctx.setDamageMultiplier(ctx.getDamageMultiplier() * value);
+                case "knockback-multiplier" -> ctx.setKnockbackMultiplier(ctx.getKnockbackMultiplier() * value);
                 default -> { /* unknown modifier key — ignored */ }
             }
         }

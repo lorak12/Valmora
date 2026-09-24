@@ -28,10 +28,17 @@ public final class SkinResolver {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    private static final String PROFILE_URL = "https://api.mojang.com/users/profiles/minecraft/";
-    private static final String SESSION_URL = "https://sessionserver.mojang.com/session/minecraft/profile/";
-    private static final String MINESKIN_URL = "https://api.mineskin.org/generate/url";
-    private static final String USER_AGENT   = "Valmora-NPC/1.0 (contact: server-admin)";
+    // HC-220/HC-287: overridable for a self-hosted Mojang/MineSkin proxy, or to identify a
+    // server's outbound requests distinctly.
+    private static String profileUrl() { return configString("npc.skin.urls.profile", "https://api.mojang.com/users/profiles/minecraft/"); }
+    private static String sessionUrl() { return configString("npc.skin.urls.session", "https://sessionserver.mojang.com/session/minecraft/profile/"); }
+    private static String mineskinUrl() { return configString("npc.skin.urls.mineskin", "https://api.mineskin.org/generate/url"); }
+    private static String userAgent() { return configString("npc.skin.user-agent", "Valmora-NPC/1.0 (contact: server-admin)"); }
+
+    private static String configString(String path, String fallback) {
+        Valmora plugin = Valmora.getInstance();
+        return plugin != null && plugin.getConfig() != null ? plugin.getConfig().getString(path, fallback) : fallback;
+    }
 
     private SkinResolver() {}
 
@@ -43,7 +50,7 @@ public final class SkinResolver {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 // Step 1: name → UUID
-                String profileJson = get(PROFILE_URL + playerName);
+                String profileJson = get(profileUrl() + playerName);
                 if (profileJson == null) {
                     mainThread(plugin, () -> callback.onFailure("Player '" + playerName + "' not found on Mojang."));
                     return;
@@ -52,7 +59,7 @@ public final class SkinResolver {
                 String uuid = profileObj.get("id").getAsString();
 
                 // Step 2: UUID → signed profile with textures
-                String sessionJson = get(SESSION_URL + uuid + "?unsigned=false");
+                String sessionJson = get(sessionUrl() + uuid + "?unsigned=false");
                 if (sessionJson == null) {
                     mainThread(plugin, () -> callback.onFailure("Could not fetch profile for UUID " + uuid));
                     return;
@@ -86,10 +93,10 @@ public final class SkinResolver {
             try {
                 String body = "{\"url\":\"" + imageUrl + "\",\"variant\":\"classic\"}";
                 HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(MINESKIN_URL))
+                        .uri(URI.create(mineskinUrl()))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("User-Agent", USER_AGENT)
+                        .header("User-Agent", userAgent())
                         .POST(HttpRequest.BodyPublishers.ofString(body))
                         .build();
                 HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
@@ -121,7 +128,7 @@ public final class SkinResolver {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(10))
-                .header("User-Agent", USER_AGENT)
+                .header("User-Agent", userAgent())
                 .GET()
                 .build();
         HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());

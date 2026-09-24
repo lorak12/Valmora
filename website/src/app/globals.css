@@ -176,3 +176,112 @@ a {
 .animate-live-flash {
   animation: live-flash 0.7s ease-out;
 }
+
+/* ------------------------------------------------------------------ */
+/* Docs prose (MDX pages)                                             */
+/* ------------------------------------------------------------------ */
+.doc-prose {
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--ink) 92%, transparent);
+}
+.doc-prose > * + * {
+  margin-top: 1rem;
+}
+.doc-prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.25;
+  margin-top: 3rem;
+  scroll-margin-top: 6rem;
+  color: var(--ink);
+}
+.doc-prose h3 {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  margin-top: 2rem;
+  scroll-margin-top: 6rem;
+  color: var(--ink);
+}
+.doc-prose h2 a.anchor,
+.doc-prose h3 a.anchor {
+  text-decoration: none;
+}
+.doc-prose a {
+  color: var(--amber-bright);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--amber) 40%, transparent);
+  text-underline-offset: 3px;
+}
+.doc-prose a:hover {
+  text-decoration-color: var(--amber-bright);
+}
+.doc-prose ul,
+.doc-prose ol {
+  padding-left: 1.4rem;
+}
+.doc-prose ul {
+  list-style: disc;
+}
+.doc-prose ol {
+  list-style: decimal;
+}
+.doc-prose li + li {
+  margin-top: 0.35rem;
+}
+.doc-prose li::marker {
+  color: var(--ink-dim);
+}
+.doc-prose strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+.doc-prose :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--bg-inset);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.doc-prose table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.doc-prose thead tr {
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+}
+.doc-prose th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.doc-prose td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+.doc-prose tr:last-child td {
+  border-bottom: 0;
+}
+.doc-prose blockquote {
+  border-left: 3px solid var(--line-bright);
+  padding-left: 1rem;
+  color: var(--ink-muted);
+}
+.doc-prose hr {
+  border-color: var(--line);
+  margin: 2.5rem 0;
+}
+.doc-prose .callout-body > * + * {
+  margin-top: 0.6rem;
+}

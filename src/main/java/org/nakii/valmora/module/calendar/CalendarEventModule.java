@@ -88,12 +88,18 @@ public class CalendarEventModule implements ReloadableModule {
         }
     }
 
-    /** Reconstructs just enough of a {@link TimeSnapshot} (season/phase/dayInPhase) to evaluate {@code isActive} for an arbitrary past day — mirrors {@code TimeManager.getSnapshot()}'s math. */
-    private static TimeSnapshot snapshotForTotalDays(long totalDays) {
-        int dayInPhase = (int) Math.floorMod(totalDays, 30) + 1;
-        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / 30, 3)];
-        Season season = Season.values()[(int) Math.floorMod(totalDays / 90, 4)];
-        int year = Math.max(1, (int) (totalDays / 360) + 1);
+    /** Reconstructs just enough of a {@link TimeSnapshot} (season/phase/dayInPhase) to evaluate
+     *  {@code isActive} for an arbitrary past day — mirrors {@code TimeManager.getSnapshot()}'s
+     *  math, including its {@code time.calendar.days-per-phase} (HC-253) override, so a custom
+     *  calendar shape can't silently diverge between the two independent copies of this formula. */
+    private TimeSnapshot snapshotForTotalDays(long totalDays) {
+        int daysPerPhase = Math.max(1, plugin.getConfig().getInt("time.calendar.days-per-phase", 30));
+        int daysPerSeason = daysPerPhase * Phase.values().length;
+        int daysPerYear = daysPerSeason * Season.values().length;
+        int dayInPhase = (int) Math.floorMod(totalDays, daysPerPhase) + 1;
+        Phase phase = Phase.values()[(int) Math.floorMod(totalDays / daysPerPhase, Phase.values().length)];
+        Season season = Season.values()[(int) Math.floorMod(totalDays / daysPerSeason, Season.values().length)];
+        int year = Math.max(1, (int) (totalDays / daysPerYear) + 1);
         return new TimeSnapshot(6, 0, dayInPhase, phase, season, year, totalDays, phase.name(), season.name());
     }
 

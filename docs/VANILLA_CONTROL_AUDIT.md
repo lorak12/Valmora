@@ -53,15 +53,16 @@
 | Break-progress cancellation mid-way | Releasing click retains partial progress ~5 ticks; **no abort event** | Track start in `BlockDamageEvent` + absence of `BlockBreakEvent`; `PlayerAnimationEvent` proxy | Paper has no `BlockDamageAbortEvent` | ❌ GAP |
 | Instant break (creative / Efficiency V + Haste II) | Skips cracking phase entirely | `BlockBreakEvent` still fires; do **not** assume `BlockDamageEvent` always precedes it | Common plugin bug | ❌ GAP |
 | Break completion / drop suppression | `BlockBreakEvent` (player-initiated only) | `BlockBreakEvent`; `setExpToDrop(0)`; cancel to keep block | Piston/explosion/fluid/fire breaks **do not** fire this event | ✅ resource covers drops; verify |
-| Drop distribution | Items spawn at block center with spread + XP orbs | `BlockDropItemEvent` (1.19.4+); modify/suppress the `List<Item>` | Do NOT spawn custom drops in `BlockBreakEvent` and suppress vanilla — use `BlockDropItemEvent` | 🟡 resource |
+| Drop distribution | Items spawn at block center with spread + XP orbs | `BlockDropItemEvent` (1.19.4+); modify/suppress the `List<Item>` | Do NOT spawn custom drops in `BlockBreakEvent` and suppress vanilla — use `BlockDropItemEvent` | 🟡 resource + `LootListener` (player mining suppresses vanilla drops entirely and computes/translates its own list, so `BlockDropItemEvent` never actually fires for that path — see the "every drop is a Valmora item" row below) |
 | Experience drop from ores / sculk | Ores drop XP orbs | `BlockExpEvent` (`setExpToDrop(0)`); sculk XP via `SculkCatalystBloomEvent` | Sculk catalyst XP is a separate event | ❌ GAP |
-| Silk Touch / Fortune interaction | Final drop count/block-item computed server-side | Modify list in `BlockDropItemEvent` | `Enchantment.SILK_TOUCH` / `FORTUNE` names | ❌ GAP |
+| Silk Touch / Fortune interaction | Final drop count/block-item computed server-side | Modify list in `BlockDropItemEvent` | `Enchantment.SILK_TOUCH` / `FORTUNE` names | ✅ `resource` — Silk Touch respected for zone-configured resource blocks (`ResourceManager`, `resource.silk-touch.enabled`); `block_loot` — same, server-wide, for any material with a configured override (`block-loot.silk-touch.enabled`); remaining vanilla (unconfigured) blocks already get real vanilla Silk Touch/Fortune via `block.getDrops(tool, player)` (`LootListener`) |
+| Every block-break drop formatted as a Valmora item (type/rarity/lore, not just raw vanilla material) | N/A (Valmora-specific requirement, not vanilla behavior) | `ItemTranslator#translate` (adds item-type/rarity PDC + lore) | Must run on *every* dropped-item path, not just the obvious one — many destruction causes never fire a player-scoped drop event at all | ✅ player mining: `LootListener.onBlockBreak` suppresses vanilla drops and translates its own list via `block.getDrops(tool, player)`. ✅ everything else (explosions, pistons, fire, mob block changes, any other cause that spawns a raw `Item` entity): `LootListener.onItemSpawn` (`ItemSpawnEvent`) — a catch-all that translates any untranslated item the instant it appears in the world, rather than chasing each individual destruction mechanic (most of which have no `Player`-scoped event to hook: `BlockDropItemEvent`'s constructor requires a `Player`, so it structurally cannot fire for those causes). Idempotent — already-translated/Valmora items are skipped. |
 | Tile-entity (container) loot on break | Chest/barrel/shulker/furnace/hopper/dispenser/lectern/decorated-pot contents drop separately | Included in `BlockDropItemEvent` list | Decorated pots (1.20+) have inventories; shulker contents preserved via NBT | ❌ GAP (machine interaction) |
 | Tool durability deduction / Unbreaking / Mending | 1 durability per break (2 for axes on wood) | `PlayerItemDamageEvent` (Paper) — cancel/`setDamage` | `ItemMeta.getDamage()`/`setMaxDamage()` (not `setMaxDurability`) | ❌ GAP |
 | Adventure-mode `CanDestroy` | Only blocks matching the tool's tag break | No event; check `Tag.isTagged(Material)` — tags now data-driven | — | ❌ GAP |
 | Tool-specific break speeds / shears | Axe on wood, pick on stone, etc. | `BlockDamageEvent.getDestroySpeed()`; `Attribute.BLOCK_BREAK_SPEED` modifier (`NamespacedKey`) | `Tag.SHEARS_MINEABLE` | ❌ GAP |
-| Support-chain break | Breaking support breaks torches/flowers/string/end-rods/hanging-signs | `BlockPhysicsEvent` (cancel to float) → multiple `BlockBreakEvent` | Hanging signs (1.20) | ❌ GAP |
-| Gravity blocks (sand/gravel/dragonegg/concrete powder) | Fall as `FallingBlock` entity, place on land; concrete on water | `EntitySpawnEvent`, `BlockPlaceEvent`, `BlockBreakEvent`, `BlockFormEvent` (water→concrete) | — | ❌ GAP |
+| Support-chain break | Breaking support breaks torches/flowers/string/end-rods/hanging-signs | `BlockPhysicsEvent` (cancel to float) → multiple `BlockBreakEvent` | Hanging signs (1.20) | 🟡 `ZoneListener.onBlockPhysics` cancels the detach for a narrow, tag-driven set (torches/signs/banners/buttons/pressure_plates/rails) when the block sits in a `blockBreaking`-disabled zone; not a general physics/support-chain simulation, and cave-vine/flower/string/end-rod support-chain breaks outside that tag set are still unguarded |
+| Gravity blocks (sand/gravel/dragonegg/concrete powder) | Fall as `FallingBlock` entity, place on land; concrete on water | `EntitySpawnEvent`, `BlockPlaceEvent`, `BlockBreakEvent`, `BlockFormEvent` (water→concrete) | — | 🟡 the water→concrete solidify step is now zone-gated by `naturalBlockChanges` (same `onBlockForm` handler as everything else in this row's `BlockFormEvent` column); the falling-entity/placement mechanics themselves are still a GAP |
 | Leaf decay | Random-tick when no log within 6 blocks | `LeavesDecayEvent` (cancel) | `BlockBreakEvent` does NOT fire for natural decay | ❌ GAP |
 | Cactus/bamboo adjacent-growth break | Growth into occupied space breaks block | `BlockGrowEvent` + `BlockBreakEvent` chain | Bamboo "section" property (1.21) | ❌ GAP |
 
@@ -75,7 +76,7 @@
 | Rotation on place | Logs/stairs/slabs/pistons/observers rotate by facing | `BlockPlaceEvent` gives final `BlockData` | `facing`/`horizontal_facing` block-state props | ❌ GAP |
 | Placement in fluids / waterlogging | Displaces fluid; some blocks waterlog | `BlockPlaceEvent`; `Waterloggable` interface check | — | ❌ GAP |
 | Invalid placement targets | Internal checks prevent placing against certain blocks | `BlockPlaceEvent` | Use `BlockData`, not hardcoded materials | ❌ GAP |
-| Multi-block placement (doors/beds/chests/portals) | One action places 2+ blocks | **`BlockMultiPlaceEvent`** (commonly missed — extends `BlockPlaceEvent`) | — | ❌ GAP |
+| Multi-block placement (doors/beds/chests/portals) | One action places 2+ blocks | **`BlockMultiPlaceEvent`** (commonly missed — extends `BlockPlaceEvent`) | — | ✅ verified — `BlockMultiPlaceEvent extends BlockPlaceEvent`, so `ZoneListener.onBlockPlace`'s existing `blockPlacing` gate already applies to it without a dedicated handler; no code change needed |
 | Delayed/placed-tick effects | Pistons extend after delay, TNT ignites | `EntitySpawnEvent` (TNT), `BlockPistonExtendEvent` | — | ❌ GAP |
 
 ---
@@ -84,27 +85,27 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Crop growth (wheat/etc.) | Random-tick growth; bonemeal forces | `BlockGrowEvent` (cancel); bonemeal via `BlockFertilizeEvent` | Pitcher plant / torchflower (1.20) | ❌ GAP |
-| Sapling → tree, huge mushroom | Structure grows when space | `StructureGrowEvent` (`TreeType.CHERRY` etc.) | — | ❌ GAP |
-| Grass/mycelium spread | Random-tick, light > 9 | `BlockSpreadEvent` | — | ❌ GAP |
-| Mushroom spread / huge growth | Spread in dark; grow with bonemeal | `BlockSpreadEvent`; `StructureGrowEvent` (`TreeType.BROWN/RED_MUSHROOM`) | — | ❌ GAP |
-| Vine / cave-vine / twisting/weeping vine growth | Random-tick downward/sideways | `BlockSpreadEvent` | Cave vines carry glow berries | ❌ GAP |
+| Crop growth (wheat/etc.) | Random-tick growth; bonemeal forces | `BlockGrowEvent` (cancel); bonemeal via `BlockFertilizeEvent` | Pitcher plant / torchflower (1.20) | 🟡 `ZoneListener.onBlockGrow` gates by `blockPlacing`; `BlockFertilizeEvent` (bonemeal-specific) not separately hooked — bonemeal still routes through `BlockGrowEvent` so the zone gate applies either way |
+| Sapling → tree, huge mushroom | Structure grows when space | `StructureGrowEvent` (`TreeType.CHERRY` etc.) | — | 🟡 `ZoneListener.onStructureGrow` gates by `blockPlacing` (origin zone only, not every resulting block) |
+| Grass/mycelium spread | Random-tick, light > 9 | `BlockSpreadEvent` | — | 🟡 `ZoneListener.onBlockSpread` gates by `blockPlacing` |
+| Mushroom spread / huge growth | Spread in dark; grow with bonemeal | `BlockSpreadEvent`; `StructureGrowEvent` (`TreeType.BROWN/RED_MUSHROOM`) | — | 🟡 same `onBlockSpread`/`onStructureGrow` gates |
+| Vine / cave-vine / twisting/weeping vine growth | Random-tick downward/sideways | `BlockSpreadEvent` | Cave vines carry glow berries | 🟡 same `onBlockSpread` gate |
 | Sculk spreading | Catalyst blooms on mob death | `SculkCatalystBloomEvent` (Paper) | Partially data-driven in 1.21 | ❌ GAP |
-| Coral death | Dies without water | `BlockFadeEvent` | — | ❌ GAP |
-| Ice melting / snow decay | Melts with light > 11 | `BlockFadeEvent` | — | ❌ GAP |
-| Water → ice / snow accumulation | Cold biomes at night | `BlockFormEvent`; `EntityBlockFormEvent` (Frost Walker) | — | ❌ GAP |
-| Redstone ore glow | Glows on click/neighbor update, fades | `BlockFadeEvent` + `PlayerInteractEvent` | — | ❌ GAP |
-| Snow layer accumulation/decay | Layers 1–8 | `BlockFormEvent` / `BlockFadeEvent` | `layers` property | ❌ GAP |
+| Coral death | Dies without water | `BlockFadeEvent` | — | 🟡 `ZoneListener.onBlockFade` gates by the new `naturalBlockChanges` flag; no per-block-type distinction, just a zone-wide freeze/unfreeze of all fade transitions |
+| Ice melting / snow decay | Melts with light > 11 | `BlockFadeEvent` | — | 🟡 same `onBlockFade` gate |
+| Water → ice / snow accumulation | Cold biomes at night | `BlockFormEvent`; `EntityBlockFormEvent` (Frost Walker) | — | 🟡 `ZoneListener.onBlockForm`/`onEntityBlockForm` gate by `naturalBlockChanges` (registered separately since `EntityBlockFormEvent` has its own `HandlerList` despite extending `BlockFormEvent`) |
+| Redstone ore glow | Glows on click/neighbor update, fades | `BlockFadeEvent` + `PlayerInteractEvent` | — | 🟡 same `onBlockFade` gate |
+| Snow layer accumulation/decay | Layers 1–8 | `BlockFormEvent` / `BlockFadeEvent` | `layers` property | 🟡 same `onBlockForm`/`onBlockFade` gates |
 | Bed / respawn-anchor dimension explosion | Explode in wrong dimension | `BlockExplodeEvent`, `ExplosionPrimeEvent` | Not `BlockBreakEvent` | ❌ GAP |
 | End portal frame activation | 12 frames + eyes | `PlayerInteractEvent`, `BlockPlaceEvent` | `eye_of_ender` property | ❌ GAP |
 | Dragon egg teleport | Teleports on click; falls as gravity | `PlayerInteractEvent`, `BlockPhysicsEvent` | — | ❌ GAP |
-| Oxidation (copper) / copper bulb | 4 weathering stages; bulb output | `BlockFadeEvent` (oxidation), `BlockRedstoneEvent` (bulb) | `weathering`/`oxidation` props | ❌ GAP |
+| Oxidation (copper) / copper bulb | 4 weathering stages; bulb output | `BlockFadeEvent` (oxidation), `BlockRedstoneEvent` (bulb) | `weathering`/`oxidation` props | 🟡 oxidation now zone-gated by `naturalBlockChanges` (same `onBlockFade` handler); copper bulb redstone output still a GAP |
 | Amethyst / budding amethyst growth | Clusters grow from budding | `BlockGrowEvent` (`age` 0–3) | — | ❌ GAP |
 | Pointed dripstone drip / stalactite fall | Drips into cauldrons; falls as damage | `BlockFromToEvent`, `BlockGrowEvent` | Tick-based | ❌ GAP |
-| Piston extend/retract + slime/honey chain + destruction | Push/pull up to 12 blocks; destroy un-pushable | `BlockPistonExtendEvent` / `BlockPistonRetractEvent` (`getBlocks()`) | `MOVING_PISTON`/`PISTON_HEAD` technical blocks | ❌ GAP |
-| General physics check | Adjacent support checks on removal | `BlockPhysicsEvent` (`getCause()`) | Some physics moved client-side | ❌ GAP |
+| Piston extend/retract + slime/honey chain + destruction | Push/pull up to 12 blocks; destroy un-pushable | `BlockPistonExtendEvent` / `BlockPistonRetractEvent` (`getBlocks()`) | `MOVING_PISTON`/`PISTON_HEAD` technical blocks | 🟡 `ZoneListener.onPistonExtend`/`onPistonRetract` cancels the whole action if a moved block's zone disallows `blockBreaking` or its destination zone disallows `blockPlacing`; `resource.ResourceEnvironmentListener` separately protects tracked resource nodes regardless of zone |
+| General physics check | Adjacent support checks on removal | `BlockPhysicsEvent` (`getCause()`) | Some physics moved client-side | 🟡 narrow tag-driven protection only, see "Support-chain break" row above — no general physics-cause inspection |
 | Entity standing/collision effects | Pressure plates, sculk sensors, cobweb slow, honey/slime | `EntityMoveEvent` (Paper); no damage event for cactus/berry/powder | Block-contact damage has no Bukkit event | ❌ GAP |
-| Mob griefing (creeper/enderman/silverfish/wither/ravager) | Mobs place/break blocks | `EntityExplodeEvent`, `EntityChangeBlockEvent`, `EntityBreakBlockEvent` (Paper), `GameRule.MOB_GRIEFING` | `GameRule.WITHER_BREAK_BLOCKS` | ❌ GAP |
+| Mob griefing (creeper/enderman/silverfish/wither/ravager) | Mobs place/break blocks | `EntityExplodeEvent`, `EntityChangeBlockEvent`, `EntityBreakBlockEvent` (Paper), `GameRule.MOB_GRIEFING` | `GameRule.WITHER_BREAK_BLOCKS` | 🟡 `world_rules` config already passes `GameRule.MOB_GRIEFING`/`WITHER_BREAK_BLOCKS` through server/world-wide; `ZoneListener.onEntityChangeBlock` adds a per-zone `blockBreaking` override on top |
 
 ---
 
@@ -112,15 +113,15 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Water/lava flow breaking blocks | Flow replaces torches/crops/etc. (no `BlockBreakEvent`) | `BlockFromToEvent` (cancel) | `level` 1–8, `waterlogged` prop | ❌ GAP |
-| Lava igniting / converting to obsidian/cobblestone | Contact mechanics | `BlockFormEvent`, `BlockIgniteEvent`, `BlockFromToEvent` | — | ❌ GAP |
-| Infinite water source creation | Two adjacent sources create a source | `BlockFormEvent` | — | ❌ GAP |
-| Bucket fill/empty (incl. fish/axolotl/powder snow) | Pick up and place fluids + entities | `PlayerBucketFillEvent` / `PlayerBucketEmptyEvent` (`getFluidBucket()`) | — | ❌ GAP |
-| Frost Walker freezing | Freezes water under boots | `EntityBlockFormEvent` + `BlockFadeEvent` (melt) | — | ❌ GAP |
-| Cauldron fill/empty (water/lava/powder snow) | Bucket + dripstone + rain fill | `PlayerBucketFillEvent`/`EmptyEvent`, `BlockFormEvent`, `BlockFromToEvent` | `level`/`fill_level` props | ❌ GAP |
-| Fire spread / block burn | Fire spreads to flammable, burns blocks | `BlockIgniteEvent` (`IgniteCause`), `BlockBurnEvent`, `BlockSpreadEvent` | Soul fire doesn't spread to non-soulammable | ❌ GAP |
-| TNT / creeper / wither / end-crystal explosions | Radius + block destruction | `EntitySpawnEvent` (TNT), `ExplosionPrimeEvent`, `EntityExplodeEvent` (`blockList()`), `BlockExplodeEvent` (bed/anchor) | `GameRule.EXPLOSION_DROP_RULE` (1.21) | 🟡 combat maps damage only; no block destruction control |
-| Explosion drop override | `ExplosionDropRules` gamerule | Modify `EntityExplodeEvent`/`BlockExplodeEvent` block list | `GameRule.EXPLOSION_DROP_RULE` | ❌ GAP |
+| Water/lava flow breaking blocks | Flow replaces torches/crops/etc. (no `BlockBreakEvent`) | `BlockFromToEvent` (cancel) | `level` 1–8, `waterlogged` prop | 🟡 `ZoneListener.onBlockFromTo` gates by `blockBreaking`, skipping the zone lookup entirely when the flow target is air/water/lava |
+| Lava igniting / converting to obsidian/cobblestone | Contact mechanics | `BlockFormEvent`, `BlockIgniteEvent`, `BlockFromToEvent` | — | 🟡 the `BlockFormEvent` conversion step is zone-gated by `naturalBlockChanges`; `BlockIgniteEvent`/`BlockFromToEvent` are separately covered by `onBlockIgnite`/`onBlockFromTo` (§4 third pass) |
+| Infinite water source creation | Two adjacent sources create a source | `BlockFormEvent` | — | 🟡 zone-gated by `naturalBlockChanges` (`onBlockForm`) |
+| Bucket fill/empty (incl. fish/axolotl/powder snow) | Pick up and place fluids + entities | `PlayerBucketFillEvent` / `PlayerBucketEmptyEvent` (`getFluidBucket()`) | — | 🟡 `ZoneListener.onBucketFill`/`onBucketEmpty` gate fluid/powder-snow buckets by `blockBreaking`/`blockPlacing`; fish/axolotl entity-capture (`PlayerBucketEntityEvent`) not attempted (entity mechanic, not block protection) |
+| Frost Walker freezing | Freezes water under boots | `EntityBlockFormEvent` + `BlockFadeEvent` (melt) | — | 🟡 both zone-gated by `naturalBlockChanges` (`onEntityBlockForm`/`onBlockFade`) |
+| Cauldron fill/empty (water/lava/powder snow) | Bucket + dripstone + rain fill | `PlayerBucketFillEvent`/`EmptyEvent`, `BlockFormEvent`, `BlockFromToEvent` | `level`/`fill_level` props | 🟡 the `BlockFormEvent` (rain/dripstone fill) path is zone-gated by `naturalBlockChanges`; bucket fill/empty is still a GAP |
+| Fire spread / block burn | Fire spreads to flammable, burns blocks | `BlockIgniteEvent` (`IgniteCause`), `BlockBurnEvent`, `BlockSpreadEvent` | Soul fire doesn't spread to non-soulammable | 🟡 `ZoneListener.onBlockIgnite`/`onBlockBurn` gate ignition/consumption by `blockPlacing`/`blockBreaking`; `BlockSpreadEvent` for fire itself not separately distinguished from the vegetation-spread gate (same flag, same effect) |
+| TNT / creeper / wither / end-crystal explosions | Radius + block destruction | `EntitySpawnEvent` (TNT), `ExplosionPrimeEvent`, `EntityExplodeEvent` (`blockList()`), `BlockExplodeEvent` (bed/anchor) | `GameRule.EXPLOSION_DROP_RULE` (1.21) | 🟡 combat maps damage; `ZoneListener.onEntityExplode`/`onBlockExplode` now filter `blockList()` by `blockBreaking` for every explosion source, not just bed/anchor (§9); drop-content control (`EXPLOSION_DROP_RULE`) still not attempted |
+| Explosion drop override | `ExplosionDropRules` gamerule | Modify `EntityExplodeEvent`/`BlockExplodeEvent` block list | `GameRule.EXPLOSION_DROP_RULE` | ✅ verified — the three real vanilla gamerules here (`blockExplosionDropDecay`/`mobExplosionDropDecay`/`tntExplosionDropDecay`, added 1.19+) already flow through the generic `world_rules` config pass-through (`GameRule.getByName(key)` + `world.setGameRule`), same as any other gamerule; no dedicated code needed |
 | Resonance / charged-creeper head drops | Creature killed by charged creeper drops disc | `EntityDeathEvent`, `EntityExplodeEvent` | — | ❌ GAP |
 | Lightning strike + block conversion | Converts sand→glass, cobble→stone | `LightningStrikeEvent` (cancel) | — | ❌ GAP |
 | Lightnight rod attraction | 128-block radius attraction | `LightningStrikeEvent` | — | ❌ GAP |
@@ -157,7 +158,7 @@
 | Fly / sprint double-jump / elytra | Flight toggle | `PlayerToggleFlightEvent`, `EntityToggleGlideEvent`, `setAllowFlight` | Re-assert `setAllowFlight`/`setFlying` periodically | ❌ GAP |
 | Movement-speed attribute | `GENERIC_MOVEMENT_SPEED` | `Attribute.GENERIC_MOVEMENT_SPEED` + `NamespacedKey` modifier | Overwriting baseValue clobbers boot/enchant bonuses | 🟡 stat (walk speed only; fly/sprint/sneak/swim GAP) |
 | Levitation / frozen / slowness effect gating | Effects alter movement | `EntityPotionEffectEvent` (cancellable); freeze via `setFreezeTicks` (no event) | — | 🟡 alchemy applies effects; no `EntityPotionEffectEvent` filter |
-| Vehicle enter/exit & minecart/boat | Mount physics | `PlayerVehicleEnterEvent`, `PlayerVehicleExitEvent`, `VehicleEntityCollisionEvent` | — | ❌ GAP |
+| Vehicle enter/exit & minecart/boat | Mount physics | `PlayerVehicleEnterEvent`, `PlayerVehicleExitEvent`, `VehicleEntityCollisionEvent` | `PlayerMoveEvent` does NOT fire for a mounted passenger — position updates go through `VehicleMoveEvent` on the vehicle entity instead, a real zone-protection bypass previously unguarded (a boat/minecart could ride straight through a zone's `entry` restriction) | 🟡 `ZoneListener.onVehicleMove` closes the entry-bypass specifically (soft push-back + zone tracking for every player passenger, mirroring `onMoveEntryCheck`/`onMove`); `PlayerVehicleEnterEvent`/`ExitEvent`/`VehicleEntityCollisionEvent` (mount/dismount ability triggers, collision physics) still not attempted |
 
 ---
 
@@ -171,7 +172,7 @@
 | Drowning / air bubbles / water breathing | Air depletes → `DROWNING` | `EntityAirChangeEvent` (`setAmount`), `EntityDamageEvent` `DROWNING` | Cancel alone won't restore; call `setAmount` | ✅ drowning+alchemy breathing; ❌ no air-bar control |
 | Fire ticks / burning / extinguishing | Burning entity | `EntityIgniteEvent` (Paper, `Cause`), `EntityCombustEvent`, `setFireTicks(0)` | Prefer `EntityIgniteEvent` over `EntityCombustEvent` | ✅ fire immunity extinguishes; ❌ ignite interception |
 | Lava movement / nether immunity | Lava damages/slows | `EntityDamageEvent` `LAVA` | — | ✅ mapped; ❌ no movement/resistance logic |
-| Freeze / powder snow / Frost Walker | Freeze ticks; powder snow damage | `EntityFreezeEvent` (Paper); `EntityDamageEvent` `FREEZE` | — | ❌ GAP |
+| Freeze / powder snow / Frost Walker | Freeze ticks; powder snow damage | `EntityFreezeEvent` (Paper); `EntityDamageEvent` `FREEZE` | `EntityFreezeEvent` does not actually exist in this Paper API version (1.21.11, verified via the shipped jar) — the audit's originally-listed hook is wrong | 🟡 a fully freeze-immune entity now has its freeze ticks reset on the (no-op) immune hit, mirroring the pre-existing fire/lava-immunity parity fix (`CombatListener.onEntityDamage`) — the only mechanism available, since there's no separate freeze-tick-accumulation event to intercept in this API version; non-immune freeze-tick accumulation itself is untouched (already vanilla-correct) |
 | Damage-type classification completeness | `LIGHTNING`/`FREEZE` must not map to MELEE | `CombatListener.mapCauseToType` | **Bug:** `LIGHTNING` and `FREEZE` currently fall through to `MELEE` | ❌ GAP (miscategorized) |
 
 ---
@@ -181,10 +182,10 @@
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Time manipulation / freeze | `world.setTime()`; freeze sun | `setGameRule(DO_DAYLIGHT_CYCLE,false)` + tick `setTime` | Client moves the sun itself — must re-set server-side every tick | ❌ GAP (time module read-only by design) |
-| Rain/snow/clear + thunder | World weather state | `WeatherChangeEvent`, `ThunderChangeEvent`, `world.setStorm`/`setThundering` | No weather-change event in some paths — poll | ❌ GAP |
-| Night skip / sleeping percentage | Skip when % sleeping | `GameRule.PLAYERS_SLEEPING_PERCENTAGE`; poll dawn | — | ❌ GAP |
+| Rain/snow/clear + thunder | World weather state | `WeatherChangeEvent`, `ThunderChangeEvent`, `world.setStorm`/`setThundering` | No weather-change event in some paths — poll | ✅ `world_rules` — per-world `world.weather-lock` (`WorldRulesModule.WeatherLock`), one-shot `setStorm`/`setThundering` + `WeatherChangeEvent`/`ThunderChangeEvent` cancellation enforcing it; no default lock shipped |
+| Night skip / sleeping percentage | Skip when % sleeping | `GameRule.PLAYERS_SLEEPING_PERCENTAGE`; poll dawn | — | ✅ verified — `playersSleepingPercentage` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through like any other gamerule; the "poll dawn" half (detecting the skip itself happening) is not attempted, but that's vanilla's own behavior, nothing to control |
 | Lightning entities | Strikes | `LightningStrikeEvent` | — | ❌ GAP |
-| GameRules wholesale | Dozens affect RPG (keepInventory, doFireTick, naturalRegeneration, fall/fire/drowning damage, doMobSpawning, doMobLoot, etc.) | `World.setGameRule(GameRule.*)` | **None are set anywhere in Valmora** — biggest environmental cluster | ❌ GAP |
+| GameRules wholesale | Dozens affect RPG (keepInventory, doFireTick, naturalRegeneration, fall/fire/drowning damage, doMobSpawning, doMobLoot, etc.) | `World.setGameRule(GameRule.*)` | **None are set anywhere in Valmora** — biggest environmental cluster | ✅ `world_rules` module (§8 high, first pass) — generic `world.gamerules.*` config pass-through covers every named `GameRule`, including all of these; this row was stale (fixed twice over — module shipped first pass, this table row just never got updated to match) |
 | Difficulty | Affects damage/hunger/special spawns | `World.setDifficulty(Difficulty.*)` | — | ❌ GAP |
 | World border | Limit + damage | `WorldBorder` API; `EntityDamageEvent` `WORLD_BORDER` | — | 🟡 border damage mapped; ❌ no border control |
 | Biome rules / temperature | Biome-specific effects | `Registry.BIOME`, `Block.getTemperature()` | `Biome` enum removed → `Registry.BIOME` | ❌ GAP |
@@ -195,14 +196,14 @@
 
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
-| Death message / custom death | Default localized message | `PlayerDeathEvent.deathMessage(Component)` (Adventure) | Needs `DamageSource` for localization keys, or block + inject MiniMessage | ❌ GAP (trivial read-only today) |
-| keepInventory / keepExperience | Vanilla drops armor/XP | `PlayerDeathEvent.setKeepInventory`/`setKeepLevel` | `setKeepInventory(true)` still populates `getDrops()` | 🟡 HUD items removed only |
-| Respawn location / bed vs anchor | `PlayerRespawnEvent.setRespawnLocation` | `setRespawnLocation`, `isBedSpawn`/`isAnchorSpawn`; `PlayerBedEnterEvent` | Death-screen duration client-side (Paper `PlayerDeathScreenEvent`) | 🟡 heal/respawn handled; location/screen ❌ |
-| Totem of undying trigger | Protects from lethal | `EntityResurrectEvent` (Paper) | — | ❌ GAP |
-| Respawn anchor explosion (wrong dim) | Explodes | `RespawnAnchorExplodeEvent` / `BlockExplodeEvent` | — | ❌ GAP |
-| End void death / platform | Drops through End | reposition / platform | — | ❌ GAP |
-| Bed enter/leave/wake + esc-kick | Sleep, respawn point, leave | `PlayerBedEnterEvent`, `PlayerBedLeaveEvent`, `PlayerWakeUpEvent`, `BedExplodeEvent` | — | ❌ GAP |
-| Phantom countdown (insomnia) | Spawns after 3 nights awake | `Statistic.TIME_SINCE_REST`, `PhantomPreSpawnEvent` (Paper) | Valmora controls time but not phantoms | ❌ GAP |
+| Death message / custom death | Default localized message | `PlayerDeathEvent.deathMessage(Component)` (Adventure) | Needs `DamageSource` for localization keys, or block + inject MiniMessage | ✅ `death` module (`DeathMessageService`) — built from Valmora's own DamageType/attacker/weapon resolution, not `DamageSource` (deliberate — see docs/modules/design/death.md §3.2) |
+| keepInventory / keepExperience | Vanilla drops armor/XP | `PlayerDeathEvent.setKeepInventory`/`setKeepLevel` | `setKeepInventory(true)` still populates `getDrops()` | ✅ `death` module (`DeathPolicyResolver`/`DeathListener`) — global config default + per-zone `ZoneFlags` override; the `getDrops()` pitfall is explicitly handled |
+| Respawn location / bed vs anchor | `PlayerRespawnEvent.setRespawnLocation` | `setRespawnLocation`, `isBedSpawn`/`isAnchorSpawn`; `PlayerBedEnterEvent` | Death-screen duration client-side (Paper `PlayerDeathScreenEvent`) | 🟡 heal/respawn handled (stat); optional per-zone `death.zone-respawn-overrides` location override added; vanilla bed/anchor/world-spawn resolution otherwise left untouched (already correct); **death-screen duration has no hook in this Paper version (1.21.11)** — `PlayerDeathScreenEvent` doesn't exist here, confirmed via the shipped API jar |
+| Totem of undying trigger | Protects from lethal | `EntityResurrectEvent` (Paper) | — | ✅ `TotemProtectionService` (`module/combat/`) — was silently non-functional (vanilla's own totem check never ran against this plugin's virtual-health damage pipeline); fixed by intercepting inside `DamageApplier` before the fatal `setHealth(0)`, firing a real `EntityResurrectEvent` for compatibility. Known limitation: the client's totem pop-up animation doesn't play (see design doc) |
+| Respawn anchor explosion (wrong dim) | Explodes | `RespawnAnchorExplodeEvent` / `BlockExplodeEvent` | This Paper version has no dedicated `RespawnAnchorExplodeEvent`/`BedExplodeEvent` — both fire as `BlockExplodeEvent` (confirmed via the shipped API jar) | 🟡 `death` module (`RespawnAnchorListener`) — zone block-protection filtering only (reuses `ZoneFlags.blockBreaking`); player damage already routed correctly via existing `BLOCK_EXPLOSION` → `DamageType.EXPLOSION` mapping; general explosion-control (§4) not attempted |
+| End void death / platform | Drops through End | reposition / platform | — | 🟡 death message added (`death.messages.VOID`); rescue-platform/reposition explicitly declined (user decision) — void kills exactly like vanilla |
+| Bed enter/leave/wake + esc-kick | Sleep, respawn point, leave | `PlayerBedEnterEvent`, `PlayerBedLeaveEvent`, `PlayerWakeUpEvent`, `BedExplodeEvent` | — | 🟡 `death` module (`BedListener`) — `PlayerBedEnterEvent` gated by new `ZoneFlags.sleeping`; wrong-dimension explosion handled by `RespawnAnchorListener` (same `BlockExplodeEvent`, see above); `PlayerBedLeaveEvent`/`PlayerWakeUpEvent` deliberately left alone (vanilla already correct) |
+| Phantom countdown (insomnia) | Spawns after 3 nights awake | `Statistic.TIME_SINCE_REST`, `PhantomPreSpawnEvent` (Paper) | Valmora controls time but not phantoms | ✅ `death` module (`PhantomInsomniaListener`) — global `death.phantoms-enabled` toggle + reused `ZoneFlags.naturalMobSpawning`; `Statistic.TIME_SINCE_REST` itself left vanilla |
 
 ---
 
@@ -212,8 +213,8 @@
 |---|---|---|---|---|
 | Async teleportation | Non-blocking chunk load | `player.teleportAsync(loc)` returns `CompletableFuture<Boolean>` | Never sync `.teleport()` to unloaded chunks | ✅ used across warp/npc/dialogue |
 | Teleport cause gate | All causes | `PlayerTeleportEvent` (`TeleportCause`); zone gate blocks all | — | ✅ zone teleportation flag |
-| Cross-world / dimension change | `PlayerChangedWorldEvent` | — | Not handled anywhere | ❌ GAP |
-| Portal create / enter / exit | Nether/end portals | `PlayerPortalEvent`, `PortalCreateEvent`, `EntityPortalExitEvent`, `EntityPortalEnterEvent` | — | ❌ GAP |
+| Cross-world / dimension change | `PlayerChangedWorldEvent` | — | Not handled anywhere | ✅ verified — `ZoneListener.onTeleport` already reschedules `zoneManager.checkTransition()` after every `PlayerTeleportEvent` (portals included), reading the player's live post-world-change location; no cross-world path skips `PlayerTeleportEvent` first, so a dedicated `PlayerChangedWorldEvent` handler would be redundant |
+| Portal create / enter / exit | Nether/end portals | `PlayerPortalEvent`, `PortalCreateEvent`, `EntityPortalExitEvent`, `EntityPortalEnterEvent` | — | 🟡 creation now zone-gated (`ZoneListener.onPortalCreate`, `blockPlacing`); player *use* verified already covered (`PlayerPortalEvent extends PlayerTeleportEvent` → existing `teleportation` flag gate); non-player entity portal exit (`EntityPortalExitEvent`) not attempted |
 | Ender-pearl / chorus / end-gateway | Cause-specific | `PlayerTeleportEvent` cause | Per-cause handling | 🟡 (all causes blocked by zone, no per-cause) |
 
 ---
@@ -227,7 +228,7 @@
 | XP curve / levels / level-up | Hardcoded curve | `PlayerExpChangeEvent`, `PlayerLevelChangeEvent` | No vanilla-level abstraction in Valmora (profile XP separate) | ❌ GAP |
 | XP orbs / bottle o' enchanting / mending/offhand | Orb pickup routes to mending | `PlayerPickupExperienceEvent`, `PlayerExpChangeEvent` | Mending reroutes transparently | ❌ GAP |
 | Enchanting-table/anvil XP cost | Uses player levels | `PrepareItemEnchantEvent`, `PrepareAnvilEvent`, `EnchantItemEvent` | Valmora enchant engine is its own system; vanilla tables still work on non-Valmora items | 🟡 enchant |
-| Natural regeneration | Gamerule-driven | `GameRule.NATURAL_REGENERATION` | Not set | ✅ starvation canceled; ❌ regen control |
+| Natural regeneration | Gamerule-driven | `GameRule.NATURAL_REGENERATION` | Not set | ✅ starvation canceled; regen control verified — `naturalRegeneration` is a standard named `GameRule` (Boolean type), already settable via the generic `world_rules` config pass-through |
 | Player abilities (flight/invulnerability/mayfly) | `setAllowFlight`/`setInvulnerable` | `PlayerToggleFlightEvent` | — | ❌ GAP |
 
 ---
@@ -240,7 +241,7 @@
 | Offhand ability trigger | Use in offhand | `getHand()==OFF_HAND` | **AbilityListener explicitly skips OFF_HAND** | ❌ GAP |
 | PHYSICAL (trampling) | Walk on farmland | `PlayerInteractEvent` `Action.PHYSICAL` (`getHand()==null`) | — | ✅ TrampleListener |
 | Per-player vanilla item cooldown bar | `Player.setCooldown(Material, ticks)` | Keyed by Material, not PDC. Valmora `CooldownManager` is ability-ID keyed → **no vanilla cooldown bar** | — | 🟡 (ability cooldowns only) |
-| Custom attack cooldown (1.9 swing charge) | Charge → damage scaling | `Attribute.ATTACK_SPEED`, `player.resetCooldown()`; no charge-progress event | `ATTACK_SPEED` name; `NamespacedKey` modifiers | ❌ GAP (stat has bonus_attack_speed but **unconsumed**) |
+| Custom attack cooldown (1.9 swing charge) | Charge → damage scaling | `Attribute.ATTACK_SPEED`, `player.resetCooldown()`; no charge-progress event | `ATTACK_SPEED` name; `NamespacedKey` modifiers | ✅ `AttackCooldownService` (`module/combat/`) — reproduces vanilla's charge->multiplier curve (`0.2 + progress²×0.8`) against `Attribute.ATTACK_SPEED`, applied post-calculation in `CombatListener` for player melee hits (`combat.attack-cooldown.*`); `player.resetCooldown()`/the client HUD indicator itself untouched (cosmetic only, already correct) |
 | Swing / arm-animation | `PlayerAnimationEvent` | Cancel to reuse click | — | ❌ GAP |
 | `getItemInUse()` / hold-to-charge | Bow/fishing rod/trident charge | `Player#getItemInUse()`, `PlayerUseItemEvent` (start, cancellable) | Distinct from `PlayerItemConsumeEvent` | ❌ GAP |
 | Eating/drinking animation & hold-time | ~1.6s eat; consume fires at completion | `PlayerItemConsumeEvent` (`getHand()` may be null); cancel `PlayerInteractEvent` to stop start | `FoodComponent` (item component), not `FoodMeta` | 🟡 alchemy consume only; ❌ custom food duration |
@@ -260,7 +261,7 @@
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Durability loss / unbreakable / Mending | Loss on use; `PlayerItemDamageEvent`/`PlayerItemMendEvent` | Cancel/`setDamage` | **Never hooked anywhere** | ❌ GAP |
-| Attribute modifiers on held/equipped | Apply while equipped | `AttributeModifier` (`NamespacedKey`, `Operation`) | OFF `UUID`/string name constructor | 🟡 stat recalc — verify ItemFactory uses `NamespacedKey` |
+| Attribute modifiers on held/equipped | Apply while equipped | `AttributeModifier` (`NamespacedKey`, `Operation`) | OFF `UUID`/string name constructor | ✅ verified — `StatModule.recalculateAttributes`'s only two `new AttributeModifier(...)` call sites both use the `NamespacedKey` constructor (`MINING_SPEED_MOD_KEY`/`ATTACK_SPEED_MOD_KEY`), removed and re-added on every recalc |
 | Anvil repair / combine / XP cost / enchant preserve | Upgrade + cost cap (40 levels) | `AnvilRepairEvent`, `PrepareAnvilEvent` | Smithing is separate (`SmithingTransformRecipe` 3-slot) | 🟡 modifier anvil step; ❌ full cost/preserve |
 | Item stacks / PDC / custom model data / components | PDC + (1.20.5+) components | `ItemStack#withType`, component access | Avoid `setType()`+full-meta rebuild | ✅ extensive PDC |
 | Shield block cooldown / axe-disable / damage | 0.6s cooldown; axe disables 5s | `EntityDamageBlockedEvent` (**never hooked**), `setCooldown(Material.SHIELD)` | — | ❌ GAP |
@@ -279,10 +280,10 @@
 | Resistance potion / absorption hearts | Flat % / shield layer | Absorption via `setAbsorptionAmount`; no pipeline layer | Absorption hearts sit **outside** virtual HP — not spent first | 🟡 |
 | Invulnerability i-frames / hurt resistance | `getNoDamageTicks` gate | `CombatListener` gate + `setNoDamageTicks(20)` | DoT/pipeline re-triggers gate | ✅ |
 | Shield blocking | Block/reduce damage | `EntityDamageBlockedEvent` — **never hooked** | — | ❌ GAP |
-| Knockback model | `Entity.knockback` accel; KB resistance | No attacker KB suppression/enchant-KB; mobs only resist | 1.21 uses acceleration not vector hacks | 🟡 abilities; ❌ vanilla KB model |
+| Knockback model | `Entity.knockback` accel; KB resistance | No attacker KB suppression/enchant-KB; mobs only resist | 1.21 uses acceleration not vector hacks | 🟡 `CombatKnockbackListener` (`EntityKnockbackEvent`, `Cause.ENTITY_ATTACK`) now lets an enchant `modify-attack`/`modify-defend` `knockback-multiplier` modifier suppress/scale a specific hit's knockback (`DamageModifierContext`/`EnchantCombatHook`/`KnockbackModifierTracker`); mob/player KB-resistance via vanilla attributes was already correct and untouched (`MobDefinition.knockback-resistance` → `KNOCKBACK_RESISTANCE`; any stat mapped to a vanilla attribute already flows through `StatModule`); no combat-pipeline `knockback_multiply` event yet — enchants only |
 | Critical / sprint attack / sweep / backstab | Jump crit, sprint bonus, sweep width | Valmora random-% crit; ❌ sprint/sweep/backstab not modeled | 21 sweep tag not consumed | 🟡 crit; ❌ others |
-| Attack cooldown integration | Charge scaling | `bonus_attack_speed` stat exists but **never consumed** | — | ❌ GAP |
-| Modern `DamageSource`/`DamageType` builder + death keys | Localized death/kill tags | `DamageSource.builder(DamageType.*)...build()` | **Never used anywhere** — blocks custom death messages | ❌ GAP |
+| Attack cooldown integration | Charge scaling | `bonus_attack_speed` stat exists but **never consumed** | — | ✅ see §12 row above — `AttackCooldownService` now consumes it (via the `Attribute.ATTACK_SPEED` value it already fed) for the actual damage-scaling behavior |
+| Modern `DamageSource`/`DamageType` builder + death keys | Localized death/kill tags | `DamageSource.builder(DamageType.*)...build()` | **Never used anywhere** | 🟡 deliberately still unused — custom death messages were the only concrete need for it and are now solved a different way (`death` module's `DeathMessageService`, built from Valmora's own DamageType/attacker resolution instead — see §9 and docs/modules/design/death.md §3.2). Vanilla `DamageSource`-based localization/attribution remains a real gap if some *other* feature needs it later |
 | Vanilla-enchant interception | Protection/Unbreaking/Mending/FireAspect/KB/Looting/Sweeping | **None — vanilla enchants outside the pipeline** | — | ❌ GAP |
 
 ---
@@ -328,9 +329,9 @@
 | Natural spawn rules + caps | Biome category caps, light/block checks | `CreatureSpawnEvent` (`SpawnReason.NATURAL`), `MobSpawnEvent` (Paper) | Light rules changed 1.18+ (surface ≤0, caves ≤15) | 🟡 zone can disable; ❌ custom spawn logic |
 | Spawn placement constraints (per-type) | 2×1×2 spider, sky access phantom, etc. | `SpawnPlacements` NMS-only; pre-validate in `CreatureSpawnEvent` | — | ❌ GAP |
 | Despawn distance / persistence | 128-block despawn; `removeWhenFarAway` | `EntityRemoveEvent` (Paper, `DESPAWN`), `Mob.setPersistent` | 128/32 hardcoded in NMS | 🟡 `MobDefinition.persistent`; ❌ custom distance/reaction |
-| Vanilla MobSpawner block | Timer + range + conditions | `SpawnerSpawnEvent` | — | 🟡 zone spawners separate; ❌ vanilla spawner interception |
+| Vanilla MobSpawner block | Timer + range + conditions | `SpawnerSpawnEvent` | — | ✅ verified — `SpawnerSpawnEvent extends CreatureSpawnEvent` in this Paper version, so `VanillaSpawnUpgradeListener`'s existing `CreatureSpawnEvent` handler already upgrades spawner-produced entities the same as natural/egg spawns; zone spawners remain a separate system |
 | Structure spawning / siege / reinforcements | Outposts, fortresses, zombie siege/reinforcements | `CreatureSpawnEvent` (`STRUCTURE`/`REINFORCEMENTS`) | — | ❌ GAP |
-| Spawn egg / command / plugin spawning of Valmora mobs | Applies stats/PDC | **No `CreatureSpawnEvent` listener to apply mob defs** — eggs produce vanilla mobs | — | 🟡 `/mob spawn` only; ❌ eggs |
+| Spawn egg / command / plugin spawning of Valmora mobs | Applies stats/PDC | **No `CreatureSpawnEvent` listener to apply mob defs** — eggs produce vanilla mobs | — | ✅ verified — `VanillaSpawnUpgradeListener` has no `SpawnReason` filter, so it already upgrades `SPAWNER_EGG`/`COMMAND`/`PLUGIN` spawns the same as natural/spawner spawns (any `vanilla-default`-registered type); this coverage cell was stale from before that listener shipped |
 | Riding / passenger system | Skeletons ride spiders, piglins ride striders | `EntityAddPassengerEvent`/`EntityRemovePassengerEvent` (Paper) | — | ❌ GAP |
 
 ---
@@ -360,7 +361,7 @@
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Embodied armor equipment / loot | Player-killed vs env-killed | `EntityDeathEvent` (`getDrops`, `getDroppedExp`, `getLootingLevel`) | — | ✅ mob loot (🟡 double XP: vanilla orbs + Valmora XP) |
-| Mob conversions (drown, burn, cure) | Husk↔zombie↔drowned, zombie-villager cure | `EntityTransformEvent`, `EntityConvertEvent` (Paper), `CureZombieVillagerEvent` | **PDC lost on conversion → custom mobs become vanilla** | ❌ GAP (critical) |
+| Mob conversions (drown, burn, cure) | Husk↔zombie↔drowned, zombie-villager cure | `EntityTransformEvent`, `EntityConvertEvent` (Paper), `CureZombieVillagerEvent` | **PDC lost on conversion → custom mobs become vanilla** | ✅ `MobConversionListener` (first pass) re-applies `MobDefinition` on `EntityTransformEvent`, unconditional on `TransformReason` — covers `CURED` (zombie-villager cure) for free. `EntityConvertEvent`/`CureZombieVillagerEvent` don't exist as separate classes in this Paper API version (1.21.11, confirmed via the shipped jar) — curing fires a plain `EntityTransformEvent` with `TransformReason.CURED`, already handled |
 | Baby growth / breeding / taming | Love mode, growth, tame chance | `EntityBreedEvent`, `PlayerInteractEntityEvent`, `EntityTameEvent`, `Ageable` | Skill named "taming" has no mechanic behind it | 🟡 baby flag; ❌ grow/breed/tame |
 | Breeding-food / pregnancy / follow-parent | Per-species food, turtle eggs, cat kittens | `EntityBreedEvent`, `EntitySpawnEvent`, `BlockGrowEvent` (eggs) | — | ❌ GAP |
 | Milking / shearing / feeding | Entity interact | `PlayerShearEntityEvent`, `PlayerInteractEntityEvent` | `PlayerShearEntityEvent` includes tool+drops (Paper) | ❌ GAP |
@@ -404,8 +405,8 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
 | Mechanic | Vanilla behavior | Hook(s) | Paper 1.21 pitfalls | Coverage |
 |---|---|---|---|---|
 | Chunk load/generate/unload | Loading events | `ChunkLoadEvent`, `ChunkUnloadEvent`, `ChunkPopulateEvent` | Paper async chunk load — events may fire async | 🟡 zone/resource/mob/npc use ChunkLoad; ❌ gen |
-| Spawn chunks / force-load tickets | Keep loaded | `Chunk#addPluginChunkTicket`, `setForceLoaded` | `GameRule.SPAWN_CHUNK_RADIUS` (1.21) | ❌ GAP |
-| Random-tick processing | Random block ticks | `GameRule.RANDOM_TICK_SPEED`; events per state change | Default 3 | ❌ GAP |
+| Spawn chunks / force-load tickets | Keep loaded | `Chunk#addPluginChunkTicket`, `setForceLoaded` | `GameRule.SPAWN_CHUNK_RADIUS` (1.21) | 🟡 the gamerule half is verified — `spawnChunkRadius` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through; explicit force-load ticket management (`addPluginChunkTicket`) is a separate, still-open GAP |
+| Random-tick processing | Random block ticks | `GameRule.RANDOM_TICK_SPEED`; events per state change | Default 3 | 🟡 the gamerule half is verified — `randomTickSpeed` is a standard named `GameRule` (Integer type), already settable via the generic `world_rules` config pass-through; per-state-change event control itself is a separate, still-open GAP |
 | Entity persistence across restart | Saved to region file | — | Boss instance state not persisted (mob.md TODO) | ❌ GAP |
 | Chunk-unload entity despawn | Non-persistent removed | `EntityRemoveEvent` (`UNLOADED_CHUNK`) | — | 🟡 persistent flag; ❌ reaction |
 
@@ -416,32 +417,77 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
 ### Critical (foundational to "full vanilla control")
 1. **`EntityTargetEvent`** listener — unlocks aggro range, targeting tables/factions, most custom mob AI. No module has it.
 2. **`PlayerInteractEntityEvent`** — no custom entity-interact-through-item mechanics at all (feeding/taming/saddling/custom shears).
-3. **Mob conversion interception** — `EntityTransformEvent`/`EntityConvertEvent` must carry over mob PDC, or custom mobs silently revert to vanilla on drown/burn/cure.
-4. **Modern `DamageSource`/`DamageType` + custom death messages** — §11.10 pattern is **unused**; required for localized death/kill keys and real death messages.
+3. ~~**Mob conversion interception**~~ — **done**, `MobConversionListener` (first pass) re-applies
+   `MobDefinition` on every `EntityTransformEvent` regardless of `TransformReason`, which already
+   covers `CURED` (zombie-villager cure) — this Paper API version has no separate
+   `EntityConvertEvent`/`CureZombieVillagerEvent` class for it to miss.
+4. ~~**Modern `DamageSource`/`DamageType` + custom death messages**~~ — **done**, via a different
+   route than originally scoped: the `death` module's `DeathMessageService` builds real custom death
+   messages from Valmora's own DamageType/attacker/weapon resolution rather than vanilla
+   `DamageSource` (a deliberate choice — see §9 and docs/modules/design/death.md §3.2). The
+   `DamageSource.builder(...)` API itself remains genuinely unused if some future feature needs
+   vanilla-localized attribution specifically.
 5. **Vanilla-enchant & durability interception** — no `PlayerItemDamageEvent`/`PlayerItemMendEvent`; Protection/Unbreaking/Mending/Fire Aspect/KB/Looting/Sweeping all outside the pipeline.
 6. **Shield system** — `EntityDamageBlockedEvent` never hooked; no block chance, cooldown, or axe-disable.
 
 ### High (essential for an RPG)
-7. **Natural spawning system** — `CreatureSpawnEvent` to apply mob defs to naturally/egg-spawned entities (zone only disables today).
-8. **Damage-type miscategorization** — `LIGHTNING` and `FREEZE` currently fall through to `MELEE` in `mapCauseToType`.
-9. **Attack-cooldown / swing charge integration** — `bonus_attack_speed` stat is unconsumed; sprint/sweep/backstab/modeling.
-10. **GameRules wholesale** — none set (keepInventory, doFireTick, doDaylightCycle, doWeatherCycle, naturalRegeneration, fall/fire/drowning damage, playersSleepingPercentage, doImmediateRespawn).
-11. **Weather & time manipulation lock** — time module is read-only by design; no `WeatherChangeEvent`/`ThunderChangeEvent`, no `setTime` freeze.
-12. **Block state change family** — `BlockFadeEvent`/`BlockFormEvent`/`BlockGrowEvent`/`BlockSpreadEvent`/`LeavesDecayEvent`/`BlockPhysicsEvent`/`BlockMultiPlaceEvent`/`BlockDropItemEvent`/`BlockExpEvent` entirely unimplemented.
-13. **Explosions & fire control** — no `ExplosionPrimeEvent`/`EntityExplodeEvent` block-destruction control; no fire spread/burn.
-14. **Sleeping/beds/phantoms** — no bed handling, night-skip detection, or `Statistic.TIME_SINCE_REST` control.
+7. ~~**Natural spawning system**~~ — **done**, `VanillaSpawnUpgradeListener` (§17); also covers vanilla monster spawners for free since `SpawnerSpawnEvent extends CreatureSpawnEvent`, and spawn-egg/command/plugin spawns for free since the listener has no `SpawnReason` filter at all (verified this pass).
+8. ~~**Damage-type miscategorization**~~ — **done**, `LIGHTNING`/`FREEZE` explicitly mapped.
+9. ~~**Attack-cooldown / swing charge integration**~~ — **done**, `AttackCooldownService` (§12/§14); sprint-attack/sweep/backstab modeling remains a separate, still-open item.
+10. ~~**GameRules wholesale**~~ — **done**, `world_rules` module's config pass-through (§8 high, first pass).
+11. **Weather & time manipulation lock** — time module is read-only by design (unchanged, deliberate); weather is now
+    ~~open~~ **done** — `world_rules`' new `world.weather-lock` (this pass) locks a world's storm/thunder
+    state and enforces it against `WeatherChangeEvent`/`ThunderChangeEvent`, no default lock shipped.
+12. ~~**Block state change family**~~ — **done** (see `VANILLA_CONTROL_AUDIT_PROGRESS.md` third,
+    fourth, and fifth passes): `BlockGrowEvent`/`BlockSpreadEvent`/`StructureGrowEvent`/
+    `LeavesDecayEvent` now zone-gated; `BlockPhysicsEvent` support-chain detach protection added for
+    a narrow tag-driven set (torches/signs/banners/buttons/pressure_plates/rails);
+    `BlockMultiPlaceEvent` verified already covered (extends `BlockPlaceEvent`); `BlockFadeEvent`/
+    `BlockFormEvent`/`EntityBlockFormEvent` now zone-gated by a new `naturalBlockChanges` flag (fifth
+    pass — a deliberate reversal of the earlier "cosmetic-only, no protection angle" call once a
+    concrete need showed up: a themed zone wanting its ice/snow to stay put regardless of biome).
+    Still open: general `BlockPhysicsEvent` support-chain coverage beyond that tag set. Per-block-type
+    *loot content* control (as opposed to drop *formatting*, already covered — see §1 row below) is
+    now also closed, but not as a `VANILLA_CONTROL_AUDIT.md` line item: it's the new global,
+    zone-independent `block_loot` module (sixth pass — user-directed content-authoring, see
+    `docs/modules/design/blockloot.md`/`docs/modules/user/blockloot.md`), letting a server owner
+    configure any `Material`'s drop table server-wide, resolved through the same item/rarity/lore
+    formatting as everything else. It sits alongside, not instead of, the zone-scoped
+    `resource-blocks:` mining-node system — the zone config always wins where both could apply.
+13. ~~**Explosions & fire control**~~ — **done**: `EntityExplodeEvent`/`BlockExplodeEvent` block
+    destruction and `BlockIgniteEvent`/`BlockBurnEvent` fire spread are zone-gated; explosion
+    *drop*-content control verified already covered — the real vanilla gamerules
+    (`blockExplosionDropDecay`/`mobExplosionDropDecay`/`tntExplosionDropDecay`) flow through the
+    existing generic `world_rules` pass-through, no dedicated code needed.
+14. ~~**Sleeping/beds/phantoms**~~ — **mostly done**: `death` module's `BedListener` (zone-gated
+    `PlayerBedEnterEvent`) and `PhantomInsomniaListener` (global + zone-gated `PhantomPreSpawnEvent`).
+    Night-skip detection and `Statistic.TIME_SINCE_REST` control remain untouched (vanilla already
+    correct; `playersSleepingPercentage` is settable via the already-shipped `world_rules` GameRule
+    pass-through).
+14a. ~~**Vehicle-mounted zone-entry bypass**~~ — **done** (§6, eighth pass): `PlayerMoveEvent` never
+    fires for a mounted passenger, so a boat/minecart/horse could previously ride through a zone's
+    `entry` restriction untouched. `ZoneListener.onVehicleMove` (`VehicleMoveEvent`) closes it.
 15. **Custom pathfinder goals** — extend Paper `Pathfinder`/goal API beyond zone mob-home movement.
-16. **Held/equipped `AttributeModifier`** — verify ItemFactory emits `NamespacedKey`-based modifiers (1.21 §11.16) or it won't compile.
+16. ~~**Held/equipped `AttributeModifier`**~~ — **verified**, `StatModule` already uses the `NamespacedKey` constructor exclusively.
 
 ### Medium (RPG content depth)
 17. **Breeding / taming / baby growth** — pet/companion systems; "taming" skill is currently XP-only.
 18. **Villager trades / professions / raids** — `MerchantTradeEvent`, `VillagerReputationEvent`, `RaidSpawnWaveEvent`.
 19. **Item hold-to-charge / `getItemInUse()` / offhand triggers** — hold-charge abilities, cancel-ongoing-use.
-20. **Void platform / anti-void, respawn-location & death-screen** control.
+20. **Void platform / anti-void** control — still open, deliberately declined for this pass (see §9).
+    Respawn-location gained an optional per-zone override (`death.zone-respawn-overrides`); death-screen
+    duration has no hook to control it on in this Paper version (confirmed, not just undone).
 21. **Player XP curve / level abstractions** — `PlayerExpChangeEvent`/`PlayerLevelChangeEvent`; mending/bottle/o' enchanting.
-22. **Knockback model** — attacker KB suppression/enchant-KB; `EntityKnockbackEvent`.
+22. ~~**Knockback model**~~ — **partially done**: `CombatKnockbackListener` now lets enchant
+    `knockback-multiplier` modifiers suppress/scale a hit's knockback; mob/player KB-resistance was
+    already correct via vanilla attributes. A combat-pipeline knockback event (mirroring
+    `multiply_damage`) is not yet wired.
 23. **Armor toughness / material gating / trims** — only flat `defense`/`true_defense`.
-24. **Cross-world / portal events** — `PlayerPortalEvent`, `PortalCreateEvent`, `PlayerChangedWorldEvent`.
+24. ~~**Cross-world / portal events**~~ — **mostly done** (this pass): `PortalCreateEvent` now
+    zone-gated (`blockPlacing`); `PlayerPortalEvent` verified already covered (extends
+    `PlayerTeleportEvent` → existing `teleportation` flag); `PlayerChangedWorldEvent` verified
+    redundant (zone tracking already reacts to the preceding `PlayerTeleportEvent`). Still open:
+    non-player `EntityPortalExitEvent`.
 
 ---
 
@@ -458,4 +504,11 @@ Many special entities were covered in §17–19. Cross-cutting items worth repea
   4. All text through MiniMessage/Adventure only (§7.5/§11.3).
   5. Never store `ExecutionContext`; never touch Bukkit from async threads (§7.4).
 
-_Last updated: 2026-08-31. Generated from a multi-agent audit of vanilla Paper 1.21.11 mechanics vs. the current Valmora module set._
+_Last updated: 2026-09-03 (eighth pass — FREEZE-immunity parity fix mirroring the existing fire/lava
+one; a real vehicle-mounted zone-entry-bypass fix (`VehicleMoveEvent`); and a round of stale-row
+cleanup for every gamerule-coverable line item that the generic `world_rules` pass-through already
+closes for free — sleeping percentage, natural regeneration, spawn-chunk radius, random-tick speed,
+and GameRules wholesale itself, which had been re-marked done in the priority summary on a prior pass
+but never in its own §8 table row). Generated from a multi-agent audit of vanilla Paper 1.21.11
+mechanics vs. the current Valmora module set; coverage cells updated in place as gaps are closed —
+see `docs/VANILLA_CONTROL_AUDIT_PROGRESS.md` for what shipped on which branch._

@@ -23,16 +23,25 @@ public final class ModifierGroupParser {
                 displayOrder = displaySec.getInt("order", 0);
             }
 
-            ApplicationMode applicationMode = ApplicationMode.MULTIPLE;
-            int max = Integer.MAX_VALUE;
-            boolean replacement = false;
-            boolean removal = true;
+            // HC-120: modifiers.group-defaults.* — server-wide policy fallback when an individual
+            // group's own YAML omits an `application:` field.
+            var plugin = org.nakii.valmora.Valmora.getInstance();
+            var cfg = plugin != null ? plugin.getConfig() : null;
+            String defaultModeStr = cfg != null ? cfg.getString("modifiers.group-defaults.application-mode", "MULTIPLE") : "MULTIPLE";
+            int defaultMax = cfg != null ? cfg.getInt("modifiers.group-defaults.max", Integer.MAX_VALUE) : Integer.MAX_VALUE;
+            boolean defaultReplacement = cfg != null && cfg.getBoolean("modifiers.group-defaults.replacement", false);
+            boolean defaultRemoval = cfg == null || cfg.getBoolean("modifiers.group-defaults.removal", true);
+
+            ApplicationMode applicationMode = ApplicationMode.valueOf(defaultModeStr.toUpperCase(Locale.ROOT));
+            int max = defaultMax;
+            boolean replacement = defaultReplacement;
+            boolean removal = defaultRemoval;
             ConfigurationSection appSec = section.getConfigurationSection("application");
             if (appSec != null) {
-                applicationMode = ApplicationMode.valueOf(appSec.getString("mode", "MULTIPLE").toUpperCase(Locale.ROOT));
-                max = appSec.getInt("max", Integer.MAX_VALUE);
-                replacement = appSec.getBoolean("replacement", false);
-                removal = appSec.getBoolean("removal", true);
+                applicationMode = ApplicationMode.valueOf(appSec.getString("mode", applicationMode.name()).toUpperCase(Locale.ROOT));
+                max = appSec.getInt("max", max);
+                replacement = appSec.getBoolean("replacement", replacement);
+                removal = appSec.getBoolean("removal", removal);
             }
 
             Set<ItemType> targetTypes = new HashSet<>();

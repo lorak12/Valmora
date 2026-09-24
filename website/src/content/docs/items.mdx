@@ -1,0 +1,122 @@
+---
+title: Items
+summary: Custom items — every field, how stats and lore are built, how vanilla items fit in, and the /item command.
+---
+
+A Valmora item is a vanilla item with extra data attached: an id, a rarity, a type, stats,
+abilities and generated lore. Every other system refers to items by id — recipes, mob drops, quest
+targets, shops.
+
+## Files
+
+`plugins/Valmora/items/*.yml` — each top-level key is one item. The plugin ships around 20 files
+of examples (swords, bows, wands, armor sets, accessories, backpacks, Shardworks tools and ores);
+see [Shipped files](/docs/default-files#items).
+
+## A complete item
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+ember_blade:
+  name: "Ember Blade"
+  material: GOLDEN_SWORD
+  rarity: LEGENDARY
+  item-type: SWORD
+  custom-model-data: 1001
+  lore:
+    - "<gray>Still warm from the forge."
+  lore-template:
+    - "<dark_gray>Burns for <gold>$item.stat.damage$</gold> per hit."
+  stats:
+    damage: 60
+    strength: 25
+    crit_damage: 40
+  abilities:
+    ignite:
+      trigger: ON_HIT
+      display: SIMPLE
+      description:
+        - "<gray>Sets enemies on fire."
+      mechanics:
+        - type: IGNITE
+          params:
+            duration: 4
+            target: "@target"
+```
+
+## Fields
+
+| Field | Required | Default | What it does |
+|---|---|---|---|
+| `material` | **yes** | — | The vanilla item it's built on ([Material](https://jd.papermc.io/paper/1.21.11/org/bukkit/Material.html) name). Decides the look, and what it does in vanilla terms (a sword swings, a bow shoots). |
+| `name` | no | the material's name | Display name. Colored by rarity automatically, so a plain `"Ember Blade"` is enough. |
+| `rarity` | no | `COMMON` | `COMMON`, `UNCOMMON`, `RARE`, `EPIC`, `LEGENDARY`, `MYTHIC`, `DIVINE` (or your own in `rarities.yml`). See [Rarities & item types](/docs/rarities-item-types). |
+| `item-type` | no | `NONE` | What kind of item it is: `SWORD`, `BOW`, `HELMET`, `ACCESSORY`… Enchants, reforges and armor slots check it. |
+| `lore` | no | none | Lines of text shown above the stats. MiniMessage. |
+| `lore-template` | no | none | Like `lore`, but `$item.stat.<id>$` is replaced with this item's stat value. |
+| `stats` | no | none | Stat id → number, added to the player while the item is held (weapons, tools) or worn (armor). Numbers only — no formulas. See [Stats](/docs/stats). |
+| `abilities` | no | none | Right-click, on-hit, passive… effects. See [Abilities](/docs/abilities). |
+| `set` | no | none | The id of an armor set in `set_bonuses/` this piece belongs to. See [Set bonuses](/docs/set-bonuses). |
+| `custom-model-data` | no | none | A resource pack model number. |
+| `container-gui` | no | none | Makes the item open a storage menu (backpacks). See [Backpacks & storage](/docs/backpacks). |
+
+<Callout type="warning" title="One mistake skips the whole item">
+An unknown `material`, `rarity`, `item-type`, stat id, ability `trigger` or mechanic `type`
+stops that item from loading. The console names the file, the item and the bad value. Stat ids
+use underscores (`crit_chance`) and any case.
+</Callout>
+
+## Stats, lore and existing copies
+
+When an item is created (by `/item give`, a recipe, a drop…), its stats and lore are **written onto
+that copy**. Changing the YAML later doesn't touch copies players already have: they keep the old
+stats and lore. **Abilities** are the exception — they're always read from the current YAML.
+
+The lore is assembled from blocks, in the order set by `items.lore.sections` in
+[config.yml](/docs/config-yml#items):
+
+1. `breaking-power` — for pickaxes, axes, shovels and hoes
+2. `base-lore` — your `lore:` lines
+3. `lore-template` — your `lore-template:` lines
+4. `stats` — one line per stat, including bonuses from reforges and gems
+5. `modifiers` — attached gemstones and similar (`◆ Ruby`)
+6. `enchantments`
+7. `abilities`
+8. `rarity-tag` — the `LEGENDARY SWORD` line
+
+Remove an entry from that list to hide the block on every item.
+
+## Vanilla items
+
+Vanilla items that pass through Valmora (picked up, crafted, given) become Valmora items too, with
+id `vanilla_<material>` (`vanilla_diamond_sword`). They get:
+
+- a rarity by tier — netherite MYTHIC, diamond EPIC, golden RARE, iron UNCOMMON
+  (`items.vanilla-rarity-mapping`)
+- stats by tier — weapon damage, tool mining speed, armor defense (`items.vanilla-stats`)
+- Breaking Power for tools — wood 1, stone 2, iron 3, diamond 4, netherite 5 (`items.breaking-power`)
+
+So vanilla gear works with the stat system out of the box, and custom items fit above it.
+
+## The /item command
+
+| Command | Does |
+|---|---|
+| `/item give <id> [amount] [player]` | Gives an item. |
+| `/item info <id>` | Shows an item's definition: rarity, type, stats, abilities. |
+| `/item info` | Inspects the item in your hand, including its stored data. |
+| `/item list` | Lists every loaded item id. |
+| `/item enchant <enchant> <level>` | Adds a Valmora enchant to the held item. |
+| `/item enchantbook <enchant> <level>` | Gives an enchanted book. |
+| `/item reload` | Reloads items and set bonuses only. |
+
+All need `valmora.admin`.
+
+## Related systems
+
+- Make it craftable: [Recipes](/docs/recipes). Drop it from mobs: [Mobs](/docs/mobs#loot).
+- Upgrade it: [Enchants](/docs/enchants), [Modifiers](/docs/modifiers) (reforges, gems),
+  [Anvil](/docs/anvil).
+- Build items in the browser: the [item generator](/generators/item).
+
+<SeeAlso slugs={["abilities", "stats", "rarities-item-types", "tutorial-first-item"]} />

@@ -20,13 +20,21 @@ public class TrampleListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onPhysicalInteract(PlayerInteractEvent event) {
         if (event.getAction() != org.bukkit.event.block.Action.PHYSICAL) return;
-        if (event.getClickedBlock() == null || event.getClickedBlock().getType() != Material.FARMLAND) return;
+        if (event.getClickedBlock() == null || event.getClickedBlock().getType() != protectedBlock()) return;
 
         Player player = event.getPlayer();
         ItemStack boots = player.getInventory().getBoots();
         if (bootsGrantTrampleImmunity(boots)) {
             event.setCancelled(true);
         }
+    }
+
+    /** {@code items.trample.protected-block} — which block PHYSICAL-interact trample protection applies to. */
+    private Material protectedBlock() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String name = plugin != null ? plugin.getConfig().getString("items.trample.protected-block", "FARMLAND") : "FARMLAND";
+        Material mat = Material.matchMaterial(name);
+        return mat != null ? mat : Material.FARMLAND;
     }
 
     private boolean bootsGrantTrampleImmunity(ItemStack boots) {

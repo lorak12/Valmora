@@ -16,8 +16,11 @@ public class SkillDefinitionParser {
             String name = section.getString("name", id);
             String description = String.join("\n", section.getStringList("description"));
             Material material = Material.matchMaterial(section.getString("material", "BOOK"));
-            int maxLevel = section.getInt("max-level", 60);
-            String xpCurve = section.getString("xp-curve", "default");
+            // HC-073: skills.defaults.max-level/xp-curve — central tunables for the fallback used
+            // when an individual skill's own YAML omits these fields.
+            boolean hasConfig = plugin != null && plugin.getConfig() != null;
+            int maxLevel = section.getInt("max-level", hasConfig ? plugin.getConfig().getInt("skills.defaults.max-level", 60) : 60);
+            String xpCurve = section.getString("xp-curve", hasConfig ? plugin.getConfig().getString("skills.defaults.xp-curve", "default") : "default");
 
             // Parse Sources
             Map<String, Map<String, Double>> sources = new HashMap<>();

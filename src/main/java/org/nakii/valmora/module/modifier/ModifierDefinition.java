@@ -86,16 +86,30 @@ public class ModifierDefinition {
     /** Effects for the given tier (falls back to base effects for an untiered modifier, tier clamped to [1, max]). */
     public List<ModifierEffect> getEffects(int tier) {
         if (tiers.isEmpty()) return baseEffects;
-        ModifierTier t = tiers.get(Math.max(1, Math.min(tier, getMaxTier())));
+        ModifierTier t = tierAtOrBelow(tier);
         return t != null ? t.getEffects() : baseEffects;
     }
 
     public String getDisplayName(int tier) {
         if (!tiers.isEmpty()) {
-            ModifierTier t = tiers.get(tier);
+            ModifierTier t = tierAtOrBelow(tier);
             if (t != null && t.getDisplayNameOverride() != null) return t.getDisplayNameOverride();
         }
         return displayName;
+    }
+
+    /**
+     * The highest declared tier at or below {@code tier} — so a reforge that only declares tiers
+     * 1, 3 and 5 gives an EPIC (tier 4) item tier 3's effects, instead of the top-level
+     * {@code effects:} (usually empty). Same "next lower defined tier" rule the pre-modifier
+     * reforge system had for its per-rarity tables.
+     */
+    private ModifierTier tierAtOrBelow(int tier) {
+        for (int t = Math.max(1, Math.min(tier, getMaxTier())); t >= 1; t--) {
+            ModifierTier found = tiers.get(t);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     /** Fluent Java construction (docs/Valmora_Modifier_Framework_Design.docx §20) for a plugin registering a custom modifier without YAML. */

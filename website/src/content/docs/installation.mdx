@@ -1,0 +1,71 @@
+---
+title: Installation
+summary: Requirements, installing the jar, what the first start creates, and choosing a database.
+---
+
+## Requirements
+
+| Requirement | Version |
+|---|---|
+| Server software | **Paper 1.21.11**. Spigot and CraftBukkit are not supported. |
+| Java | **21** or newer |
+| Required plugin | **[PacketEvents](https://modrinth.com/plugin/packetevents)** 2.x. Valmora refuses to load without it. |
+
+## Install
+
+1. Stop the server.
+2. Put `PacketEvents` and `Valmora` jars into `plugins/`.
+3. Start the server. Valmora creates `plugins/Valmora/` and fills it with the default content: an
+   example crafting table, forge and anvil, sample items, mobs, quests, zones and menus. See
+   [Folder layout](/docs/file-layout) for what each folder is.
+4. Give yourself admin rights: `lp user <you> permission set valmora.admin` (LuckPerms), or op
+   yourself. See [Commands & permissions](/docs/commands).
+5. Check it works: `/item give aspect_of_the_end` should give you a sword, and `/item list` shows
+   every loaded item.
+
+<Callout type="note" title="The console tells you what loaded">
+Every content folder prints a line like `Successfully loaded 214 items.` at startup and on reload.
+If a file has a mistake, a warning block names the file, the entry, and the problem. Read these
+before anything else when something doesn't work — see [Core concepts](/docs/core-concepts#reading-load-errors).
+</Callout>
+
+## Choosing a database
+
+Player data (profiles, stats, skills, quests, balances…) is saved in a database.
+
+- **SQLite (default)** needs no setup. Everything goes into `plugins/Valmora/database.db`. Use it
+  for a single server.
+- **MySQL** is for networks where several servers share player data. In `config.yml`:
+
+```yaml
+# config.yml
+database:
+  type: mysql
+  mysql:
+    host: localhost
+    port: 3306
+    database: valmora
+    username: valmora
+    password: "change-me"
+    use-ssl: false
+```
+
+Tables are created and upgraded automatically. Changing the database needs a full **restart**, not
+`/valmora reload`. Switching from SQLite to MySQL does not copy existing data over, so back up
+`database.db` first if you need it.
+
+## Updating the plugin
+
+Replace the jar and restart. Your edited files are never overwritten. Valmora remembers which
+default files it has already given you (in `plugins/Valmora/.resources_seeded`):
+
+- **New** default files from an update are copied in automatically.
+- Files you **deleted** stay deleted.
+- If a default file you already have **changed** in the update, your copy is kept as-is. To get
+  the new version, delete your copy *and* its line in `.resources_seeded`, then restart.
+
+## Next steps
+
+- [Folder layout](/docs/file-layout) — what each folder under `plugins/Valmora/` is for.
+- [Core concepts](/docs/core-concepts) — the rules every YAML file follows.
+- [Tutorial: your first item](/docs/tutorial-first-item).

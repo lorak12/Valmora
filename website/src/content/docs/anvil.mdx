@@ -1,0 +1,81 @@
+---
+title: Anvil
+summary: The one anvil for everything — upgrade and transmute recipes, reforges and gems, enchant merging and repair — and how its XP costs work.
+---
+
+Valmora has a single anvil machine (`anvil`, menu `guis/anvil.yml`): item on the left, material in
+the middle, result on the right. For each combination it tries, in order:
+
+1. **Anvil recipes** from `recipes/anvil/*.yml` — explicit upgrades and swaps.
+2. **Modifier recipes** from `modifiers/recipes/*.yml` — reforges, gemstones, any
+   [modifier](/docs/modifiers).
+3. **Combining** — merging enchants (item + book, book + book, item + item), merging durability
+   (item + item) and repairing (item + its repair material).
+
+The first that matches wins. To open it from real anvils, add `open-triggers: ["block ANVIL"]` to
+`machines/anvil.yml` (see [Machines](/docs/machines)).
+
+## Anvil recipes
+
+```yaml
+# plugins/Valmora/recipes/anvil/upgrades.yml
+apprentice_to_journeyman:
+  machine: anvil
+  type: UPGRADE
+  base:
+    valmora_id: apprentice_blade
+  addition:
+    material: AMETHYST_SHARD
+    amount: 4
+  result:
+    valmora_id: journeyman_blade
+    add_lore:
+      - "<light_purple>Reforged in the anvil's fire."
+  cost:
+    xp_levels: 5
+
+iron_to_gold_pickaxe:
+  machine: anvil
+  type: TRANSMUTE
+  base:
+    material: IRON_PICKAXE
+  addition:
+    material: GOLD_INGOT
+    amount: 4
+  result:
+    material: GOLDEN_PICKAXE
+    name: "<yellow>Gilded Pickaxe"
+  cost:
+    xp_levels: 10
+```
+
+| Field | What it does |
+|---|---|
+| `machine` | Must be `anvil`. |
+| `type` | `UPGRADE` — the base item's enchants, reforge, gems, durability and name carry over. `TRANSMUTE` — nothing carries over. |
+| `base`, `addition` | `material` (vanilla) **or** `valmora_id`, plus `amount` (default 1). |
+| `result.material` / `result.valmora_id` | What comes out. |
+| `result.name` | A custom name. |
+| `result.add_lore` | Lines added below the lore. A line `{inherit_lore}` inserts the base item's lore. |
+| `result.add_enchants` | Enchant id → level to add. |
+| `result.increase_work_penalty` | Default `true`: counts as a use for the prior-work penalty. |
+| `keep-data-on-upgrade` | Default `true`; `false` makes an UPGRADE carry nothing over. |
+| `cost.xp_levels`, `cost.coins` | The price. |
+
+## Costs and the prior-work penalty
+
+Every time an item is worked at the anvil, its **prior-work** count goes up, and later operations
+on it cost an extra `2^work − 1` XP levels (1, 3, 7, 15…), like vanilla. Anvil recipes and
+combining add this penalty; modifier recipes charge only their own `cost:`.
+
+Combining costs (in [config.yml → anvil](/docs/config-yml#anvil)):
+
+- merging enchants — `templates.merge.cost-per-level` XP levels per enchant level merged, plus
+  `base-cost`
+- item + item — also merges durability, with a bonus of `durability-bonus-percent` of max durability
+- repair — `percent-per-unit` of max durability per repair material; add materials for custom tool
+  tiers under `repair-materials`
+
+Enchant merge rules are on the [Enchants](/docs/enchants#how-players-get-them) page.
+
+<SeeAlso slugs={["enchants", "modifiers", "recipes", "machines"]} />

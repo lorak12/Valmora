@@ -42,7 +42,9 @@ public class NpcRangeObjectiveHandler implements ObjectiveHandler {
     public String getTypeId() { return QuestObjectiveTypes.NPCRANGE; }
 
     public void start() {
-        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
+        // HC-260: O(players x quests) range scan — configurable poll interval for CPU tuning.
+        long interval = plugin.getConfig().getLong("quests.poll.npcrange-interval-ticks", 20L);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::tick, interval, interval);
     }
 
     public void stop() {

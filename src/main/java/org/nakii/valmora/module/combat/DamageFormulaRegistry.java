@@ -40,6 +40,9 @@ public class DamageFormulaRegistry {
     private final Valmora plugin;
     private final ExpressionParser parser;
     private final Map<String, Expression> compiled = new ConcurrentHashMap<>();
+    /** HC-026: {@code damage_formula.yml: rounding: floor|round|ceil} — floor (the original
+     *  hardcoded behavior) by default. */
+    private String rounding = "floor";
 
     public DamageFormulaRegistry(Valmora plugin, ExpressionParser parser) {
         this.plugin = plugin;
@@ -51,6 +54,7 @@ public class DamageFormulaRegistry {
 
         Map<String, String> raw = new java.util.HashMap<>(DEFAULTS);
         File file = new File(plugin.getDataFolder(), "damage_formula.yml");
+        rounding = "floor";
         if (file.exists()) {
             FileConfiguration config = YamlConfiguration.loadConfiguration(file);
             for (String key : DEFAULTS.keySet()) {
@@ -59,12 +63,22 @@ public class DamageFormulaRegistry {
                     raw.put(key, override);
                 }
             }
+            rounding = config.getString("rounding", "floor");
         }
 
         for (Map.Entry<String, String> entry : raw.entrySet()) {
             compiled.put(entry.getKey(), parser.parse(entry.getValue()));
         }
         plugin.getLogger().info("[DamageFormulaRegistry] Compiled " + compiled.size() + " damage formulas.");
+    }
+
+    /** Applies the configured rounding mode to a final mitigated-damage value. */
+    public double round(double mitigated) {
+        return switch (rounding == null ? "floor" : rounding.toLowerCase()) {
+            case "ceil" -> Math.ceil(mitigated);
+            case "round" -> Math.round(mitigated);
+            default -> Math.floor(mitigated);
+        };
     }
 
     /** Evaluates a pre-compiled formula against the given context, returning {@code fallback} if missing/non-numeric. */

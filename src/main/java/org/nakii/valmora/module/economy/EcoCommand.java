@@ -23,7 +23,8 @@ import java.util.UUID;
  */
 public class EcoCommand implements TabExecutor {
 
-    private static final String PERMISSION = "valmora.admin";
+    // HC-006/HC-013: resolved through PermissionResolver so `permissions.eco` can be set
+    // independently of `permissions.admin` — defaults to "valmora.admin", same as before.
     private static final String USAGE =
         "<gray>Usage: <white>/eco <get|set|add|remove> <player> [purse|bank] [amount]";
 
@@ -35,7 +36,7 @@ public class EcoCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!sender.hasPermission(PERMISSION)) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "eco")) {
             sender.sendMessage(Formatter.format("<red>You don't have permission to use this command."));
             return true;
         }
@@ -140,7 +141,7 @@ public class EcoCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission(PERMISSION)) return List.of();
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "eco")) return List.of();
         return switch (args.length) {
             case 1 -> List.of("get", "set", "add", "remove").stream()
                 .filter(s -> s.startsWith(args[0].toLowerCase())).toList();
@@ -158,7 +159,13 @@ public class EcoCommand implements TabExecutor {
             case 4 -> {
                 // "get" only takes <player> [purse|bank] — no amount arg, so don't suggest numbers there.
                 if (!List.of("set", "add", "remove").contains(args[0].toLowerCase())) yield List.of();
-                yield List.of("1000", "1k", "10k", "100k", "1m").stream()
+                // HC-014: preset amounts differ by economy scale.
+                var plugin = org.nakii.valmora.Valmora.getInstance();
+                List<String> presets = plugin != null
+                        ? plugin.getConfig().getStringList("economy.tab-complete-amounts")
+                        : List.of();
+                if (presets.isEmpty()) presets = List.of("1000", "1k", "10k", "100k", "1m");
+                yield presets.stream()
                     .filter(s -> s.startsWith(args[3].toLowerCase())).toList();
             }
             default -> List.of();
@@ -169,17 +176,18 @@ public class EcoCommand implements TabExecutor {
         return CoinExpressionParser.parse(raw);
     }
 
+    // HC-011: dedup fix — these used to keep an independent copy of EconomyModule's compact/exact
+    // formatting math, which could silently drift from the real formatter. Both now delegate.
     private static String fmt(double amount) {
-        long rounded = Math.round(amount);
-        if (rounded >= 1_000_000_000) return String.format("%.2fb", amount / 1_000_000_000.0);
-        if (rounded >= 1_000_000)     return String.format("%.2fm", amount / 1_000_000.0);
-        if (rounded >= 1_000)         return String.format("%.1fk", amount / 1_000.0);
-        return String.valueOf(rounded);
+        return EconomyModule.formatCoins(amount);
     }
 
-    /** Exact, dot-thousands-separated amount — used by /eco get so admins see the real number, not an abbreviation. */
+    /** Exact, thousands-separated amount — used by /eco get so admins see the real number, not an abbreviation. */
     private static String fmtExact(double amount) {
-        long rounded = Math.round(amount);
-        return String.format(java.util.Locale.US, "%,d", rounded).replace(",", ".");
+        // formatCoinsDisplay() prefixes a coin symbol (economy.format.coin-symbol) that this
+        // command's own messages already supply via "<white>{amount} coins" — strip it back off.
+        String withSymbol = EconomyModule.formatCoinsDisplay(amount);
+        String symbol = org.nakii.valmora.Valmora.getInstance().getConfig().getString("economy.format.coin-symbol", "🪙 ");
+        return withSymbol.startsWith(symbol) ? withSymbol.substring(symbol.length()) : withSymbol;
     }
 }

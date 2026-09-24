@@ -116,12 +116,17 @@ public class MobDefinitionParser {
         if (aiSection != null) {
             if (aiSection.contains("aggro-range")) builder.aggroRange(aiSection.getDouble("aggro-range"));
             if (aiSection.contains("leash-range")) builder.leashRange(aiSection.getDouble("leash-range"));
+            if (aiSection.contains("ignore-npcs")) builder.ignoreNpcs(aiSection.getBoolean("ignore-npcs"));
+            if (aiSection.contains("target-conditions")) {
+                builder.targetConditions(aiSection.getStringList("target-conditions"));
+            }
         }
         ConfigurationSection spawnSection = section.getConfigurationSection("natural-spawn");
         if (spawnSection != null) {
             builder.naturalSpawn(spawnSection.getBoolean("enabled", true));
             if (spawnSection.contains("chance")) builder.naturalSpawnChance(spawnSection.getDouble("chance"));
             if (spawnSection.contains("max-nearby")) builder.naturalSpawnMaxNearby(spawnSection.getInt("max-nearby"));
+            if (spawnSection.contains("vanilla-default")) builder.vanillaDefault(spawnSection.getBoolean("vanilla-default"));
         }
 
         // Level
@@ -229,7 +234,7 @@ public class MobDefinitionParser {
             if (overlay == null) {
                 return LoadResult.failure("[" + fileName + "] In mob '" + sectionId + "': Invalid boss-bar style '" + barSection.getString("style") + "'.");
             }
-            double range = barSection.getDouble("range", 40.0);
+            double range = barSection.getDouble("range", BossBarConfig.defaultRange());
             builder.bossBar(new BossBarConfig(true, color, overlay, range));
         }
 

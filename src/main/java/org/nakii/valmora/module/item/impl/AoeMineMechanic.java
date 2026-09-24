@@ -6,6 +6,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.item.AbilityMechanic;
+import org.nakii.valmora.module.item.MechanicDefaults;
 import org.nakii.valmora.module.resource.ResourceManager;
 import org.nakii.valmora.module.zone.ZoneResourceConfig;
 
@@ -31,7 +32,7 @@ public class AoeMineMechanic implements AbilityMechanic {
             var resourceModule = org.nakii.valmora.api.ValmoraAPI.getInstance().getResourceModule();
             ResourceManager rm = resourceModule != null ? resourceModule.getResourceManager() : null;
             if (rm == null) return;
-            int radius = Math.max(1, context.getInt("radius", 1));
+            int radius = Math.max(1, context.getInt("radius", MechanicDefaults.getInt("aoe-mine", "radius", 1)));
             mineRadius(rm, player, loc.getBlock(), radius);
         });
     }

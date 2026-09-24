@@ -1,0 +1,192 @@
+---
+title: Mobs & bosses
+summary: Custom mobs — every field, stats, equipment, loot, spawning, AI ranges, resistances — and bosses with boss bars and abilities.
+---
+
+A custom mob is a vanilla entity with Valmora stats, a level, a nameplate
+(`[Lv.15] Cave Guardian 104/120❤` that updates as it's hit), equipment, loot and optional
+abilities. A **boss** is simply a mob with abilities and/or a boss bar.
+Walkthroughs: [your first mob](/docs/tutorial-first-mob), [a boss fight](/docs/tutorial-boss-fight).
+
+## Files
+
+`plugins/Valmora/mobs/*.yml` — each top-level key is a mob. `/mob reload` reloads only mobs.
+
+## A complete mob
+
+```yaml
+# plugins/Valmora/mobs/my_mobs.yml
+cave_guardian:
+  name: "<gray>Cave Guardian"
+  type: IRON_GOLEM
+  category: GOLEM
+  level: 15
+  base-xp: 10
+  gold-reward: 40
+  damage-type: MELEE
+  stats:
+    health: 1200
+    damage: 60
+    defense: 80
+    speed: 0.25
+    strength: 10
+    crit-chance: 10
+    crit-damage: 50
+  resistances:
+    FIRE: 1.0
+    PROJECTILE: 0.5
+  knockback-resistance: 0.8
+  equipment:
+    main-hand: IRON_AXE
+  ai:
+    aggro-range: 16
+    leash-range: 32
+  loot-table:
+    drops:
+      - { item: raw_ferrite, min-amount: 1, max-amount: 3, chance: 0.5, luck-affected: true }
+      - { item: IRON_INGOT, chance: 1.0 }
+```
+
+## Fields
+
+| Field | Default | What it does |
+|---|---|---|
+| `type` | — **required** | The vanilla [entity type](https://jd.papermc.io/paper/1.21.11/org/bukkit/entity/EntityType.html) it's built on. |
+| `category` | — **required** | `UNDEAD`, `ENDER`, `NETHER`, `BEAST`, `AQUATIC`, `ARTHROPOD`, `ILLAGER`, `GOLEM`, `BOSS`, `OTHER`, or one added in `mob_categories.yml`. Quests can target a category. |
+| `name` | the id | MiniMessage name on the nameplate. |
+| `level` | `1` | Adds `level − 1` to its damage and multiplies XP (`mobs.damage-scaling` / `xp-reward-formula` in config.yml change the formulas). |
+| `base-xp` | `2` | Combat XP to the killer = `base-xp × level`. |
+| `gold-reward` | `0` | Coins put straight into the killer's purse. |
+| `damage-type` | `MELEE` | The [damage type](/docs/combat#damage-types) of its attacks. |
+| `stats.*` | see below | Health, damage and other combat stats. |
+| `resistances.<TYPE>` | `0` | Per damage type: `0.5` takes half, `1.0` is immune. |
+| `knockback-resistance` | vanilla | `0`–`1`. |
+| `equipment.main-hand` / `off-hand` / `helmet` / `chestplate` / `leggings` / `boots` | none | Vanilla material or Valmora item id. |
+| `loot-table.drops` | none | See [Loot](#loot). |
+| `persistent` | `false` | Never despawns. Use it for bosses. |
+| `no-ai`, `silent`, `glowing`, `baby`, `prevent-sun-burn` | `false` | Vanilla entity flags. |
+| `ai.aggro-range` / `ai.leash-range` | vanilla | How far it notices players / how far it chases before returning. |
+| `ai.ignore-npcs` | `true` | Don't target Valmora NPCs. |
+| `ai.target-conditions` | none | [Conditions](/docs/conditions) a player must meet to be targeted (checked for that player). |
+| `natural-spawn` | none | See [Spawning](#spawning). |
+| `boss-bar` | none | See [Bosses](#bosses). |
+| `abilities` | none | See [Abilities](#abilities). |
+
+## Stats
+
+| Key | Default | Meaning |
+|---|---|---|
+| `health` | `20` | Max health. |
+| `damage` | `5` | Base attack damage. |
+| `defense` | `0` | Reduces damage taken, `100 / (defense + 100)`. |
+| `speed` | vanilla | Movement speed attribute (`0.25` ≈ normal). |
+| `strength` | `0` | Damage × `(1 + strength / 100)`. |
+| `crit-chance`, `crit-damage` | `0` | Its own crits. |
+
+<Callout type="warning" title="Hyphens, not underscores">
+Mob stat keys are these fixed names, lower case with **hyphens** (`crit-chance`). Any other key
+under `stats:` is ignored. (Item stats are the opposite: stat ids with underscores.)
+</Callout>
+
+## Loot
+
+Each entry in `loot-table.drops` rolls on its own:
+
+| Field | Default | What it does |
+|---|---|---|
+| `item` | — | Vanilla material or Valmora item id. An unknown id makes **the whole mob** fail to load. |
+| `min-amount` / `max-amount` | `1` / `min-amount` | Random amount between them. |
+| `chance` | `1.0` | 0–1. |
+| `luck-affected` | `false` | Chance × `(1 + Luck / 100)` of the killer (`mobs.loot.luck-divisor`). |
+
+When a player gets the kill, drops go straight into their inventory; what doesn't fit drops at
+their feet.
+
+## Spawning
+
+Mobs only appear when something spawns them:
+
+| How | Where |
+|---|---|
+| `/mob spawn <id> [player]` | At you or that player. |
+| Zone spawners | Around a point inside a zone, with an alive cap. See [Zones](/docs/zones#mob-spawners). |
+| `spawn_mob <id> [count] [radius:<r>]` | Any script — quests, abilities, NPCs. |
+| Fishing | A fishing table's sea creature. See [Fishing](/docs/fishing). |
+| `natural-spawn` | Around players, anywhere (below). |
+
+```yaml
+  natural-spawn:
+    enabled: true
+    chance: 0.1         # per check (every 10 s), per online player
+    max-nearby: 3       # skip if this many are already within 32 blocks
+    vanilla-default: false
+```
+
+Natural spawns appear on the surface 8–24 blocks from a player, in any world.
+`vanilla-default: true` instead turns **every** vanilla spawn of this `type` into this mob (one
+mob per entity type). Distances and timing are in [config.yml → mobs](/docs/config-yml#mobs).
+
+## Bosses
+
+```yaml
+  persistent: true
+  boss-bar:
+    enabled: true
+    color: RED          # PINK BLUE RED GREEN YELLOW PURPLE WHITE
+    style: NOTCHED_10   # PROGRESS NOTCHED_6 NOTCHED_10 NOTCHED_12 NOTCHED_20
+    range: 40
+```
+
+The bar shows to players within `range` blocks. A boss's health and ability cooldowns aren't
+saved: a restart or chunk unload without `persistent: true` resets them.
+
+## Abilities
+
+Mob abilities use the same [mechanics](/docs/abilities#mechanics) as items:
+
+```yaml
+  abilities:
+    ground_slam:
+      name: "Ground Slam"
+      trigger: ON_TIMER
+      interval: 140
+      chance: 0.5
+      cooldown: 6
+      announce: "<red>The ground shakes!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            damage: 150
+            target: "@enemies_in_radius{r=6}"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `trigger` | `ON_TIMER` | When it fires (below). |
+| `interval` | `100` | `ON_TIMER`: ticks between attempts. |
+| `chance` | `1.0` | `ON_TIMER`: chance per attempt. |
+| `health-percent` | `50` | `ON_HEALTH`: fires once at or below this %. |
+| `cooldown` | `0` | Minimum seconds between firings. |
+| `target-range` | `0` | Picks the nearest player within this range as `@target`. Without it, `@target` is empty for timer/health abilities. |
+| `announce` | none | Message to players within 40 blocks when it fires. |
+| `mechanics` | none | What it does. |
+
+<RefTable kind="mobTriggers" />
+
+For a mob, `@enemies_in_radius` and `@cone` hit **players**. Script events that act on "the player"
+(`notify`, `give`…) do nothing in a boss ability — the boss is running it. Use `announce`, or
+`foreach @nearby:<r> <event>`.
+
+To change a boss's behavior by phase, use `mob_pipeline.yml`: see
+[Pipelines](/docs/pipelines) and [the boss tutorial](/docs/tutorial-boss-fight#step-5--a-second-phase).
+
+## /mob
+
+| Command | Does |
+|---|---|
+| `/mob spawn <id> [player]` | Spawns a mob. |
+| `/mob list` | Lists mob ids. |
+| `/mob info` | Info on the mob you're looking at. |
+| `/mob reload` | Reloads mobs only. |
+
+<SeeAlso slugs={["tutorial-first-mob", "tutorial-boss-fight", "combat", "abilities"]} />

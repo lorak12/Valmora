@@ -15,6 +15,9 @@ public class MobManager implements ReloadableModule {
     private final MobFactory mobFactory;
     private final MobLoader mobLoader;
     private final MobDeathListener deathListener;
+    private final MobTargetListener targetListener;
+    private final MobConversionListener conversionListener;
+    private final VanillaSpawnUpgradeListener vanillaSpawnUpgradeListener;
     private final BossController bossController;
     private final EntityCategoryRegistry entityCategoryRegistry;
     private MobPipelineLoader pipelineLoader;
@@ -28,6 +31,9 @@ public class MobManager implements ReloadableModule {
         this.mobRegistry = new MobRegistry();
         this.mobLoader = new MobLoader(plugin, mobRegistry);
         this.deathListener = new MobDeathListener(plugin);
+        this.targetListener = new MobTargetListener();
+        this.conversionListener = new MobConversionListener(this);
+        this.vanillaSpawnUpgradeListener = new VanillaSpawnUpgradeListener(this);
         this.entityCategoryRegistry = new EntityCategoryRegistry();
     }
 
@@ -35,6 +41,9 @@ public class MobManager implements ReloadableModule {
     public void onEnable() {
         plugin.getLogger().info("Starting Mob Module...");
         Bukkit.getPluginManager().registerEvents(deathListener, plugin);
+        Bukkit.getPluginManager().registerEvents(targetListener, plugin);
+        Bukkit.getPluginManager().registerEvents(conversionListener, plugin);
+        Bukkit.getPluginManager().registerEvents(vanillaSpawnUpgradeListener, plugin);
         MobCategoryLoader.load(plugin);
         entityCategoryRegistry.load(plugin);
         mobLoader.loadMobs();
@@ -48,16 +57,22 @@ public class MobManager implements ReloadableModule {
         }
 
         // Basic AI (leash range) and ambient natural spawning — see MobAiTask/NaturalSpawnTask.
+        // HC-080: poll rates are configurable — leash responsiveness vs. spawn density vs. CPU.
+        long aiIntervalTicks = plugin.getConfig().getLong("mobs.tasks.ai-interval-ticks", 40L);
+        long naturalSpawnIntervalTicks = plugin.getConfig().getLong("mobs.tasks.natural-spawn-interval-ticks", 200L);
         if (aiTask != null) aiTask.cancel();
-        aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), 40L, 40L);
+        aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), aiIntervalTicks, aiIntervalTicks);
         if (naturalSpawnTask != null) naturalSpawnTask.cancel();
-        naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), 200L, 200L);
+        naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), naturalSpawnIntervalTicks, naturalSpawnIntervalTicks);
     }
 
     @Override
     public void onDisable() {
         plugin.getLogger().info("Stopping Mob Module...");
         org.bukkit.event.HandlerList.unregisterAll(deathListener);
+        org.bukkit.event.HandlerList.unregisterAll(targetListener);
+        org.bukkit.event.HandlerList.unregisterAll(conversionListener);
+        org.bukkit.event.HandlerList.unregisterAll(vanillaSpawnUpgradeListener);
         bossController.stop();
         if (aiTask != null) { aiTask.cancel(); aiTask = null; }
         if (naturalSpawnTask != null) { naturalSpawnTask.cancel(); naturalSpawnTask = null; }

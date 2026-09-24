@@ -51,8 +51,9 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     private BukkitTask interestTask;
 
     private static final EconomyData EMPTY = new EconomyData(0, 0);
-    /** How many recent transactions the bank GUI displays / are kept in the in-memory ring buffer. */
-    private static final int LEDGER_DISPLAY_LIMIT = 5;
+    /** How many recent transactions the bank GUI displays / are kept in the in-memory ring buffer.
+     *  HC-010: {@code economy.ledger-display-limit}. */
+    private int ledgerDisplayLimit = 5;
 
     public EconomyModule(Valmora plugin, DataStore dataStore) {
         this.plugin = plugin;
@@ -61,6 +62,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
     @Override
     public void onEnable() {
+        this.ledgerDisplayLimit = plugin.getConfig().getInt("economy.ledger-display-limit", 5);
         this.listener = new EconomyListener(this);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
@@ -177,7 +179,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
         // Seed the in-memory transaction ring buffer from DB history so a fresh session doesn't
         // show an empty "Recent Transactions" list when history actually exists.
-        dataStore.loadRecentLedger(uuid, LEDGER_DISPLAY_LIMIT).thenAcceptAsync(entries -> {
+        dataStore.loadRecentLedger(uuid, ledgerDisplayLimit).thenAcceptAsync(entries -> {
             if (entries.isEmpty()) return;
             Bukkit.getScheduler().runTask(plugin, () ->
                     recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>(entries)));
@@ -271,7 +273,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         dataStore.saveEconomy(uuid, purse, bank).thenRun(() -> Bukkit.getScheduler().runTask(plugin, onComplete));
     }
 
-    /** Most recent bank transactions for this player, newest first, capped at {@link #LEDGER_DISPLAY_LIMIT}. Synchronous — served from the in-memory ring buffer, not a DB read. */
+    /** Most recent bank transactions for this player, newest first, capped at {@code economy.ledger-display-limit}. Synchronous — served from the in-memory ring buffer, not a DB read. */
     public List<EconomyLedgerEntry> getRecentTransactions(UUID uuid) {
         Deque<EconomyLedgerEntry> deque = recentTransactions.get(uuid);
         return deque == null ? Collections.emptyList() : List.copyOf(deque);
@@ -284,7 +286,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         EconomyLedgerEntry entry = new EconomyLedgerEntry(type, amount, data.getPurse(), data.getBank(), System.currentTimeMillis());
         Deque<EconomyLedgerEntry> deque = recentTransactions.computeIfAbsent(uuid, k -> new ArrayDeque<>());
         deque.addFirst(entry);
-        while (deque.size() > LEDGER_DISPLAY_LIMIT) deque.removeLast();
+        while (deque.size() > ledgerDisplayLimit) deque.removeLast();
         dataStore.appendLedgerEntry(uuid, type, amount, entry.purseAfter(), entry.bankAfter());
     }
 
@@ -364,19 +366,31 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
     // --- Formatting ---
 
+    /** HC-011: compact-suffix format patterns are configurable via {@code economy.format.*}
+     *  (branding — some servers want a "$" symbol/different precision instead of the built-in
+     *  patterns). This is also the single source of truth {@link #formatCoinsDisplay} below and
+     *  {@code EcoCommand} should both call, instead of each keeping its own copy. */
     public static String formatCoins(double amount) {
         long r = Math.round(amount);
-        if (r >= 1_000_000_000) return String.format("%.2fb", amount / 1_000_000_000.0);
-        if (r >= 1_000_000)     return String.format("%.2fm", amount / 1_000_000.0);
-        if (r >= 1_000)         return String.format("%.1fk", amount / 1_000.0);
+        var cfg = org.nakii.valmora.Valmora.getInstance() != null ? org.nakii.valmora.Valmora.getInstance().getConfig() : null;
+        String billionFmt = cfg != null ? cfg.getString("economy.format.billion", "%.2fb") : "%.2fb";
+        String millionFmt = cfg != null ? cfg.getString("economy.format.million", "%.2fm") : "%.2fm";
+        String thousandFmt = cfg != null ? cfg.getString("economy.format.thousand", "%.1fk") : "%.1fk";
+        if (r >= 1_000_000_000) return String.format(billionFmt, amount / 1_000_000_000.0);
+        if (r >= 1_000_000)     return String.format(millionFmt, amount / 1_000_000.0);
+        if (r >= 1_000)         return String.format(thousandFmt, amount / 1_000.0);
         return String.valueOf(r);
     }
 
-    /** Formats a coin amount with dot-separated thousands and a coin emoji, e.g. "🪙 1.000.000". */
+    /** Formats a coin amount with a configurable thousands separator and coin symbol
+     *  ({@code economy.format.thousands-separator}/{@code coin-symbol}), e.g. "🪙 1.000.000". */
     public static String formatCoinsDisplay(double amount) {
         long r = Math.round(amount);
-        String num = String.format(java.util.Locale.US, "%,d", r).replace(",", ".");
-        return "🪙 " + num;
+        var cfg = org.nakii.valmora.Valmora.getInstance() != null ? org.nakii.valmora.Valmora.getInstance().getConfig() : null;
+        String separator = cfg != null ? cfg.getString("economy.format.thousands-separator", ".") : ".";
+        String symbol = cfg != null ? cfg.getString("economy.format.coin-symbol", "🪙 ") : "🪙 ";
+        String num = String.format(java.util.Locale.US, "%,d", r).replace(",", separator);
+        return symbol + num;
     }
 
     // --- EconomyService compat (operates on purse) ---

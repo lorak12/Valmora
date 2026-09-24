@@ -1,0 +1,147 @@
+---
+title: "Tutorial: your first zone"
+summary: Mark out an area in-game, set its rules, add a mob spawner and regenerating ore nodes, and greet players who walk in.
+---
+
+You'll build the **Frozen Caves**: an area with no PvP or block breaking, a Frost Wraith spawner,
+regenerating ore that drops blue ice, and a title when a player enters. Uses the Frost Wraith from
+[your first mob](/docs/tutorial-first-mob).
+
+## Step 1 — Select the area
+
+```text
+/zone wand
+```
+
+You get a golden axe called **Zone Wand**. **Left-click** one corner block and **right-click** the
+opposite corner. A particle outline previews the box. The box includes both corner blocks, so
+make it tall enough to cover the whole cave, floor to ceiling. (`/zone pos1` and `/zone pos2` set a
+corner at your feet instead.)
+
+## Step 2 — Create the zone
+
+```text
+/zone create frozen_caves <aqua>Frozen Caves
+```
+
+This saves `plugins/Valmora/zones/frozen_caves.yml`. Walk out and back in: the action bar shows
+**Frozen Caves**, and the scoreboard's *Zone* line changes. `/zone visualize` toggles a particle
+border around every zone.
+
+## Step 3 — Set the rules
+
+A new zone starts with PvP, block breaking, block placing and natural mob spawning **off**, and
+everything else on. Change a flag with `/zone flag`:
+
+```text
+/zone flag frozen_caves hunger false
+/zone flag frozen_caves natural-block-changes false
+```
+
+- `hunger false` — the hunger bar doesn't drop inside.
+- `natural-block-changes false` — ice and snow don't melt.
+
+All flags and their defaults are on the [Zones](/docs/zones#flags) page.
+
+## Step 4 — Add a mob spawner
+
+Stand where you want wraiths to appear:
+
+```text
+/zone spawner add frozen_caves frost_wraith 4 3 200
+```
+
+That's a spawner at your position that spawns a `frost_wraith` within 4 blocks, keeps at most 3
+alive nearby, and tries every 200 ticks (10 seconds). Spawned wraiths walk back if they wander out
+of the zone.
+
+## Step 5 — Look at the file
+
+Open `plugins/Valmora/zones/frozen_caves.yml`. Everything the commands did is here, and it's
+normal YAML you can edit:
+
+```yaml
+# plugins/Valmora/zones/frozen_caves.yml
+frozen_caves:
+  display-name: "<aqua>Frozen Caves"
+  world: world
+  min: [120, 30, -40]
+  max: [180, 70, 20]
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: false
+    block-placing: false
+    hunger: false
+    entry: true
+    teleportation: true
+    leaf-decay: true
+    sleeping: true
+    natural-block-changes: false
+  mob-spawners:
+    frost_wraith_1:
+      mob: frost_wraith
+      x: 150
+      y: 42
+      z: -10
+      spawn-interval: 200
+      max-alive: 3
+      radius: 20.0
+      spawn-radius: 4
+```
+
+## Step 6 — Regenerating ore
+
+Add a `resource-blocks` section to turn every block of a material inside the zone into a node that
+players can mine for custom drops and that grows back:
+
+```yaml
+  resource-blocks:
+    PACKED_ICE:
+      regen-delay: 600
+      required-power: 2
+      stages:
+        - drops:
+            - { item: BLUE_ICE, min: 1, max: 2, chance: 1.0 }
+            - { item: frostbrand, min: 1, max: 1, chance: 0.001 }
+          next: ICE
+        - drops:
+            - { item: SNOWBALL, min: 2, max: 4, chance: 1.0 }
+          next: BEDROCK
+```
+
+Mining a packed ice block in the Frozen Caves now:
+
+1. Drops 1–2 blue ice (and very rarely a Frostbrand) **straight into the inventory**, and turns
+   into ice.
+2. Mining that ice drops 2–4 snowballs and turns it into bedrock.
+3. After `regen-delay` ticks (600 = 30 seconds) it grows back into packed ice.
+
+`required-power: 2` means the tool needs **Breaking Power** 2 or more: a stone pickaxe or better
+(vanilla tools get 1 for wood up to 5 for netherite; custom tools set it with the
+`breaking_power` stat). A weaker tool can't break it. Resource nodes can be mined even though
+`block-breaking` is off. Drops go up with the player's **Mining Fortune**.
+
+## Step 7 — Greet players
+
+Add enter and exit actions — [script events](/docs/events) run for the player crossing the border:
+
+```yaml
+  enter-actions:
+    - "notify <aqua>Frozen Caves io:title"
+    - "notify <gray>Mind the cold io:subtitle"
+    - "apply_potion slowness 1 5"
+  exit-actions:
+    - "notify <gray>You leave the Frozen Caves io:actionbar"
+```
+
+`/valmora reload` and walk in: a title appears and you're slowed briefly.
+
+## Where to go next
+
+- A custom fishing loot table for the zone: [Fishing](/docs/fishing).
+- Quests that need the player to reach the zone (`reach_zone frozen_caves`):
+  [Objective types](/docs/objective-types).
+- Script conditions that check the zone (`zone frozen_caves`): [Conditions](/docs/conditions).
+
+<SeeAlso slugs={["zones", "resource-nodes", "fishing", "block-loot"]} />

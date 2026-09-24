@@ -1,0 +1,211 @@
+---
+title: "Tutorial: a boss fight"
+summary: A boss with a health bar, timed and targeted abilities, an enrage at half health, and a second phase — all in YAML.
+---
+
+You'll build the **Stone Warden**: an iron-golem boss with a boss bar, a ground slam, a targeted
+rock throw, an enrage that summons minions at 50% health, and a faster slam that replaces the first
+one in phase two. Do [your first mob](/docs/tutorial-first-mob) first; this tutorial reuses its
+Frost Wraith as the minion.
+
+A boss is a normal mob with **abilities** and/or a **boss bar**; there's no separate boss system.
+
+## Step 1 — The base mob
+
+```yaml
+# plugins/Valmora/mobs/my_boss.yml
+stone_warden:
+  name: "<red><bold>Stone Warden"
+  type: IRON_GOLEM
+  category: BOSS
+  level: 30
+  base-xp: 50
+  gold-reward: 500
+  persistent: true
+  knockback-resistance: 1.0
+  stats:
+    health: 8000
+    damage: 120
+    defense: 150
+    speed: 0.25
+  boss-bar:
+    enabled: true
+    color: RED
+    style: NOTCHED_10
+    range: 40
+```
+
+- `persistent: true` — keeps it from despawning when players walk away. Its health and cooldowns
+  are still lost on a restart.
+- `knockback-resistance: 1.0` — can't be knocked back (0–1).
+- `boss-bar` — shown to players within `range` blocks. `color`: `PINK`, `BLUE`, `RED`, `GREEN`,
+  `YELLOW`, `PURPLE`, `WHITE`. `style`: `PROGRESS`, `NOTCHED_6`, `NOTCHED_10`, `NOTCHED_12`,
+  `NOTCHED_20`.
+
+`/mob reload`, then `/mob spawn stone_warden`. A red bar appears at the top of the screen.
+
+## Step 2 — A timed area attack
+
+Add an `abilities:` block. This slam fires every 7 seconds and hits every player within 6 blocks:
+
+```yaml
+  abilities:
+    ground_slam:
+      name: "Ground Slam"
+      trigger: ON_TIMER
+      interval: 140          # ticks (20 = 1 second)
+      announce: "<red>The Stone Warden slams the ground!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            damage: 150
+            damage-type: MELEE
+            target: "@enemies_in_radius{r=6}"
+        - type: APPLY_EFFECT
+          params:
+            effect: slowness
+            amplifier: 2
+            duration: 3
+            target: "@enemies_in_radius{r=6}"
+```
+
+- `trigger: ON_TIMER` — fires every `interval` ticks while the boss is alive. Add `chance: 0.5`
+  to make each attempt a coin flip, or `cooldown: 10` (seconds) as a minimum gap.
+- `announce` — sent to players within 40 blocks when the ability fires.
+- Abilities use the **same mechanics as items** ([full list](/docs/abilities#mechanics)). For a
+  mob, `@enemies_in_radius` means *players* near the boss.
+
+<Callout type="warning" title="Messages from a boss ability">
+Inside a boss ability, the "player" running the ability is the boss itself. Events that act on the
+player running them — `notify`, `give`, `tag`, `variable` — do nothing there. Use `announce` for
+messages, and `foreach @nearby:<radius> <event>` to run an event for every nearby player.
+</Callout>
+
+## Step 3 — A targeted attack
+
+`@target` needs something to aim at. Give the ability a `target-range` and the boss picks the
+nearest player within that many blocks:
+
+```yaml
+    rock_throw:
+      name: "Rock Throw"
+      trigger: ON_TIMER
+      interval: 100
+      target-range: 16
+      announce: "<gray>The Stone Warden hurls a boulder!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            damage: 90
+            target: "@target"
+        - type: APPLY_EFFECT
+          params:
+            effect: levitation
+            amplifier: 1
+            duration: 1.5
+            target: "@target"
+```
+
+Without `target-range`, `@target` is empty and the ability hits nothing.
+
+## Step 4 — Enrage at half health
+
+`ON_HEALTH` fires **once**, the first time the boss drops to `health-percent` or below:
+
+```yaml
+    enrage:
+      name: "Enrage"
+      trigger: ON_HEALTH
+      health-percent: 50
+      announce: "<dark_red><bold>The Stone Warden enrages and calls for help!"
+      mechanics:
+        - type: SCRIPT
+          params:
+            events:
+              - "spawn_mob frost_wraith 3 radius:5"
+        - type: APPLY_EFFECT
+          params:
+            effect: strength
+            amplifier: 2
+            duration: -1
+            target: "@self"
+```
+
+`SCRIPT` runs any [script event](/docs/events). Here `spawn_mob` summons three Frost Wraiths around
+the boss, and `@self` (the boss) gets permanent Strength II.
+
+## Step 5 — A second phase
+
+Add a faster slam for phase two:
+
+```yaml
+    enraged_slam:
+      name: "Enraged Slam"
+      trigger: ON_TIMER
+      interval: 60
+      announce: "<dark_red>The ground shatters!"
+      mechanics:
+        - type: DAMAGE
+          params:
+            damage: 220
+            damage-type: MELEE
+            target: "@enemies_in_radius{r=8}"
+```
+
+Now both slams fire all the time. To make `ground_slam` phase-one-only and `enraged_slam`
+phase-two-only, use a **pipeline**: a server-wide rule that runs just before any boss ability
+fires. Open `plugins/Valmora/mob_pipeline.yml`, and replace its last line, `stages: []`, with:
+
+```yaml
+# plugins/Valmora/mob_pipeline.yml
+stages:
+  - id: warden_phase_one_only
+    when: pre_ability
+    conditions:
+      - "$mob.id$ == stone_warden"
+      - "$mob.ability_id$ == ground_slam"
+      - "$mob.health_percent$ < 50"
+    on-pass:
+      - "interrupt"
+
+  - id: warden_phase_two_only
+    when: pre_ability
+    conditions:
+      - "$mob.id$ == stone_warden"
+      - "$mob.ability_id$ == enraged_slam"
+      - "$mob.health_percent$ >= 50"
+    on-pass:
+      - "interrupt"
+```
+
+Each stage runs before the boss fires an ability. When **all** of its `conditions` are true,
+`on-pass` runs, and `interrupt` cancels that firing. `$mob.id$`, `$mob.ability_id$` and
+`$mob.health_percent$` describe the boss and the ability it's about to use. See
+[Pipelines](/docs/pipelines) for everything else a pipeline can hook.
+
+<Callout type="tip">
+Use underscores in ability ids you compare in conditions (`ground_slam`). In an expression,
+`ground-slam` would be read as "ground minus slam".
+</Callout>
+
+## Step 6 — Test it
+
+```text
+/valmora reload
+/mob spawn stone_warden
+```
+
+- The boss bar tracks its health; slams hit you when you're close and the rock throw hits you from
+  range.
+- At half health you see the enrage message, three Frost Wraiths appear, and the slow slam is
+  replaced by the fast one.
+- `/valmora pipeline list mob:pre_ability` should list both stages. If it doesn't, check the
+  console for a `[PipelineYamlLoader]` warning.
+
+## Where to go next
+
+- More triggers (`ON_ATTACK`, `ON_DAMAGED`, `ON_SPAWN`, `ON_DEATH`), AI ranges and resistances:
+  [Mobs & bosses](/docs/mobs).
+- Spawn the boss from a zone or a quest: [Zones](/docs/zones), [Quests](/docs/quests).
+
+<SeeAlso slugs={["mobs", "abilities", "pipelines", "target-selectors"]} />

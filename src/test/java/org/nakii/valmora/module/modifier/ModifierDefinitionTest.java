@@ -44,6 +44,9 @@ class ModifierDefinitionTest {
         assertEquals("Flawless Ruby", def.getDisplayName(3));
         // Tier 10 doesn't exist -> clamp to max tier (3)
         assertEquals(List.of(tier3Effect), def.getEffects(10));
+        // Tier 2 isn't declared -> the next lower declared tier (1), not the empty base effects
+        assertEquals(List.of(tier1Effect), def.getEffects(2));
+        assertEquals("Rough Ruby", def.getDisplayName(2));
     }
 
     private static ModifierEffect fakeEffect(String type) {

@@ -37,10 +37,10 @@ import java.util.UUID;
  */
 public class BossController {
 
-    /** How often (ticks) the controller ticks. Timer-ability granularity is this period. */
-    private static final long TICK_PERIOD = 10L;
-    /** Radius (blocks) used to broadcast ability announcements. */
-    private static final double ANNOUNCE_RADIUS = 40.0;
+    /** How often (ticks) the controller ticks. Timer-ability granularity is this period. HC-084: {@code mobs.boss.tick-period-ticks}. */
+    private final long tickPeriod;
+    /** Radius (blocks) used to broadcast ability announcements. HC-084: {@code mobs.boss.announce-radius}. */
+    private final double announceRadius;
 
     private final Valmora plugin;
     private final Map<UUID, BossInstance> instances = new HashMap<>();
@@ -48,11 +48,13 @@ public class BossController {
 
     public BossController(Valmora plugin) {
         this.plugin = plugin;
+        this.tickPeriod = plugin.getConfig().getLong("mobs.boss.tick-period-ticks", 10L);
+        this.announceRadius = plugin.getConfig().getDouble("mobs.boss.announce-radius", 40.0);
     }
 
     public void start() {
         if (task != null) return;
-        this.task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, TICK_PERIOD, TICK_PERIOD);
+        this.task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, tickPeriod, tickPeriod);
     }
 
     public void stop() {
@@ -138,7 +140,7 @@ public class BossController {
                 continue;
             }
 
-            instance.ticksAlive += TICK_PERIOD;
+            instance.ticksAlive += tickPeriod;
 
             for (MobAbility ability : instance.definition.getAbilities()) {
                 switch (ability.getTrigger()) {
@@ -188,7 +190,7 @@ public class BossController {
         }
 
         if (ability.getAnnounce() != null && !ability.getAnnounce().isEmpty()) {
-            for (Player p : nearbyPlayers(instance.entity, ANNOUNCE_RADIUS)) {
+            for (Player p : nearbyPlayers(instance.entity, announceRadius)) {
                 p.sendMessage(Formatter.format(ability.getAnnounce()));
             }
         }
@@ -206,6 +208,13 @@ public class BossController {
             pipelineCtx = new SimpleExecutionContext(instance.entity, target, instance.entity.getLocation(), null);
             pipelineCtx.set("mob:ability_id", ability.getId());
             pipelineCtx.set("mob:ability_trigger", ability.getTrigger().name());
+            // The boss's own identity and health — $target.*$ is whoever the ability is aimed at
+            // (usually a player), so without these a stage had no way to gate on the boss's phase.
+            pipelineCtx.set("mob:id", instance.definition.getId());
+            pipelineCtx.set("mob:level", instance.definition.getLevel());
+            pipelineCtx.set("mob:health", instance.entity.getHealth());
+            pipelineCtx.set("mob:max_health", maxHealth(instance.entity));
+            pipelineCtx.set("mob:health_percent", healthPercent(instance.entity));
             if (!bus.runPoint("mob:pre_ability", pipelineCtx)) {
                 return true; // cooldown/interval already consumed above — the attempt happened, effects didn't
             }

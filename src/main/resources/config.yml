@@ -11,21 +11,87 @@ database:
   # MySQL is recommended for large networks syncing data across multiple servers.
   type: sqlite
 
+  # HC-001/HC-003: connection pool / async worker-thread sizing. Raise on large networks,
+  # lower on tiny single-world servers to save RAM.
+  pool:
+    maximum-pool-size: 10
+  worker-threads: 4
+  shutdown-timeout-seconds: 10       # HC-004
+
   # ========================================================== #
   # MySQL Settings (Only used if type is set to 'mysql')       #
   # ========================================================== #
-  # To use MySQL, set 'type: mysql' above and uncomment the lines
-  # below (remove the '#' symbol) to configure your connection.
-  #
-  # mysql:
-  #   host: "127.0.0.1"
-  #   port: 3306
-  #   database: "valmora"
-  #   username: "root"
-  #   password: "password123"
-  #   # Set to true if your MySQL server requires/serves over SSL/TLS.
-  #   # Leave false for a typical local or private-network database.
-  #   use-ssl: false
+  # To use MySQL, set 'type: mysql' above and uncomment the connection lines below (remove the
+  # '#' symbol). They belong inside this one mysql: block — don't add a second mysql: key.
+  mysql:
+    # host: "127.0.0.1"
+    # port: 3306
+    # database: "valmora"
+    # username: "root"
+    # password: "password123"
+    # # Set to true if your MySQL server requires/serves over SSL/TLS.
+    # # Leave false for a typical local or private-network database.
+    # use-ssl: false
+    prep-cache-size: 250             # HC-002
+    prep-cache-sql-limit: 2048
+
+# ========================================================== #
+#                    World / GameRule Settings                #
+# ========================================================== #
+# VANILLA_CONTROL_AUDIT.md §8: none of these were ever touched by Valmora — vanilla defaults applied
+# everywhere. `world.gamerules` is a pure pass-through: only keys you uncomment/add here are ever
+# changed, applied to every currently-loaded world on enable/reload and to any world that loads
+# afterward (WorldRulesModule). Use the exact vanilla GameRule name (case-sensitive, camelCase).
+# The list below is commented-out common RPG-server defaults, not anything Valmora enables for you.
+world:
+  gamerules:
+    # keepInventory: false
+    # naturalRegeneration: true
+    # doFireTick: true
+    # doWeatherCycle: true
+    # doDaylightCycle: true
+    # doMobSpawning: true
+    # doMobLoot: true
+    # doImmediateRespawn: false
+    # fallDamage: true
+    # fireDamage: true
+    # drowningDamage: true
+    # playersSleepingPercentage: 100
+    # randomTickSpeed: 3
+    # spawnChunkRadius: 2
+
+  # VANILLA_CONTROL_AUDIT.md §8: locks a world's weather to a fixed state, re-enforced against any
+  # WeatherChangeEvent/ThunderChangeEvent that would move it away — the natural cycle, a /weather
+  # command, or another plugin (doWeatherCycle:false above only stops the *natural* cycle, nothing
+  # else). Unlisted worlds are untouched — no lock is the default everywhere. Valid values: CLEAR,
+  # RAIN, THUNDER.
+  # weather-lock:
+  #   world: CLEAR
+
+# ========================================================== #
+#                    Permission Settings                     #
+# ========================================================== #
+# HC-006/HC-013: every admin command resolves its own key here (falling back to `admin` below,
+# then the literal "valmora.admin") — set one to a different node to hand out that command
+# without granting every other admin command. Leaving this section alone keeps the original
+# single-permission behavior exactly as it was.
+permissions:
+  admin: "valmora.admin"
+  reload: "valmora.admin"
+  pack: "valmora.admin"
+  eco: "valmora.admin"
+  calendar: "valmora.admin"
+  collection: "valmora.admin"
+  alchemy: "valmora.admin"
+  modifier: "valmora.admin"
+  zone: "valmora.admin"
+  npc: "valmora.admin"
+  warp: "valmora.admin"
+  pet: "valmora.admin"
+  stat: "valmora.admin"
+  quest: "valmora.admin"
+  time: "valmora.admin"
+  skill: "valmora.admin"
 
 # ========================================================== #
 #                      Economy Settings                      #
@@ -44,6 +110,38 @@ economy:
   # `bank-interest-interval-seconds`. 0 disables interest entirely (no task is scheduled).
   bank-interest-percent: 0.5
   bank-interest-interval-seconds: 60
+
+  # How many rows are actually retained in the ledger table per player (GDPR/verbosity control) —
+  # HC-005. Distinct from ledger-display-limit below, which only controls how many of those rows
+  # the bank GUI shows.
+  ledger-retention-per-player: 10
+
+  # How many recent transactions the bank GUI's "Recent Transactions" list shows — HC-010.
+  ledger-display-limit: 5
+
+  # HC-011: compact-suffix number formatting (used by /eco, the bank GUI, deposit/withdraw
+  # messages, etc.) and branding for the exact/dot-separated display form.
+  format:
+    thousand: "%.1fk"
+    million: "%.2fm"
+    billion: "%.2fb"
+    coin-symbol: "🪙 "
+    thousands-separator: "."
+
+  # HC-016/HC-017: localizable economy message text.
+  messages:
+    no-transactions: "<gray>There are no recent transactions!"
+    deposit-verb: "Deposited"
+    withdraw-verb: "Withdrew"
+
+  # HC-018: bank-prefix branding and how `economy_deposit half` rounds.
+  bank-messages:
+    prefix: "<dark_gray>[<gold>Bank<dark_gray>] "
+  deposit-halving: "floor" # floor | ceil | round
+
+  # HC-014/HC-015: /eco tab-complete presets and coin-expression suffixes ("2.5k", "1m+500k", ...).
+  tab-complete-amounts: ["1000", "1k", "10k", "100k", "1m"]
+  coin-suffixes: { k: 1000, m: 1000000, b: 1000000000 } # add e.g. t: 1000000000000 for trillions
 
 # ========================================================== #
 #                      Profile Settings                      #
@@ -94,10 +192,12 @@ time:
   # Show time lines on the sidebar scoreboard
   scoreboard-enabled: true
 
-# ========================================================== #
-#               Combat / Engine Stat Mapping                 #
-# ========================================================== #
-# Maps the engine's internal roles to stat IDs defined in stats/*.yml
+  # HC-253: calendar shape. days-per-phase is safe to retune (e.g. 28 for a "28-day month"
+  # calendar); phases-per-season (3) and seasons-per-year (4) are fixed by the Phase/Season enums
+  # and derive automatically from this value, not independently configurable.
+  calendar:
+    days-per-phase: 30
+
 # ========================================================== #
 #                   Progression Settings                     #
 # ========================================================== #
@@ -105,6 +205,15 @@ progression:
   # Percentage of every point ever spent on a tree that's refunded on /progression reset.
   refund-percent: 100.0
 
+  daily-bonus:
+    # HC-250: daily progression-node bonus cadence — 12h/48h alternate windows, poll frequency.
+    window-hours: 24
+    check-interval-minutes: 5
+
+# ========================================================== #
+#               Combat / Engine Stat Mapping                 #
+# ========================================================== #
+# Maps the engine's internal roles to stat IDs defined in stats/*.yml.
 # Change these if you rename or replace a core stat.
 combat:
   health-stat: health
@@ -136,6 +245,120 @@ combat:
   # player's actual max-health stat, which can be much higher).
   visual-health-hearts: 10
 
+  # VANILLA_CONTROL_AUDIT.md §14: shields were purely cosmetic before this — the custom damage
+  # pipeline never consulted vanilla's own block state. See ShieldBlockService.
+  shield:
+    enabled: true
+    # Fraction of a blocked (non-axe) melee/projectile hit that's negated; the rest gets through as
+    # "chip" damage, mirroring vanilla's own partial-block behavior.
+    block-damage-reduction: 0.9
+    # Full frontal arc (degrees) within which an attacker counts as "in front of" a blocking victim.
+    block-arc-degrees: 100.0
+    # Ticks the victim's shield is put on cooldown for after being hit by an axe (vanilla: 5s = 100 ticks).
+    axe-disable-ticks: 100
+
+  # How often (ticks) the passive health/mana regen tick runs. 20 = once per second.
+  regen-interval-ticks: 20
+  regen:
+    # Whether health/mana regen is blocked while the player is "in combat" (combat-window-ms above).
+    health-in-combat: false
+    mana-in-combat: true
+
+  # Fraction of a victim's max no-damage-ticks under which a second hit is rejected as an
+  # i-frame double-hit (anti multi-hit/DoT-stacking guard). 0.5 = half of vanilla invulnerability.
+  iframe-threshold-factor: 0.5
+
+  # VANILLA_CONTROL_AUDIT.md §12/§14 High #9 — vanilla attack-cooldown "swing charge" damage
+  # scaling for player melee hits (AttackCooldownService), driven by the Attribute.ATTACK_SPEED
+  # value (weapon base speed + the bonus_attack_speed stat).
+  attack-cooldown:
+    enabled: true
+    # Damage multiplier at 0 charge (spam-clicking). Vanilla's own value is 0.2.
+    min-multiplier: 0.2
+
+  environment:
+    # Environmental damage cause with no explicit mapping below falls back to this damage type.
+    fallback-damage-type: MELEE
+
+  # HC-023: fallback base damage for an attacker that's neither a player nor a registered
+  # MobDefinition (plain vanilla mobs).
+  fallback-base-damage: 1.0
+
+  # HC-031: Bukkit DamageCause -> Valmora damage-type-id overrides, checked before the built-in
+  # mapping in CombatListener. Empty by default. Example: NECRO_ATTACK: poison
+  cause-mapping: {}
+
+  damage-indicator:
+    # HC-028: floating damage-indicator styling. Placeholders: {color}, {damage}.
+    offset: 0.5
+    crit-format: "<gold>✧ {color}<b>{damage}<gold> ✧"
+    normal-format: "{color}{damage}"
+    show-as-int: true
+
+# ========================================================== #
+#                       Skill Settings                       #
+# ========================================================== #
+skills:
+  defaults:
+    # HC-073: central fallback for a skill YAML that omits these fields.
+    max-level: 60
+    xp-curve: "default"
+  curves:
+    # HC-072: fallback max-level for a formula-based XP curve whose own YAML omits max-level.
+    default-max-level: 60
+
+# ========================================================== #
+#                        Mob Settings                        #
+# ========================================================== #
+mobs:
+  tasks:
+    # How often (ticks) the leash/AI task and the ambient natural-spawn task poll.
+    ai-interval-ticks: 40           # HC-080
+    natural-spawn-interval-ticks: 200
+  # VANILLA_CONTROL_AUDIT.md §17: when true (default), a mob whose `natural-spawn.vanilla-default: true`
+  # matches a vanilla-originated CreatureSpawnEvent's entity type (natural spawns, monster spawners,
+  # spawn eggs) gets that definition's stats/equipment/visuals applied — see VanillaSpawnUpgradeListener.
+  # Set false to keep vanilla spawns of those types purely vanilla regardless of mob YAML flags.
+  natural-spawn:
+    vanilla-upgrade-enabled: true
+    # Radius (blocks) searched for existing same-mob nearby entities before allowing another spawn.
+    search-radius: 32.0             # HC-086
+    # Minimum/maximum distance (blocks) from the player a candidate spawn point is picked at.
+    min-distance: 8.0
+    max-distance: 24.0
+  boss:
+    tick-period-ticks: 10           # HC-084
+    announce-radius: 40.0
+  boss-bar:
+    default-range: 40.0             # HC-085
+  # Damage-per-level and XP-reward curves, evaluated as an Expression ($mob.base_damage$/
+  # $mob.base_xp$/$mob.level$ available). Leave blank to keep the built-in linear defaults
+  # (baseDamage + (level-1), baseXp * level).
+  damage-scaling: ""                # HC-081, e.g. "$mob.base_damage$ + ($mob.level$ - 1)"
+  xp-reward-formula: ""             # HC-082, e.g. "$mob.base_xp$ * $mob.level$"
+  combat-skill-id: "combat"         # HC-091 — which skill mob kills grant XP to
+
+  # HC-083: global defaults when a mob's own YAML omits these fields.
+  defaults:
+    natural-spawn-chance: 0.1
+    natural-spawn-max-nearby: 3
+    base-damage: 5.0
+    base-xp: 2
+    gold-reward: 0
+
+  ai:
+    leash-return-speed: 1.0         # HC-087
+
+  loot:
+    luck-divisor: 100.0             # HC-089 — 1 luck point = +1% loot chance by default
+
+  abilities:
+    defaults:
+      # HC-090: global defaults when a mob's own ability YAML omits these fields.
+      interval: 100
+      chance: 1.0
+      health-percent: 50.0
+
 # ========================================================== #
 #                     Mining Settings                        #
 # ========================================================== #
@@ -144,6 +367,61 @@ mining:
   mining-speed-stat: mining_speed
   breaking-power-stat: breaking_power
   mining-spread-stat: mining_spread
+
+# ========================================================== #
+#                     Resource Settings                      #
+# ========================================================== #
+resource:
+  # How often (seconds) mid-progress resource-block state is flushed to disk for crash recovery.
+  autosave-interval-seconds: 30     # HC-240
+  limits:
+    # Floors a misconfigured resource's regen-delay so a typo (e.g. `regen-delay: 1`) can't
+    # schedule a near-per-tick regen task.
+    min-regen-delay-ticks: 20       # HC-241
+
+  # VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction" — a Silk Touch tool yields
+  # exactly 1 of the current-stage block instead of the configured loot table (vanilla behavior;
+  # Fortune is ignored too, matching vanilla). Set false to make Silk Touch a no-op on resource blocks.
+  silk-touch:
+    enabled: true
+
+# ========================================================== #
+#                  Block Loot Overrides                      #
+# ========================================================== #
+# Global (server-wide, zone-independent) per-block-type loot overrides — VANILLA_CONTROL_AUDIT.md
+# §1/§4. Distinct from a zone's `resource-blocks:` (that's zone-scoped, with regen/progression);
+# this is a plain "every <material> block anywhere drops this instead" table, defined under
+# plugins/Valmora/block_loot/*.yml. See docs/modules/user/blockloot.md.
+block-loot:
+  enabled: true
+  # Silk Touch on a block-loot-configured block yields exactly 1 of the block's own material
+  # instead of the configured loot table (vanilla Silk Touch semantics — Fortune is ignored too,
+  # matching resource.silk-touch's behavior above). Set false to make Silk Touch a no-op here.
+  silk-touch:
+    enabled: true
+
+# ========================================================== #
+#                      Quest Settings                        #
+# ========================================================== #
+quests:
+  poll:
+    # How often (ticks) TIMER and NPCRANGE objectives are polled — O(players x active quests).
+    timer-interval-ticks: 20        # HC-260
+    npcrange-interval-ticks: 20
+  limits:
+    # Floors a DELAY objective's `interval:` so a typo can't schedule a near-per-tick task for the
+    # whole delay duration.
+    delay-min-interval-ticks: 20    # HC-261
+
+# ========================================================== #
+#                    Scripting Guardrails                    #
+# ========================================================== #
+scripting:
+  limits:
+    # Max recursion/nesting depth the expression parser accepts (nested parens, function args,
+    # unary minus) before rejecting an expression as malformed rather than risking a
+    # StackOverflowError on the main thread. HC-291.
+    max-expression-depth: 100
 
 # ========================================================== #
 #                    NPC Skin File Server                    #
@@ -173,6 +451,24 @@ anvil:
       base-cost: 0                    # flat XP levels charged on every repair
       percent-per-unit: 0.25          # % of max durability repaired per consumed repair-material unit
 
+  # HC-105: tool-material substring -> repair material, checked before the built-in hint map
+  # (NETHERITE/DIAMOND/GOLD/IRON/STONE/LEATHER/TURTLE). Add entries here for custom tool tiers
+  # (e.g. content-pack alloys) without a code change.
+  repair-materials: {}
+
+  prior-work:
+    # HC-101: overflow-safety clamp on the 2^work-1 "prior work" penalty curve — the curve shape
+    # itself mirrors vanilla's own anvil escalation math and isn't meant to be retuned lightly.
+    max-work-clamp: 30
+
+# ========================================================== #
+#                     Recipe Settings                        #
+# ========================================================== #
+recipes:
+  # HC-104: machine ids that fall through to vanilla crafting-table recipes when nothing else
+  # matches (scoped so e.g. an anvil/forge/alchemy GUI never silently matches a vanilla recipe).
+  vanilla-fallback-machines: ["crafting_table"]
+
 # ========================================================== #
 #                  Content Pack Manager                      #
 # ========================================================== #
@@ -191,6 +487,9 @@ pack:
   # Unused until the index feature is built — see docs/modules/design/pack.md §10.2.
   index-url: ""
 
+  download:
+    user-agent: "Valmora-PackManager/1.0" # HC-287
+
 # ========================================================== #
 #                    Item Lore Layout                        #
 # ========================================================== #
@@ -199,6 +498,40 @@ pack:
 # or a modifier's own display name) exactly how each line is formatted. See docs/modules/user/item.md
 # §"Item Lore Layout" for the full block-by-block breakdown. Reload with `/valmora reload`.
 items:
+  # HC-040: tool-tier substring -> breaking power (which blocks a tool can mine).
+  breaking-power:
+    netherite: 5
+    diamond: 4
+    iron: 3
+    stone: 2
+    wood: 1
+
+  # HC-041: vanilla material substring -> rarity, used when a plain vanilla item is first
+  # translated into a Valmora item (ItemTranslator). A custom material/rarity combo can be added
+  # here without a code change. Checked in order: netherite/elytra, diamond/trident, golden/enchanted, iron.
+  vanilla-rarity-mapping:
+    NETHERITE: MYTHIC
+    DIAMOND: EPIC
+    GOLDEN: RARE
+    IRON: UNCOMMON
+
+  # HC-047: default AoE radii for @enemies_in_radius/@allies_in_radius/@cone target selectors,
+  # used only when an ability's own selector args (r=/range=/angle=) don't set one.
+  target-resolver:
+    defaults:
+      enemies-radius: 5.0
+      cone-range: 8.0
+      cone-angle: 45.0
+
+  # HC-042/043/044: vanilla-item stat scaling, keyed by tool/armor tier substring.
+  vanilla-stats:
+    mining-speed: { netherite: 450.0, diamond: 400.0, iron: 300.0, stone: 200.0, golden: 500.0, wood: 100.0 }
+    weapon-damage: { netherite: 8.0, diamond: 7.0, iron: 6.0, stone: 5.0, wood: 4.0 }
+    bow-damage: 6.0
+    crossbow-damage: 9.0
+    armor-base: { netherite: 5.0, diamond: 4.0, iron: 3.0, gold: 2.0, leather: 1.0 }
+    armor-multiplier: { chestplate: 2.5, leggings: 2.0, helmet: 1.5, boots: 1.0 }
+
   lore:
     # The blocks below, in the order they're appended. Delete an entry to hide that block
     # entirely (e.g. remove `modifiers` to fold gemstone lines out of the lore completely).
@@ -253,6 +586,129 @@ items:
       # {type} (e.g. " SWORD" — note the leading space baked into the value, empty for NONE).
       format: "{color}<bold>{rarity}{type}"
 
+  trample:
+    # Which block PHYSICAL-interact trample protection (CANCEL_TRAMPLE boots) applies to.
+    protected-block: "FARMLAND"
+
+# ========================================================== #
+#                     Mechanic Defaults                      #
+# ========================================================== #
+# HC-051: server-wide fallback values for item-ability mechanic params, consulted only when an
+# individual ability YAML's `params:` omits that field — every ability can still override any of
+# these per-instance as before. Every key below reproduces the mechanic's original hardcoded
+# literal, so leaving this section untouched changes no behavior.
+mechanics:
+  damage:
+    default-amount: 1.0
+    default-type: "MAGIC"
+    default-ticks: 1
+    default-interval-seconds: 1.0
+  heal:
+    target: "@player"
+    interval: 1.0
+  launch-projectile:
+    projectile: "ARROW"
+    velocity: 2.0
+    count: 1
+    spread: 0.0
+    pierce: false
+    damage: 0.0
+  aoe-mine:
+    radius: 1
+  pull-entities:
+    period-ticks: 4
+    strength-default: 1.0
+    range-default: 20.0
+    duration-default: 2.0
+    target-default: "@enemies_in_radius{r=10}"
+  push-entities:
+    force-default: 1.0
+    y-clamp: 0.3
+    y-factor: 0.4
+  ignite:
+    duration-default: 3.0
+  apply-effect:
+    duration-default: 5.0
+    amplifier-default: 1
+    hide-particles: false
+  modify-stat:
+    amount-default: 0.0
+    duration-default: -1.0 # -1 = permanent
+  launch-player:
+    y-force-default: 1.0
+    forward-force-default: 1.0
+    no-fall-damage-default: false
+  charge-jump:
+    max-charge-ms: 2000
+    min-y-force: 0.4
+    max-y-force: 2.2
+  teleport:
+    distance-default: 8.0
+
+# ========================================================== #
+#                     Enchant Settings                       #
+# ========================================================== #
+enchants:
+  etable:
+    # XP levels charged per level of an enchant applied at the enchanting table.
+    cost-per-level: 2               # HC-110
+  defaults:
+    # HC-111: global retune points for a logic's power curve, consulted by every enchant using
+    # that `logic:` id whose own YAML doesn't set `logic-params.percent-per-level` (or the
+    # differently-named per-level key that logic uses — see each logic's own default below).
+    sharpness: { percent-per-level: 5.0 }
+    growth: { percent-per-level: 10.0 }
+    fortune: { percent-per-level: 10.0 }
+    efficiency: { percent-per-level: 50.0 }
+    stat_bonus: { percent-per-level: 1.0 }
+    damage_multiplier: { percent-per-level: 5.0 }
+    defense_reduction: { percent-per-level: 3.0 }
+    protection: { percent-per-level: 4.0 }
+    execute: { percent-per-level: 0.2 }
+    first_strike: { percent-per-level: 25.0, max-hits: 3, reset-window-ms: 10000 }
+    life_steal: { percent-per-level: 0.5 }
+    lethality: { percent-per-level: 0.2, max-stacks: 4, stack-duration-ms: 4000 }
+    respite: { percent-per-level: 0.5 }
+    thorns: { percent-per-level: 15.0 }
+    # HC-117: global level caps used when an individual enchant's own YAML omits these.
+    etable-max-level: 5
+    absolute-max-level: 10
+  transient:
+    # HC-112/HC-113: transient (combat-only) enchant state cleanup — memory vs. CPU.
+    cleanup-interval-ticks: 6000
+    idle-purge-millis: 900000
+
+# ========================================================== #
+#                       Pet Settings                         #
+# ========================================================== #
+# Pet leveling (xp-formula/max-level) lives in its own pets/defaults.yml, extracted on first
+# launch — see that file. This is server-operator feel/perf tuning instead.
+pets:
+  follow:
+    # HC-230: follow feel — how close before it stops closing distance, how far before it snaps
+    # (teleports) to catch up, and how far it steps toward the owner each tick.
+    follow-distance: 2.5
+    teleport-distance: 12.0
+    step: 0.35
+    # HC-231: follow-poll rate — CPU vs. smoothness.
+    tick-interval-ticks: 5
+
+# ========================================================== #
+#                      Modifier Settings                     #
+# ========================================================== #
+modifiers:
+  group-defaults:
+    # HC-120: server-wide policy fallback when a group's own YAML omits an `application:` field.
+    # Every group can still override any of these individually.
+    application-mode: "MULTIPLE"
+    max: 2147483647
+    replacement: false
+    removal: true
+  tier-source:
+    # HC-122: Expression evaluated with $rarity.rank$ for TierSource.RARITY_RANK groups (reforges).
+    # Leave blank to keep the built-in "rank + 1" default.
+    formula: ""
+
 # ========================================================== #
 #                     Alchemy Settings                       #
 # ========================================================== #
@@ -265,3 +721,205 @@ alchemy:
 
   # Max concurrent active effects per player
   max-active-effects: 10
+
+  # HC-190/HC-191: per-level curves for the two hardcoded (non-vanilla-potion) alchemy effects.
+  # Leave empty to keep the built-in defaults shown here.
+  effects:
+    healing:
+      values: [20, 50, 100, 150, 200, 250, 300, 350]
+    absorption:
+      values: [20, 40, 60, 80, 100, 150, 200, 300]
+    # HC-192: additional vanilla-potion-backed alchemy effects beyond the built-in
+    # jump_boost/night_vision/invisibility/fire_resistance — e.g.:
+    # vanilla:
+    #   blindness: { type: blindness, amplifier-scales: false }
+
+# ========================================================== #
+#                     Fishing Settings                       #
+# ========================================================== #
+fishing:
+  loot:
+    default-weight: 10                # HC-200
+
+# ========================================================== #
+#                      Notify Settings                       #
+# ========================================================== #
+notify:
+  categories:
+    # HC-270: category -> IO routing.
+    info: { io: "chat" }
+    error: { io: "actionbar" }
+
+# ========================================================== #
+#                       Zone Settings                        #
+# ========================================================== #
+zones:
+  # How often (ticks) the mob-spawner task polls. 1s (20 ticks) by default; large servers with
+  # many zone spawners may want to spread this out to 2-5s.
+  spawner-tick-interval-ticks: 20   # HC-130
+  # How often (ticks) the "return home if too far from a zone spawner" task scans living entities.
+  mob-home-interval-ticks: 40       # HC-131
+  # How often (ticks) zone-border particle visualization refreshes for players with it toggled on.
+  visualization-interval-ticks: 40  # HC-132
+  # How often (ticks) the admin-only pos1/pos2 selection wireframe refreshes while drawing a zone.
+  selection-visualization-interval-ticks: 10 # HC-133
+  # Beyond this distance (blocks) from a zone's center, its border stops rendering to a viewer.
+  visualization-max-distance: 200   # HC-134
+  # Multiplier/floor applied to a spawner's own spawn-radius to get a spawned mob's wander radius.
+  mob-wander-radius-multiplier: 2.0 # HC-135
+  mob-wander-min-radius: 4
+  # Retry attempts when searching for a safe natural-spawn location.
+  spawn-search-attempts: 20         # HC-136
+  # Radius (blocks) checked for an already-occupying entity before spawning at a candidate spot.
+  spawn-occupancy-radius: 0.8       # HC-137
+  # How long (ticks) the zone-enter actionbar popup stays.
+  enter-title-duration-ticks: 60    # HC-140
+  # HC-141: the zone-selection wand's material/name/lore. Empty lore falls back to the built-in
+  # "Left-click: Set Pos1 / Right-click: Set Pos2" lines.
+  wand:
+    material: "GOLDEN_AXE"
+    name: "<gold><bold>Zone Wand"
+    lore: []
+  messages:
+    # HC-143: shown for $zone.current$/scoreboard "Zone:" line when the player isn't in any zone.
+    wilderness-name: "<green>Wilderness"
+
+# ========================================================== #
+#                       Death Settings                       #
+# ========================================================== #
+# VANILLA_CONTROL_AUDIT.md §9 — see docs/modules/design/death.md / docs/modules/user/death.md.
+# Every toggle below ships matching vanilla's own default (nothing kept, phantoms on, vanilla
+# death-screen duration) — no game-design decision is made on your behalf beyond what's documented.
+death:
+  # Whether items/XP are kept on death, absent a per-zone override (ZoneFlags.keepInventoryOnDeath /
+  # keepExperienceOnDeath, settable via `/zone flag <id> keep-inventory-on-death <true|false|default>`
+  # — "default" clears the zone's override back to inheriting these).
+  keep-inventory-default: false
+  keep-experience-default: false
+
+  # Whether the custom death message below is broadcast server-wide (matches vanilla).
+  broadcast-enabled: true
+
+  # Note: this Paper version (1.21.11) has no PlayerDeathScreenEvent — the "death-screen duration"
+  # audit gap (VANILLA_CONTROL_AUDIT.md §9) has no Bukkit/Paper API hook to control it on and is
+  # left as pure vanilla; nothing here configures it.
+
+  # VANILLA_CONTROL_AUDIT.md §9 phantom-insomnia row — set false to disable phantom spawning
+  # entirely regardless of zone. A zone with `natural-mob-spawning: false` also blocks phantoms
+  # (reuses that existing flag) without needing this.
+  phantoms-enabled: true
+
+  # Death messages, built entirely from Valmora's own DamageType/attacker/weapon resolution (never
+  # vanilla DamageSource — see docs/modules/design/death.md for why). Keyed by damage-type id
+  # (damage_types/*.yml — MELEE, PROJECTILE, FALL, VOID, FIRE, LAVA, ... or your own custom type),
+  # falling back to `default` for any type without its own entry. Placeholders: %victim%,
+  # %attacker% (blank if none), %weapon% (attacker's held item display name, blank if none),
+  # %cause% (the damage-type id).
+  messages:
+    default: "<gray>%victim% died."
+    MELEE: "<gray>%victim% was slain by %attacker%."
+    PROJECTILE: "<gray>%victim% was shot by %attacker%."
+    FALL: "<gray>%victim% hit the ground too hard."
+    VOID: "<gray>%victim% fell into the void."
+    FIRE: "<gray>%victim% went up in flames."
+    LAVA: "<gray>%victim% tried to swim in lava."
+    DROWNING: "<gray>%victim% drowned."
+    STARVATION: "<gray>%victim% starved to death."
+    LIGHTNING: "<gray>%victim% was struck by lightning."
+    EXPLOSION: "<gray>%victim% blew up."
+
+  # Optional per-zone custom respawn point, used only if the player died inside that zone —
+  # otherwise vanilla's own bed/anchor/world-spawn resolution is left completely untouched. Format:
+  # "<world>,<x>,<y>,<z>[,<yaw>]". Empty by default — not a decision this plugin makes for you.
+  zone-respawn-overrides: {}
+  # example:
+  #   dungeon_arena: "world,100.5,64,200.5,180"
+
+# ========================================================== #
+#                       Warp Settings                        #
+# ========================================================== #
+warps:
+  defaults:
+    # HC-153: used only when an individual warp's own YAML omits these fields. `y: 64` in
+    # particular is unsafe on a void world or a build well above/below y=64 — a load-time warning
+    # is logged for a warp that relies on either default.
+    world: "world"
+    y: 64
+    unlock-condition: "always"
+    cost: 0.0
+    cooldown: 0
+    warmup: 0
+  warmup:
+    # How far (blocks) a player can drift during a warp warmup before it's cancelled as "moved".
+    # 1.0 matches the original block-level check's rough tolerance.
+    cancel-on-move-distance: 1.0    # HC-152
+    # Whether taking damage during a warmup cancels the warp (previously documented in a code
+    # comment but never actually implemented).
+    cancel-on-damage: false
+
+# ========================================================== #
+#                        GUI Settings                        #
+# ========================================================== #
+gui:
+  defaults:
+    # HC-162: fallback when an individual GUI's own YAML omits these fields.
+    title: "Inventory"
+    update-interval-ticks: 0
+    # Falls back to the GUI's own id when unset.
+    # machine: ""
+    # HC-167: null (unset) stays permissive, matching the original hardcoded default. Set a node
+    # here to require it by default for any GUI whose own YAML doesn't set command-permission.
+    # command-permission: "valmora.gui.default"
+  # HC-292: guards against a runaway dynamic/looped lore list exceeding the client's line cap.
+  # 0 disables the check (original behavior — no cap was ever enforced).
+  max-lore-lines: 0
+  crafting:
+    max-mass-crafts: 64             # HC-160
+
+# ========================================================== #
+#                         UI Settings                        #
+# ========================================================== #
+ui:
+  # HC-174: scoreboard/actionbar clock tick rate — the hottest loop in this module (ticks every
+  # online player). Default 2 ticks (10 Hz); large servers may want 4-5 (5-2.5 Hz).
+  tick-interval-ticks: 2
+  chat:
+    prefix: "<dark_gray>[<gold>Valmora<dark_gray>] <white>" # HC-178
+
+# ========================================================== #
+#                        HUD Settings                        #
+# ========================================================== #
+hud:
+  # How long (ticks) after respawn HUD items are re-given — fragile on lag / keepInventory.
+  respawn-restore-delay-ticks: 1    # HC-170
+
+# ========================================================== #
+#                    NPC / Dialogue Settings                 #
+# ========================================================== #
+npc:
+  look-range: 10.0                  # HC-214
+  hologram:
+    origin-y: 2.0                   # HC-215
+  tasks:
+    respawn-interval: 1200          # HC-216
+    look-interval: 5
+  messages:
+    prefix: "<dark_gray>[<gold>NPC<dark_gray>] " # HC-217
+  skin:
+    # HC-220: self-hosted Mojang/MineSkin proxy URLs.
+    urls:
+      profile: "https://api.mojang.com/users/profiles/minecraft/"
+      session: "https://sessionserver.mojang.com/session/minecraft/profile/"
+      mineskin: "https://api.mineskin.org/generate/url"
+    user-agent: "Valmora-NPC/1.0 (contact: server-admin)" # HC-287
+
+dialogue:
+  auto-advance:
+    # HC-210: NPC-to-NPC auto-advance reading-speed tuning.
+    ticks-per-char: 3
+    min-ticks: 40
+    max-ticks: 200
+  chat-clear-lines: 20              # HC-211
+  hint-interval-ticks: 40           # HC-212
+  stop-check-interval-ticks: 5      # HC-213
+  history-size: 100                 # HC-218

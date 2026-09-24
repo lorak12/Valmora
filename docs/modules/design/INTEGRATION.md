@@ -11,11 +11,15 @@
 Module registration order (see `Valmora.java`) enforces a strict layering. Lower modules are available to higher ones; no upward references are permitted:
 
 ```
-script → time → rarity → stat → player → economy
+script → world_rules → time → rarity → stat → player → economy
        → ui → ability → item → mob → skill → combat → gui → recipe → machine → modifier
-       → alchemy → enchant → zone → resource → fishing → npc → warp
+       → alchemy → enchant → zone → death → resource → fishing → block_loot → npc → warp
        → points → notify → quest → collection → hud → calendar → pet → progression → pack
 ```
+
+> **Note:** `block_loot` (module id `block_loot`) is registered right after `fishing` — a plain,
+> global (zone-independent) per-block-type loot override, distinct from the zone-scoped
+> `resource-blocks:` system. See CLAUDE.md §5 and `docs/modules/design/blockloot.md`.
 
 > **Note:** `machine` (module id `machine`) sits between `recipe` and `modifier` — it loads the
 > `machines/*.yml` machine-definition layer (which GUI opens for which machine id, open-triggers,
@@ -84,6 +88,7 @@ Slayer content is quest packages + a GUI, not a module — see `docs/modules/des
 | zone        | stat, profile, script             | time, resource, fishing               |
 | resource    | zone, stat, script                | collection                            |
 | fishing     | zone, stat, item, script          | collection                            |
+| block_loot  | item (runtime only, via `ItemManager.createItemStack`/`giveOrPrivateDrop`) | item (`LootListener`'s defer check reads its registry) |
 
 #### 1.1.6 UI & Display
 
@@ -282,6 +287,9 @@ Each module must:
 | `InventoryClickEvent`           | gui              | item, enchant, modifier, storage components (accessory/backpack) |
 | `PlayerJoinEvent` / `QuitEvent` | profile          | hud, pet, quest, progression           |
 | `ChunkLoadEvent`                | zone             | resource, mob, npc                     |
+| `PlayerDeathEvent` / `PlayerRespawnEvent` | death   | economy (purse loss), hud (item strip), quest (DIE trigger), item (ON_DEATH/ON_RESPAWN abilities), stat (respawn heal-back) — VANILLA_CONTROL_AUDIT.md §9, see `docs/modules/design/death.md` |
+| `EntityResurrectEvent`          | combat (`TotemProtectionService`) | death (implicitly, via the fatal-damage path it interrupts) |
+| `PlayerBedEnterEvent`, `BlockExplodeEvent` (respawn anchor/bed), `PhantomPreSpawnEvent` | death | zone (`ZoneFlags.sleeping`/`blockBreaking`/`naturalMobSpawning`) |
 
 ### 5.2 Custom Events
 

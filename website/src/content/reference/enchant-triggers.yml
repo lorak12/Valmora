@@ -1,0 +1,10 @@
+# Every enchant trigger (keys under an enchant's `triggers:`). Checked against EnchantTrigger at build time.
+
+ON_ATTACK_POST:
+  description: "After a hit by the enchanted weapon has landed. `@self` is the wielder, `@target` the victim, `$hit.damage$` the damage dealt."
+ON_DEFEND_POST:
+  description: "After the wearer of the enchanted armor was hit. `@self` is the wearer, `@target` the attacker."
+ON_KILL:
+  description: "The wielder of the enchanted weapon kills something."
+ON_DEATH:
+  description: "The wearer of the enchanted item dies."

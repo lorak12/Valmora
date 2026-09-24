@@ -30,10 +30,16 @@ import java.util.UUID;
 
 public class DialogueManager implements Listener {
 
-    /** Ticks per character for NPC-to-NPC auto-advance delay (≈ 0.15 s / char). */
-    private static final int TICKS_PER_CHAR = 3;
-    private static final int MIN_AUTO_ADVANCE_TICKS = 40;
-    private static final int MAX_AUTO_ADVANCE_TICKS = 200;
+    /** Ticks per character for NPC-to-NPC auto-advance delay (≈ 0.15 s / char). HC-210:
+     *  {@code dialogue.auto-advance.*} — reading-speed UX tuning. */
+    private static int ticksPerChar() { return configInt("dialogue.auto-advance.ticks-per-char", 3); }
+    private static int minAutoAdvanceTicks() { return configInt("dialogue.auto-advance.min-ticks", 40); }
+    private static int maxAutoAdvanceTicks() { return configInt("dialogue.auto-advance.max-ticks", 200); }
+
+    private static int configInt(String path, int fallback) {
+        Valmora plugin = Valmora.getInstance();
+        return plugin != null && plugin.getConfig() != null ? plugin.getConfig().getInt(path, fallback) : fallback;
+    }
 
     private final Valmora plugin;
     private final Registry<DialogueDefinition> dialogueRegistry = new SimpleRegistry<>();
@@ -373,7 +379,9 @@ public class DialogueManager implements Listener {
 
     private void clearChatDisplay(Player player) {
         if (packetManager == null) return;
-        for (int i = 0; i < 20; i++) {
+        // HC-211: dialogue.chat-clear-lines — aggressiveness vs. chat history preservation.
+        int lines = configInt("dialogue.chat-clear-lines", 20);
+        for (int i = 0; i < lines; i++) {
             packetManager.sendBypass(player, Component.empty());
         }
     }
@@ -392,7 +400,7 @@ public class DialogueManager implements Listener {
             if (s == null) { stopActionBarRefresh(uuid); return; }
             if (s.getDisplayedChoices().isEmpty()) return;
             sendChoiceActionBar(player, s);
-        }, 0L, 40L).getTaskId();
+        }, 0L, hintIntervalTicks()).getTaskId();
         actionBarTasks.put(uuid, taskId);
     }
 
@@ -414,7 +422,7 @@ public class DialogueManager implements Listener {
             Component bar = Component.text("[Space] skip  [Shift] exit", NamedTextColor.DARK_GRAY);
             if (packetManager != null) packetManager.sendBypassActionBar(player, bar);
             else player.sendActionBar(bar);
-        }, 0L, 40L).getTaskId();
+        }, 0L, hintIntervalTicks()).getTaskId();
         actionBarTasks.put(uuid, taskId);
     }
 
@@ -423,12 +431,15 @@ public class DialogueManager implements Listener {
         if (taskId != null) plugin.getServer().getScheduler().cancelTask(taskId);
     }
 
+    /** HC-212: dialogue.hint-interval-ticks — action-bar hint refresh rate. */
+    private static long hintIntervalTicks() { return configInt("dialogue.hint-interval-ticks", 40); }
+
     /** Calculates auto-advance delay in ticks based on plain-text length of the message. */
     private int calcAutoAdvanceDelay(String text) {
         // Strip MiniMessage tags for length calculation
         String plain = text.replaceAll("<[^>]*>", "");
-        int ticks = plain.length() * TICKS_PER_CHAR;
-        return Math.max(MIN_AUTO_ADVANCE_TICKS, Math.min(MAX_AUTO_ADVANCE_TICKS, ticks));
+        int ticks = plain.length() * ticksPerChar();
+        return Math.max(minAutoAdvanceTicks(), Math.min(maxAutoAdvanceTicks(), ticks));
     }
 
     // -------------------------------------------------------------------------
@@ -445,7 +456,9 @@ public class DialogueManager implements Listener {
                 }
             }
         };
-        int id = task.runTaskTimer(plugin, 5L, 5L).getTaskId();
+        // HC-213: dialogue.stop-check-interval-ticks — movement-lock poll responsiveness.
+        long interval = configInt("dialogue.stop-check-interval-ticks", 5);
+        int id = task.runTaskTimer(plugin, interval, interval).getTaskId();
         stopTasks.put(player.getUniqueId(), id);
     }
 

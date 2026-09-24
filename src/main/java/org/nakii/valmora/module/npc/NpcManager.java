@@ -46,7 +46,10 @@ public class NpcManager {
 
     private BukkitTask respawnTask;
     private BukkitTask lookTask;
-    private static final double LOOK_RANGE = 10.0;
+    /** HC-214: {@code npc.look-range} — NPC attention range. */
+    private double lookRange() {
+        return plugin.getConfig().getDouble("npc.look-range", 10.0);
+    }
 
     public NpcManager(Valmora plugin, Registry<NpcDefinition> registry, DialogueManager dialogueManager) {
         this.plugin = plugin;
@@ -179,8 +182,11 @@ public class NpcManager {
 
     // ── Hologram management ───────────────────────────────────────────────────
 
-    /** Y origin for holograms: 2 blocks above the NPC's feet (top of head). */
-    private static final double HOLO_ORIGIN_Y = 2.0;
+    /** Y origin for holograms: 2 blocks above the NPC's feet (top of head) by default.
+     *  HC-215: {@code npc.hologram.origin-y}. */
+    private double holoOriginY() {
+        return plugin.getConfig().getDouble("npc.hologram.origin-y", 2.0);
+    }
 
     private void spawnHolograms(NpcDefinition def, World world) {
         despawnHolograms(def.getId());
@@ -238,7 +244,7 @@ public class NpcManager {
         if (shouldShow && existing == null) {
             Location holoLoc = new Location(world,
                     def.getX() + holo.getOffsetX(),
-                    def.getY() + HOLO_ORIGIN_Y + holo.getOffsetY(),
+                    def.getY() + holoOriginY() + holo.getOffsetY(),
                     def.getZ() + holo.getOffsetZ());
             TextDisplay td = world.spawn(holoLoc, TextDisplay.class, display -> {
                 display.text(Formatter.format(holo.getText()));
@@ -315,7 +321,9 @@ public class NpcManager {
 
     public void startRespawnTask() {
         if (respawnTask != null) respawnTask.cancel();
-        respawnTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::checkRespawn, 1200L, 1200L);
+        // HC-216: npc.tasks.respawn-interval — perf vs. responsiveness.
+        long interval = plugin.getConfig().getLong("npc.tasks.respawn-interval", 1200L);
+        respawnTask = plugin.getServer().getScheduler().runTaskTimer(plugin, this::checkRespawn, interval, interval);
     }
 
     public void stopRespawnTask() {
@@ -324,6 +332,8 @@ public class NpcManager {
 
     public void startLookTask() {
         if (lookTask != null) lookTask.cancel();
+        // HC-216: npc.tasks.look-interval — perf vs. responsiveness.
+        long lookInterval = plugin.getConfig().getLong("npc.tasks.look-interval", 5L);
         lookTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             for (Map.Entry<String, UUID> entry : npcEntityMap.entrySet()) {
                 NpcDefinition def = registry.get(entry.getKey()).orElse(null);
@@ -331,14 +341,14 @@ public class NpcManager {
                 Entity e = Bukkit.getEntity(entry.getValue());
                 if (!(e instanceof LivingEntity npc)) continue;
                 Player nearest = null;
-                double nearestDistSq = LOOK_RANGE * LOOK_RANGE;
+                double nearestDistSq = lookRange() * lookRange();
                 for (Player p : npc.getWorld().getPlayers()) {
                     double d = p.getLocation().distanceSquared(npc.getLocation());
                     if (d < nearestDistSq) { nearestDistSq = d; nearest = p; }
                 }
                 if (nearest != null) npc.lookAt(nearest.getEyeLocation(), LookAnchor.EYES);
             }
-        }, 5L, 5L);
+        }, lookInterval, lookInterval);
     }
 
     public void stopLookTask() {

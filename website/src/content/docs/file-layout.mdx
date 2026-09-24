@@ -1,0 +1,80 @@
+---
+title: Folder layout
+summary: Every folder and file under plugins/Valmora/, what goes in it, and how Valmora reads it.
+---
+
+Everything you configure lives in `plugins/Valmora/`. Most folders hold **content**: you can create
+as many `.yml` files in them as you like, with any names, in subfolders if you want. Valmora reads
+every `.yml` file in the folder, and in each file every top-level key becomes one entry. The key is
+that entry's **id**.
+
+```yaml
+# plugins/Valmora/items/my_weapons.yml — two items in one file
+frostbrand:        # id "frostbrand"
+  material: DIAMOND_SWORD
+ember_dagger:      # id "ember_dagger"
+  material: IRON_SWORD
+```
+
+Splitting content across files is only for your own organisation. Ids must be unique across the
+whole folder, not just per file.
+
+## Content folders
+
+| Folder | One entry = | Page |
+|---|---|---|
+| `items/` | an item | [Items](/docs/items) |
+| `set_bonuses/` | an armor set bonus | [Set bonuses](/docs/set-bonuses) |
+| `stats/` | a stat (health, strength, your own…) | [Stats](/docs/stats) |
+| `damage_types/` | a damage type (melee, fire, …) | [Combat](/docs/combat) |
+| `enchants/` | a custom enchantment | [Enchants](/docs/enchants) |
+| `modifiers/groups/`, `modifiers/definitions/`, `modifiers/recipes/` | a modifier group, a modifier (a reforge, a gemstone), an anvil recipe that applies one | [Modifiers](/docs/modifiers) |
+| `mobs/` | a custom mob or boss | [Mobs & bosses](/docs/mobs) |
+| `recipes/` | a crafting recipe (`recipes/anvil/` = anvil upgrade recipes) | [Recipes](/docs/recipes), [Anvil](/docs/anvil) |
+| `machines/` | a crafting machine (which menu it opens, how it's opened) | [Machines](/docs/machines) |
+| `guis/` | an inventory menu | [GUIs](/docs/guis) |
+| `alchemy/` | an alchemy effect (`alchemy/modifiers.yml` = brewing boosters) | [Alchemy](/docs/alchemy) |
+| `zones/` | a zone | [Zones](/docs/zones) |
+| `block_loot/` | a server-wide block drop override | [Block loot](/docs/block-loot) |
+| `fishing/` | a fishing loot table | [Fishing](/docs/fishing) |
+| `warps/` | a warp point | [Warps](/docs/warps) |
+| `npcs/` | an NPC | [NPCs](/docs/npcs) |
+| `quests/` | a quest, **or** a whole quest package (a folder containing `quest.yml`) | [Quests](/docs/quests), [Quest packages](/docs/quest-packages) |
+| `quest_boards/` | a quest board | [Quest boards & points](/docs/quest-boards-points) |
+| `skills/` | **one file = one skill**; the file name is the skill id | [Skills](/docs/skills) |
+| `collections/` | a collection (`collections/categories.yml` = the categories) | [Collections](/docs/collections) |
+| `progression/` | a progression (skill) tree | [Progression trees](/docs/progression-trees) |
+| `pets/` | a pet (`pets/defaults.yml` = shared XP settings) | [Pets](/docs/pets) |
+| `calendar/` | a seasonal event | [Time & calendar](/docs/time-calendar) |
+| `hud-items/` | a fixed hotbar item (like the menu button) | [HUD items](/docs/hud-items) |
+
+## Single files
+
+| File | What it is |
+|---|---|
+| `config.yml` | Server-wide settings. See [config.yml](/docs/config-yml). |
+| `ui.yml` | Scoreboard, action bar and tab list layout. See [UI](/docs/ui). |
+| `rarities.yml` | Rarity names, colors, ranks and costs. See [Rarities & item types](/docs/rarities-item-types). |
+| `item_types.yml` | Extra item types beyond the built-in ones. |
+| `mob_categories.yml` | Extra mob categories beyond the built-in ones. |
+| `entity_categories.yml` | Names like `monster` or `animal` that quest `kill` objectives can target. |
+| `combat_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`, `resource_pipeline.yml`, `fishing_pipeline.yml` | Optional server-wide rules that react to hits, abilities, mining and fishing. Empty by default. See [Pipelines](/docs/pipelines). |
+| `database.db` | Player data when using SQLite. Don't edit it. |
+| `.resources_seeded` | Which default files have already been copied in. See [Installation](/docs/installation#updating-the-plugin). |
+
+For the full list of files Valmora ships with and what's in them, see
+[Shipped files](/docs/default-files).
+
+## Applying changes
+
+| You changed | Do this |
+|---|---|
+| Any content file, `ui.yml`, `rarities.yml`, `config.yml` settings | `/valmora reload` |
+| Only items, or only mobs | `/item reload` or `/mob reload` (faster) |
+| `config.yml` → `database:` | Restart the server |
+| The plugin jar | Restart the server |
+
+`/valmora reload` reloads everything in one go and keeps players online. Online players keep their
+data: balances are saved before the reload.
+
+<SeeAlso slugs={["core-concepts", "default-files", "troubleshooting"]} />

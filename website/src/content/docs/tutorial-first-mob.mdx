@@ -1,0 +1,125 @@
+---
+title: "Tutorial: your first mob"
+summary: Create a levelled custom mob with equipment and a loot table, spawn it, and make it appear naturally in the world.
+---
+
+You'll make a **Frost Wraith**: a level 10 skeleton with its own health, damage and defense that
+can drop the Frostbrand sword from [the first tutorial](/docs/tutorial-first-item). About ten
+minutes.
+
+## Step 1 — Define the mob
+
+Mobs live in `plugins/Valmora/mobs/`. Create `plugins/Valmora/mobs/my_mobs.yml`:
+
+```yaml
+# plugins/Valmora/mobs/my_mobs.yml
+frost_wraith:
+  name: "<aqua>Frost Wraith"
+  type: STRAY
+  category: UNDEAD
+  level: 10
+  stats:
+    health: 400
+    damage: 40
+    defense: 50
+    speed: 0.3
+```
+
+- `frost_wraith:` — the mob's id.
+- `type` — the vanilla entity it's built on ([EntityType](https://jd.papermc.io/paper/1.21.11/org/bukkit/entity/EntityType.html) name). Its look and AI come from this.
+- `category` — **required**. A group used by quests (`kill UNDEAD`) and skills. Built in: `UNDEAD`,
+  `ENDER`, `NETHER`, `BEAST`, `AQUATIC`, `ARTHROPOD`, `ILLAGER`, `GOLEM`, `BOSS`, `OTHER`.
+- `level` — shown on the nameplate, adds `level − 1` to its damage, and multiplies the combat XP it
+  gives.
+- `stats` — Valmora health, damage and defense (see [Mobs](/docs/mobs#stats)). Mob stat keys are
+  lower case with hyphens: `crit-chance`, not `crit_chance`.
+
+## Step 2 — Spawn it
+
+```text
+/mob reload
+/mob spawn frost_wraith
+```
+
+A stray appears with a nameplate like `[Lv.10] Frost Wraith 400/400❤`, which updates as you hit
+it. `/mob info` while looking at it shows its definition.
+
+<Callout type="warning" title="Mob didn't load?">
+The console shows `Failed to load some mobs` with the reason, e.g.
+`In mob 'frost_wraith': Missing required field 'category'`. Fix it and `/mob reload`.
+</Callout>
+
+## Step 3 — Equipment and rewards
+
+```yaml
+# plugins/Valmora/mobs/my_mobs.yml
+frost_wraith:
+  name: "<aqua>Frost Wraith"
+  type: STRAY
+  category: UNDEAD
+  level: 10
+  base-xp: 5
+  gold-reward: 25
+  stats:
+    health: 400
+    damage: 40
+    defense: 50
+    speed: 0.3
+  equipment:
+    main-hand: BOW
+    helmet: ICE                 # any material or Valmora item id
+  loot-table:
+    drops:
+      - item: ICE
+        min-amount: 1
+        max-amount: 4
+        chance: 0.8
+      - item: frostbrand
+        chance: 0.02
+        luck-affected: true
+```
+
+<Callout type="warning">
+Every item you name must exist. An unknown item id in `loot-table` makes **the whole mob** fail
+to load, so if you skipped the first tutorial, remove the `frostbrand` drop.
+</Callout>
+
+- `base-xp: 5` — the killer gets `base-xp × level` = 50 Combat XP.
+- `gold-reward: 25` — 25 coins go straight into the killer's purse.
+- `equipment` — `main-hand`, `off-hand`, `helmet`, `chestplate`, `leggings`, `boots`. Vanilla
+  materials or Valmora item ids.
+- `loot-table.drops` — each entry rolls on its own. `chance` goes from `0` to `1` (`0.02` = 2%).
+  `luck-affected: true` multiplies the chance by `1 + Luck / 100`, so a player with 100 Luck gets
+  4%.
+
+Reload, spawn it, kill it. The drops go into your inventory, and anything that doesn't fit drops
+at your feet.
+
+## Step 4 — Let it spawn on its own
+
+Mobs don't spawn by themselves unless you ask. The simplest way is a `natural-spawn` block:
+
+```yaml
+  natural-spawn:
+    enabled: true
+    chance: 0.05       # 5% chance per check, per online player
+    max-nearby: 3      # no more than 3 within 32 blocks of that player
+```
+
+Every 10 seconds, for each online player, Valmora rolls `chance` and spawns the mob on the surface
+8–24 blocks away. That happens **everywhere**, in every world. To limit a mob to one area, use a
+zone spawner instead — see [Tutorial: your first zone](/docs/tutorial-first-zone).
+
+<Callout type="tip" title="Replacing vanilla mobs">
+`natural-spawn.vanilla-default: true` turns **every** naturally spawned entity of that `type` into
+this mob. Put it on a `ZOMBIE`-based definition and all zombies get your stats, name and loot.
+Only one mob per entity type can have it.
+</Callout>
+
+## Where to go next
+
+- Turn it into a boss with a health bar and abilities: [Tutorial: a boss fight](/docs/tutorial-boss-fight).
+- Make it a quest target: [Tutorial: your first quest](/docs/tutorial-first-quest).
+- Every mob field, including AI ranges and damage-type resistances: [Mobs & bosses](/docs/mobs).
+
+<SeeAlso slugs={["mobs", "tutorial-boss-fight", "zones"]} />

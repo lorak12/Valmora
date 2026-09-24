@@ -71,7 +71,7 @@ public class RecipeEngine {
         // name from the designated source ingredient onto the primary (first) output before it's
         // returned. Only meaningful for a single-output recipe (the only kind that uses this flag).
         if (recipe.isKeepDataOnUpgrade() && recipe.getUpgradeFrom() != null) {
-            ItemStack source = inputs.get(recipe.getUpgradeFrom());
+            ItemStack source = upgradeSource(recipe.getUpgradeFrom(), inputs);
             CraftOutput first = outputs.get(0);
             if (source != null && source.getType() != Material.AIR) {
                 outputs = new ArrayList<>(outputs);
@@ -81,6 +81,25 @@ public class RecipeEngine {
 
         consume(recipe, inputs);
         return Optional.of(new CraftResult(outputs, recipe, recipe.getOnCraft()));
+    }
+
+    /**
+     * The input stack whose data carries onto the output. {@code upgrade-from} is either a GUI
+     * input slot id, or — resolved at parse time from a SHAPED pattern letter or a SHAPELESS item
+     * id — {@code "item:<id>"}, meaning the first input holding that item.
+     */
+    private ItemStack upgradeSource(String upgradeFrom, Map<String, ItemStack> inputs) {
+        if (!upgradeFrom.startsWith("item:")) return inputs.get(upgradeFrom);
+        String itemId = upgradeFrom.substring(5);
+        for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
+            try {
+                Integer.parseInt(entry.getKey()); // positional keys only — each stack appears once
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            if (isSameItem(entry.getValue(), itemId)) return entry.getValue();
+        }
+        return null;
     }
 
     private static String describeInputs(Map<String, ItemStack> inputs) {
@@ -146,7 +165,7 @@ public class RecipeEngine {
         // 3. Check Vanilla Recipes — scoped to the crafting-table passthrough machine only.
         // Previously machine-agnostic, so e.g. an anvil/forge/alchemy GUI would silently also
         // match a vanilla crafting recipe if the same items happened to sit in numbered slots.
-        if (VANILLA_FALLBACK_MACHINES.contains(machineId.toLowerCase())) {
+        if (vanillaFallbackMachines().contains(machineId.toLowerCase())) {
             Optional<RecipeDefinition> vanillaMatch = matchVanillaRecipe(inputs);
             if (vanillaMatch.isPresent()) {
                 return vanillaMatch;
@@ -156,8 +175,16 @@ public class RecipeEngine {
         return Optional.empty();
     }
 
-    /** Machine ids that fall through to vanilla crafting-table recipes when nothing else matches. */
-    private static final java.util.Set<String> VANILLA_FALLBACK_MACHINES = java.util.Set.of("crafting_table");
+    /** HC-104: {@code recipes.vanilla-fallback-machines} — machine ids that fall through to
+     *  vanilla crafting-table recipes when nothing else matches. */
+    private java.util.Set<String> vanillaFallbackMachines() {
+        if (plugin == null || plugin.getConfig() == null) return java.util.Set.of("crafting_table");
+        java.util.List<String> configured = plugin.getConfig().getStringList("recipes.vanilla-fallback-machines");
+        if (configured.isEmpty()) return java.util.Set.of("crafting_table");
+        java.util.Set<String> set = new java.util.HashSet<>();
+        for (String id : configured) set.add(id.toLowerCase());
+        return set;
+    }
 
     private boolean matches(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
         return switch (recipe.getType()) {
@@ -262,17 +289,14 @@ public class RecipeEngine {
             return true;
         } else if (recipe.getType() == RecipeType.SHAPED) {
             // Find the active offset so we know exactly which physical slots to deduct from
-            int width = recipe.getGridWidth();
+            int width = gridWidthFor(recipe);
             Map<Integer, ItemStack> gridInput = new HashMap<>();
-            Map<Integer, RecipeIngredient> gridRecipe = new HashMap<>();
+            Map<Integer, RecipeIngredient> gridRecipe = recipeGrid(recipe, width);
 
             for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
                 if (entry.getValue() != null && entry.getValue().getType() != Material.AIR) {
                     try { gridInput.put(Integer.parseInt(entry.getKey()), entry.getValue()); } catch (NumberFormatException ignored) {}
                 }
-            }
-            for (Map.Entry<String, RecipeIngredient> entry : recipe.getInputMap().entrySet()) {
-                try { gridRecipe.put(Integer.parseInt(entry.getKey()), entry.getValue()); } catch (NumberFormatException ignored) {}
             }
 
             int[] inputBox = boundingBox(gridInput.keySet(), width);
@@ -332,12 +356,44 @@ public class RecipeEngine {
         }
     }
 
+    /**
+     * The column count the machine's input slots are numbered on: its {@code machines/*.yml}
+     * {@code shape:} when declared, otherwise the recipe's own pattern width (the pre-machine-layer
+     * behavior). Fixed 2026-09-24 — matching used to always use the pattern width, so a pattern
+     * narrower than the machine (a 1-wide column on the 3x3 crafting table) never matched, despite
+     * the documented "a smaller pattern slides to fit" behavior.
+     */
+    private int gridWidthFor(RecipeDefinition recipe) {
+        var machines = plugin != null ? plugin.getMachineModule() : null;
+        if (machines != null && recipe.getMachine() != null) {
+            var shape = machines.getRegistry().get(recipe.getMachine()).map(m -> m.getShape()).orElse(null);
+            if (shape != null && shape.cols() > 0) return shape.cols();
+        }
+        return recipe.getGridWidth();
+    }
+
+    /** The recipe's pattern cells, re-numbered from its own pattern width onto a {@code width}-column grid. */
+    private Map<Integer, RecipeIngredient> recipeGrid(RecipeDefinition recipe, int width) {
+        int patternWidth = recipe.getGridWidth();
+        Map<Integer, RecipeIngredient> grid = new HashMap<>();
+        for (Map.Entry<String, RecipeIngredient> entry : recipe.getInputMap().entrySet()) {
+            try {
+                int slot = Integer.parseInt(entry.getKey());
+                if (slot < 0) continue;
+                grid.put((slot / patternWidth) * width + (slot % patternWidth), entry.getValue());
+            } catch (NumberFormatException ignored) {
+                // non-numeric keys aren't pattern cells
+            }
+        }
+        return grid;
+    }
+
     private boolean matchShaped(RecipeDefinition recipe, Map<String, ItemStack> inputs) {
-        Map<String, RecipeIngredient> recipeMap = recipe.getInputMap();
-        int width = recipe.getGridWidth();
+        int width = gridWidthFor(recipe);
+        if (width < recipe.getGridWidth()) return false; // pattern wider than the machine can never fit
 
         Map<Integer, ItemStack> gridInput = new HashMap<>();
-        Map<Integer, RecipeIngredient> gridRecipe = new HashMap<>();
+        Map<Integer, RecipeIngredient> gridRecipe = recipeGrid(recipe, width);
 
         for (Map.Entry<String, ItemStack> entry : inputs.entrySet()) {
             if (entry.getValue() != null && entry.getValue().getType() != Material.AIR) {
@@ -349,17 +405,6 @@ public class RecipeEngine {
                 } catch (NumberFormatException e) {
                     continue; // Ignore non-numeric keys, do NOT abort to matchExact!
                 }
-            }
-        }
-
-        for (Map.Entry<String, RecipeIngredient> entry : recipeMap.entrySet()) {
-            try {
-                int slot = Integer.parseInt(entry.getKey());
-                if (slot >= 0) {
-                    gridRecipe.put(slot, entry.getValue());
-                }
-            } catch (NumberFormatException e) {
-                continue; // Ignore non-numeric keys
             }
         }
 

@@ -1,0 +1,171 @@
+# Every command declared in plugin.yml. Checked at build time. `who` is who can run it by default;
+# `key` is the config.yml `permissions:` key that controls it (when it has one).
+
+valmora:
+  who: admin
+  key: "admin (reload: reload, pack: pack)"
+  subcommands:
+    - "/valmora reload — reload config.yml and every module"
+    - "/valmora pipeline list [point] — list every registered pipeline stage/hook"
+    - "/valmora variable get <$path$> — resolve a variable for yourself"
+    - "/valmora debug — toggle debug logging"
+    - "/valmora pack install|inspect|uninstall|list|rollback … — content packs"
+item:
+  who: admin
+  subcommands:
+    - "/item give <id> [amount] [player]"
+    - "/item info [id] — without an id, inspects the held item"
+    - "/item list"
+    - "/item enchant <enchantId> <level> — enchant the held item"
+    - "/item enchantbook <enchantId> <level>"
+    - "/item reload"
+mob:
+  who: admin
+  subcommands:
+    - "/mob spawn <id> [player]"
+    - "/mob list"
+    - "/mob info <id>"
+    - "/mob reload"
+stat:
+  who: "everyone (list); admin (add/remove)"
+  key: stat
+  subcommands:
+    - "/stat list — your own stats"
+    - "/stat add <statId> <value>"
+    - "/stat remove <statId> <value>"
+stats:
+  who: everyone
+  subcommands:
+    - "/stats — opens your stat sheet"
+skill:
+  who: "everyone (list, get); admin (give, set, reset)"
+  key: skill
+  subcommands:
+    - "/skill list"
+    - "/skill get <player> <skill>"
+    - "/skill give <player> <skill> <xp>"
+    - "/skill set <player> <skill> <xp|level> <value>"
+    - "/skill reset <player> <skill>"
+pet:
+  who: "everyone (list); admin (give)"
+  key: pet
+  subcommands:
+    - "/pet list"
+    - "/pet give <player> <petId> [level]"
+progression:
+  who: everyone
+  subcommands:
+    - "/progression list"
+    - "/progression info <treeId>"
+    - "/progression reset <treeId>"
+profile:
+  who: everyone
+  subcommands:
+    - "/profile gui"
+    - "/profile create"
+    - "/profile delete <name>"
+    - "/profile switch <name>"
+    - "/profile list"
+    - "/profile info"
+quest:
+  who: "everyone (journal); admin (complete, reset, inspect)"
+  key: quest
+  subcommands:
+    - "/quest — opens your quest journal"
+    - "/quest journal"
+    - "/quest complete <player> <questId>"
+    - "/quest reset <player> <questId>"
+    - "/quest inspect <player> [questId]"
+npc:
+  who: admin
+  key: npc
+  subcommands:
+    - "/npc create <id> <entityType> — at your position"
+    - "/npc delete <id>"
+    - "/npc list | info <id> | near"
+    - "/npc tp <id> | move <id> — move puts it at your position"
+    - "/npc rename <id> <name…> | settype <id> <entityType> | setyaw <id> [yaw]"
+    - "/npc conversation <id> <conversationId> | clearconv <id>"
+    - "/npc skin <id> player <name> | url <url> | file <file.png> | reset"
+    - "/npc look <id> | showname <id> — toggle head tracking / nameplate"
+    - "/npc reload"
+zone:
+  who: admin
+  key: zone
+  subcommands:
+    - "/zone wand | pos1 | pos2 | clear"
+    - "/zone create <id> [display name]"
+    - "/zone delete <id> | info <id> | list"
+    - "/zone flag <id> <flag> <true|false|default>"
+    - "/zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400] [radius] | remove <zoneId> <spawnerId> | list <zoneId>"
+    - "/zone box add <zoneId> | remove <zoneId> <index> | list <zoneId> — extra boxes from your wand selection"
+    - "/zone resource add <zoneId> <blockMaterial> <dropItem> <min> <max> <chance> [regenTicks=200] [requiredPower=0] | remove <zoneId> <blockMaterial> | list <zoneId>"
+    - "/zone visualize <id>"
+warp:
+  who: everyone
+  key: "warp (creating [Warp] signs)"
+  subcommands:
+    - "/warp — opens the fast-travel menu"
+    - "/warp <id> — teleports to a warp you've unlocked"
+eco:
+  who: admin
+  key: eco
+  subcommands:
+    - "/eco get <player>"
+    - "/eco set|add|remove <player> [purse|bank] <amount> — amounts accept 2.5k, 1m, (1k+500)*2"
+recipe:
+  who: admin
+  subcommands:
+    - "/recipe list <machineId>"
+    - "/recipe preview <machineId> <recipeId>"
+gui:
+  who: "admin (valmora.admin.gui)"
+  subcommands:
+    - "/gui open <player> <guiId> — open any GUI for a player (testing, or from command blocks)"
+time:
+  who: admin
+  key: time
+  subcommands:
+    - "/time info"
+    - "/time reset"
+    - "/time set <year> <season> <phase> <day>"
+calendar:
+  who: admin
+  key: calendar
+  subcommands:
+    - "/calendar list"
+    - "/calendar preview"
+    - "/calendar force-start <eventId> | force-end <eventId>"
+modifier:
+  who: admin
+  key: modifier
+  subcommands:
+    - "/modifier groups"
+    - "/modifier list <group>"
+    - "/modifier apply <group> <id> [tier] — on the held item"
+    - "/modifier remove <group> [id]"
+potion:
+  who: admin
+  key: alchemy
+  subcommands:
+    - "/potion give <effectId> <level> [player]"
+effects:
+  who: everyone
+  subcommands:
+    - "/effects — your active alchemy effects"
+collections:
+  who: "everyone (menu); admin (view, force, reset)"
+  key: collection
+  subcommands:
+    - "/collections — opens the collections menu"
+    - "/collections view <player> <collectionId>"
+    - "/collections force <player> <collectionId> <count>"
+    - "/collections reset <player> <collectionId>"
+ui:
+  who: everyone
+  subcommands:
+    - "/ui toggle — hide/show your sidebar"
+test:
+  who: admin
+  subcommands:
+    - "/test anvil | crafting | enchant | forge | press — gives you the ingredients for a shipped example and prints the steps"

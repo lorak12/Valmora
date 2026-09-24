@@ -1,0 +1,58 @@
+---
+title: Rarities & item types
+summary: The rarity ladder in rarities.yml, what rarity affects, the built-in item types, and adding your own.
+---
+
+## Rarities
+
+Every item has a rarity. It colors the item's name, prints the `EPIC SWORD` line at the bottom of
+the lore, sets the reforge tier and cost, and can scale modifier values.
+
+<RefTable kind="rarities" />
+
+They're defined in `plugins/Valmora/rarities.yml`:
+
+```yaml
+# plugins/Valmora/rarities.yml
+rarities:
+  EPIC:
+    id: epic
+    name: "Epic"
+    color: "<dark_purple>"
+    rank: 3
+    power: 1.65
+    forge_cost: 2500
+```
+
+| Field | What it does |
+|---|---|
+| `name` | Shown in the lore's rarity line. |
+| `color` | MiniMessage color of the item name and rarity line. |
+| `rank` | Order, 0 = lowest. Reforge tiers follow it (rank 0 = tier 1). |
+| `power` | A multiplier modifiers can scale by (`scaling: { property: power }`). |
+| `forge_cost` | Any other number you add is available to modifier `scaling:` too. The shipped reforge recipes charge `forge_cost` coins. |
+
+Items refer to rarities by the key (`rarity: EPIC`). Vanilla items get a rarity by material tier
+(`items.vanilla-rarity-mapping` in [config.yml](/docs/config-yml#items)).
+
+## Item types
+
+`item-type` says what kind of item something is. Enchant `targets`, modifier `targets`, armor
+slots, backpacks and accessories all check it.
+
+<RefTable kind="itemTypes" />
+
+`NONE` (the default) is for items that are none of these, like crafting materials. `ALL` is only
+used in `targets:` lists to mean "any type".
+
+To add types without touching Java, list them in `plugins/Valmora/item_types.yml`:
+
+```yaml
+# plugins/Valmora/item_types.yml
+item_types:
+  - FISHING_BAIT
+  - WAND
+  - RELIC
+```
+
+<SeeAlso slugs={["items", "modifiers", "enchants"]} />

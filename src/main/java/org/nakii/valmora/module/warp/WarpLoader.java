@@ -40,17 +40,26 @@ public class WarpLoader {
                 int pz = padSec.containsKey("z") ? ((Number) padSec.get("z")).intValue() : 0;
                 pads.add(new int[]{px, py, pz});
             }
+            // HC-153: `world`/`y` silently defaulting to "world"/64 is a real footgun on a
+            // void world or a build well above/below y=64 — warn (not fail) so an author notices
+            // before a warp teleports players into the void.
+            if (!sec.contains("world")) {
+                plugin.getLogger().warning("[" + path + "] Warp '" + id + "' has no 'world:' — defaulting to \"world\", which is almost certainly wrong for this server.");
+            }
+            if (!sec.contains("y")) {
+                plugin.getLogger().warning("[" + path + "] Warp '" + id + "' has no 'y:' — defaulting to 64, which may not be safe on this world.");
+            }
             return LoadResult.success(new WarpDefinition(
                     id,
                     sec.getString("display-name", id),
-                    sec.getString("world", "world"),
-                    sec.getDouble("x", 0), sec.getDouble("y", 64), sec.getDouble("z", 0),
+                    sec.getString("world", plugin.getConfig().getString("warps.defaults.world", "world")),
+                    sec.getDouble("x", 0), sec.getDouble("y", plugin.getConfig().getDouble("warps.defaults.y", 64)), sec.getDouble("z", 0),
                     (float) sec.getDouble("yaw", 0), (float) sec.getDouble("pitch", 0),
-                    sec.getString("unlock-condition", "always"),
+                    sec.getString("unlock-condition", plugin.getConfig().getString("warps.defaults.unlock-condition", "always")),
                     pads,
-                    sec.getDouble("cost", 0.0),
-                    sec.getInt("cooldown-seconds", 0),
-                    sec.getInt("warmup-seconds", 0),
+                    sec.getDouble("cost", plugin.getConfig().getDouble("warps.defaults.cost", 0.0)),
+                    sec.getInt("cooldown-seconds", plugin.getConfig().getInt("warps.defaults.cooldown", 0)),
+                    sec.getInt("warmup-seconds", plugin.getConfig().getInt("warps.defaults.warmup", 0)),
                     sec.contains("permission") ? sec.getString("permission") : null
             ));
         } catch (Exception e) {

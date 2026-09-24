@@ -28,7 +28,10 @@ public class DelayObjectiveHandler implements ObjectiveHandler {
         if (objectiveId == null) return;
 
         if (objective.getIntervalTicks() > 0) {
-            int interval = objective.getIntervalTicks();
+            // HC-261: floors a malformed `interval: 1` (or similarly tiny) objective config so it
+            // can't schedule a near-per-tick BukkitRunnable for the whole delay duration.
+            int minInterval = plugin.getConfig().getInt("quests.limits.delay-min-interval-ticks", 20);
+            int interval = Math.max(minInterval, objective.getIntervalTicks());
             new BukkitRunnable() {
                 long remaining = objective.getDelayTicks();
                 @Override

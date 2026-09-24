@@ -34,8 +34,12 @@ public class SQLDataStore implements DataStore {
     private final boolean isMySQL;
     private final Logger logger;
 
-    // Dedicated thread pool for database operations
-    private final ExecutorService dbExecutor = Executors.newFixedThreadPool(4);
+    // Dedicated thread pool for database operations. HC-003: size configurable via
+    // database.worker-threads (default 4 kept for the legacy no-arg constructor below).
+    private final ExecutorService dbExecutor;
+
+    /** Ledger rows kept per player — see {@link #migrateToV7}. HC-005: database.ledger-retention-per-player. */
+    private final int ledgerRetentionPerPlayer;
 
     /**
      * Per-player ordered lanes for everything that reads or writes a player's profile data
@@ -55,15 +59,26 @@ public class SQLDataStore implements DataStore {
     private final java.io.File recoveryDir;
 
     public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger) {
-        this(hikari, isMySQL, logger, null);
+        this(hikari, isMySQL, logger, null, 4, LEDGER_RETENTION_PER_PLAYER_DEFAULT);
     }
 
     public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger, java.io.File dataFolder) {
+        this(hikari, isMySQL, logger, dataFolder, 4, LEDGER_RETENTION_PER_PLAYER_DEFAULT);
+    }
+
+    public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger, int workerThreads, int ledgerRetentionPerPlayer) {
+        this(hikari, isMySQL, logger, null, workerThreads, ledgerRetentionPerPlayer);
+    }
+
+    public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger,
+                        java.io.File dataFolder, int workerThreads, int ledgerRetentionPerPlayer) {
         this.hikari = hikari;
         this.isMySQL = isMySQL;
         this.logger = logger;
         this.gson = new Gson();
         this.recoveryDir = dataFolder != null ? new java.io.File(dataFolder, "recovery") : null;
+        this.dbExecutor = Executors.newFixedThreadPool(Math.max(1, workerThreads));
+        this.ledgerRetentionPerPlayer = ledgerRetentionPerPlayer > 0 ? ledgerRetentionPerPlayer : LEDGER_RETENTION_PER_PLAYER_DEFAULT;
         for (int i = 0; i < PLAYER_LANES; i++) {
             playerLanes[i] = Executors.newSingleThreadExecutor();
         }
@@ -85,8 +100,7 @@ public class SQLDataStore implements DataStore {
      */
     static final int LATEST_SCHEMA_VERSION = 8;
 
-    /** Ledger rows kept per player — see {@link #migrateToV7}. */
-    private static final int LEDGER_RETENTION_PER_PLAYER = 10;
+    private static final int LEDGER_RETENTION_PER_PLAYER_DEFAULT = 10;
 
     @Override
     public void init() {
@@ -205,7 +219,7 @@ public class SQLDataStore implements DataStore {
     /**
      * v7 — adds the append-only bank transaction ledger backing the bank GUI's "Recent
      * Transactions" display (docs/IMPLEMENTATION_BACKLOG.md, Economy module). Kept to the most
-     * recent {@link #LEDGER_RETENTION_PER_PLAYER} rows per player, pruned on every insert.
+     * recent {@code economy.ledger-retention-per-player} rows per player, pruned on every insert.
      */
     private void migrateToV7(Connection conn) throws SQLException {
         conn.prepareStatement("""
@@ -844,7 +858,7 @@ public class SQLDataStore implements DataStore {
                 try (PreparedStatement ps = conn.prepareStatement(
                         "DELETE FROM valmora_economy_ledger WHERE uuid = ? AND created_at NOT IN (" +
                         "SELECT created_at FROM (SELECT created_at FROM valmora_economy_ledger WHERE uuid = ? " +
-                        "ORDER BY created_at DESC LIMIT " + LEDGER_RETENTION_PER_PLAYER + ") AS keep)")) {
+                        "ORDER BY created_at DESC LIMIT " + ledgerRetentionPerPlayer + ") AS keep)")) {
                     ps.setString(1, uuid.toString());
                     ps.setString(2, uuid.toString());
                     ps.executeUpdate();
@@ -960,7 +974,9 @@ public class SQLDataStore implements DataStore {
         for (ExecutorService executor : executors) executor.shutdown();
         try {
             for (ExecutorService executor : executors) {
-                if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                var plugin = org.nakii.valmora.Valmora.getInstance();
+                int shutdownTimeoutSeconds = plugin != null ? plugin.getConfig().getInt("database.shutdown-timeout-seconds", 10) : 10;
+                if (!executor.awaitTermination(shutdownTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)) {
                     executor.shutdownNow();
                 }
             }

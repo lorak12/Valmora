@@ -1,0 +1,105 @@
+---
+title: Core concepts
+summary: The rules every Valmora file follows — ids, item references, text formatting, stat names, scripts, and how to read load errors.
+---
+
+## Ids
+
+Every entry you create has an **id**: its top-level key in the YAML file. Other files refer to it by
+that id — a recipe outputs `frostbrand`, a mob drops `raw_ferrite`, a quest targets NPC `elder`.
+
+- Ids are **case-insensitive**: `Frostbrand`, `frostbrand` and `FROSTBRAND` are the same id. Write
+  them in `lower_snake_case` to avoid confusion.
+- An id must be unique within its folder (two items can't share an id, but an item and a mob can).
+- Renaming an id breaks everything that referred to the old one, including items players already
+  have in their inventory. Pick ids you won't need to change.
+
+## Referring to items
+
+Wherever a field takes an item (recipe ingredients and outputs, mob drops, quest targets, NPC
+equipment…) you can write either:
+
+- a **Valmora item id** — `frostbrand`, `raw_ferrite`
+- a **vanilla material** — `DIAMOND`, `IRON_INGOT` (the [Bukkit Material name](https://jd.papermc.io/paper/1.21.11/org/bukkit/Material.html), upper case)
+
+Vanilla items players pick up are also treated as Valmora items: a plain diamond sword gets stats,
+rarity and lore like any custom item. Its id is `vanilla_` plus the material, e.g. `vanilla_diamond_sword`.
+
+The `give` script event is the exception: it only gives vanilla materials (`give DIAMOND:3`). Give
+custom items with the `/item give` command, recipe outputs, or mob loot.
+
+## Text and colors
+
+All text — item names, lore, messages, menu titles — uses
+[MiniMessage](https://docs.advntr.dev/minimessage/format.html):
+
+```yaml
+name: "<gold><bold>Frostbrand</bold></gold>"
+lore:
+  - "<gray>Forged in <aqua>eternal ice</aqua>."
+  - "<gradient:#5e4fa2:#f79459>Shimmering</gradient>"
+```
+
+Legacy `&6` and `§6` color codes don't work. Item names don't need a color: Valmora colors them
+by rarity automatically. Italics are off by default.
+
+## Stat names
+
+Stats are referred to by their id from `stats/core.yml`: `health`, `damage`, `strength`,
+`crit_chance`, `mining_fortune`… (full list on the [Stats](/docs/stats) page). **Where** you write
+them decides the spelling:
+
+| Where | Spelling | Example |
+|---|---|---|
+| Item `stats:`, set bonuses, pets, `stat_modify`, `$player.stat.<id>$` | stat id, any case, **underscores** | `crit_chance`, `CRIT_CHANCE` |
+| Mob `stats:` | fixed keys, lower case, **hyphens** | `crit-chance`, `crit-damage` |
+
+<Callout type="warning">
+`crit-chance` in an item or `crit_chance` in a mob is an **unknown stat**. For an item that fails
+the whole item; for a mob the stat is silently ignored.
+</Callout>
+
+## Scripts: events, conditions, variables
+
+Many fields take small script lines, shared across the whole plugin:
+
+- **Events** do something — `give DIAMOND:3`, `quest_start wolf_problem`, `notify <green>Hi!`
+- **Conditions** check something — `zone mine`, `quest wolf_problem completed`, `$player.hp$ > 50`
+- **Variables** read a live value inside any text or formula — `$player.name$`,
+  `$player.stat.strength$`, `$time.season$`
+
+So an NPC click, a quest reward, a menu button, an item ability and a boss phase can all call the
+same things. The full language is on the [Scripting overview](/docs/scripting) page.
+
+## Reloading
+
+After editing files, run `/valmora reload`. Everything reloads in one go without kicking anyone.
+The console prints what loaded — **always check it after a reload**.
+
+## Reading load errors
+
+When an entry has a mistake, Valmora skips **that one entry**, keeps everything else, and prints a
+warning block during startup or reload:
+
+```text
+[Valmora] Failed to load some items. Please check your configuration files.
+[Valmora] ------------------------------
+[Valmora] - [items/my_items.yml] In item 'frostbrand': Unknown stat 'crit-chance'.
+[Valmora] - [items/my_items.yml] Invalid trigger 'RIGHTCLICK' in ability 'frost_nova'.
+[Valmora] ------------------------------
+[Valmora] Successfully loaded 213 items.
+```
+
+Each line names the file, the entry and the problem. Common causes:
+
+- **A typo in a fixed value** — a material, stat, trigger, mechanic or rarity name. The error
+  names the bad value.
+- **Broken YAML** — wrong indentation, a tab character, a missing `:` or an unclosed quote. The
+  error reads `Failed to parse YAML` and **the whole file** is skipped. Paste the file into a
+  YAML validator to find the line.
+- **Quotes** — wrap any value that contains `:`, `#`, `@`, `$`, `<`, `{`, `[` or starts with `*` in
+  double quotes. All MiniMessage text and all script lines should be quoted.
+
+The [Troubleshooting](/docs/troubleshooting) page covers "it loaded but doesn't work" problems.
+
+<SeeAlso slugs={["file-layout", "scripting", "troubleshooting", "tutorial-first-item"]} />

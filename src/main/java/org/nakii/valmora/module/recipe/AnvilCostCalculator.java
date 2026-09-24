@@ -16,10 +16,14 @@ public final class AnvilCostCalculator {
 
     private AnvilCostCalculator() {}
 
-    /** {@code 2^workCount - 1}, clamped so an absurd work count can't overflow/go negative. */
+    /** {@code 2^workCount - 1}, clamped so an absurd work count can't overflow/go negative.
+     *  HC-101: {@code anvil.prior-work.max-work-clamp} — the overflow-safety clamp, not the curve
+     *  itself (the {@code 2^work-1} shape mirrors vanilla's own anvil escalation math). */
     public static int penalty(int workCount) {
         if (workCount <= 0) return 0;
-        return (1 << Math.min(workCount, 30)) - 1;
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        int maxClamp = plugin != null ? plugin.getConfig().getInt("anvil.prior-work.max-work-clamp", 30) : 30;
+        return (1 << Math.min(workCount, maxClamp)) - 1;
     }
 
     /** The work count stamped on the result item. When {@code increaseWorkPenalty} is false the

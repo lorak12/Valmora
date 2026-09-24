@@ -23,9 +23,17 @@ public class ZoneVariableProvider implements VariableProvider {
         Optional<ZoneDefinition> zone = zm.getCurrentZone(maybePlayer.get());
         return switch (path[0].toLowerCase()) {
             case "id"            -> zone.map(ZoneDefinition::getId).orElse(null);
-            case "current", "name" -> zone.map(ZoneDefinition::getDisplayName).orElse("<green>Wilderness");
+            case "current", "name" -> zone.map(ZoneDefinition::getDisplayName).orElse(wildernessName());
             case "pvp"           -> zone.map(ZoneDefinition::isPvpEnabled).orElse(false);
             default              -> null;
         };
+    }
+
+    /** HC-143: {@code zones.messages.wilderness-name} — single source of truth, also used by
+     *  {@code ScoreboardUI}, so the two can't silently drift apart the way HC-142's duplicated
+     *  spawner-interval literal did. */
+    public static String wildernessName() {
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        return plugin != null ? plugin.getConfig().getString("zones.messages.wilderness-name", "<green>Wilderness") : "<green>Wilderness";
     }
 }

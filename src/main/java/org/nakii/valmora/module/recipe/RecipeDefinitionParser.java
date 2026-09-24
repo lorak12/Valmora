@@ -54,6 +54,7 @@ public class RecipeDefinitionParser {
             Map<String, RecipeIngredient> inputMap = new HashMap<>();
             List<RecipeIngredient> inputList = new ArrayList<>();
             int gridWidth = 3;
+            Map<Character, RecipeIngredient> shapedLetters = new HashMap<>();
 
             if (type == RecipeType.SHAPELESS) {
                 // Plain list, order/position irrelevant — mirrors vanilla's own shapeless-recipe
@@ -88,13 +89,20 @@ public class RecipeDefinitionParser {
                             + " 2-slot machine).");
                 }
                 ConfigurationSection ingredientsSec = section.getConfigurationSection("ingredients");
-                Map<Character, RecipeIngredient> letters = new HashMap<>();
+                Map<Character, RecipeIngredient> letters = shapedLetters;
                 if (ingredientsSec != null) {
                     for (String key : ingredientsSec.getKeys(false)) {
                         if (key.length() != 1) continue;
                         ConfigurationSection ingSec = ingredientsSec.getConfigurationSection(key);
                         if (ingSec == null) continue;
-                        letters.put(key.charAt(0), new RecipeIngredient(ingSec.getString("material"), ingSec.getInt("amount", 1)));
+                        // `item:` accepted as an alias — SHAPELESS ingredients use `item:`, so writing
+                        // it here too used to produce a null ingredient that silently never matched.
+                        String material = ingSec.getString("material", ingSec.getString("item"));
+                        if (material == null || material.isBlank()) {
+                            return LoadResult.failure("[" + filePath + "] Recipe " + id
+                                    + ": ingredient '" + key + "' needs a material: (a material or Valmora item id)");
+                        }
+                        letters.put(key.charAt(0), new RecipeIngredient(material, ingSec.getInt("amount", 1)));
                     }
                 }
                 List<String> pattern = section.getStringList("pattern");
@@ -159,6 +167,19 @@ public class RecipeDefinitionParser {
 
             boolean keepDataOnUpgrade = section.getBoolean("keep-data-on-upgrade", true);
             String upgradeFrom = section.getString("upgrade-from", null);
+            // A SHAPED recipe names its upgraded ingredient by pattern letter, a SHAPELESS one by
+            // item id — neither is a key of the GUI's input map, so resolve both to "the first
+            // input holding this item" (see RecipeEngine#upgradeSource).
+            if (upgradeFrom != null && type == RecipeType.SHAPED && upgradeFrom.length() == 1) {
+                RecipeIngredient source = shapedLetters.get(upgradeFrom.charAt(0));
+                if (source == null) {
+                    return LoadResult.failure("[" + filePath + "] Recipe " + id
+                            + ": upgrade-from '" + upgradeFrom + "' is not a letter in ingredients:");
+                }
+                upgradeFrom = "item:" + source.item();
+            } else if (upgradeFrom != null && type == RecipeType.SHAPELESS) {
+                upgradeFrom = "item:" + upgradeFrom;
+            }
 
             RecipeDefinition def = new RecipeDefinition(id, machine, type, inputMap, inputList, outputs, onCraft,
                     gridWidth, keepDataOnUpgrade, upgradeFrom);

@@ -23,7 +23,8 @@ public class ZoneCommand implements TabExecutor {
     private static final String PREFIX = "<dark_gray>[<gold>Zone<dark_gray>] ";
     private static final List<String> FLAGS = List.of(
             "pvp", "natural-mob-spawning", "block-breaking", "block-placing",
-            "hunger", "entry", "teleportation", "leaf-decay");
+            "hunger", "entry", "teleportation", "leaf-decay", "sleeping",
+            "natural-block-changes", "keep-inventory-on-death", "keep-experience-on-death");
     private static final List<String> SUBCOMMANDS = List.of(
             "create", "delete", "info", "list", "wand", "pos1", "pos2", "clear",
             "flag", "spawner", "box", "resource", "visualize");
@@ -48,7 +49,7 @@ public class ZoneCommand implements TabExecutor {
             sender.sendMessage("Only players can use this command.");
             return true;
         }
-        if (!player.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(player, "zone")) {
             player.sendMessage(Formatter.format(PREFIX + "<red>No permission."));
             return true;
         }
@@ -78,14 +79,19 @@ public class ZoneCommand implements TabExecutor {
 
     // ── Sub-command implementations ──────────────────────────────────────────
 
+    // HC-141: wand material/name/lore — texture-pack servers may want a different tool.
     private void giveWand(Player player) {
-        ItemStack wand = new ItemStack(Material.GOLDEN_AXE);
+        var cfg = plugin.getConfig();
+        Material wandMaterial = Material.matchMaterial(cfg.getString("zones.wand.material", "GOLDEN_AXE"));
+        if (wandMaterial == null) wandMaterial = Material.GOLDEN_AXE;
+        ItemStack wand = new ItemStack(wandMaterial);
         ItemMeta meta = wand.getItemMeta();
-        meta.displayName(Formatter.format("<gold><bold>Zone Wand"));
-        meta.lore(List.of(
-                Formatter.format("<gray>Left-click block: <white>Set Pos1"),
-                Formatter.format("<gray>Right-click block: <white>Set Pos2")
-        ));
+        meta.displayName(Formatter.format(cfg.getString("zones.wand.name", "<gold><bold>Zone Wand")));
+        List<String> loreLines = cfg.getStringList("zones.wand.lore");
+        if (loreLines.isEmpty()) {
+            loreLines = List.of("<gray>Left-click block: <white>Set Pos1", "<gray>Right-click block: <white>Set Pos2");
+        }
+        meta.lore(loreLines.stream().map(Formatter::format).toList());
         meta.getPersistentDataContainer().set(Keys.ZONE_WAND_KEY, PersistentDataType.BOOLEAN, true);
         wand.setItemMeta(meta);
         player.getInventory().addItem(wand);
@@ -135,6 +141,10 @@ public class ZoneCommand implements TabExecutor {
         String displayName = args.length > 2
                 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length))
                 : "<green>" + id;
+        // Bukkit doesn't strip quotes, so /zone create id "Shardworks Mine" would otherwise keep them.
+        if (displayName.length() >= 2 && displayName.startsWith("\"") && displayName.endsWith("\"")) {
+            displayName = displayName.substring(1, displayName.length() - 1);
+        }
 
         int[] p1 = mgr().getPos1(uuid);
         int[] p2 = mgr().getPos2(uuid);
@@ -198,10 +208,16 @@ public class ZoneCommand implements TabExecutor {
         player.sendMessage(Formatter.format("<dark_gray><st>                                                        </st>"));
     }
 
+    private static final java.util.Set<String> TRISTATE_FLAGS =
+            java.util.Set.of("keep-inventory-on-death", "keep-experience-on-death");
+
     private void flag(Player player, String[] args) {
-        // /zone flag <zoneId> <flag> <true|false>
+        // /zone flag <zoneId> <flag> <true|false|default>  ("default" only valid on the two
+        // VANILLA_CONTROL_AUDIT.md §9 tri-state death flags — clears the override back to "inherit
+        // the server-wide death.* config default", see DeathPolicyResolver)
         if (args.length < 4) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone flag <id> <pvp|natural-mob-spawning|block-breaking|block-placing> <true|false>"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Usage: /zone flag <id> <flag> <true|false"
+                    + "|default>"));
             return;
         }
         ZoneDefinition zone = reg().get(args[1]).orElse(null);
@@ -209,31 +225,40 @@ public class ZoneCommand implements TabExecutor {
             player.sendMessage(Formatter.format(PREFIX + "<red>Zone '" + args[1] + "' not found."));
             return;
         }
-        boolean value;
+        String flagName = args[2].toLowerCase();
         String rawValue = args[3].toLowerCase();
-        if (rawValue.equals("true") || rawValue.equals("on") || rawValue.equals("yes") || rawValue.equals("1")) {
-            value = true;
+
+        Boolean value; // null only ever means "inherit", and only for TRISTATE_FLAGS
+        if (TRISTATE_FLAGS.contains(flagName) && (rawValue.equals("default") || rawValue.equals("inherit") || rawValue.equals("unset"))) {
+            value = null;
+        } else if (rawValue.equals("true") || rawValue.equals("on") || rawValue.equals("yes") || rawValue.equals("1")) {
+            value = Boolean.TRUE;
         } else if (rawValue.equals("false") || rawValue.equals("off") || rawValue.equals("no") || rawValue.equals("0")) {
-            value = false;
+            value = Boolean.FALSE;
         } else {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Invalid value. Use true or false."));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Invalid value. Use true, false"
+                    + (TRISTATE_FLAGS.contains(flagName) ? ", or default." : ".")));
             return;
         }
 
         ZoneFlags old = zone.getFlags();
-        ZoneFlags updated = switch (args[2].toLowerCase()) {
-            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay());
-            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay());
-            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay());
-            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay());
-            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value);
+        ZoneFlags updated = switch (flagName) {
+            case "pvp" -> new ZoneFlags(value, old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "natural-mob-spawning" -> new ZoneFlags(old.pvp(), value, old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "block-breaking" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), value, old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "block-placing" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), value, old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "hunger" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), value, old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "entry" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), value, old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "teleportation" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), value, old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "leaf-decay" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), value, old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "sleeping" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), value, old.naturalBlockChanges());
+            case "natural-block-changes" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), old.keepExperienceOnDeath(), old.sleeping(), value);
+            case "keep-inventory-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), value, old.keepExperienceOnDeath(), old.sleeping(), old.naturalBlockChanges());
+            case "keep-experience-on-death" -> new ZoneFlags(old.pvp(), old.naturalMobSpawning(), old.blockBreaking(), old.blockPlacing(), old.hunger(), old.entry(), old.teleportation(), old.leafDecay(), old.keepInventoryOnDeath(), value, old.sleeping(), old.naturalBlockChanges());
             default -> null;
         };
         if (updated == null) {
-            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay"));
+            player.sendMessage(Formatter.format(PREFIX + "<red>Unknown flag '" + args[2] + "'. Valid: pvp, natural-mob-spawning, block-breaking, block-placing, hunger, entry, teleportation, leaf-decay, sleeping, natural-block-changes, keep-inventory-on-death, keep-experience-on-death"));
             return;
         }
         mgr().setZoneFlags(zone.getId(), updated);
@@ -500,7 +525,7 @@ public class ZoneCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player player) || !player.hasPermission("valmora.admin"))
+        if (!(sender instanceof Player player) || !org.nakii.valmora.util.PermissionResolver.has(player, "zone"))
             return List.of();
 
         List<String> completions = new ArrayList<>();

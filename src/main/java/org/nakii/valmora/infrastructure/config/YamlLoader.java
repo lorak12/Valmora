@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 /**
@@ -42,12 +43,22 @@ public class YamlLoader<T> {
     private final String folderName;
     private final String typeName;
     private final Logger logger;
+    private Predicate<File> directorySkip = dir -> false;
 
     public YamlLoader(Valmora plugin, String folderName, String typeName) {
         this.plugin = plugin;
         this.folderName = folderName;
         this.typeName = typeName;
         this.logger = plugin.getLogger();
+    }
+
+    /**
+     * Makes {@link #load} skip every subdirectory (and everything under it) matching {@code skip} —
+     * e.g. the flat quest loader skipping quest-package folders, which a different loader owns.
+     */
+    public YamlLoader<T> skipDirectories(Predicate<File> skip) {
+        this.directorySkip = skip;
+        return this;
     }
 
     /**
@@ -98,7 +109,7 @@ public class YamlLoader<T> {
         if (children == null) return;
         for (File child : children) {
             if (child.isDirectory()) {
-                collectYamlFilesRecursive(child, out);
+                if (!directorySkip.test(child)) collectYamlFilesRecursive(child, out);
             } else if (child.getName().endsWith(".yml")) {
                 out.add(child);
             }

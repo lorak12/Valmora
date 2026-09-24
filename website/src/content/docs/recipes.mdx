@@ -1,0 +1,122 @@
+---
+title: Recipes
+summary: Shaped and shapeless recipes for any machine, multiple outputs, upgrade recipes that keep enchants, and vanilla smithing recipes.
+---
+
+A recipe says: in this **machine**, these items in the input slots produce these items. Recipes
+live in `plugins/Valmora/recipes/*.yml` (any file names, subfolders allowed), except anvil
+recipes, which have [their own format](/docs/anvil#anvil-recipes) in `recipes/anvil/`.
+Walkthrough: [Tutorial: your first recipe](/docs/tutorial-first-recipe).
+
+## Shaped and shapeless
+
+<Tabs>
+<Tab label="SHAPED — position matters">
+
+```yaml
+# plugins/Valmora/recipes/my_recipes.yml
+reinforced_pickaxe:
+  machine: crafting_table
+  type: SHAPED
+  ingredients:
+    i: { material: reinforced_ingot, amount: 1 }
+    s: { material: STICK, amount: 1 }
+  pattern:
+    - "iii"
+    - " s "
+    - " s "
+  outputs:
+    - item: reinforced_pickaxe
+```
+
+- `ingredients` — a **letter** for each ingredient, with `material` (a vanilla material **or** a
+  Valmora item id) and `amount` (how many must be in that one slot).
+- `pattern` — rows of letters, one character per slot. A space means the slot must be empty.
+- A pattern smaller than the machine's grid is matched anywhere it fits: a 2×2 pattern works in
+  any corner of a 3×3 table.
+
+</Tab>
+<Tab label="SHAPELESS — any slots">
+
+```yaml
+glass_bottles:
+  machine: crafting_table
+  type: SHAPELESS
+  ingredients:
+    - { item: GLASS, amount: 1 }
+    - { item: SAND, amount: 1 }
+  outputs:
+    - item: GLASS_BOTTLE
+      amount: 3
+```
+
+- `ingredients` — a **list** of `item` + `amount`, in any slots and any order.
+- Each entry needs its own slot: two entries can't share one stack.
+
+</Tab>
+</Tabs>
+
+## Fields
+
+| Field | Required | Default | What it does |
+|---|---|---|---|
+| `machine` | yes | — | The [machine](/docs/machines) id it works in: `crafting_table`, `forge`, `press`, or your own. |
+| `type` | yes | — | `SHAPED`, `SHAPELESS`, or `SMITHING` (below). |
+| `ingredients` | yes | — | See above. |
+| `pattern` | SHAPED | — | Rows of ingredient letters. |
+| `outputs` | yes | — | A list of `item` (material or Valmora id) + `amount` (default 1, max 64). |
+| `outputs[].slot` | if more than one output | — | Which OUTPUT slot (its `id` in the menu) each output goes to. |
+| `on-craft` | no | none | [Events](/docs/events) run each time it's crafted. |
+| `upgrade-from` | no | none | The ingredient being upgraded: a pattern letter (SHAPED) or item id (SHAPELESS). Its enchants, reforge, gems, durability and custom name carry over to the output. |
+| `keep-data-on-upgrade` | no | `true` | Set `false` to turn the `upgrade-from` carry-over off. |
+
+Outputs are always proper Valmora items (rarity, stats, lore), even vanilla materials.
+
+## Several outputs
+
+A recipe can fill several OUTPUT slots of its machine. Each output then needs a `slot:`:
+
+```yaml
+ore_processing:
+  machine: ore_processor
+  type: SHAPELESS
+  ingredients:
+    - { item: raw_ferrite, amount: 1 }
+  outputs:
+    - { slot: primary, item: ferrite_ingot, amount: 1 }
+    - { slot: byproduct, item: GRAVEL, amount: 2 }
+```
+
+`primary` and `byproduct` are the `id`s of the machine menu's OUTPUT components.
+
+## Vanilla recipes
+
+In the `crafting_table` machine, vanilla recipes (sticks, torches, …) still work when no custom
+recipe matches. Which machines fall back to vanilla is `recipes.vanilla-fallback-machines` in
+[config.yml](/docs/config-yml#recipes).
+
+`type: SMITHING` adds a recipe to the **vanilla smithing table** instead:
+
+```yaml
+netherite_frostbrand:
+  type: SMITHING
+  template: NETHERITE_UPGRADE_SMITHING_TEMPLATE
+  base: DIAMOND_SWORD
+  addition: NETHERITE_INGOT
+  result:
+    item: frostbrand
+    amount: 1
+```
+
+`template`, `base` and `addition` are vanilla materials; the result can be a Valmora item.
+
+## Checking recipes
+
+```text
+/recipe list crafting_table
+/recipe preview crafting_table reinforced_pickaxe
+```
+
+A recipe that fails to load prints `Failed to load some Recipe` in the console with the reason.
+
+<SeeAlso slugs={["machines", "anvil", "tutorial-first-recipe", "guis"]} />

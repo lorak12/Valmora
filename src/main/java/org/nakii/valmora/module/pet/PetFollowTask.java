@@ -19,9 +19,10 @@ import java.util.UUID;
  */
 public class PetFollowTask implements Runnable {
 
-    private static final double FOLLOW_DISTANCE = 2.5;
-    private static final double TELEPORT_DISTANCE = 12.0;
-    private static final double STEP = 0.35;
+    // HC-230: follow-feel tuning, read once per task construction (module re-created per reload).
+    private final double followDistance;
+    private final double teleportDistance;
+    private final double step;
 
     private final Valmora plugin;
     private final Map<UUID, Entity> activePets;
@@ -29,6 +30,9 @@ public class PetFollowTask implements Runnable {
     public PetFollowTask(Valmora plugin, Map<UUID, Entity> activePets) {
         this.plugin = plugin;
         this.activePets = activePets;
+        this.followDistance = plugin.getConfig().getDouble("pets.follow.follow-distance", 2.5);
+        this.teleportDistance = plugin.getConfig().getDouble("pets.follow.teleport-distance", 12.0);
+        this.step = plugin.getConfig().getDouble("pets.follow.step", 0.35);
     }
 
     @Override
@@ -46,14 +50,14 @@ public class PetFollowTask implements Runnable {
             }
 
             double distance = ownerLoc.distance(petLoc);
-            if (distance <= FOLLOW_DISTANCE) continue;
+            if (distance <= followDistance) continue;
 
-            if (distance >= TELEPORT_DISTANCE) {
+            if (distance >= teleportDistance) {
                 pet.teleport(ownerLoc.clone().add(1, 0, 0));
                 continue;
             }
 
-            org.bukkit.util.Vector direction = ownerLoc.toVector().subtract(petLoc.toVector()).normalize().multiply(STEP);
+            org.bukkit.util.Vector direction = ownerLoc.toVector().subtract(petLoc.toVector()).normalize().multiply(step);
             Location stepped = petLoc.clone().add(direction);
             stepped.setY(ownerLoc.getY());
             stepped.setDirection(ownerLoc.toVector().subtract(petLoc.toVector()));

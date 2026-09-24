@@ -37,7 +37,8 @@ public class ItemDefinitionParser {
             try {
                 builder.rarity(Rarity.valueOf(rarityStr.toUpperCase()));
             } catch (IllegalArgumentException e) {
-                return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Invalid rarity '" + rarityStr + "'. Valid options are: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY.");
+                return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Invalid rarity '" + rarityStr + "'. Valid options are: "
+                        + java.util.Arrays.stream(Rarity.values()).map(Enum::name).collect(java.util.stream.Collectors.joining(", ")) + ".");
             }
         }
 

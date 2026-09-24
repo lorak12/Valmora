@@ -55,7 +55,7 @@ public class CollectionCommand implements TabExecutor {
     }
 
     private void handleView(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "collection")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -86,7 +86,7 @@ public class CollectionCommand implements TabExecutor {
     }
 
     private void handleForce(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "collection")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -127,7 +127,7 @@ public class CollectionCommand implements TabExecutor {
     }
 
     private void handleReset(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "collection")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }

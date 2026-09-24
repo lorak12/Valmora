@@ -1,0 +1,136 @@
+---
+title: Abilities & mechanics
+summary: Item abilities — every field, all 14 triggers, all 17 mechanics with their params, formulas, damage over time and projectiles.
+---
+
+An **ability** is something an item does: on right-click, on hit, while worn… Each one has a
+**trigger** (when it fires), optional checks (conditions, cooldown, mana), and a list of
+**mechanics** (what it does). Mob abilities use the same mechanics with different triggers — see
+[Mobs & bosses](/docs/mobs#abilities). Modifiers can grant abilities too.
+
+## An ability
+
+```yaml
+abilities:
+  flame_wave:
+    name: "Flame Wave"
+    trigger: RIGHT_CLICK
+    target-range: 12
+    cooldown: 5
+    mana-cost: 20
+    conditions:
+      - "!zone hub"
+    description:
+      - "<gray>Burns every enemy near you."
+    mechanics:
+      - type: DAMAGE
+        params:
+          damage: "20 + $player.stat.strength$ * 0.5"
+          damage-type: FIRE
+          target: "@enemies_in_radius{r=6}"
+      - type: IGNITE
+        params:
+          duration: 3
+          target: "@enemies_in_radius{r=6}"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| (key) | — | The ability's id, unique within the item. |
+| `trigger` | — **required** | When it fires. See [Triggers](#triggers). |
+| `name` | the id | Shown in the lore header `Ability: Flame Wave`. |
+| `description` | none | Lore lines under the header. |
+| `display` | `FULL` | `FULL` shows the header, description, mana cost and cooldown. `SIMPLE` shows only the description — use it for passive bonuses that should read like a normal lore line. |
+| `cooldown` | `0` | Seconds before it can fire again. A red message shows the time left. |
+| `mana-cost` | `0` | Mana taken per use. Not enough mana → "Not enough Mana!" and nothing happens. |
+| `conditions` | none | [Conditions](/docs/conditions) that must all be true. |
+| `target-range` | `0` | How far (blocks) to look for the entity the player is aiming at, which becomes `@target`. When set and the player isn't aiming at anything in range, the ability **doesn't fire** ("No target in range!"). Leave it out for abilities that don't need a target. |
+| `mechanics` | none | What it does, top to bottom. |
+
+Checks run in this order: target (if `target-range` is set) → conditions → cooldown → mana. Nothing is spent if a check fails.
+
+## Triggers
+
+<RefTable kind="itemTriggers" />
+
+Held items fire held-item triggers; armor fires `EQUIP`/`UNEQUIP`, `SNEAK`, `ON_TELEPORT`,
+`ON_DEATH`, `ON_RESPAWN` and `PASSIVE` while worn.
+
+## Mechanics
+
+Each entry is a `type` and its `params`. `type` is case-insensitive.
+
+<RefTable kind="mechanics" />
+
+Defaults for params you leave out are in [config.yml → mechanics](/docs/config-yml#mechanics).
+
+### Formulas
+
+Number params (`damage`, `heal`, `amount`, `duration`…) accept a formula with
+[variables](/docs/variables):
+
+```yaml
+damage: "$player.last_damage$ * 1.5"          # 150% of the hit that triggered ON_HIT
+heal: "144 + $player.max_hp$ * 0.05"          # 144 + 5% of max health
+amount: "max(10, $player.stat.intelligence$)"
+```
+
+Quote formulas. Item `stats:` can't use formulas, only mechanic params can.
+
+### Damage and healing over time
+
+`DAMAGE` and `HEAL` take `ticks` and `interval`: the first hit lands immediately, then the rest
+follow `interval` seconds apart.
+
+```yaml
+- type: DAMAGE
+  params:
+    damage: 40
+    damage-type: POISON
+    target: "@target"
+    ticks: 5          # 5 hits in total
+    interval: 1.0     # one per second
+```
+
+### Projectiles with on-hit effects
+
+`LAUNCH_PROJECTILE` can run more mechanics where the projectile lands. Inside `on-hit`, `@target`
+is whatever it hit and radius selectors are centered on the impact:
+
+```yaml
+- type: LAUNCH_PROJECTILE
+  params:
+    projectile: snowball
+    velocity: 1.8
+    damage: 30
+    on-hit:
+      - type: APPLY_EFFECT
+        params:
+          effect: slowness
+          amplifier: 2
+          duration: 5
+          target: "@enemies_in_radius{r=3}"
+```
+
+### Running script events
+
+`SCRIPT` runs any [event](/docs/events), which reaches everything the mechanics don't:
+
+```yaml
+- type: SCRIPT
+  params:
+    events:
+      - "teleport warp:hub"
+      - "notify <aqua>Whoosh!"
+```
+
+## Server-wide rules for abilities
+
+`item_pipeline.yml` can react to, or cancel, **any** ability without editing items — for example
+"no abilities in the hub". See [Pipelines](/docs/pipelines#no-abilities-in-the-hub).
+
+## Adding a mechanic
+
+Java addons can register new mechanic types; see [Extending Valmora](/docs/developer-extending#an-ability-mechanic).
+
+<SeeAlso slugs={["target-selectors", "items", "mobs", "variables"]} />

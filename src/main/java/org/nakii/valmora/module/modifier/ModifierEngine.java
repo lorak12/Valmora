@@ -204,9 +204,24 @@ public class ModifierEngine {
      */
     private int effectiveTier(ModifierGroupDefinition group, ModifierDefinition def, ModifierInstance instance, RarityDefinition rarity) {
         if (group.getTierSource() == TierSource.RARITY_RANK && rarity != null) {
-            return Math.max(1, Math.min(rarity.getRank() + 1, def.getMaxTier()));
+            return Math.max(1, Math.min(rarityRankTier(rarity), def.getMaxTier()));
         }
         return instance.getTier();
+    }
+
+    /** HC-122: {@code modifiers.tier-source.formula} — an Expression evaluated with
+     *  {@code $rarity.rank$}; falls back to the original hardcoded {@code rank + 1}. */
+    private int rarityRankTier(RarityDefinition rarity) {
+        var api = org.nakii.valmora.api.ValmoraAPI.getInstance();
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        String formula = plugin != null ? plugin.getConfig().getString("modifiers.tier-source.formula", "") : null;
+        if (formula != null && !formula.isBlank() && api != null && api.getScriptModule() != null) {
+            var ctx = new org.nakii.valmora.api.execution.SimpleExecutionContext(null, null, null, null);
+            ctx.set("rarity:rank", (double) rarity.getRank());
+            Object result = api.getScriptModule().getExpressionEvaluator().evaluate(formula, ctx);
+            if (result instanceof Number n) return n.intValue();
+        }
+        return rarity.getRank() + 1;
     }
 
     /**

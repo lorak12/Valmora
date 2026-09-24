@@ -351,8 +351,22 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
         }));
     }
 
+    /**
+     * HC-105: {@code anvil.repair-materials} lets a content pack map a custom tool-tier substring
+     * (e.g. a custom alloy) to its repair material without touching {@link #REPAIR_MATERIAL_HINTS}.
+     * Config entries are checked first (in declared order), then the built-in hint map as a fallback.
+     */
     private Material resolveRepairMaterial(Material toolMaterial) {
         String name = toolMaterial.name();
+        var section = plugin.getConfig().getConfigurationSection("anvil.repair-materials");
+        if (section != null) {
+            for (String key : section.getKeys(false)) {
+                if (name.contains(key.toUpperCase())) {
+                    Material mat = Material.matchMaterial(section.getString(key, ""));
+                    if (mat != null) return mat;
+                }
+            }
+        }
         for (Map.Entry<String, Material> entry : REPAIR_MATERIAL_HINTS.entrySet()) {
             if (name.contains(entry.getKey())) return entry.getValue();
         }

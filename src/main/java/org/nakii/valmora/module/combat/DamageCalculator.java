@@ -83,7 +83,10 @@ public class DamageCalculator {
                 critChance = mob.getCritChance();
                 critDamage = mob.getCritDamage();
             } else if (baseDamageOverride <= 0) {
-                baseDamage = 1.0;
+                // HC-023: fallback when the attacker is neither a player nor a registered
+                // MobDefinition (e.g. a plain vanilla mob) — tunes the vanilla-mob-vs-player gap.
+                var plugin = org.nakii.valmora.Valmora.getInstance();
+                baseDamage = plugin != null ? plugin.getConfig().getDouble("combat.fallback-base-damage", 1.0) : 1.0;
             }
         }
 
@@ -232,11 +235,13 @@ public class DamageCalculator {
             debug("PDC resistance to " + damageType + "=" + pdcResistance + " -> mitigated=" + mitigated + " immune=" + immune);
         }
 
-        double finalDamage = Math.floor(mitigated);
-        debug("RESULT: finalDamage=" + finalDamage + " (floored from " + mitigated + ") crit=" + isCritical + " immune=" + immune);
+        DamageFormulaRegistry roundingFormulas = getFormulaRegistry();
+        double finalDamage = roundingFormulas != null ? roundingFormulas.round(mitigated) : Math.floor(mitigated);
+        debug("RESULT: finalDamage=" + finalDamage + " (rounded from " + mitigated + ") crit=" + isCritical + " immune=" + immune);
 
         DamageResult result = new DamageResult(finalDamage, damageType, isCritical, attacker, victim);
         result.setImmune(immune);
+        result.setKnockbackMultiplier(context.getKnockbackMultiplier());
 
         damageType.fireOnHit(formulaContext);
 
@@ -305,6 +310,10 @@ public class DamageCalculator {
 
         MobDefinition victimMob = mobOf(victim);
 
+        // HC-025 fix: route through the same DamageFormulaRegistry the melee/pipeline path uses
+        // (see the calculateDamage(attacker, victim, ...) overload above) so a server that retunes
+        // damage_formula.yml's defense_multiplier gets consistent mitigation between combat and
+        // environmental damage, instead of this path always using the hardcoded 100/(def+100) curve.
         double defenseMultiplier = 1.0;
         if (!damageType.isIgnoresDefense()) {
             double defense = 0.0;
@@ -317,7 +326,18 @@ public class DamageCalculator {
             } else if (victimMob != null) {
                 defense = victimMob.getDefense();
             }
-            defenseMultiplier = 100.0 / (defense + 100.0);
+            DamageFormulaRegistry formulas = getFormulaRegistry();
+            if (formulas != null) {
+                ExecutionContext envFormulaContext = new SimpleExecutionContext(victim, victim, victim.getLocation(), null);
+                envFormulaContext.set("dmg:base_damage", baseVanillaDamage);
+                envFormulaContext.set("dmg:strength", 0.0);
+                envFormulaContext.set("dmg:crit_chance", 0.0);
+                envFormulaContext.set("dmg:crit_damage", 0.0);
+                envFormulaContext.set("dmg:defense", defense);
+                defenseMultiplier = formulas.evaluate(DamageFormulaRegistry.DEFENSE_MULTIPLIER, envFormulaContext, 100.0 / (defense + 100.0));
+            } else {
+                defenseMultiplier = 100.0 / (defense + 100.0);
+            }
         }
 
         double mitigated = fullDamage * defenseMultiplier;
@@ -338,7 +358,8 @@ public class DamageCalculator {
             immune = immune || pdcResistance >= 1.0;
         }
 
-        double finalDamage = Math.floor(mitigated);
+        DamageFormulaRegistry roundingFormulas = getFormulaRegistry();
+        double finalDamage = roundingFormulas != null ? roundingFormulas.round(mitigated) : Math.floor(mitigated);
         DamageResult result = new DamageResult(finalDamage, damageType, false, null, victim);
         result.setImmune(immune);
 

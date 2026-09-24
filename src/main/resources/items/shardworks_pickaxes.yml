@@ -2,8 +2,8 @@
 # Shardworks tiered pickaxes. Each tier's BREAKING_POWER exceeds the
 # *next* ore's required-power (see zones/shardworks.yml), so mining
 # progression requires crafting the next tool before the next ore
-# becomes minable. A vanilla diamond/netherite pickaxe has no
-# BREAKING_POWER stat at all and cannot break any Shardworks ore.
+# becomes minable. A vanilla pickaxe only has its tier's BREAKING_POWER
+# (config.yml items.breaking-power — netherite 5), too low for any Shardworks ore.
 # =====================================================================
 
 ferrite_pickaxe:

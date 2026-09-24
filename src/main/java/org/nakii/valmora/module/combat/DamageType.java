@@ -51,6 +51,10 @@ public final class DamageType {
     public static final DamageType DRAGON_BREATH = define("DRAGON_BREATH", "<light_purple>", false, List.of());
     public static final DamageType SONIC_BOOM = define("SONIC_BOOM", "<aqua>", true, List.of());
     public static final DamageType OUTSIDE_BORDER = define("OUTSIDE_BORDER", "<black>", true, List.of());
+    // VANILLA_CONTROL_AUDIT.md §7/§14 gap fix: LIGHTNING and FREEZE previously had no switch case in
+    // CombatListener.mapCauseToType and silently fell through to the MELEE fallback.
+    public static final DamageType LIGHTNING = define("LIGHTNING", "<yellow>", false, List.of());
+    public static final DamageType FREEZE = define("FREEZE", "<aqua>", false, List.of());
 
     private final String id;
     private volatile String color;

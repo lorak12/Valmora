@@ -245,7 +245,8 @@ public class GuiListener implements Listener {
                              click == org.bukkit.event.inventory.ClickType.SHIFT_RIGHT);
         
         int craftedCount = 0;
-        int maxCrafts = massCraft ? 64 : 1; 
+        // HC-160: economy/anti-dupe tuning for shift-click mass-crafting.
+        int maxCrafts = massCraft ? plugin.getConfig().getInt("gui.crafting.max-mass-crafts", 64) : 1;
         ItemStack cursor = event.getCursor();
 
         if (!massCraft) {

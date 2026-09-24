@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -46,6 +47,14 @@ public class WarpListener implements Listener {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             if (event.getPlayer().isOnline()) checkPad(event.getPlayer(), event.getPlayer().getLocation());
         });
+    }
+
+    /** HC-152: cancels an in-progress warp warmup on damage, when {@code warps.warmup.cancel-on-damage} is enabled. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            warpManager.cancelWarmupOnDamage(player);
+        }
     }
 
     private void checkPad(Player player, Location loc) {

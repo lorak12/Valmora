@@ -37,6 +37,9 @@ public class CombatListener implements Listener {
         // Evicts the per-UUID $player.last_damage$ tracker entry — otherwise it grows unbounded
         // across the server's lifetime as players come and go.
         org.nakii.valmora.module.item.CombatTracker.clear(event.getPlayer().getUniqueId());
+        DeathContextCache.clear(event.getPlayer().getUniqueId());
+        AttackCooldownService.clear(event.getPlayer().getUniqueId());
+        KnockbackModifierTracker.clear(event.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -47,7 +50,7 @@ public class CombatListener implements Listener {
              return;
         }
 
-        if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() / 2.0F) {
+        if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() * iframeThresholdFactor()) {
              debug("HIT REJECTED (i-frames): victim=" + victim.getName() + " noDamageTicks="
                      + victim.getNoDamageTicks() + " max=" + victim.getMaximumNoDamageTicks());
              event.setCancelled(true);
@@ -66,9 +69,10 @@ public class CombatListener implements Listener {
             double rawEventDamage = event.getDamage(); // captured before zeroing — see debug line below
             event.setDamage(0);
 
-            DamageType damageType = event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.ARROW) ||
-                                    event.getDamageSource().getDamageType().equals(org.bukkit.damage.DamageType.MOB_PROJECTILE) ?
-                                    DamageType.PROJECTILE : DamageType.MELEE;
+            // HC-030 fix: the old heuristic only checked the vanilla ARROW/MOB_PROJECTILE damage
+            // types, so tridents/snowballs/fireballs/other projectiles silently became MELEE.
+            // `event.getDamager() instanceof Projectile` covers every projectile entity type.
+            DamageType damageType = event.getDamager() instanceof Projectile ? DamageType.PROJECTILE : DamageType.MELEE;
 
             debug("HIT START: attacker=" + attacker.getName() + " victim=" + victim.getName()
                     + " damager=" + event.getDamager().getType() + " damageType=" + damageType
@@ -99,6 +103,42 @@ public class CombatListener implements Listener {
             debug("HIT CALCULATED: finalDamage=" + damageResult.getFinalDamage() + " crit=" + damageResult.isCritical()
                     + " immune=" + damageResult.isImmune() + " victimHealthBefore=" + victim.getHealth());
 
+            // Attack-cooldown / swing-charge damage scaling (VANILLA_CONTROL_AUDIT.md §12/§14 High
+            // #9) — melee only; projectile damage has no vanilla swing-charge analogue. Charge is
+            // read from the *previous* recorded hit before recordAttack() below updates it to now.
+            if (!damageResult.isImmune() && damageType == DamageType.MELEE && AttackCooldownService.isEnabled()) {
+                double charge = AttackCooldownService.getChargeProgress(attacker);
+                double chargeMultiplier = AttackCooldownService.damageMultiplierFor(charge);
+                if (chargeMultiplier < 1.0) {
+                    double priorKnockbackMultiplier = damageResult.getKnockbackMultiplier();
+                    damageResult = new DamageResult(damageResult.getFinalDamage() * chargeMultiplier,
+                            damageResult.getDamageType(), damageResult.isCritical(), attacker, victim);
+                    damageResult.setKnockbackMultiplier(priorKnockbackMultiplier);
+                    debug("attack-cooldown scaling: charge=" + charge + " multiplier=" + chargeMultiplier
+                            + " -> finalDamage=" + damageResult.getFinalDamage());
+                }
+            }
+            AttackCooldownService.recordAttack(attacker);
+
+            // Shield blocking (VANILLA_CONTROL_AUDIT.md §14) — see ShieldBlockService for why this
+            // has to run after the pipeline's own calculation rather than relying on vanilla's
+            // already-consumed block reduction on the raw event damage.
+            if (!damageResult.isImmune() && victim instanceof org.bukkit.entity.Player victimPlayer) {
+                ShieldBlockService.Result block = ShieldBlockService.resolve(victimPlayer, attacker, damageType);
+                if (block.blocked()) {
+                    double priorKnockbackMultiplier = damageResult.getKnockbackMultiplier();
+                    damageResult = new DamageResult(damageResult.getFinalDamage() * block.damageMultiplier(),
+                            damageResult.getDamageType(), damageResult.isCritical(), attacker, victim);
+                    damageResult.setKnockbackMultiplier(priorKnockbackMultiplier);
+                    if (block.disablesShield()) {
+                        victimPlayer.setCooldown(org.bukkit.Material.SHIELD, ShieldBlockService.shieldDisableTicks());
+                    }
+                    debug("HIT BLOCKED by shield: victim=" + victimPlayer.getName() + " multiplier="
+                            + block.damageMultiplier() + " disablesShield=" + block.disablesShield()
+                            + " -> finalDamage=" + damageResult.getFinalDamage());
+                }
+            }
+
             if (pipelineActive) {
                 pipelineCtx.set("dmg:final_damage", damageResult.getFinalDamage());
                 pipelineCtx.set("dmg:is_critical", damageResult.isCritical());
@@ -110,7 +150,22 @@ public class CombatListener implements Listener {
                 }
             }
 
+            // VANILLA_CONTROL_AUDIT.md §9 — recorded before apply() so a death message built from
+            // PlayerDeathEvent (fired synchronously inside apply() if this hit is fatal) can read
+            // the attacker/weapon/type that actually caused it, independent of vanilla's own
+            // last-damage-cause bookkeeping (see DeathContextCache's class doc).
+            if (victim instanceof org.bukkit.entity.Player) {
+                DeathContextCache.record(victim.getUniqueId(), damageResult.getDamageType(), attacker);
+            }
+
             damageResult.apply();
+
+            // Hand off this hit's knockback multiplier (VANILLA_CONTROL_AUDIT.md §14 Medium #22) to
+            // CombatKnockbackListener, which observes the separate EntityKnockbackEvent vanilla
+            // fires for this same physical hit a few lines later in its own attack handling.
+            if (!damageResult.isImmune()) {
+                KnockbackModifierTracker.set(victim.getUniqueId(), damageResult.getKnockbackMultiplier());
+            }
 
             debug("HIT APPLIED: victim=" + victim.getName() + " healthAfter=" + victim.getHealth()
                     + " dealt=" + damageResult.getFinalDamage());
@@ -176,9 +231,9 @@ public class CombatListener implements Listener {
         }
 
         if (event.getEntity() instanceof LivingEntity victim) {
-            if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() / 2.0F) {
+            if (victim.getNoDamageTicks() > victim.getMaximumNoDamageTicks() * iframeThresholdFactor()) {
                  event.setCancelled(true);
-                 return; 
+                 return;
             }
 
             double baseDamage = event.getDamage();
@@ -188,6 +243,11 @@ public class CombatListener implements Listener {
 
             DamageType customType = mapCauseToType(event.getCause());
             DamageResult damageResult = DamageCalculator.calculateDamage(victim, customType, baseDamage);
+
+            if (victim instanceof org.bukkit.entity.Player) {
+                DeathContextCache.record(victim.getUniqueId(), customType, null);
+            }
+
             damageResult.apply();
 
             debug("ENV HIT: victim=" + victim.getName() + " cause=" + event.getCause() + " mappedType=" + customType
@@ -197,6 +257,15 @@ public class CombatListener implements Listener {
             // Fully fire/lava-immune mobs should not keep burning
             if (damageResult.isImmune() && (customType == DamageType.FIRE || customType == DamageType.LAVA)) {
                 victim.setFireTicks(0);
+            }
+            // VANILLA_CONTROL_AUDIT.md §7 — same parity fix for FREEZE (powder snow): a fully
+            // freeze-immune entity would otherwise keep re-accumulating freeze ticks and re-triggering
+            // this same immune (no-op) damage every interval. No dedicated freeze-tick event exists in
+            // this Paper API version to intercept accumulation itself (there is no `EntityFreezeEvent`
+            // here, unlike the audit doc's listed hook), so resetting on the immune hit is the
+            // equivalent fix.
+            if (damageResult.isImmune() && customType == DamageType.FREEZE) {
+                victim.setFreezeTicks(0);
             }
 
             ValmoraAPI.getInstance().getDamageIndicatorManager().spawnIndicator(damageResult);
@@ -227,7 +296,20 @@ public class CombatListener implements Listener {
         }
     }
 
+    /**
+     * HC-031: {@code combat.cause-mapping.<BUKKIT_CAUSE>: <valmora-damage-type-id>} lets a server
+     * remap or add a cause->type mapping without a code change; checked before the built-in
+     * switch below, which stays as the shipped default set.
+     */
     private DamageType mapCauseToType(EntityDamageEvent.DamageCause cause) {
+        Valmora plugin = Valmora.getInstance();
+        if (plugin != null) {
+            String configured = plugin.getConfig().getString("combat.cause-mapping." + cause.name());
+            if (configured != null && !configured.isBlank()) {
+                var found = DamageType.find(configured);
+                if (found.isPresent()) return found.get();
+            }
+        }
         return switch (cause) {
             case FALL -> DamageType.FALL;
             case FIRE, FIRE_TICK -> DamageType.FIRE;
@@ -245,7 +327,26 @@ public class CombatListener implements Listener {
             case DRAGON_BREATH -> DamageType.DRAGON_BREATH;
             case SONIC_BOOM -> DamageType.SONIC_BOOM;
             case WORLD_BORDER -> DamageType.OUTSIDE_BORDER;
-            default -> DamageType.MELEE;
+            case LIGHTNING -> DamageType.LIGHTNING;
+            case FREEZE -> DamageType.FREEZE;
+            default -> fallbackDamageType();
         };
+    }
+
+    /** {@code combat.environment.fallback-damage-type} — HC-033. */
+    private static DamageType fallbackDamageType() {
+        Valmora plugin = Valmora.getInstance();
+        String id = plugin != null ? plugin.getConfig().getString("combat.environment.fallback-damage-type", "MELEE") : "MELEE";
+        try {
+            return DamageType.valueOf(id.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return DamageType.MELEE;
+        }
+    }
+
+    /** {@code combat.iframe-threshold-factor} — HC-029 (fraction of maxNoDamageTicks under which a repeat hit is rejected). */
+    private static float iframeThresholdFactor() {
+        Valmora plugin = Valmora.getInstance();
+        return plugin != null ? (float) plugin.getConfig().getDouble("combat.iframe-threshold-factor", 0.5) : 0.5F;
     }
 }

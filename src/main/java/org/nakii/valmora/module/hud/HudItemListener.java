@@ -31,9 +31,11 @@ public class HudItemListener implements Listener {
 
     @EventHandler
     public void onRespawn(PlayerRespawnEvent event) {
-        // Schedule 1-tick delay to run after vanilla respawn inventory restore
+        // Schedule a delay to run after vanilla respawn inventory restore — HC-170: fragile on lag.
+        var plugin = org.nakii.valmora.Valmora.getInstance();
+        long delayTicks = plugin != null ? plugin.getConfig().getLong("hud.respawn-restore-delay-ticks", 1L) : 1L;
         event.getPlayer().getServer().getScheduler().runTaskLater(
-                org.nakii.valmora.Valmora.getInstance(), () -> module.giveHudItems(event.getPlayer()), 1L);
+                plugin, () -> module.giveHudItems(event.getPlayer()), delayTicks);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

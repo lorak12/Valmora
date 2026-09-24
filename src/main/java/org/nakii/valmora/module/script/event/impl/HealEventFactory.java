@@ -20,7 +20,7 @@ import java.util.List;
  * domain-agnostic (registered by {@link org.nakii.valmora.module.script.ScriptModule} itself, not
  * enchant-private) since it's just as usable from mob/item abilities or quest scripts.
  *
- * <p>DSL: {@code heal <selector> <amount>} — {@code selector} uses {@link TargetResolver}'s
+ * <p>DSL: {@code heal <selector> <amount...>} — {@code selector} uses {@link TargetResolver}'s
  * {@code @self}/{@code @target}/etc. vocabulary; {@code amount} may be a literal number or a
  * {@code $}-containing formula (evaluated the same way {@code VariableEvent} evaluates its value
  * argument). A {@link Player} target heals through their Valmora profile (matching {@code
@@ -38,7 +38,9 @@ public class HealEventFactory implements EventFactory {
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2) return context -> {};
         String selector = args[0];
-        String rawAmount = args[1];
+        // Everything after the selector is the amount, so an unquoted formula with spaces
+        // ("heal @self $player.max_hp$ * 0.05") evaluates whole instead of just its first token.
+        String rawAmount = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
 
         return context -> {
             double amount = EventArgs.resolveDouble(rawAmount, context);

@@ -94,7 +94,7 @@ public class SkillCommand implements TabExecutor {
     }
 
     private void handleGive(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "skill")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -151,7 +151,7 @@ public class SkillCommand implements TabExecutor {
     }
 
     private void handleSet(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "skill")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -206,7 +206,7 @@ public class SkillCommand implements TabExecutor {
 
     /** Reset a player's skill XP back to 0 — a friendlier alias for {@code /skill set <player> <skill> xp 0}. */
     private void handleReset(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("valmora.admin")) {
+        if (!org.nakii.valmora.util.PermissionResolver.has(sender, "skill")) {
             sender.sendMessage(Formatter.format("<red>No permission."));
             return;
         }
@@ -231,7 +231,7 @@ public class SkillCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<gold><bold>SKILL COMMANDS:"));
         sender.sendMessage(Formatter.format(" <gray>/skill list"));
         sender.sendMessage(Formatter.format(" <gray>/skill get <player> <skill>"));
-        if (sender.hasPermission("valmora.admin")) {
+        if (org.nakii.valmora.util.PermissionResolver.has(sender, "skill")) {
             sender.sendMessage(Formatter.format(" <gray>/skill give <player> <skill> <xp>"));
             sender.sendMessage(Formatter.format(" <gray>/skill set <player> <skill> <xp|level> <value>"));
             sender.sendMessage(Formatter.format(" <gray>/skill reset <player> <skill>"));

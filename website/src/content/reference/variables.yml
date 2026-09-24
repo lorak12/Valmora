@@ -1,0 +1,155 @@
+# Every variable namespace ($namespace.path$). Checked against the VariableProvider classes at
+# build time. `where` says when it resolves to something.
+
+player:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$player.name$`, `$player.world$`, `$player.ping$`, `$player.biome$`, `$player.profile$` (active profile name)"
+    - "`$player.hp$`, `$player.max_hp$`, `$player.health_percent$`, `$player.missing_hp_percent$` — Valmora HP"
+    - "`$player.mana$`, `$player.max_mana$`"
+    - "`$player.stat.<id>$` — any stat's current value (id is case-insensitive)"
+    - "`$player.skill.<id>$` or `.level` — skill level; also `.xp`, `.next_level`, `.progress`, `.xp_in_level`, `.xp_required`"
+    - "`$player.var.<name>$` — a variable you set with the `variable` event"
+    - "`$player.last_damage$` — the damage of the hit that triggered an `ON_HIT` ability"
+    - "`$player.weapon_damage$` — the player's damage stat"
+    - "`$player.in_combat$` — true/false"
+    - "`$player.stat.list$`, `$player.skill.list$` — JSON lists, used by the shipped GUIs"
+target:
+  where: "When there is a target: `ON_HIT`, `@target` abilities, combat pipelines, enchants."
+  paths:
+    - "`$target.type$` (entity type, e.g. `ZOMBIE`), `$target.name$`"
+    - "`$target.health$`, `$target.max_health$`, `$target.hp_percent$`, `$target.missing_hp_percent$`"
+    - "`$target.level$` — the custom mob's `level`, 1 for players and vanilla mobs"
+time:
+  where: "Anywhere."
+  paths:
+    - "`$time.hour$`, `$time.minute$`, `$time.formatted_time$`"
+    - "`$time.day$` (day in phase), `$time.phase$`, `$time.season$`, `$time.year$` — phase/season are the display names from config (`Autumn`, not `AUTUMN`)"
+    - "`$time.total_days$`, `$time.total_minutes$`, `$time.is_day$`"
+    - "`$time.time_of_day$`, `$time.emote$`, `$time.color$`"
+world:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$world.name$`, `$world.dimension$` (`NORMAL`, `NETHER`, `THE_END`)"
+server:
+  where: "Anywhere."
+  paths:
+    - "`$server.online$`, `$server.max_players$`, `$server.motd$`"
+system:
+  where: "Anywhere."
+  paths:
+    - "`$system.time$` — current time in milliseconds"
+math:
+  where: "Anywhere."
+  paths:
+    - "`$math.random$` — a new random number from 0 to 1 each time"
+range:
+  where: "GUI list iteration."
+  paths:
+    - "`$range.<start>.<end>$` — a list of whole numbers, e.g. `$range.1.10$`; the end can be a variable path"
+prop:
+  where: "Inside a GUI."
+  paths:
+    - "`$prop.<key>$` — a GUI session value set with `variable set prop.<key> …` or `open_gui <id> key=value`"
+param:
+  where: "Inside an ability mechanic or a GUI list item."
+  paths:
+    - "`$param.<key>$` — a parameter of the current mechanic"
+gui:
+  where: "Inside a GUI."
+  paths:
+    - "`$gui.input.<slotId>.id$` — Valmora item id (or material) in that INPUT slot, `null` when empty"
+    - "`$gui.input.<slotId>.material$`, `.amount`, `.available_enchants`"
+    - "`$gui.viewed_skill.*$`, `$gui.enchanting.*$`, `$gui.display_list$`, `$gui.has_selection$` — used by the shipped skill and enchanting menus"
+candidate:
+  where: "A STORAGE component's `condition` (which items may go in)."
+  paths:
+    - "`$candidate.item.type$`, `$candidate.item.material$`, `$candidate.item.amount$`"
+zone:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$zone.id$` — current zone id (empty in the wilderness)"
+    - "`$zone.name$` / `$zone.current$` — display name, or the wilderness name"
+    - "`$zone.pvp$` — true/false"
+economy:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$economy.purse$`, `$economy.purse.formatted$`, `$economy.bank$`, `$economy.total$`"
+    - "`$economy.ledger.<1-5>$` — recent transactions, newest first"
+quest:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$quest.<questId>.status$` — `not_started`, `in_progress`, `completed` or `failed`"
+    - "`$quest.<questId>.objective.<objectiveId>.progress$` / `.required`"
+    - "`$quest.objective.<objectiveId>.active$`"
+point:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$point.<category>$` — the player's balance in that points category"
+questboard:
+  where: "Quest board GUIs."
+  paths:
+    - "`$questboard.<boardId>.slot.<n>.quest_id$`, `.name`, `.status`"
+progression:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$progression.<tree>.<node>.level$`, `.max_level`, `.next_cost`, `.unlocked`"
+    - "`$progression.<tree>.tier$`, `$progression.<tree>.tier.next.unlock_cost$`"
+pet:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$pet.active$`, `$pet.id$`, `$pet.name$`, `$pet.level$`, `$pet.xp$`, `$pet.max_xp$`"
+warp:
+  where: "Anywhere a player is the caster."
+  paths:
+    - "`$warp.<warpId>.name$`, `$warp.<warpId>.unlocked$`"
+collection:
+  where: "The collections GUIs."
+  paths:
+    - "`$collection.category_list$`, `.item_list`, `.stage_list`, `.detail_name`, `.detail_count`, `.detail_stage`, `.detail_max_stage`, `.detail_next_required`"
+alchemy:
+  where: "The active-effects GUI."
+  paths:
+    - "`$alchemy.effects.count$`, `$alchemy.effects.list$`"
+item:
+  where: "Item ability pipelines and modifier formulas."
+  paths:
+    - "`$item.ability_id$`, `$item.ability_trigger$` — in `item_pipeline.yml`"
+    - "`$item.id$`, `$item.type$`, `$item.rarity.id$` / `.name` / `.color` / `.rank` / `.power`, `$item.stats.<id>$` — in modifier formulas"
+enchant:
+  where: "Inside an enchant definition."
+  paths:
+    - "`$enchant.level$`, `$enchant.state.<key>$`"
+level:
+  where: "Inside an enchant definition."
+  paths:
+    - "`$level$` — the enchant's level (same as `$enchant.level$`)"
+calc:
+  where: "Inside an enchant definition."
+  paths:
+    - "`$calc.<name>$` — one of the enchant's own `variables:` formulas"
+hit:
+  where: "Enchant `ON_ATTACK_POST` / `ON_DEFEND_POST` triggers."
+  paths:
+    - "`$hit.damage$`, `$hit.is_crit$`, `$hit.damage_type$`"
+dmg:
+  where: "`combat_pipeline.yml` from `post_calculation` on."
+  paths:
+    - "`$dmg.final_damage$`, `$dmg.is_critical$`, `$dmg.damage_type$`, `$dmg.is_immune$`"
+mob:
+  where: "`combat:on_death` (mob kill) and `mob:pre_ability` / `post_ability`."
+  paths:
+    - "`$mob.id$`, `$mob.level$` — at `combat:on_death`"
+    - "`$mob.id$`, `$mob.level$`, `$mob.health$`, `$mob.max_health$`, `$mob.health_percent$`, `$mob.ability_id$`, `$mob.ability_trigger$` — at the mob ability points (the boss itself, not its target)"
+resource:
+  where: "`resource_pipeline.yml`."
+  paths:
+    - "`$resource.material$`, `$resource.stage$`"
+fishing:
+  where: "`fishing_pipeline.yml`."
+  paths:
+    - "`$fishing.table$`, `$fishing.sea_creature$`, and after the roll `$fishing.item$`, `$fishing.amount$`"
+curve:
+  where: "XP-curve formulas (`skills/xp_curves.yml`, `pets/defaults.yml`)."
+  paths:
+    - "`$curve.level$` — the level being computed"

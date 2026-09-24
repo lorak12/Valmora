@@ -58,7 +58,7 @@ public class StatCommand implements TabExecutor {
                 }
             }
             case "add" -> {
-                if (!sender.hasPermission("valmora.admin")) {
+                if (!org.nakii.valmora.util.PermissionResolver.has(sender, "stat")) {
                     sender.sendMessage(Formatter.format("<red>You do not have permission to use this command."));
                     return true;
                 }
@@ -81,7 +81,7 @@ public class StatCommand implements TabExecutor {
                 }
             }
             case "remove" -> {
-                if (!sender.hasPermission("valmora.admin")) {
+                if (!org.nakii.valmora.util.PermissionResolver.has(sender, "stat")) {
                     sender.sendMessage(Formatter.format("<red>You do not have permission to use this command."));
                     return true;
                 }

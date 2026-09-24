@@ -1,0 +1,170 @@
+---
+title: Modifiers (reforges & gems)
+summary: Attachable item bonuses — reforges, gemstones, or any kind you invent — with groups, tiers, effects, anvil recipes and costs.
+---
+
+A **modifier** is a bonus attached to an existing item: a reforge, a gemstone, a rune, an
+infusion. Reforges and gemstones ship as examples, but they're just content — you can add any
+kind of modifier without Java. Walkthrough: [Tutorial: your first reforge](/docs/tutorial-first-reforge).
+
+## Three kinds of file
+
+| Folder | Defines |
+|---|---|
+| `modifiers/groups/` | **Groups**: the rules for a kind of modifier (reforges, gems…). |
+| `modifiers/definitions/` | **Modifiers**: one reforge, one gem — its effects. |
+| `modifiers/recipes/` | **Anvil recipes** that attach or remove modifiers. |
+
+Each top-level key is one entry, with no wrapper key.
+
+## Groups
+
+```yaml
+# plugins/Valmora/modifiers/groups/runes.yml
+runes:
+  display:
+    format: LORE          # PREFIX | SUFFIX | LORE | NONE
+    order: 30
+  application:
+    mode: MULTIPLE        # EXCLUSIVE | STACKABLE | MULTIPLE
+    max: 2
+    replacement: true
+    removal: true
+  targets:
+    item_types: [SWORD, BOW]
+  storage:
+    mode: STACKED         # SINGLE | STACKED | INSTANCES
+  tier-source: INSTANCE   # INSTANCE | RARITY_RANK
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `display.format` | — | How attached modifiers show: a name `PREFIX` (*Fierce* Sword), `SUFFIX` (Sword *of Frost*), a `◆` `LORE` line, or `NONE`. |
+| `display.order` | — | Order among groups in the name/lore. |
+| `application.mode` | `MULTIPLE` | `EXCLUSIVE` — only one modifier from the group per item. `STACKABLE` — the same modifier can be added several times. `MULTIPLE` — several different ones. |
+| `application.max` | unlimited | Most modifiers from this group on one item. |
+| `application.replacement` | `false` | Whether applying a new one can replace an existing one when the item is full. |
+| `application.removal` | `true` | Whether they can be removed. |
+| `targets.item_types` | any | Item types the group applies to. |
+| `storage.mode` | — | How they're saved on the item: `SINGLE`, `STACKED` (one entry with a count), `INSTANCES` (each separately). |
+| `tier-source` | `INSTANCE` | `INSTANCE` — the tier is chosen when applied (gems: a tier-3 gem gives tier 3). `RARITY_RANK` — the tier follows the item's rarity (reforges: COMMON = 1 … DIVINE = 7). |
+
+Defaults for fields a group leaves out are in [config.yml → modifiers](/docs/config-yml#modifiers).
+The shipped groups are `reforges` (exclusive, prefix, rarity tiers), `gemstones` (up to 5, lore
+lines) and `traits`.
+
+## Modifiers
+
+```yaml
+# plugins/Valmora/modifiers/definitions/runes.yml
+fire_rune:
+  group: runes
+  display:
+    name: "<red>Rune of Fire"
+  targets:
+    item_types: [SWORD]
+  requirements:
+    - "$player.skill.combat.level$ >= 10"
+  conflicts:
+    ids: [frost_rune]
+  weight: 1.0
+  tiers:
+    1:
+      effects:
+        - { type: STAT, stat: strength, operation: ADD, value: 5 }
+    2:
+      display:
+        name: "<red>Greater Rune of Fire"
+      effects:
+        - { type: STAT, stat: strength, operation: ADD, value: 12 }
+        - type: ABILITY
+          definition:
+            trigger: ON_HIT
+            display: SIMPLE
+            description: ["<gray>Sets targets on fire."]
+            mechanics:
+              - { type: IGNITE, params: { duration: 3, target: "@target" } }
+```
+
+| Field | What it does |
+|---|---|
+| `group` | **Required.** Which group it belongs to. |
+| `display.name` / `prefix` / `suffix` / `lore` | How it shows, depending on the group's format. A tier can override `display.name`. |
+| `targets.item_types` | Narrows the group's item types. |
+| `requirements` | [Conditions](/docs/conditions) the player must meet to apply it. |
+| `tags` | Labels for this modifier, e.g. `[ELEMENTAL]`, that other modifiers can conflict with. |
+| `conflicts.ids` / `conflicts.tags` | Modifier ids, or tags, it can't be combined with on one item. |
+| `weight` | Chance weight when a recipe picks a `RANDOM` modifier from the group (default 1). |
+| `tiers.<n>.effects` | Effects per tier. A tier that isn't declared uses the nearest lower one. |
+| `effects` | Effects for a modifier without tiers. |
+| `state` | Named counters (`default`, `min`, `max`) that `STATE` effects change. |
+
+### Effects
+
+| `type` | Fields | Does |
+|---|---|---|
+| `STAT` | `stat`, `operation` (`ADD` or `MULTIPLY`), `value` | Changes a stat while the item is used. Shown in the item's stat lines. |
+| `ABILITY` | `definition:` — an [ability](/docs/abilities) (`trigger`, `mechanics`, `cooldown`…) | Gives the item an ability. |
+| `EVENT` | `trigger`, `actions` | Runs [events](/docs/events) on an item trigger (`ON_HIT`, `ON_KILL`…). |
+| `STATE` | `key`, `operation` (`ADD` or `SET`), `value` | Changes one of the modifier's `state` counters. |
+
+Any effect can also have `conditions:`; it only applies while they're true.
+
+A `value` can be a number, `{ expression: "10 + $item.rarity.rank$ * 5" }`, or rarity-scaled:
+`{ base: 5, scaling: { type: RARITY, property: power, operation: MULTIPLY } }`. Formulas can read
+`$item.rarity.*$`, `$item.type$`, `$item.id$` and `$item.stats.<id>$`.
+
+## Anvil recipes
+
+Players attach modifiers at the [Anvil](/docs/anvil): item left, addition in the middle.
+
+```yaml
+# plugins/Valmora/modifiers/recipes/runes.yml
+fire_rune_apply:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD]
+  addition:
+    item: fire_rune_stone
+    amount: 1
+  modifier:
+    group: runes
+    id: fire_rune
+    tier: 1
+  cost:
+    coins: 500
+    xp_levels: 5
+
+runes_remove:
+  machine: custom_anvil
+  operation: REMOVE_MODIFIER
+  base:
+    item_types: [SWORD]
+  addition:
+    item: rune_eraser
+  modifier:
+    group: runes          # no id = remove every rune
+  priority: 10
+```
+
+| Field | What it does |
+|---|---|
+| `machine` | Always `custom_anvil` (the default). The anvil hands off to these recipes. |
+| `operation` | `APPLY_MODIFIER` or `REMOVE_MODIFIER`. |
+| `base.item_types` | What can go in the left slot. |
+| `addition.item` / `amount` | What goes in the middle slot. Leave `addition` out to match the item alone (the shipped `random_reforge` does this). |
+| `modifier.group` / `id` / `tier` | What to apply or remove. `id: RANDOM` picks by `weight`, skipping the current one. No `id` on removal = the whole group. |
+| `cost.coins` / `cost.xp_levels` | A number or a rarity-scaled value like effect values. |
+| `priority` | Higher is checked first (default 0). Needed when two recipes could match the same items. |
+
+## /modifier
+
+| Command | Does |
+|---|---|
+| `/modifier groups` | Lists groups and their rules. |
+| `/modifier list <group>` | Lists a group's modifiers. |
+| `/modifier apply <group> <id> [tier]` | Applies to the held item, skipping recipe and cost. |
+| `/modifier remove <group> [id]` | Removes from the held item. |
+
+<SeeAlso slugs={["tutorial-first-reforge", "anvil", "rarities-item-types", "abilities"]} />
