@@ -628,17 +628,31 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
     }
 
     private void saveAllResources() {
-        // Fixed 2026-08-07: previously ran this "copy if missing" pass on every startup, which
-        // meant deleting a shipped default (a zone, a mob, a GUI, ...) never actually stuck — it
-        // came right back on the next restart, since "the file is missing" looked identical
-        // whether it was never seeded or an admin deliberately removed it. Now it only runs once
-        // per install (marked by this file); an intentional deletion after that stays deleted.
-        // The tradeoff: a plugin update that ships a brand-new default file under one of the
-        // seeded folders won't auto-appear on existing installs either — same as most plugins'
-        // one-time config-seeding behavior.
+        // Seeding is tracked per file (2026-09-24): `.resources_seeded` lists every default-content
+        // path that has already been offered to this install. A path on that list is never copied
+        // again, so deleting a shipped default stays deleted (the 2026-08-07 fix) — but a file that
+        // a plugin update adds to the jar isn't on the list yet, so it does get copied on the next
+        // startup. The 2026-08-07 version used an empty marker that stopped *all* seeding forever,
+        // which meant new defaults never reached existing installs (and machines/ + block_loot/,
+        // which it never listed at all, never reached any install).
         File seededMarker = new File(getDataFolder(), ".resources_seeded");
-        if (seededMarker.exists()) return;
+        java.util.Set<String> seeded = new java.util.LinkedHashSet<>();
+        boolean legacyMarker = false;
+        if (seededMarker.exists()) {
+            try {
+                for (String line : java.nio.file.Files.readAllLines(seededMarker.toPath())) {
+                    if (!line.isBlank()) seeded.add(line.trim());
+                }
+            } catch (IOException e) {
+                getLogger().warning("Failed to read " + seededMarker.getName() + ": " + e.getMessage());
+                return;
+            }
+            // An empty marker is the old once-per-install format: every folder it seeded was already
+            // offered, so only record those paths — except the folders that format never seeded.
+            legacyMarker = seeded.isEmpty();
+        }
 
+        java.util.List<String> resources = new java.util.ArrayList<>();
         try {
             File codeSource = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
 
@@ -646,49 +660,67 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 try (ZipInputStream zip = new ZipInputStream(new FileInputStream(codeSource))) {
                     ZipEntry entry;
                     while ((entry = zip.getNextEntry()) != null) {
-                        if (!entry.isDirectory()) seedResourceIfSeedable(entry.getName());
+                        if (!entry.isDirectory()) resources.add(entry.getName());
                     }
                 }
             } else if (codeSource.isDirectory()) {
-                // Fixed 2026-08-07: dev/exploded-classpath runs (e.g. `./gradlew runServer`, or
-                // any IDE launch where the plugin's classes/resources sit as loose files rather
-                // than a packaged jar) previously hit `!jarFile.isFile() -> return` and silently
-                // seeded nothing at all. A directory code source is a real filesystem directory
-                // in this case, so it can be walked directly instead of zip-scanned.
+                // Dev/exploded-classpath runs (e.g. `./gradlew runServer`, or an IDE launch where the
+                // plugin's classes/resources sit as loose files rather than a packaged jar): a
+                // directory code source is a real filesystem directory, so walk it directly.
                 try (var stream = java.nio.file.Files.walk(codeSource.toPath())) {
                     for (java.nio.file.Path path : (Iterable<java.nio.file.Path>) stream.filter(java.nio.file.Files::isRegularFile)::iterator) {
-                        String name = codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/');
-                        seedResourceIfSeedable(name);
+                        resources.add(codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/'));
                     }
                 }
             } else {
                 return;
             }
-
-            getDataFolder().mkdirs();
-            seededMarker.createNewFile();
         } catch (IOException | URISyntaxException e) {
             getLogger().warning("Failed to auto-save resources: " + e.getMessage());
+            return;
+        }
+
+        boolean changed = legacyMarker || !seededMarker.exists();
+        for (String name : resources) {
+            if (!isSeedable(name) || seeded.contains(name)) continue;
+            if (!legacyMarker || isFolderMissingFromLegacySeeding(name)) {
+                // Only save if the file doesn't already exist — don't overwrite server edits
+                if (!new File(getDataFolder(), name).exists()) {
+                    saveResource(name, false);
+                }
+            }
+            seeded.add(name);
+            changed = true;
+        }
+
+        if (!changed) return;
+        try {
+            getDataFolder().mkdirs();
+            java.nio.file.Files.write(seededMarker.toPath(), seeded);
+        } catch (IOException e) {
+            getLogger().warning("Failed to write " + seededMarker.getName() + ": " + e.getMessage());
         }
     }
 
-    /** Copies one jar/classpath resource entry into the data folder if it's one of the seedable default-content files and doesn't already exist there. */
-    private void seedResourceIfSeedable(String name) {
+    /** Folders the pre-2026-09-24 once-per-install seeding never copied, so a legacy install still needs them. */
+    private static boolean isFolderMissingFromLegacySeeding(String name) {
+        return name.startsWith("machines/") || name.startsWith("block_loot/") || name.equals("death_pipeline.yml");
+    }
+
+    /** Whether a jar/classpath resource entry is one of the default-content files copied into the data folder. */
+    static boolean isSeedable(String name) {
         if (name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
-            return;
+            return false;
         }
 
         if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
                 || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
                 || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
-                || name.equals("mob_pipeline.yml") || name.equals("rarities.yml")) {
-            if (!new File(getDataFolder(), name).exists()) {
-                saveResource(name, false);
-            }
-            return;
+                || name.equals("mob_pipeline.yml") || name.equals("death_pipeline.yml") || name.equals("rarities.yml")) {
+            return true;
         }
 
-        if (name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
+        return name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                 name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
                 name.startsWith("enchant/") ||
                 name.startsWith("alchemy/") || name.startsWith("stats/") || name.startsWith("damage_types/") ||
@@ -698,13 +730,9 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 name.startsWith("collections/") || name.startsWith("hud-items/") ||
                 name.startsWith("calendar/") ||
                 name.startsWith("modifiers/") ||
+                name.startsWith("machines/") || name.startsWith("block_loot/") ||
                 name.startsWith("pets/") ||
                 name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
-                name.startsWith("quest_boards/")) {
-            // Only save if the file doesn't already exist — don't overwrite server edits
-            if (!new File(getDataFolder(), name).exists()) {
-                saveResource(name, false);
-            }
-        }
+                name.startsWith("quest_boards/");
     }
 }

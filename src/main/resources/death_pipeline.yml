@@ -1,0 +1,25 @@
+# Player death/respawn pipeline — optional hook points that run when a player dies or respawns.
+#
+# Leave `stages` empty (or delete this file) and deaths behave exactly as if this feature didn't
+# exist. Each stage runs its on-pass events when all of its conditions are true (on-fail otherwise),
+# for the player who died/respawned.
+#
+# Insertion points ("when"):
+#   on_death    - the player has just died. Informational: `interrupt` doesn't prevent the death.
+#   on_respawn  - the player has just respawned.
+#
+# Example (disabled — remove the leading `#` on every line below to enable):
+#
+# stages:
+#   - id: death_tax_warning
+#     when: on_death
+#     conditions:
+#       - "$economy.purse$ > 0"
+#     on-pass:
+#       - "notify <red>You lost part of your purse. Coins in the bank are safe."
+#   - id: respawn_protection
+#     when: on_respawn
+#     on-pass:
+#       - "apply_potion resistance 5 5"
+
+stages: []

@@ -1,0 +1,112 @@
+---
+title: Scripting overview
+summary: The small language shared by every Valmora system — events that do things, conditions that check things, and variables that read live values.
+---
+
+Everywhere Valmora lets you "do something" — a quest reward, a menu button, an NPC click, an item
+ability, a zone entry, a boss phase — you write the same kind of line. Everywhere it lets you
+"check something", you write the same kind of condition. Learn these once and they work in every
+file.
+
+## The three parts
+
+| Part | Looks like | Reference |
+|---|---|---|
+| **Events** do something | `give DIAMOND:3`, `quest_start wolf_problem`, `economy_add 100` | [Events](/docs/events) |
+| **Conditions** check something | `zone mine`, `quest wolf_problem completed`, `$player.hp$ > 50` | [Conditions](/docs/conditions) |
+| **Variables** read a live value | `$player.name$`, `$player.stat.strength$`, `$time.season$` | [Variables](/docs/variables) |
+
+Conditions that aren't a keyword (`zone`, `tag`, `quest`…) are **expressions**: maths and
+comparisons over variables. See [Expressions](/docs/expressions).
+
+## Event lines
+
+An event line is the event's name followed by its arguments, separated by spaces:
+
+```yaml
+events:
+  - "give DIAMOND:3"
+  - "notify <green>Well done, $player.name$!"
+  - "economy_add 250"
+  - "teleport warp:hub"
+```
+
+Lists of events run top to bottom. Always put each line in double quotes in YAML.
+
+### Options on any event
+
+Add these anywhere after the event name:
+
+| Option | Effect |
+|---|---|
+| `delay:<ticks>` | Run it later: `give DIAMOND:1 delay:40` gives it 2 seconds later. |
+| `conditions:<a>,<b>` | Only run it if every listed condition is true. Separate with commas; prefix one with `!` to negate it. A condition that contains spaces needs the whole option quoted: `\"conditions:zone mine,tag vip\"`. |
+| `notify` | Also tell the player the event ran. |
+
+<Callout type="warning" title="Words that are options">
+The word `notify` and anything starting with `delay:` or `conditions:` are read as options
+wherever they appear, including inside a message. The `notify` event also treats any other word
+containing `:` as a setting. Rephrase messages that contain `Reward: 5 coins` or the word "notify".
+</Callout>
+
+### Spaces inside one argument
+
+Arguments are split on spaces. Wrap an argument that contains spaces in double quotes — inside a
+YAML string, write them as `\"`:
+
+```yaml
+  - "damage @target \"$player.stat.strength$ * 2\" FIRE"
+```
+
+## Who "the player" is
+
+Every script runs **for** someone: the player who clicked the button, finished the objective,
+entered the zone or used the item. Events like `give`, `notify`, `tag`, `variable` and
+`quest_start` act on that player, and `$player.…$` variables read that player.
+
+Two cases where that isn't a player:
+
+- **Boss abilities** run for the boss itself. `notify`, `give` and friends do nothing there; use
+  the ability's `announce:` for messages, or `foreach @nearby:<radius> <event>` to act on players
+  around it.
+- **Calendar events** and other server-wide triggers use `foreach @all <event>` and `notifyall` to
+  reach every online player.
+
+## Stopping a list with `condition`
+
+The `condition` event stops the rest of the list when it's false:
+
+```yaml
+actions:
+  - "condition $economy.purse$ >= 100"
+  - "economy_remove 100"
+  - "give GOLDEN_APPLE:1"
+fail-actions:
+  - "notify <red>You need 100 coins."
+```
+
+This works in **menu actions and event blocks**, **pipeline stages** and **enchant triggers**, which
+run their `fail-actions` when it stops. Everywhere else (quest rewards, NPC clicks, item abilities,
+zone and calendar actions), guard individual events with the `conditions:` option or use the
+field's own `conditions:` list instead.
+
+## Where scripts appear
+
+| File | Field | Runs when |
+|---|---|---|
+| items | ability mechanic `type: SCRIPT` → `events` | the ability fires |
+| mobs | ability mechanic `type: SCRIPT` → `events` | the boss ability fires |
+| quests | objective `events` | the objective is completed |
+| quests | conversation `events`, `final_events` | an option is chosen / the conversation ends |
+| npcs | `on-right-click`, `on-left-click` | the NPC is clicked |
+| guis | `actions.<CLICK>`, `on-open`, `on-close`, `on-slot-update`, `on-update` | clicks and menu events |
+| zones | `enter-actions`, `exit-actions` | a player crosses the border |
+| recipes | `on-craft` | something is crafted |
+| skills, collections, pets, progression | level / milestone rewards | the milestone is reached |
+| calendar | `on-start`, `on-end`, `recurring-daily` | the season window changes |
+| enchants | `triggers.<TRIGGER>.actions` | a hit, a kill… |
+| damage types | `on-hit` | a hit of that type lands |
+| hud-items | `on-left-click`, `on-right-click` | the hotbar item is clicked |
+| `*_pipeline.yml` | `on-pass`, `on-fail` | the pipeline point runs |
+
+<SeeAlso slugs={["events", "conditions", "variables", "expressions", "pipelines"]} />

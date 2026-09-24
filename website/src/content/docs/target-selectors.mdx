@@ -1,0 +1,43 @@
+---
+title: Target selectors
+summary: The @ selectors that choose who an ability mechanic or a script event affects.
+---
+
+Mechanics and some events take a `target:` (or a selector argument) that says **who** is affected.
+
+| Selector | Picks |
+|---|---|
+| `@self` / `@player` | Whoever is using the ability — the player, or the boss for a mob ability. |
+| `@target` | The ability's target: the entity hit (`ON_HIT`), aimed at (`RIGHT_CLICK` with `target-range`), clicked (`ON_INTERACT_ENTITY`), the projectile hit (`on-hit`), or the nearest player (mob abilities with `target-range`). Empty if there's none. |
+| `@enemies_in_radius{r=N}` | Every **enemy** within N blocks. |
+| `@allies_in_radius{r=N}` | Every **ally** within N blocks. |
+| `@cone{range=N, angle=A}` | Every enemy in front, within N blocks and A degrees of where the user is facing. |
+
+**Enemies and allies depend on who's using it:**
+
+| Used by | Enemies | Allies |
+|---|---|---|
+| A player (item abilities, enchants) | every non-player mob or animal | players, including the user |
+| A mob (boss abilities) | players | other mobs |
+
+If you leave `r`, `range` or `angle` out, the defaults are 5 blocks, 8 blocks and 45°
+(`items.target-resolver.defaults` in [config.yml](/docs/config-yml#items)). A blank or unknown
+selector means `@target`.
+
+Radius and cone selectors are measured from where the ability happens: the user, or the impact
+point inside a projectile's `on-hit`.
+
+## Examples
+
+```yaml
+target: "@self"                          # buff yourself
+target: "@target"                        # the mob you hit
+target: "@enemies_in_radius{r=8}"        # AoE around you
+target: "@allies_in_radius{r=10}"        # heal your party
+target: "@cone{range=10, angle=30}"      # a narrow breath attack
+```
+
+Events that take a selector: `heal`, `damage`, `strike_lightning`, `apply_potion`, `give_coins`,
+`take_coins`, `entity`. See [Events](/docs/events).
+
+<SeeAlso slugs={["abilities", "events", "mobs"]} />

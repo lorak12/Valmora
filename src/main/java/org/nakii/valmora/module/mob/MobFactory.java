@@ -55,8 +55,10 @@ public class MobFactory {
         }
 
         // Set speed
+        // Only when configured: an unset speed parses as 0, which used to freeze the mob in place
+        // instead of leaving its vanilla movement speed alone. (Use no-ai: true for a static mob.)
         AttributeInstance speedAttribute = entity.getAttribute(Attribute.MOVEMENT_SPEED);
-        if (speedAttribute != null) {
+        if (speedAttribute != null && definition.getSpeed() > 0) {
             speedAttribute.setBaseValue(definition.getSpeed());
         }
 

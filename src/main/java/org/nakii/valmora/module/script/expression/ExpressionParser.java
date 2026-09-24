@@ -173,6 +173,7 @@ public class ExpressionParser {
             return new LiteralNode(token.substring(1, token.length() - 1));
         }
 
+        if (token.equalsIgnoreCase("null")) return new LiteralNode(null);
         if (token.equalsIgnoreCase("true")) return new LiteralNode(true);
         if (token.equalsIgnoreCase("false")) return new LiteralNode(false);
 

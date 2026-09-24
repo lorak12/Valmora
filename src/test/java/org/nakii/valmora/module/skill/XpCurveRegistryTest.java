@@ -51,6 +51,15 @@ public class XpCurveRegistryTest {
     }
 
     @Test
+    void defaultCurveReachesTheLevel60Cap() {
+        XpCurve curve = new XpCurveRegistry().get(XpCurveRegistry.DEFAULT_CURVE_ID);
+
+        assertEquals(60, curve.getMaxLevel());
+        assertEquals(59, curve.getLevelFromXp(10_999_999));
+        assertEquals(60, curve.getLevelFromXp(11_000_000));
+    }
+
+    @Test
     void freshRegistryAlwaysHasTheBuiltInDefaultCurve() {
         XpCurveRegistry registry = new XpCurveRegistry();
         XpCurve curve = registry.get(XpCurveRegistry.DEFAULT_CURVE_ID);

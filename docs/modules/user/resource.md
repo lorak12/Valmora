@@ -38,7 +38,7 @@ Inside a configured mining zone (e.g. Shardworks), ores behave differently from 
 
   > This ore requires a more powerful tool.
 
-  To mine those ores you must raise your **Breaking Power** stat — normally by equipping a better Valmora pickaxe (see §2.4). A plain vanilla diamond or netherite pickaxe has **no** Breaking Power and cannot break any Shardworks ore.
+  To mine those ores you must raise your **Breaking Power** stat — normally by equipping a better Valmora pickaxe (see §2.4). Vanilla tools get a Breaking Power from their tier (`config.yml` → `items.breaking-power`: wood 1, stone 2, iron 3, diamond 4, netherite 5), which is shown on their lore — not enough for any Shardworks ore (7–9).
 
 - **Custom drops.** Mining a node drops the zone's configured items directly into your inventory instead of vanilla ore drops. Drops are rolled per-entry with their own chance and amount range.
 - **Stage progression.** A node may "degrade" several times before disappearing. For example a coal node becomes cobblestone on the first break, bedrock on the second, then regenerates back to coal.

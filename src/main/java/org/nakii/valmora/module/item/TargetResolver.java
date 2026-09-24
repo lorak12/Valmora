@@ -79,11 +79,7 @@ public final class TargetResolver {
         if (center == null || center.getWorld() == null) return list;
         for (Entity e : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
             if (!(e instanceof LivingEntity le) || le.equals(caster)) continue;
-            if (allies) {
-                if (le instanceof Player) list.add(le);
-            } else {
-                if (isHostile(le)) list.add(le);
-            }
+            if (allies ? isAlly(caster, le) : isHostile(caster, le)) list.add(le);
         }
         return list;
     }
@@ -95,7 +91,7 @@ public final class TargetResolver {
         double cosLimit = Math.cos(Math.toRadians(angleDegrees));
         for (Entity e : origin.getWorld().getNearbyEntities(origin, range, range, range)) {
             if (!(e instanceof LivingEntity le) || le.equals(caster)) continue;
-            if (!isHostile(le)) continue;
+            if (!isHostile(caster, le)) continue;
             Vector to = le.getLocation().toVector().subtract(origin.toVector());
             if (to.lengthSquared() < 1.0e-6) { list.add(le); continue; }
             double dot = facing.dot(to.normalize());
@@ -104,10 +100,20 @@ public final class TargetResolver {
         return list;
     }
 
-    private static boolean isHostile(LivingEntity le) {
-        // Treat any non-player living entity as a valid combat target. Monster check keeps the
-        // intent clear; the broader fallback covers custom mobs that don't extend Monster.
-        return !(le instanceof Player);
+    /**
+     * "Enemy" is relative to the caster (fixed 2026-09-24): for a player, every non-player living
+     * entity; for a mob (a boss ability), players. Previously it was always "non-players", so a
+     * boss's {@code @enemies_in_radius}/{@code @cone} hit the mobs around it and never a player.
+     */
+    private static boolean isHostile(LivingEntity caster, LivingEntity le) {
+        boolean casterIsPlayer = caster == null || caster instanceof Player;
+        return casterIsPlayer != (le instanceof Player);
+    }
+
+    /** "Ally" is the caster's own side: players for a player caster, non-player mobs for a mob caster. */
+    private static boolean isAlly(LivingEntity caster, LivingEntity le) {
+        boolean casterIsPlayer = caster == null || caster instanceof Player;
+        return casterIsPlayer == (le instanceof Player);
     }
 
     /** HC-047: {@code items.target-resolver.defaults.*} — global default when a selector's own {@code r=}/{@code range=}/{@code angle=} arg is omitted. */

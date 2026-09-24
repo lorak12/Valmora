@@ -1,0 +1,116 @@
+# Every quest objective type (`type:` of an objective). Checked against QuestObjectiveTypes at build time.
+
+kill:
+  target: "Custom mob id, vanilla entity type (`ZOMBIE`), or a mob category (`UNDEAD`)"
+  amount: "Kills"
+collect:
+  target: "Valmora item id or material, counted when picked up"
+  amount: "Items"
+reach_zone:
+  target: "Zone id"
+  amount: "1"
+talk_to_npc:
+  target: "NPC id — counted on right-click"
+  amount: "1"
+craft:
+  target: "Valmora item id or material of the crafted result"
+  amount: "Crafts"
+die:
+  target: "`die` (fixed)"
+  amount: "Deaths"
+location:
+  target: "`x;y;z;world`"
+  amount: "Radius in blocks around that point"
+block_break:
+  target: "Block material"
+  amount: "Blocks"
+block_place:
+  target: "Block material"
+  amount: "Blocks"
+jump:
+  target: "`jump` (fixed)"
+  amount: "Jumps"
+breed:
+  target: "Entity type"
+  amount: "Breedings"
+tame:
+  target: "Entity type"
+  amount: "Tamings"
+enchant:
+  target: "Enchantment key, or `any`"
+  amount: "Enchantings"
+smelt:
+  target: "Valmora item id or material of the smelted result — credited to whoever placed the furnace"
+  amount: "Items"
+brew:
+  target: "Potion effect/result"
+  amount: "Brews"
+fish:
+  target: "Caught item's material, or `any`"
+  amount: "Catches"
+shear:
+  target: "Sheared entity type"
+  amount: "Shearings"
+variable:
+  target: "A `player.var` name"
+  amount: "Value to reach — checked whenever that variable changes"
+drink_potion:
+  target: "Potion material"
+  amount: "Potions"
+login:
+  target: "Any text"
+  amount: "Logins"
+logout:
+  target: "Any text"
+  amount: "Logouts"
+level_skill:
+  target: "Skill id"
+  amount: "1 — counts a level-up of that skill"
+stat_reach:
+  target: "Stat id"
+  amount: "Stat value to reach"
+exp_gain:
+  target: "Skill id"
+  amount: "Total skill XP to earn"
+delay:
+  target: "Not used — see the `delay` syntax on the Quests page"
+  amount: "Computed from the delay and interval"
+ride:
+  target: "Mount's entity type, or `any`"
+  amount: "1"
+consume:
+  target: "Valmora item id or material eaten/drunk"
+  amount: "Items"
+step:
+  target: "`x;y;z;world` of a pressure plate"
+  amount: "Steps"
+action:
+  target: "`<left|right|any>:<BLOCK_MATERIAL|any>` — clicking a block"
+  amount: "Clicks"
+arrow:
+  target: "`x;y;z;world` an arrow must land near"
+  amount: "Radius in blocks"
+command:
+  target: "A command, lowercase, without the `/`"
+  amount: "Uses"
+equip:
+  target: "`<HEAD|CHEST|LEGS|FEET|any>:<item id|any>`"
+  amount: "Equips"
+experience:
+  target: "Not used"
+  amount: "Vanilla XP level to reach"
+interact:
+  target: "`<right|any>:<mob id or entity type|any>` — right-clicking an entity"
+  amount: "Interactions"
+npcrange:
+  target: "`<enter|leave|inside|outside>:<npcId>`"
+  amount: "Range in blocks"
+tag:
+  target: "A profile tag name (added with the `tag` event)"
+  amount: "1"
+timer:
+  target: "Any text (usually the objective id) — checked once per second"
+  amount: "Seconds"
+point:
+  target: "A points category"
+  amount: "Points balance to reach"

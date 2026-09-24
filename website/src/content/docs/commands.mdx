@@ -1,0 +1,53 @@
+---
+title: Commands & permissions
+summary: Every Valmora command and subcommand, who can use it, and how to hand single admin commands to staff.
+---
+
+## Permissions
+
+Valmora uses two permission nodes out of the box:
+
+| Node | Grants |
+|---|---|
+| `valmora.admin` | Every admin command and subcommand. |
+| `valmora.admin.gui` | `/gui open` — opening any menu by id, for testing. |
+
+Player commands (`/stats`, `/skills`, `/quest`, `/warp`, `/profile`, …) need no permission.
+
+### Giving staff a single admin command
+
+Most admin commands check a key in `config.yml` → `permissions:`. By default every key is
+`valmora.admin`. Change one to a new node to hand that command out on its own:
+
+```yaml
+# config.yml
+permissions:
+  admin: "valmora.admin"
+  eco: "myserver.staff.eco"     # staff with this node can use /eco — nothing else
+  zone: "myserver.builder"      # builders get /zone
+```
+
+The **Who / config key** column below shows which key controls each command. `/item`, `/mob`,
+`/recipe` and `/test` have no key and always need `valmora.admin`.
+
+## All commands
+
+<RefTable kind="commands" />
+
+## Commands created by menus
+
+A menu (GUI) can register its own command with `command:` in its YAML. The shipped menus add these:
+
+| Command | Opens |
+|---|---|
+| `/skills` | Skill overview |
+| `/alchemy` | Alchemy table |
+| `/enchanting` | Enchanting table |
+| `/geomancy` | The Geomancy progression tree |
+| `/accessories` | Accessory bag |
+| `/quiver` | Arrow quiver |
+| `/baitbag` | Fishing bait bag |
+
+To add your own, see [GUIs](/docs/guis).
+
+<SeeAlso slugs={["config-yml", "guis", "installation"]} />

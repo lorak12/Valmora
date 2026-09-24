@@ -126,7 +126,7 @@ life_steal:
       conditions:
         - "$hit.damage$ > 0"
       actions:
-        - "heal @self $player.max_hp$ * $calc.heal_percent$ / 100"
+        - "heal @self \"$player.max_hp$ * $calc.heal_percent$ / 100\""
 
 lethality:
   name: "Lethality"

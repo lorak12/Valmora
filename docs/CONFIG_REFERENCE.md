@@ -48,6 +48,9 @@
 29. [ui](#ui)
 30. [hud](#hud)
 31. [npc / dialogue](#npc--dialogue)
+32. [world](#world)
+33. [block-loot](#block-loot)
+34. [death](#death)
 
 ---
 
@@ -606,3 +609,36 @@ See `docs/modules/user/npc.md`.
 
 _This page is generated from a direct read of the shipped `config.yml`; if you add or rename a
 field there, update this page in the same change. Last verified against `config.yml` 2026-09-02._
+
+## `world`
+
+Vanilla world settings Valmora applies for you (`WorldRulesModule`). Nothing here is enabled by
+default — every entry ships commented out.
+
+| Field | Default | What it does |
+|---|---|---|
+| `gamerules.<GameRuleName>` | none | Pure pass-through of vanilla gamerules (exact camelCase name, e.g. `keepInventory`, `doFireTick`, `randomTickSpeed`), applied to every loaded world on enable/reload and to worlds that load later. Only keys you set are touched. |
+| `weather-lock.<world>` | none | Locks that world's weather to `CLEAR`, `RAIN` or `THUNDER`, re-enforced against the natural cycle, `/weather` and other plugins. Unlisted worlds are untouched. |
+
+## `block-loot`
+
+Toggles for the global per-block loot overrides defined in `plugins/Valmora/block_loot/*.yml`
+(see `docs/modules/user/blockloot.md`).
+
+| Field | Default | What it does |
+|---|---|---|
+| `enabled` | `true` | Master switch for every `block_loot/` override. |
+| `silk-touch.enabled` | `true` | Silk Touch on an overridden block drops the block itself instead of the loot table (vanilla semantics). `false` makes Silk Touch a no-op there. |
+
+## `death`
+
+Death, respawn and death-message behavior (see `docs/modules/user/death.md`). Every default
+matches vanilla.
+
+| Field | Default | What it does |
+|---|---|---|
+| `keep-inventory-default` / `keep-experience-default` | `false` / `false` | Whether items/XP are kept on death, unless the zone the player died in overrides it with its `keep-inventory-on-death` / `keep-experience-on-death` flag. |
+| `broadcast-enabled` | `true` | Broadcast the death message below server-wide. |
+| `phantoms-enabled` | `true` | `false` disables phantom spawning everywhere. A zone with `natural-mob-spawning: false` also blocks them. |
+| `messages.<DAMAGE_TYPE>` / `messages.default` | see file | Death message per damage-type id (`damage_types/*.yml`), falling back to `default`. Placeholders: `%victim%`, `%attacker%`, `%weapon%`, `%cause%`. |
+| `zone-respawn-overrides.<zoneId>` | `{}` | Custom respawn point for players who died inside that zone, as `"<world>,<x>,<y>,<z>[,<yaw>]"`. Otherwise vanilla bed/anchor/spawn resolution applies. |

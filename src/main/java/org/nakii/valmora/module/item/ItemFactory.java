@@ -131,7 +131,14 @@ public class ItemFactory {
                 ItemType itemType = ItemType.valueOf(typeTagRaw.toUpperCase());
                 if (itemType == ItemType.PICKAXE || itemType == ItemType.SHOVEL
                         || itemType == ItemType.AXE || itemType == ItemType.HOE) {
-                    int bp = getBreakingPower(item.getType());
+                    // Show the Breaking Power the resource gate actually checks — the item's own
+                    // breaking_power stat. It used to print the material tier instead, so a power-7
+                    // custom pickaxe read "4" and a vanilla one read "4" while mining as 0.
+                    Double stored = org.nakii.valmora.Valmora.getInstance() != null
+                            ? org.nakii.valmora.Valmora.getInstance().getStatModule().loadStats(meta)
+                                .get(org.nakii.valmora.Valmora.getInstance().getStatModule().getSystemStats().getBreakingPower())
+                            : null;
+                    int bp = stored != null ? (int) Math.round(stored) : 0;
                     breakingPowerLines.add(Formatter.format(layout.getBreakingPowerFormat().replace("{power}", String.valueOf(bp))));
                 }
             } catch (IllegalArgumentException ignored) {}
@@ -287,7 +294,7 @@ public class ItemFactory {
 
     /** HC-040: {@code items.breaking-power} — tool tier substring -> breaking power, so a custom
      *  tool tier added by a content pack doesn't need a recompile to get a matching power value. */
-    private int getBreakingPower(Material material) {
+    public static int tierBreakingPower(Material material) {
         String name = material.name();
         var plugin = org.nakii.valmora.Valmora.getInstance();
         org.bukkit.configuration.ConfigurationSection section = plugin != null

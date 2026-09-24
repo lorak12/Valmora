@@ -1,0 +1,172 @@
+---
+title: "Tutorial: your first reforge"
+summary: Create a reforge that grows with the item's rarity, a stone item that applies it at the anvil, and a gemstone players can socket.
+---
+
+Reforges and gemstones are **modifiers**: bonuses attached to an item after it's made. You'll add
+a **Glacial** reforge for swords that gives more stats the rarer the sword is, a
+**Glacial Reforge Stone** that applies it at the anvil, and a socketable **Frost Opal** gem.
+
+## How modifiers fit together
+
+| File | Defines |
+|---|---|
+| `modifiers/groups/*.yml` | A **group**, and the rules for its members: how many an item can hold, which item types, how they show on the item. The shipped `reforges` and `gemstones` groups already exist. |
+| `modifiers/definitions/*.yml` | The **modifiers** themselves: one reforge, one gem — and what they give. |
+| `modifiers/recipes/*.yml` | **Anvil recipes** that attach or remove a modifier, and what that costs. |
+
+Players apply modifiers at the **Anvil**: item in the left slot, stone or gem in the middle slot,
+result on the right.
+
+## Step 1 — Let players open the anvil
+
+The anvil ships without a way to open it. Add a trigger in
+`plugins/Valmora/machines/anvil.yml`:
+
+```yaml
+# plugins/Valmora/machines/anvil.yml
+anvil:
+  gui: anvil
+  logic: anvil
+  input-slots: 2
+  output-slots: 1
+  open-triggers:
+    - "block ANVIL"
+```
+
+Right-clicking any anvil now opens Valmora's anvil instead of the vanilla one.
+
+## Step 2 — The reforge
+
+Create `plugins/Valmora/modifiers/definitions/my_reforges.yml`:
+
+```yaml
+# plugins/Valmora/modifiers/definitions/my_reforges.yml
+glacial:
+  group: reforges
+  display:
+    name: "<aqua>Glacial"
+    prefix: "<aqua>Glacial "
+  targets:
+    item_types: [SWORD]
+  tiers:
+    1:   # COMMON
+      effects:
+        - { type: STAT, stat: strength, operation: ADD, value: 4 }
+    3:   # RARE
+      effects:
+        - { type: STAT, stat: strength, operation: ADD, value: 12 }
+        - { type: STAT, stat: crit_chance, operation: ADD, value: 3 }
+    5:   # LEGENDARY
+      effects:
+        - { type: STAT, stat: strength, operation: ADD, value: 30 }
+        - { type: STAT, stat: crit_chance, operation: ADD, value: 8 }
+```
+
+- `glacial:` — the modifier's id. `group: reforges` puts it in the shipped reforge group, which
+  allows **one** reforge per item (a new one replaces the old) and shows it as a name prefix:
+  *Glacial Frostbrand*.
+- `targets.item_types` — only swords can take it.
+- `tiers` — the reforge group picks the tier from the **item's rarity**: 1 = COMMON, 2 = UNCOMMON,
+  3 = RARE, 4 = EPIC, 5 = LEGENDARY, 6 = MYTHIC, 7 = DIVINE. A missing tier uses the next lower one
+  that exists, so an EPIC sword (4) gets tier 3's bonus here.
+- `effects` — what it gives. `STAT` adds to a stat while the item is used. Modifiers can also grant
+  abilities or run script events on triggers; see [Modifiers](/docs/modifiers#effects).
+
+`/valmora reload`, hold Frostbrand and run `/modifier apply reforges glacial` to test it without
+the anvil: the name becomes *Glacial Frostbrand* and the stats in the lore go up.
+
+## Step 3 — The stone and the recipe
+
+The stone is an ordinary item. Add it to your items file:
+
+```yaml
+# plugins/Valmora/items/my_items.yml
+glacial_reforge_stone:
+  name: "Glacial Reforge Stone"
+  material: PRISMARINE_CRYSTALS
+  rarity: RARE
+  lore:
+    - "<gray>Combine with a sword at an anvil"
+    - "<gray>to apply the <aqua>Glacial</aqua> reforge."
+```
+
+Then the anvil recipe that uses it, in `plugins/Valmora/modifiers/recipes/my_reforges.yml`:
+
+```yaml
+# plugins/Valmora/modifiers/recipes/my_reforges.yml
+glacial_reforge:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [SWORD]
+  addition:
+    item: glacial_reforge_stone
+    amount: 1
+  modifier:
+    group: reforges
+    id: glacial
+  cost:
+    coins:
+      base: 1
+      scaling: { type: RARITY, property: forge_cost, operation: MULTIPLY }
+```
+
+- `machine: custom_anvil` — always this for modifier recipes; the anvil hands off to them.
+- `base` — what goes in the left slot. `addition` — what goes in the middle slot.
+- `cost` — coins and/or `xp_levels`. Here the price is `1 × forge_cost` of the sword's rarity,
+  from `rarities.yml` (250 for COMMON up to 15 000 for DIVINE).
+
+`/valmora reload`, then `/item give glacial_reforge_stone`, open an anvil, put Frostbrand left and
+the stone in the middle, and take the result.
+
+<Callout type="note" title="Random reforge">
+The shipped `random_reforge` recipe matches a weapon or armor piece **alone** in the left slot and
+rolls a random reforge from the group. Your new reforge joins the random pool automatically, and
+`weight: 2.0` on the definition makes it twice as likely.
+</Callout>
+
+## Step 4 — A socketable gem
+
+Gems use the shipped `gemstones` group: up to 5 per item, shown as `◆` lines in the lore, and the
+tier is chosen by the recipe instead of the rarity.
+
+```yaml
+# plugins/Valmora/modifiers/definitions/my_gems.yml
+frost_opal:
+  group: gemstones
+  display:
+    name: "<aqua>Frost Opal"
+  tiers:
+    1:
+      effects:
+        - { type: STAT, stat: defense, operation: ADD, value: 10 }
+        - { type: STAT, stat: mana, operation: ADD, value: 20 }
+```
+
+```yaml
+# plugins/Valmora/modifiers/recipes/my_gems.yml
+frost_opal_socket:
+  machine: custom_anvil
+  operation: APPLY_MODIFIER
+  base:
+    item_types: [HELMET, CHESTPLATE, LEGGINGS, BOOTS]
+  addition:
+    item: frost_opal_gem
+    amount: 1
+  modifier:
+    group: gemstones
+    id: frost_opal
+    tier: 1
+  cost:
+    xp_levels: 3
+```
+
+Add a `frost_opal_gem` item like the stone above, reload, and socket it into armor at the anvil.
+
+## Where to go next
+
+- Groups, every effect type, abilities granted by modifiers, removal recipes: [Modifiers](/docs/modifiers).
+- Everything else the anvil does — enchant merging, repair, item upgrades: [Anvil](/docs/anvil).
+
+<SeeAlso slugs={["modifiers", "anvil", "rarities-item-types", "items"]} />

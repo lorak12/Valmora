@@ -2,8 +2,12 @@ package org.nakii.valmora.module.script.variable.providers;
 
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.persistence.PersistentDataType;
+import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
+import org.nakii.valmora.module.mob.MobDefinition;
 import org.nakii.valmora.module.script.variable.VariableProvider;
+import org.nakii.valmora.util.Keys;
 
 import java.util.Optional;
 
@@ -17,7 +21,8 @@ import java.util.Optional;
  *     <li>{@code $target.hp_percent$} — {@code (health / max_health) * 100.0} (added for the enchant
  *     overhaul's {@code execute}/{@code first_strike}-style combat conditions)</li>
  *     <li>{@code $target.missing_hp_percent$} — {@code 100.0 - hp_percent}</li>
- *     <li>{@code $target.level$} — custom mob level if tracked, otherwise 1</li>
+ *     <li>{@code $target.level$} — the custom mob's configured {@code level}, or 1 for players and
+ *     vanilla mobs</li>
  * </ul>
  */
 public class TargetVariableProvider implements VariableProvider {
@@ -40,12 +45,20 @@ public class TargetVariableProvider implements VariableProvider {
                 var attr = target.getAttribute(Attribute.MAX_HEALTH);
                 yield attr != null ? attr.getValue() : target.getHealth();
             }
-            case "level" -> 1; // Custom mob levels are wired in a later phase.
+            case "level" -> mobLevel(target);
             case "name" -> target.getName();
             case "hp_percent" -> hpPercent(target);
             case "missing_hp_percent" -> 100.0 - hpPercent(target);
             default -> null;
         };
+    }
+
+    private int mobLevel(LivingEntity target) {
+        String mobId = target.getPersistentDataContainer().get(Keys.MOB_ID_KEY, PersistentDataType.STRING);
+        if (mobId == null) return 1;
+        var mobManager = ValmoraAPI.getInstance().getMobManager();
+        MobDefinition definition = mobManager != null ? mobManager.getMobDefinition(mobId) : null;
+        return definition != null ? definition.getLevel() : 1;
     }
 
     private double hpPercent(LivingEntity target) {

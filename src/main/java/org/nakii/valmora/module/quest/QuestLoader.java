@@ -22,7 +22,11 @@ public class QuestLoader {
 
     public void load() {
         registry.clear();
+        // A folder holding a quest.yml is a quest package, loaded by QuestPackageManager — parsing its
+        // files here too would register their top-level keys (quests, events, conversations, ...)
+        // as empty flat quests.
         new YamlLoader<QuestDefinition>(plugin, "quests", "Quests")
+                .skipDirectories(dir -> new java.io.File(dir, "quest.yml").isFile())
                 .load(this::parse, def -> registry.register(def.getId(), def));
     }
 

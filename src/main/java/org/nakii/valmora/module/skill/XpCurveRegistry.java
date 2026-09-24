@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * single hardcoded {@code DEFAULT_XP_THRESHOLDS} array that used to live directly on
  * {@code SkillRegistry} and was applied to every skill regardless of its {@code xp_curve} field.
  *
- * <p>The {@code "default"} curve is always present — built with the exact original 59-level
- * threshold table — so a server that never creates {@code skills/xp_curves.yml} sees zero
+ * <p>The {@code "default"} curve is always present — built from the original threshold table
+ * (extended to 60 levels) — so a server that never creates {@code skills/xp_curves.yml} sees zero
  * behavior change (verified in {@code XpCurveRegistryTest}).
  *
  * <p>A curve entry is defined either as:
@@ -39,7 +39,9 @@ public class XpCurveRegistry {
 
     public static final String DEFAULT_CURVE_ID = "default";
 
-    // The exact pre-refactor lookup table (previously SkillRegistry.DEFAULT_XP_THRESHOLDS).
+    // The pre-refactor lookup table (previously SkillRegistry.DEFAULT_XP_THRESHOLDS), plus a 60th
+    // entry (2026-09-24): the original table had only 59 thresholds, so the documented and
+    // configured level 60 cap (skills.defaults.max-level) could never actually be reached.
     private static final int[] DEFAULT_THRESHOLDS = {
             10, 20, 50, 100, 200, 500, 1000, 1500, 2000, 3000, 5000, 7500, 10000,
             15000, 20000, 30000, 40000, 50000, 60000, 75000, 100000, 125000, 150000,
@@ -47,7 +49,7 @@ public class XpCurveRegistry {
             700000, 800000, 900000, 1000000, 1200000, 1400000, 1600000, 1800000,
             2000000, 2300000, 2600000, 3000000, 3400000, 3800000, 4200000, 4600000,
             5000000, 5500000, 6000000, 6500000, 7000000, 7500000, 8000000, 8500000,
-            9000000, 9500000, 10000000
+            9000000, 9500000, 10000000, 11000000
     };
 
     private final Map<String, XpCurve> curves = new ConcurrentHashMap<>();

@@ -1,0 +1,54 @@
+---
+title: Variables
+summary: Every $namespace.path$ value you can read in text, formulas and conditions — generated from the plugin's source.
+---
+
+A variable is a live value wrapped in dollar signs: `$player.name$`, `$player.stat.strength$`,
+`$time.season$`. It works in:
+
+- **text** — item lore, menu names, messages, the scoreboard: `"<gold>Coins: $economy.purse$"`
+- **formulas** — ability damage, enchant bonuses, XP curves: `"50 + $player.stat.strength$ * 2"`
+- **conditions** — `$player.hp$ > 50`
+
+A variable that doesn't apply (no target, not in a menu, unset) is empty: text shows nothing, maths
+treats it as 0, and `== null` is true. Whole numbers are shown without decimals (`100`, not
+`100.0`).
+
+<Callout type="warning" title="Dollar signs in text">
+Every `$` starts a variable, so plain text can't contain a lone `$` — `"Costs $5"` breaks the rest
+of the line. Write `5 coins` instead.
+</Callout>
+
+## Every namespace
+
+The **Available** column says when each one has a value.
+
+<RefTable kind="variables" />
+
+## Your own variables
+
+`player.var.<name>` stores any value on the player's profile, saved with their data:
+
+```yaml
+- "variable set player.var.class warrior"
+- "variable add player.var.dungeon_runs 1"
+- "counter increment player.var.kills"
+```
+
+Read it back as `$player.var.class$`. A quest `variable` objective can wait for one to reach a
+number. `variable remove player.var.class` deletes it.
+
+## Test a variable in-game
+
+```text
+/valmora variable get $player.stat.strength$
+```
+
+prints what a variable resolves to for you right now.
+
+## Adding a namespace
+
+Addon plugins can add their own `$namespace.*$` from Java — see
+[Extending Valmora](/docs/developer-extending#a-variable-namespace).
+
+<SeeAlso slugs={["expressions", "conditions", "events"]} />

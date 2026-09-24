@@ -141,6 +141,10 @@ public class ZoneCommand implements TabExecutor {
         String displayName = args.length > 2
                 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length))
                 : "<green>" + id;
+        // Bukkit doesn't strip quotes, so /zone create id "Shardworks Mine" would otherwise keep them.
+        if (displayName.length() >= 2 && displayName.startsWith("\"") && displayName.endsWith("\"")) {
+            displayName = displayName.substring(1, displayName.length() - 1);
+        }
 
         int[] p1 = mgr().getPos1(uuid);
         int[] p2 = mgr().getPos2(uuid);

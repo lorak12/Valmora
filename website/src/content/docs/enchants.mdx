@@ -1,0 +1,142 @@
+---
+title: Enchants
+summary: Custom enchantments in YAML — stat bonuses, combat modifiers, on-hit and on-kill effects, combo counters — and how players get them.
+---
+
+Valmora enchants are separate from vanilla ones. They're stored on the item, shown as a lore block
+(`Execute IV` plus a description) with an enchant glint, and can do far more than vanilla enchants —
+all from YAML.
+
+## How players get them
+
+| Way | Notes |
+|---|---|
+| The enchanting table menu (`/enchanting`) | Pick an enchant and level. Costs `enchants.etable.cost-per-level` XP levels per level (2 by default). Can't go above the enchant's `etable-max-level`. |
+| The [anvil](/docs/anvil) | Combine two items or books: same enchant and level → +1 level; different levels → the higher; conflicting enchants are skipped. Can reach `absolute-max-level`. |
+| `/item enchant <id> <level>` | Admin: enchant the held item. |
+| `/item enchantbook <id> <level>` | Admin: a book to use at the anvil. |
+
+To open the enchanting menu from real enchanting tables, add `open-triggers: ["block ENCHANTING_TABLE"]`
+to a machine — see [Machines](/docs/machines).
+
+## The simplest enchant: stats
+
+```yaml
+# plugins/Valmora/enchants/my_enchants.yml
+strength_boost:
+  name: "Strength Boost"
+  description:
+    - "<gray>Grants <yellow>+2 Strength</yellow> per level."
+  targets: [SWORD, AXE]
+  etable-max-level: 5
+  absolute-max-level: 10
+  stats:
+    strength: "2 * $level$"
+```
+
+`$level$` is the enchant's level. `stats` apply while the item is used, like item stats.
+
+## Combat modifiers
+
+`combat.modify-attack` (on weapons) and `combat.modify-defend` (on armor) change the numbers of a
+hit **before** damage is dealt, optionally only when conditions hold:
+
+```yaml
+execute:
+  name: "Execute"
+  description:
+    - "<gray>Deals more damage the lower the target's health."
+  targets: [SWORD, AXE]
+  combat:
+    modify-attack:
+      conditions:
+        - "$target.hp_percent$ < 100"
+      modifiers:
+        damage-multiplier: "1 + 0.002 * $level$ * $target.missing_hp_percent$"
+```
+
+| Modifier | On | Meaning |
+|---|---|---|
+| `damage-multiplier` | attack, defend | Multiply the hit's damage (`1.2` = +20%). On defend it scales damage you take. |
+| `crit-chance` | attack | Added crit chance for this hit. |
+| `crit-damage` | attack | Added crit damage for this hit. |
+| `defense-shred-percent` | attack | Ignore this % of the victim's defense. |
+| `damage-reduction-percent` | defend | Reduce damage taken by this %. |
+| `knockback-multiplier` | attack, defend | Multiply knockback dealt / taken. |
+
+## Triggers: react to hits, kills and deaths
+
+`triggers` run [events](/docs/events) at a moment in combat:
+
+<RefTable kind="enchantTriggers" />
+
+```yaml
+life_steal:
+  name: "Life Steal"
+  targets: [SWORD]
+  variables:
+    heal_percent: "0.5 * $level$"
+  triggers:
+    ON_ATTACK_POST:
+      conditions:
+        - "$hit.damage$ > 0"
+      actions:
+        - "heal @self $player.max_hp$ * $calc.heal_percent$ / 100"
+```
+
+- `variables` — named formulas, read as `$calc.<name>$`, handy when several places use the same
+  number.
+- `$hit.damage$`, `$hit.is_crit$`, `$hit.damage_type$` — the hit that just landed.
+- Each trigger can have `conditions`, `actions` and `fail-actions`.
+
+## State: combo counters and per-item counters
+
+```yaml
+lethality:
+  name: "Lethality"
+  targets: [SWORD]
+  combat:
+    modify-attack:
+      modifiers:
+        defense-shred-percent: "0.2 * $level$ * $enchant.state.stacks$"
+  triggers:
+    ON_ATTACK_POST:
+      actions:
+        - "enchant_state increment stacks"
+  state:
+    transient:
+      stacks:
+        type: HIT_COUNTER
+        reset-after-seconds: 4
+        reset-on-target-switch: true
+        max-stacks: 4
+```
+
+| Kind | Saved | Fields |
+|---|---|---|
+| `state.transient.<key>` | No — in memory, per attacker; cleared on reload | `type: HIT_COUNTER`, `reset-after-seconds`, `reset-on-target-switch`, `max-stacks` |
+| `state.persistent.<key>` | Yes — on the item, forever | `type: INTEGER`, `default` |
+
+Read a counter with `$enchant.state.<key>$`; change it from a trigger with
+`enchant_state increment|add|set|reset <key> [amount]`.
+
+## All fields
+
+| Field | Default | What it does |
+|---|---|---|
+| `name` | the id | Shown in lore with the level in Roman numerals. |
+| `description` | none | Lore lines under the name (hidden when an item has 4+ enchants). |
+| `targets` | none | Item types it can go on (`SWORD`, `HELMET`, `ALL`…). |
+| `conflicts` | none | Enchant ids it can't be combined with at the anvil. |
+| `etable-max-level` | 5 | Highest level from the enchanting table. |
+| `absolute-max-level` | 10 | Highest level at all (anvil, `/item enchant`). |
+| `stats` | none | Stat id → formula. |
+| `variables` | none | Name → formula, read as `$calc.<name>$`. |
+| `combat.modify-attack` / `modify-defend` | none | `conditions` + `modifiers`, above. |
+| `triggers.<TRIGGER>` | none | `conditions`, `actions`, `fail-actions`. |
+| `state.transient` / `state.persistent` | none | Counters, above. |
+| `logic` / `logic-params` | none | A built-in Java behavior: `valmora:sharpness`, `growth`, `fortune`, `efficiency`, `stat_bonus`, `damage_multiplier`, `defense_reduction`, `protection`, `execute`, `first_strike`, `life_steal`, `lethality`, `respite`, `thorns`. Runs alongside the YAML blocks. Default strengths are in [config.yml → enchants](/docs/config-yml#enchants). |
+
+`plugins/Valmora/enchants/example_enchantments.yml` has a commented example of every block.
+
+<SeeAlso slugs={["anvil", "items", "modifiers", "events"]} />

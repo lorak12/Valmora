@@ -90,8 +90,12 @@ public class ItemTranslator {
         } else if (name.endsWith("_AXE")) {
             stats.put(sys.getDamage(), getWeaponDamage(name) + 2);
             stats.put(sys.getMiningSpeed(), getMiningSpeed(name));
+            stats.put(sys.getBreakingPower(), (double) ItemFactory.tierBreakingPower(material));
         } else if (name.endsWith("_PICKAXE") || name.endsWith("_SHOVEL") || name.endsWith("_HOE")) {
             stats.put(sys.getMiningSpeed(), getMiningSpeed(name));
+            // items.breaking-power tier (netherite 5 … wood 1) as a real stat, so a vanilla tool can
+            // mine the resource nodes its lore says it can.
+            stats.put(sys.getBreakingPower(), (double) ItemFactory.tierBreakingPower(material));
         } else if (material == Material.BOW) {
             stats.put(sys.getDamage(), plugin.getConfig().getDouble("items.vanilla-stats.bow-damage", 6.0));
         } else if (material == Material.CROSSBOW) {

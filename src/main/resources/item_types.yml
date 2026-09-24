@@ -1,5 +1,5 @@
 # Extra item types (Phase 4.1 of the generic-engine refactor).
-# The 21 built-in types (SWORD, AXE, PICKAXE, SHOVEL, HOE, TRIDENT, BOW, CROSSBOW, FISHING_ROD,
+# The built-in types (SWORD, AXE, PICKAXE, SHOVEL, HOE, TRIDENT, BOW, CROSSBOW, FISHING_ROD,
 # SHEARS, SHIELD, ELYTRA, HELMET, CHESTPLATE, LEGGINGS, BOOTS, HORSE_ARMOR, PET, ACCESSORY,
 # BACKPACK, ALL, NONE) are always available even with an empty list here — add new ones below
 # without a plugin recompile. Used by item-type/targets fields across items, enchants, and reforges.

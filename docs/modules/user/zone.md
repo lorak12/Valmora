@@ -47,7 +47,7 @@ Everything in this module is **admin-facing**. Regular players experience zones 
    - Drop quantities scale with your **Mining Fortune** stat, and the **Mining Spread** stat can AOE-mine adjacent matching blocks.
 4. **Fishing in a fishing zone** uses the zone's linked loot table instead of vanilla loot (see the Fishing module docs, `docs/modules/user/fishing.md`).
 5. **Teleportation** may be blocked in some zones (only enforced by scripted `teleport` events — warps are not affected).
-6. **PvP zones** (`allow.pvp: true`) allow player-vs-player damage; everywhere else PvP is cancelled.
+6. **PvP inside zones** follows the zone's `allow.pvp` (default `false` — no PvP). Outside every zone, vanilla rules (the server's `pvp` setting) apply.
 
 ### Player commands
 
@@ -184,9 +184,9 @@ my_zone:
   min: [0, 60, 0]
   max: [10, 70, 10]
   enter-actions:
-    - notify title:"<red>Entering" subtitle:"My Zone"
+    - "notify <red>Entering My Zone io:title"
   exit-actions:
-    - notify title:"<gray>Leaving"
+    - "notify <gray>Leaving My Zone io:actionbar"
 ```
 
 Any script DSL lines are run when a player enters/exits (see the Script module docs for available events).

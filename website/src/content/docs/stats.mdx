@@ -1,0 +1,89 @@
+---
+title: Stats
+summary: Every stat, where a player's stats come from, how to change base values, and how to add a stat of your own.
+---
+
+Stats are the numbers behind everything: Health, Damage, Defense, Crit Chance, Mining Fortune…
+A player's value for each stat is their **base** value plus bonuses from everything they have
+equipped or active.
+
+## Where stats come from
+
+| Source | Example |
+|---|---|
+| Base value (per profile) | Everyone starts at the stat's `default-value`; `/stat add` and `stat_modify` change it permanently. |
+| Held item and worn armor | `stats:` on the item, plus reforges, gems and enchants on it. |
+| Accessory bag | Accessories (`item-type: ACCESSORY`) in `/accessories`. |
+| Armor set bonuses | [Set bonuses](/docs/set-bonuses). |
+| Pets | The summoned pet's stats. |
+| Progression trees | Node upgrades. |
+| Alchemy effects, temporary buffs | Potions, `MODIFY_STAT` abilities. |
+
+Stats are recalculated automatically when any of these change.
+
+## Every stat
+
+<RefTable kind="stats" />
+
+The **Cap** is the most the total can reach after all bonuses. Stats can go negative.
+
+### What the core stats do
+
+- **Health / Mana** — pools. Damage and ability costs take from them; regen refills them.
+  Hearts show the health fraction on a fixed 10-heart bar.
+- **Damage, Strength, Crit Chance, Crit Damage** — outgoing damage. See
+  [Combat](/docs/combat#the-damage-formula).
+- **Defense** — incoming damage × `100 / (defense + 100)`: 100 Defense halves it.
+- **Speed** — movement speed; 100 is normal walking speed.
+- **Health Regen / Mana Regen** — restored every second. Health regen pauses for 3 seconds after
+  combat.
+- **Luck** — raises the chance of `luck-affected` mob drops.
+- **Mining Fortune / Speed / Spread, Breaking Power** — see [Resource nodes](/docs/resource-nodes).
+- **Farming / Foraging Fortune, Sea Creature Chance, Fishing Speed…** — read by their systems.
+
+Which stat plays which role (e.g. which one is "health") is set in
+[config.yml → combat and mining](/docs/config-yml#combat), so you can rename or replace a core
+stat without breaking anything.
+
+## Changing a player's stats
+
+```text
+/stat list                     your own current stats
+/stat add <stat> <amount>      raise your base value (admin)
+/stat remove <stat> <amount>   lower it (admin)
+```
+
+From scripts: `stat_modify add strength 5` (permanent base change) or a `MODIFY_STAT` ability
+mechanic (temporary). Read a stat anywhere with `$player.stat.<id>$`.
+
+## Adding a stat
+
+Create a file in `plugins/Valmora/stats/`:
+
+```yaml
+# plugins/Valmora/stats/custom.yml
+lifesteal:
+  display-name: "Lifesteal"
+  default-value: 0
+  max-value: 50
+  color: "<dark_red>"
+  icon: REDSTONE
+  description: "Heals you for a percentage of damage dealt."
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `display-name` | the id | Name in lore, menus and `/stat list`. |
+| `default-value` | `0` | Everyone's starting base value. |
+| `max-value` | no cap | The highest the total can go. |
+| `color` | `<white>` | MiniMessage color for the name. |
+| `icon` | `PAPER` | Item shown for it in the stats menu. |
+| `description` | none | Shown in the stats menu. |
+| `pool` | `false` | Marks a current/max resource like Health and Mana. |
+| `vanilla-attribute` | none | Keeps a vanilla attribute in sync: `movement_speed` (100 = normal), `block_break_speed` (above 100 = faster), any other attribute is set to `value / 1000`. |
+
+After `/valmora reload` it works everywhere a stat id is accepted: item `stats:`, set bonuses, pets,
+modifiers, `$player.stat.lifesteal$`. A new stat does nothing on its own — give it an effect with
+a [pipeline](/docs/pipelines#lifesteal-as-a-new-stat) or conditions.
+
+<SeeAlso slugs={["combat", "items", "set-bonuses", "pipelines"]} />

@@ -208,6 +208,13 @@ public class BossController {
             pipelineCtx = new SimpleExecutionContext(instance.entity, target, instance.entity.getLocation(), null);
             pipelineCtx.set("mob:ability_id", ability.getId());
             pipelineCtx.set("mob:ability_trigger", ability.getTrigger().name());
+            // The boss's own identity and health — $target.*$ is whoever the ability is aimed at
+            // (usually a player), so without these a stage had no way to gate on the boss's phase.
+            pipelineCtx.set("mob:id", instance.definition.getId());
+            pipelineCtx.set("mob:level", instance.definition.getLevel());
+            pipelineCtx.set("mob:health", instance.entity.getHealth());
+            pipelineCtx.set("mob:max_health", maxHealth(instance.entity));
+            pipelineCtx.set("mob:health_percent", healthPercent(instance.entity));
             if (!bus.runPoint("mob:pre_ability", pipelineCtx)) {
                 return true; // cooldown/interval already consumed above — the attempt happened, effects didn't
             }

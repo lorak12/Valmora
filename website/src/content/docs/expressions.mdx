@@ -1,0 +1,72 @@
+---
+title: Expressions
+summary: Maths, comparisons and logic in formulas and conditions — operators, functions, text, true/false, and the mistakes that silently break them.
+---
+
+An expression is a formula over numbers, text and [variables](/docs/variables). Expressions appear
+as conditions (`$player.hp$ < 50`) and as formula values (ability `damage`, enchant bonuses, XP
+curves, `stat_modify` amounts).
+
+## Operators
+
+| Kind | Operators | Example |
+|---|---|---|
+| Arithmetic | `+` `-` `*` `/` | `$player.stat.strength$ * 2 + 10` |
+| Comparison | `==` `!=` `>` `<` `>=` `<=` | `$player.hp$ >= 100` |
+| Logic | `and` / `&&`, `or` / `||` | `$player.hp$ < 50 and $player.mana$ >= 20` |
+| Choice | `a ? b : c` | `$player.var.vip$ == true ? 2 : 1` |
+| Grouping | `( )` | `($a$ + $b$) / 2` |
+
+Dividing by zero gives 0 instead of an error.
+
+<Callout type="warning" title="Keywords don't mix with expressions">
+`zone arena`, `tag vip` and the other [condition keywords](/docs/conditions#keywords) are whole
+conditions, not parts of an expression. Put them on their own line in a `conditions:` list.
+</Callout>
+
+## Functions
+
+`floor(x)`, `ceil(x)`, `round(x)`, `abs(x)`, `sqrt(x)`, `pow(x, y)`, `log(x)`, `log10(x)`,
+`min(a, b, …)`, `max(a, b, …)`.
+
+```yaml
+damage: "max(10, $player.stat.strength$ * 1.5)"
+amount: "floor($player.skill.mining.level$ / 5)"
+```
+
+For randomness use the variable `$math.random$` (a new number from 0 to 1 each time).
+
+## Text, numbers, true/false and empty
+
+- **Words** compare as text: `$time.season$ == Winter`. A word is letters, digits and `_`.
+- **Text with spaces** or symbols goes in double quotes: `$player.name$ == "Steve"`.
+- `true`, `false` and `null` are values: `$time.is_day$ == true`, `$prop.amount$ == null`.
+- Text comparison is **exact and case-sensitive**: `Winter` is not `WINTER`.
+- A number stored as text (`"12"`) compares and calculates as a number.
+- An empty variable counts as **0** in maths and `<`/`>` comparisons, and as `null` in `==`.
+
+## Pitfalls
+
+| Wrong | Why | Right |
+|---|---|---|
+| `$time.season$ == WINTER` | Seasons are their display names | `$time.season$ == Winter` |
+| `$mob.ability_id$ == ground-slam` | `-` is minus: "ground minus slam" | name ids with `_`: `ground_slam` |
+| `!$player.var.vip$` | `!` only works at the **start of a condition** | `!tag vip`, or `$player.var.vip$ != true` |
+| `$x$ % 2 == 0` | `%` isn't an operator (it's ignored) | `$x$ - floor($x$ / 2) * 2 == 0` |
+| `$x$ == 'yes'` | Single quotes are ignored | `$x$ == yes` or `$x$ == "yes"` |
+| `$player.var.vip$ == "true"` | `variable set … true` stores a real true | `$player.var.vip$ == true` |
+
+Anything the parser can't read is skipped rather than reported, so a formula that "does nothing"
+usually contains one of the above. A formula that fails to parse completely logs
+`[Script] Failed to parse expression` in the console.
+
+## Testing
+
+```text
+/valmora variable get $player.stat.strength$
+```
+
+shows what a variable holds for you. To test a whole condition, put it on a menu button's
+`conditions:` with a `notify` in `actions` and `fail-actions`.
+
+<SeeAlso slugs={["variables", "conditions", "scripting"]} />

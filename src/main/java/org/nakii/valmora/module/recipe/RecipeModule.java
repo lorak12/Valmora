@@ -69,7 +69,11 @@ public class RecipeModule implements ReloadableModule {
 
     private void loadRecipes() {
         machineRecipes.clear();
-        YamlLoader<RecipeDefinition> loader = new YamlLoader<>(plugin, "recipes", "Recipe");
+        // recipes/anvil/ holds UPGRADE/TRANSMUTE recipes in their own format (loadAnvilRecipes);
+        // skip the folder here instead of parsing each of them a second time into a marker entry.
+        java.io.File anvilDir = new java.io.File(plugin.getDataFolder(), "recipes/anvil");
+        YamlLoader<RecipeDefinition> loader = new YamlLoader<RecipeDefinition>(plugin, "recipes", "Recipe")
+                .skipDirectories(anvilDir::equals);
         RecipeDefinitionParser parser = new RecipeDefinitionParser(plugin);
         loader.load(parser::parse, recipe -> {
             // A machine-less marker (e.g. the SMITHING vanilla-recipe registration path in

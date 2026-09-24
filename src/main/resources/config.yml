@@ -17,25 +17,23 @@ database:
     maximum-pool-size: 10
   worker-threads: 4
   shutdown-timeout-seconds: 10       # HC-004
-  mysql:
-    prep-cache-size: 250             # HC-002
-    prep-cache-sql-limit: 2048
 
   # ========================================================== #
   # MySQL Settings (Only used if type is set to 'mysql')       #
   # ========================================================== #
-  # To use MySQL, set 'type: mysql' above and uncomment the lines
-  # below (remove the '#' symbol) to configure your connection.
-  #
-  # mysql:
-  #   host: "127.0.0.1"
-  #   port: 3306
-  #   database: "valmora"
-  #   username: "root"
-  #   password: "password123"
-  #   # Set to true if your MySQL server requires/serves over SSL/TLS.
-  #   # Leave false for a typical local or private-network database.
-  #   use-ssl: false
+  # To use MySQL, set 'type: mysql' above and uncomment the connection lines below (remove the
+  # '#' symbol). They belong inside this one mysql: block — don't add a second mysql: key.
+  mysql:
+    # host: "127.0.0.1"
+    # port: 3306
+    # database: "valmora"
+    # username: "root"
+    # password: "password123"
+    # # Set to true if your MySQL server requires/serves over SSL/TLS.
+    # # Leave false for a typical local or private-network database.
+    # use-ssl: false
+    prep-cache-size: 250             # HC-002
+    prep-cache-sql-limit: 2048
 
 # ========================================================== #
 #                    World / GameRule Settings                #
@@ -197,10 +195,6 @@ time:
     days-per-phase: 30
 
 # ========================================================== #
-#               Combat / Engine Stat Mapping                 #
-# ========================================================== #
-# Maps the engine's internal roles to stat IDs defined in stats/*.yml
-# ========================================================== #
 #                   Progression Settings                     #
 # ========================================================== #
 progression:
@@ -212,6 +206,10 @@ progression:
     window-hours: 24
     check-interval-minutes: 5
 
+# ========================================================== #
+#               Combat / Engine Stat Mapping                 #
+# ========================================================== #
+# Maps the engine's internal roles to stat IDs defined in stats/*.yml.
 # Change these if you rename or replace a core stat.
 combat:
   health-stat: health

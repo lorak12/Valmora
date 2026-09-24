@@ -1,0 +1,25 @@
+---
+title: config.yml
+summary: Every server setting, section by section — shown straight from the shipped file with its own comments, so it always matches your version.
+---
+
+`plugins/Valmora/config.yml` holds server-wide settings. Content — items, mobs, quests and so on —
+lives in its own folders, not here. Every setting already has a sensible default; you only need
+this page when you want to change how something behaves.
+
+- Edit the file and run `/valmora reload`. Only `database:` needs a restart.
+- Your copy is never overwritten by updates. When an update adds new settings, they use their
+  default until you add them; compare with the sections below to see what's new.
+- Each section below is the **real shipped file**, comments included.
+
+<Callout type="tip" title="Most-changed settings">
+- Stop players losing coins on death: `economy.death-loss-percent: 0`
+- Make environmental damage (fall, lava…) gentler: `combat.environment-damage-multiplier`
+- Let staff use one admin command: `permissions.<command>` — see [Commands & permissions](/docs/commands)
+- Re-order or hide item lore blocks: `items.lore.sections`
+- Keep inventory in a zone only: use the zone flag `keep-inventory-on-death` — see [Death & respawn](/docs/death)
+</Callout>
+
+<ConfigSections />
+
+<SeeAlso slugs={["commands", "default-files", "file-layout"]} />
