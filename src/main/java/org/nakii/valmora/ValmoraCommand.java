@@ -52,12 +52,37 @@ public class ValmoraCommand implements TabExecutor {
             // of use (no per-module caching), so without this a reload wouldn't pick up config.yml
             // edits (e.g. items.lore) at all, only YAML content under resources/*.
             plugin.reloadConfig();
-            java.util.List<String> failed = plugin.getModuleManager().reloadModules();
-            if (failed.isEmpty()) {
+            var result = plugin.getModuleManager().reloadModules();
+            if (result.clean()) {
                 sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
             } else {
-                sender.sendMessage(Formatter.format("<red>Reload finished with errors in: <yellow>"
-                        + String.join(", ", failed) + "<red>. Check the console — those modules may be partially loaded."));
+                if (!result.failedModules().isEmpty()) {
+                    sender.sendMessage(Formatter.format("<red>Modules that failed to reload: <yellow>"
+                            + String.join(", ", result.failedModules()) + "<red> — they may be partially loaded; see the console."));
+                }
+                if (!result.contentErrors().isEmpty()) {
+                    sender.sendMessage(Formatter.format("<gold>" + result.contentErrors().size()
+                            + " content error(s). Entries that broke kept their previous working version:"));
+                    result.contentErrors().stream().limit(10).forEach(err ->
+                            sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(err))));
+                    if (result.contentErrors().size() > 10) {
+                        sender.sendMessage(Formatter.format("<gray>... and " + (result.contentErrors().size() - 10) + " more in the console."));
+                    }
+                }
+            }
+            return true;
+        }
+
+        if (args[0].equalsIgnoreCase("validate")) {
+            // Dry run: re-parses content on disk without changing anything live.
+            var problems = org.nakii.valmora.infrastructure.config.YamlLoader.validateAll(plugin);
+            if (problems.isEmpty()) {
+                sender.sendMessage(Formatter.format("<green>No content problems found — safe to /valmora reload."));
+            } else {
+                sender.sendMessage(Formatter.format("<gold>" + problems.size() + " content problem(s) found (nothing was changed):"));
+                problems.stream().limit(15).forEach(p -> sender.sendMessage(Formatter.format("<gray>- <white>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(p))));
+                if (problems.size() > 15) sender.sendMessage(Formatter.format("<gray>... and " + (problems.size() - 15) + " more."));
+                problems.forEach(p -> plugin.getLogger().warning("[validate] " + p));
             }
             return true;
         }
@@ -336,7 +361,7 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "variable", "pipeline", "pack", "debug", "orphans")
+            return Stream.of("reload", "validate", "variable", "pipeline", "pack", "debug", "orphans")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -432,6 +457,7 @@ public class ValmoraCommand implements TabExecutor {
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Formatter.format("<gold>--- Valmora Engine ---"));
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora validate <gray>- Check content files for errors without reloading"));
         sender.sendMessage(Formatter.format("<yellow>/valmora variable get <path> <gray>- Get variable value"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pack ... <gray>- Manage content packs (see /valmora pack)"));

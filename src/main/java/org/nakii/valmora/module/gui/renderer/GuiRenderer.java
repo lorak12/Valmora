@@ -36,6 +36,12 @@ public class GuiRenderer {
      */
     private static final Map<String, org.nakii.valmora.api.scripting.Condition> CONDITION_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Drops cached conditions (module disable), so conditions compiled against a previous script
+     *  engine generation, or strings no longer used by any GUI, don't outlive a reload. */
+    public static void clearConditionCache() {
+        CONDITION_CACHE.clear();
+    }
+
     public GuiRenderer(Valmora plugin) {
         this.plugin = plugin;
     }

@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class MobCategory {
 
     private static final java.util.Map<String, MobCategory> REGISTRY = new ConcurrentHashMap<>();
+    /** Ids defined in code (the constants below); everything else came from YAML. */
+    private static final java.util.Set<String> BUILTINS = ConcurrentHashMap.newKeySet();
 
     public static final MobCategory UNDEAD = define("UNDEAD");
     public static final MobCategory ENDER = define("ENDER");
@@ -31,6 +33,19 @@ public final class MobCategory {
     public static final MobCategory GOLEM = define("GOLEM");
     public static final MobCategory BOSS = define("BOSS");
     public static final MobCategory OTHER = define("OTHER");
+
+    static {
+        BUILTINS.addAll(REGISTRY.keySet());
+    }
+
+    /**
+     * Drops every YAML-defined entry, keeping only the built-in constants. Called by the loader
+     * before (re)loading, so an entry removed from YAML disappears on reload instead of lingering
+     * until restart.
+     */
+    public static void resetToBuiltins() {
+        REGISTRY.keySet().retainAll(BUILTINS);
+    }
 
     private final String id;
 

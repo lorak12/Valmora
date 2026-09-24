@@ -101,6 +101,7 @@ public class GuiModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        org.nakii.valmora.module.gui.renderer.GuiRenderer.clearConditionCache();
         if (listener != null) {
             org.bukkit.event.HandlerList.unregisterAll(listener);
             listener = null;

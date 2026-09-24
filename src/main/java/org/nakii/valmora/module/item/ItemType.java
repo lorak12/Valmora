@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ItemType {
 
     private static final java.util.Map<String, ItemType> REGISTRY = new ConcurrentHashMap<>();
+    /** Ids defined in code (the constants below); everything else came from YAML. */
+    private static final java.util.Set<String> BUILTINS = ConcurrentHashMap.newKeySet();
     private static volatile List<ItemType> materialMatchPriorityCache;
 
     public static final ItemType SWORD = define("SWORD");
@@ -45,6 +47,19 @@ public final class ItemType {
     public static final ItemType BACKPACK = define("BACKPACK");
     public static final ItemType ALL = define("ALL");
     public static final ItemType NONE = define("NONE");
+
+    static {
+        BUILTINS.addAll(REGISTRY.keySet());
+    }
+
+    /**
+     * Drops every YAML-defined entry, keeping only the built-in constants. Called by the loader
+     * before (re)loading, so an entry removed from YAML disappears on reload instead of lingering
+     * until restart.
+     */
+    public static void resetToBuiltins() {
+        REGISTRY.keySet().retainAll(BUILTINS);
+    }
 
     private final String id;
 

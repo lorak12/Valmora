@@ -31,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class DamageType {
 
     private static final Map<String, DamageType> REGISTRY = new ConcurrentHashMap<>();
+    /** Ids defined in code (the constants below); everything else came from YAML. */
+    private static final java.util.Set<String> BUILTINS = ConcurrentHashMap.newKeySet();
 
     // Backward-compatible default instances — always present even before any YAML is loaded, and
     // overwritten in place (not replaced) by damage_types/*.yml if the admin redefines them.
@@ -51,6 +53,19 @@ public final class DamageType {
     public static final DamageType DRAGON_BREATH = define("DRAGON_BREATH", "<light_purple>", false, List.of());
     public static final DamageType SONIC_BOOM = define("SONIC_BOOM", "<aqua>", true, List.of());
     public static final DamageType OUTSIDE_BORDER = define("OUTSIDE_BORDER", "<black>", true, List.of());
+
+    static {
+        BUILTINS.addAll(REGISTRY.keySet());
+    }
+
+    /**
+     * Drops every YAML-defined entry, keeping only the built-in constants. Called by the loader
+     * before (re)loading, so an entry removed from YAML disappears on reload instead of lingering
+     * until restart.
+     */
+    public static void resetToBuiltins() {
+        REGISTRY.keySet().retainAll(BUILTINS);
+    }
 
     private final String id;
     private volatile String color;

@@ -16,6 +16,7 @@ public final class MobCategoryLoader {
     private MobCategoryLoader() {}
 
     public static void load(Valmora plugin) {
+        MobCategory.resetToBuiltins(); // categories removed from the file don't linger across reloads
         File file = new File(plugin.getDataFolder(), "mob_categories.yml");
         if (!file.exists()) return;
 
