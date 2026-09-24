@@ -17,6 +17,7 @@ import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,7 +54,13 @@ public class CalendarEventModule implements ReloadableModule {
             // (silent) seeding-only behavior. Only the *net* start/end transition is reconciled
             // (not a full day-by-day replay of recurring-daily) — see docs/modules/design/calendar.md §5.
             Long lastProcessedDay = loadLastProcessedDay();
-            if (lastProcessedDay != null && lastProcessedDay < snapshot.totalDays()) {
+            Map<String, List<String>> previouslyActive = loadActiveEvents();
+            if (previouslyActive != null) {
+                // The exact set that was active last time is known, so reconcile against it —
+                // this also covers events edited or deleted while active, whose on-end used to be
+                // skipped (leaving e.g. a global boost on forever).
+                reconcileAgainstPreviousActive(previouslyActive, snapshot);
+            } else if (lastProcessedDay != null && lastProcessedDay < snapshot.totalDays()) {
                 reconcileMissedTransitions(lastProcessedDay, snapshot);
             }
 
@@ -64,6 +71,46 @@ public class CalendarEventModule implements ReloadableModule {
             }
             saveLastProcessedDay(snapshot.totalDays());
         }
+    }
+
+    /**
+     * Fires on-end for every event that was active last time but isn't now, whether its window
+     * passed, it was edited, or it was deleted (using the on-end lines saved while it was active,
+     * since a deleted event has no definition left). Fires on-start for events active now that
+     * weren't before.
+     */
+    private void reconcileAgainstPreviousActive(Map<String, List<String>> previouslyActive, TimeSnapshot snapshot) {
+        var ctx = new SimpleExecutionContext(null, (org.bukkit.Location) null, new YamlConfiguration());
+        for (Map.Entry<String, List<String>> entry : previouslyActive.entrySet()) {
+            CalendarEventDefinition def = getDefinition(entry.getKey());
+            if (def != null && def.isActive(snapshot)) continue;
+            plugin.getLogger().info("[Calendar] Ending '" + entry.getKey() + "' (" + (def == null ? "removed" : "no longer active") + ").");
+            if (!entry.getValue().isEmpty()) {
+                plugin.getScriptModule().getEventParser().parseList(entry.getValue()).execute(ctx);
+            } else if (def != null) {
+                def.getOnEnd().execute(ctx);
+            }
+        }
+        for (CalendarEventDefinition def : definitions.values()) {
+            if (def.isActive(snapshot) && !previouslyActive.containsKey(def.getId().toLowerCase(java.util.Locale.ROOT))) {
+                plugin.getLogger().info("[Calendar] Starting '" + def.getId() + "'.");
+                def.getOnStart().execute(ctx);
+            }
+        }
+    }
+
+    /** Active event id → its on-end lines, as last saved; {@code null} if never saved. */
+    private Map<String, List<String>> loadActiveEvents() {
+        File file = stateFile();
+        if (!file.exists()) return null;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection section = yaml.getConfigurationSection("active-events");
+        if (section == null) return yaml.contains("active-events") ? new java.util.LinkedHashMap<>() : null;
+        Map<String, List<String>> result = new java.util.LinkedHashMap<>();
+        for (String id : section.getKeys(false)) {
+            result.put(id.toLowerCase(java.util.Locale.ROOT), section.getStringList(id));
+        }
+        return result;
     }
 
     /**
@@ -118,6 +165,13 @@ public class CalendarEventModule implements ReloadableModule {
     void saveLastProcessedDay(long totalDays) {
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("last-processed-day", totalDays);
+        // The active set, each with its on-end lines, so the next enable can end events that were
+        // edited/deleted meanwhile (see reconcileAgainstPreviousActive).
+        yaml.createSection("active-events");
+        for (String id : activeEventIds) {
+            CalendarEventDefinition def = getDefinition(id);
+            yaml.set("active-events." + id.toLowerCase(java.util.Locale.ROOT), def != null ? def.getOnEndLines() : List.of());
+        }
         try {
             yaml.save(stateFile());
         } catch (java.io.IOException e) {
@@ -131,6 +185,8 @@ public class CalendarEventModule implements ReloadableModule {
             HandlerList.unregisterAll(listener);
             listener = null;
         }
+        var tm = plugin.getTimeManager();
+        if (tm != null) saveLastProcessedDay(tm.getSnapshot().totalDays());
         definitions.clear();
         activeEventIds.clear();
     }
@@ -204,7 +260,7 @@ public class CalendarEventModule implements ReloadableModule {
                     : ctx -> {};
 
             return LoadResult.success(new CalendarEventDefinition(id, season, phase, dayStart, dayEnd,
-                    onStart, onEnd, recurringDaily));
+                    onStart, onEnd, recurringDaily, section.getStringList("on-end")));
         } catch (Exception e) {
             return LoadResult.failure("[" + filePath + "] Failed to parse calendar event '" + id + "': " + e.getMessage());
         }

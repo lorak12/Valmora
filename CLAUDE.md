@@ -209,6 +209,19 @@ this.listener = null;
 
 Commands are registered **after** all modules are enabled, directly in `Valmora.onEnable()`. If you need a new command, add it there — do not call `getCommand(...).setExecutor(...)` inside any module's `onEnable()`.
 
+### 6.3a Reload & Versioning
+
+Read `docs/modules/design/versioning.md` before touching persistence, item/mob templates or reload
+code. The short version:
+- Items and mobs read template values (stats, rarity, type, attributes) **live** from their
+  definition via `ItemView`/`MobLifecycleListener`. Only instance data is stored on them.
+- Every persisted shape has a version ladder: DB (`SQLDataStore`), profile JSON (`ProfileMigrator`),
+  items (`ItemMigrator`), `config.yml` (`ConfigUpdater`), default files (`ResourceManifest`).
+- Renames go through `previous-ids:` (`IdAliases`).
+- `YamlLoader` keeps the last good version of every entry.
+- Never capture profiles, managers or players in delayed tasks. Use `PlayerProfileLoadedEvent`
+  for join logic and `ValmoraReloadedEvent` for post-reload reconciliation.
+
 ### 6.4 Accessing Other Modules from Within a Module
 
 Use `ValmoraAPI.getInstance()`. Do not hold direct references to sibling module instances; go through the API. This keeps modules decoupled and reload-safe.

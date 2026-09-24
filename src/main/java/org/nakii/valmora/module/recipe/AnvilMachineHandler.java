@@ -136,25 +136,32 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
         // ItemFactory.updateLore, which would otherwise clobber a hand-built lore applied earlier.
         output = plugin.getItemManager().getItemTranslator().translate(output);
 
-        if (spec.name() != null) {
+        // The recipe's name and add_lore are stored on the item (custom_name / extra_lore) rather
+        // than painted onto the rendered lore, so the next re-render (an enchant, a reforge, a
+        // content refresh) keeps them instead of wiping them.
+        if (spec.name() != null || !spec.addLore().isEmpty()) {
             ItemMeta meta = output.getItemMeta();
-            meta.displayName(Formatter.format(spec.name()));
-            output.setItemMeta(meta);
-        }
-
-        if (!spec.addLore().isEmpty()) {
-            ItemMeta meta = output.getItemMeta();
-            List<net.kyori.adventure.text.Component> existing = meta.lore() != null ? meta.lore() : new ArrayList<>();
-            List<net.kyori.adventure.text.Component> lore = new ArrayList<>(existing);
-            for (String line : spec.addLore()) {
-                if ("{inherit_lore}".equals(line)) {
-                    lore.addAll(inheritedLore);
-                } else {
-                    lore.add(Formatter.format(line));
-                }
+            var pdc = meta.getPersistentDataContainer();
+            if (spec.name() != null) {
+                pdc.set(Keys.CUSTOM_NAME_KEY, PersistentDataType.STRING, spec.name());
             }
-            meta.lore(lore);
+            if (!spec.addLore().isEmpty()) {
+                List<String> lines = new ArrayList<>();
+                String existingExtra = pdc.get(Keys.EXTRA_LORE_KEY, PersistentDataType.STRING);
+                if (existingExtra != null && !existingExtra.isEmpty()) lines.add(existingExtra);
+                for (String line : spec.addLore()) {
+                    if ("{inherit_lore}".equals(line)) {
+                        for (net.kyori.adventure.text.Component inherited : inheritedLore) {
+                            lines.add(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(inherited));
+                        }
+                    } else {
+                        lines.add(line);
+                    }
+                }
+                pdc.set(Keys.EXTRA_LORE_KEY, PersistentDataType.STRING, String.join("\n", lines));
+            }
             output.setItemMeta(meta);
+            plugin.getItemManager().getItemFactory().updateLore(output);
         }
 
         if (!spec.addNbt().isEmpty()) {
@@ -417,11 +424,7 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
 
     private ItemType readItemType(ItemStack item) {
         if (!item.hasItemMeta()) return ItemType.NONE;
-        String raw = item.getItemMeta().getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-        if (raw != null) {
-            try { return ItemType.valueOf(raw.toUpperCase()); } catch (IllegalArgumentException ignored) {}
-        }
-        return ItemType.fromMaterial(item.getType());
+        return org.nakii.valmora.module.item.ItemView.type(item);
     }
 
     private boolean isEmpty(ItemStack item) {

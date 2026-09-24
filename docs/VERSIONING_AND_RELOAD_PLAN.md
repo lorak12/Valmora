@@ -1,8 +1,16 @@
 # Valmora: versioning, template drift and reload safety
 
-> Status (2026-09-24): **Phase 0 implemented** (branch `claude/peaceful-turing-v7u4tn`), except
-> that the `machines/` seeding fix only reaches fresh installs; existing installs get it with
-> Phase 1's manifest seeding. Phases 1–6 are still planned.
+> Status (2026-09-24): **Phases 0–6 implemented** on branch `claude/peaceful-turing-v7u4tn`.
+> None of it has been compiled or run yet, because the build environment couldn't reach the Paper
+> repository. What was built is documented in `docs/modules/design/versioning.md` (design) and
+> `docs/modules/user/versioning.md` (admins). Where it differs from this plan:
+> - **Phase 4** is per-entry "last known good" in `YamlLoader`, plus lazy script-event resolution,
+>   instead of a full stage/validate/commit split in every module. Content never disappears on a
+>   bad edit, and good edits in the same reload still apply.
+> - **Mob loot and equipment stacks** are still built at parse time. Lore refreshes on pickup;
+>   stats are live.
+> - **Delayed script rewards** are cancelled on quit or restart, not queued for delivery.
+> - **Progression levels above a lowered cap** are clamped, not refunded.
 
 ## Context
 This plan covers what happens to persisted content when (a) the plugin version changes, (b) admins edit YAML, and (c) things already exist in the world (items, mobs, profiles, and so on), and how to remove every reload problem across all modules. Three read-only audits covered items, persisted player data, and world state plus the reload lifecycle. Summary of the current state:

@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ItemType {
 
     private static final java.util.Map<String, ItemType> REGISTRY = new ConcurrentHashMap<>();
+    /** Ids defined in code (the constants below); everything else came from YAML. */
+    private static final java.util.Set<String> BUILTINS = ConcurrentHashMap.newKeySet();
     private static volatile List<ItemType> materialMatchPriorityCache;
 
     public static final ItemType SWORD = define("SWORD");
@@ -45,6 +47,19 @@ public final class ItemType {
     public static final ItemType BACKPACK = define("BACKPACK");
     public static final ItemType ALL = define("ALL");
     public static final ItemType NONE = define("NONE");
+
+    static {
+        BUILTINS.addAll(REGISTRY.keySet());
+    }
+
+    /**
+     * Drops every YAML-defined entry, keeping only the built-in constants. Called by the loader
+     * before (re)loading, so an entry removed from YAML disappears on reload instead of lingering
+     * until restart.
+     */
+    public static void resetToBuiltins() {
+        REGISTRY.keySet().retainAll(BUILTINS);
+    }
 
     private final String id;
 
@@ -91,16 +106,9 @@ public final class ItemType {
      * vanilla items with no tag.
      */
     public static ItemType fromItemStack(ItemStack item) {
-        if (item == null) return NONE;
-        if (item.hasItemMeta()) {
-            String pdcType = item.getItemMeta().getPersistentDataContainer()
-                    .get(org.nakii.valmora.util.Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-            if (pdcType != null) {
-                Optional<ItemType> found = find(pdcType);
-                if (found.isPresent()) return found.get();
-            }
-        }
-        return fromMaterial(item.getType());
+        // Live definition first (so a YAML item-type change applies to existing items), then the
+        // stored tag, then the material — see ItemView.
+        return ItemView.type(item);
     }
 
     public static ItemType fromMaterial(Material material) {

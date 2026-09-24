@@ -67,6 +67,9 @@ public class ApplyEffectMechanic implements AbilityMechanic {
         for (LivingEntity target : targets) {
             PotionEffect effect = new PotionEffect(effectType, durationTicks, amplifier, false, !hideParticles, true);
             target.addPotionEffect(effect);
+            if (durationTicks == PotionEffect.INFINITE_DURATION) {
+                org.nakii.valmora.module.item.PassiveEffects.record(target, effectType);
+            }
         }
     }
 }

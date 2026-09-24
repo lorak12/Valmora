@@ -81,6 +81,48 @@ public class MobFactory {
         }
 
         applyFlags(entity, definition);
+        entity.getPersistentDataContainer().set(Keys.MOB_TEMPLATE_HASH_KEY, PersistentDataType.STRING, fingerprint(definition));
+    }
+
+    /**
+     * Fingerprint of the parts of a mob definition that are applied to the entity at spawn
+     * (attributes, flags, name). Stored on the entity; a mismatch means the YAML changed since, and
+     * {@link #reapplyTemplate} brings the live mob up to date.
+     */
+    public static String fingerprint(MobDefinition d) {
+        return Integer.toHexString(java.util.Objects.hash(d.getName(), d.getEntityType(), d.getHealth(),
+                d.getScaledDamage(), d.getSpeed(), d.getAggroRange(), d.getKnockbackResistance(), d.isNoAi(),
+                d.isSilent(), d.isGlowing(), d.isPersistent(), d.isBaby(), d.getLevel()));
+    }
+
+    /**
+     * Re-applies a (changed) definition to a mob that already exists: max health (keeping the
+     * current health <i>fraction</i>), damage, speed, follow range and flags. The leash home and
+     * equipment are left as they are. Custom mobs used to keep their spawn-time values forever,
+     * while combat read the current YAML, so after an edit they fought with a mix of both.
+     */
+    public void reapplyTemplate(LivingEntity entity, MobDefinition definition) {
+        AttributeInstance healthAttribute = entity.getAttribute(Attribute.MAX_HEALTH);
+        if (healthAttribute != null) {
+            double oldMax = healthAttribute.getValue();
+            double fraction = oldMax > 0 ? entity.getHealth() / oldMax : 1.0;
+            double newMax = Math.min(definition.getHealth(), VANILLA_MAX_HEALTH_CAP);
+            healthAttribute.setBaseValue(newMax);
+            entity.setHealth(Math.max(0.1, Math.min(newMax, healthAttribute.getValue() * fraction)));
+        }
+        AttributeInstance damageAttribute = entity.getAttribute(Attribute.ATTACK_DAMAGE);
+        if (damageAttribute != null) damageAttribute.setBaseValue(definition.getScaledDamage());
+        AttributeInstance speedAttribute = entity.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (speedAttribute != null) speedAttribute.setBaseValue(definition.getSpeed());
+        if (definition.getAggroRange() >= 0) {
+            AttributeInstance followRange = entity.getAttribute(Attribute.FOLLOW_RANGE);
+            if (followRange != null) followRange.setBaseValue(definition.getAggroRange());
+        }
+        entity.setAI(!definition.isNoAi());
+        entity.setSilent(definition.isSilent());
+        entity.setGlowing(definition.isGlowing());
+        applyFlags(entity, definition);
+        entity.getPersistentDataContainer().set(Keys.MOB_TEMPLATE_HASH_KEY, PersistentDataType.STRING, fingerprint(definition));
     }
 
     private void applyFlags(LivingEntity entity, MobDefinition definition) {

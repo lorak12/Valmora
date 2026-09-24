@@ -13,6 +13,8 @@ public class ZoneModule implements ReloadableModule {
     private ZoneListener listener;
     private ZoneWandListener wandListener;
 
+    private java.util.Map<java.util.UUID, String> previousMembership = java.util.Map.of();
+
     public ZoneModule(Valmora plugin) {
         this.plugin = plugin;
         this.registry = new ZoneRegistry();
@@ -29,6 +31,8 @@ public class ZoneModule implements ReloadableModule {
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getServer().getPluginManager().registerEvents(wandListener, plugin);
         plugin.getScriptModule().registerProvider(new ZoneVariableProvider());
+        manager.restoreMembership(previousMembership);
+        previousMembership = java.util.Map.of();
         manager.startSpawnerTask();
         manager.startMobHomeTask();
         manager.startVisualizationTask();
@@ -39,6 +43,7 @@ public class ZoneModule implements ReloadableModule {
     public void onDisable() {
         plugin.getLogger().info("Disabling Zone Module...");
         if (manager != null) {
+            previousMembership = manager.snapshotMembership();
             manager.stopSpawnerTask();
             manager.stopMobHomeTask();
             manager.stopVisualizationTask();

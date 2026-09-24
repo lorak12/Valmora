@@ -73,4 +73,26 @@ public class QuestManagerResetTest {
         QuestDefinition quest = new QuestDefinition("plain", "Plain Quest", List.of());
         assertTrue(quest.getRewardEvents().isEmpty());
     }
+
+    @Test
+    public void progressKeysAreStableAndLegacyIndexKeysMigrate() {
+        QuestObjective kill1 = new QuestObjective(null, "kill", "zombie", 5, null, null, false, false, 0);
+        QuestObjective collect = new QuestObjective(null, "collect", "wheat", 10, null, null, false, false, 0);
+        QuestObjective kill2 = new QuestObjective(null, "kill", "skeleton", 3, null, null, false, false, 0);
+        QuestDefinition quest = new QuestDefinition("stable", "Stable", List.of(kill1, collect, kill2), List.of());
+        questManager.getRegistry().register("stable", quest);
+
+        assertEquals("kill_1", quest.progressKey(0));
+        assertEquals("collect_1", quest.progressKey(1));
+        assertEquals("kill_2", quest.progressKey(2));
+
+        // Old saves keyed progress by list index.
+        profile.getVariables().put("quest.stable.obj.0", 4);
+        profile.getVariables().put("quest.stable.obj.2", 1);
+        assertEquals(2, questManager.migrateLegacyProgressKeys(profile));
+        assertEquals(4, questManager.getProgress(profile, "stable", 0));
+        assertEquals(1, questManager.getProgress(profile, "stable", 2));
+        assertFalse(profile.getVariables().containsKey("quest.stable.obj.0"));
+        assertEquals(0, questManager.migrateLegacyProgressKeys(profile), "idempotent");
+    }
 }

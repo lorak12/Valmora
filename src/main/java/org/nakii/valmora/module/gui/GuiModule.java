@@ -101,6 +101,7 @@ public class GuiModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        org.nakii.valmora.module.gui.renderer.GuiRenderer.clearConditionCache();
         if (listener != null) {
             org.bukkit.event.HandlerList.unregisterAll(listener);
             listener = null;
@@ -210,15 +211,21 @@ public class GuiModule implements ReloadableModule {
 
         if (playerStorageIds.isEmpty()) {
             Map<String, ItemStack[]> preloaded = loadItemOwnedStorage(def, boundHandle);
+            if (preloaded == null) {
+                player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                        "<red>This item's contents couldn't be read, so it won't open (nothing was changed)."));
+                return;
+            }
+            settleStorageOverflow(player, def, null, boundHandle, preloaded);
             finishOpenGui(player, def, props, parentSession, boundHandle, resolvedTitle, preloaded);
             return;
         }
 
         ValmoraProfile profile = getActiveProfile(player);
         if (profile == null) {
-            // No active profile — proceed with empty PLAYER-owned storage rather than blocking open.
-            Map<String, ItemStack[]> preloaded = loadItemOwnedStorage(def, boundHandle);
-            finishOpenGui(player, def, props, parentSession, boundHandle, resolvedTitle, preloaded);
+            // No active profile — PLAYER-owned storage can't be loaded, and opening it empty would
+            // let the close persist nothing over it. Refuse instead.
+            player.sendMessage(org.nakii.valmora.util.Formatter.format("<red>Your profile isn't loaded yet — try again in a moment."));
             return;
         }
 
@@ -239,9 +246,16 @@ public class GuiModule implements ReloadableModule {
                                 "<red>That storage could not be loaded right now. Please try again."));
                         return;
                     }
+                    Map<String, ItemStack[]> itemOwned = loadItemOwnedStorage(def, boundHandle);
+                    if (itemOwned == null) {
+                        player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                                "<red>This item's contents couldn't be read, so it won't open (nothing was changed)."));
+                        return;
+                    }
                     preloaded.forEach(profile::putStorage);
                     Map<String, ItemStack[]> merged = new HashMap<>(preloaded);
-                    merged.putAll(loadItemOwnedStorage(def, boundHandle));
+                    merged.putAll(itemOwned);
+                    settleStorageOverflow(player, def, profile, boundHandle, merged);
                     finishOpenGui(player, def, props, parentSession, boundHandle, resolvedTitle, merged);
                 })
         );
@@ -267,9 +281,49 @@ public class GuiModule implements ReloadableModule {
                 bytes = boundItem.getItemMeta().getPersistentDataContainer()
                         .get(Keys.STORAGE_CONTENTS_KEY, PersistentDataType.BYTE_ARRAY);
             }
-            result.put(storage.getStorageId(), ItemStorageCodec.deserialize(bytes, size, plugin.getLogger()));
+            ItemStack[] contents = ItemStorageCodec.deserialize(bytes, size, plugin.getLogger());
+            if (contents == null) return null; // unreadable — caller refuses to open
+            result.put(storage.getStorageId(), contents);
         }
         return result;
+    }
+
+    /**
+     * Hands back items stored beyond a storage's current slot count (its GUI YAML was changed to
+     * fewer slots), truncates the storage to fit and persists that immediately, so the items can't
+     * exist both in the player's inventory and in the saved storage. Previously they were cut off
+     * silently and deleted by the next save.
+     */
+    private void settleStorageOverflow(Player player, GuiDefinition def, @Nullable ValmoraProfile profile,
+                                       @Nullable ItemBindingHandle boundHandle, Map<String, ItemStack[]> storage) {
+        Set<String> seen = new HashSet<>();
+        int returned = 0;
+        for (GuiComponent component : def.getComponents().values()) {
+            if (!(component instanceof StorageComponent sc) || !seen.add(sc.getStorageId())) continue;
+            ItemStack[] items = storage.get(sc.getStorageId());
+            int slots = countStorageSlots(def, sc);
+            if (items == null || items.length <= slots) continue;
+
+            ItemStack[] kept = java.util.Arrays.copyOf(items, slots);
+            storage.put(sc.getStorageId(), kept);
+            if (sc.getOwner() == StorageComponent.Owner.PLAYER && profile != null) {
+                persistPlayerStorage(profile, sc.getStorageId(), kept);
+            } else if (sc.getOwner() == StorageComponent.Owner.ITEM && boundHandle != null) {
+                writeItemStorage(boundHandle, kept);
+            }
+            for (int i = slots; i < items.length; i++) {
+                ItemStack extra = items[i];
+                if (extra == null || extra.getType().isAir()) continue;
+                returned += extra.getAmount();
+                for (ItemStack leftover : player.getInventory().addItem(extra).values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover);
+                }
+            }
+        }
+        if (returned > 0) {
+            player.sendMessage(org.nakii.valmora.util.Formatter.format("<yellow>This storage got smaller — "
+                    + returned + " item(s) that no longer fit were returned to you."));
+        }
     }
 
     private void finishOpenGui(Player player, GuiDefinition def, Map<String, Object> props,

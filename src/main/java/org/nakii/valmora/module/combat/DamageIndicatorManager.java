@@ -63,7 +63,10 @@ public class DamageIndicatorManager {
         double offsetZ = (random.nextDouble() - 0.5) * offsetSpread;
         Location spawnLocation = baseLoc.clone().add(offsetX, offsetY, offsetZ);
 
-        TextDisplay display = spawnLocation.getWorld().spawn(spawnLocation, TextDisplay.class);
+        // Tagged + non-persistent inside the spawn consumer, so the display is never saved to disk
+        // (it used to be: a crash or a chunk unload during its lifetime left it floating forever).
+        TextDisplay display = spawnLocation.getWorld().spawn(spawnLocation, TextDisplay.class,
+                entity -> org.nakii.valmora.util.TransientEntities.mark(entity, "combat"));
         display.text(getIndicatorComponent(result));
         display.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
         display.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));

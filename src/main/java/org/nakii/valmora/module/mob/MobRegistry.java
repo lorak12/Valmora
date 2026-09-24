@@ -15,7 +15,9 @@ public class MobRegistry extends SimpleRegistry<MobDefinition> {
     // used by VanillaSpawnUpgradeListener to upgrade natural/spawner/egg spawns of that type.
     private final Map<EntityType, MobDefinition> vanillaDefaults = new ConcurrentHashMap<>();
 
-    public MobRegistry() {}
+    public MobRegistry() {
+        super(org.nakii.valmora.infrastructure.versioning.IdAliases.MOBS);
+    }
 
     public void registerMob(MobDefinition definition) {
         register(definition.getId(), definition);

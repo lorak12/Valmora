@@ -11,6 +11,7 @@ public class ItemDefinition {
     private final String name;
     private final Material material;
     private final Rarity rarity;
+    private final String rarityKey;
     private final ItemType itemType;
     private final List<String> lore;
     private final List<String> loreTemplate;
@@ -25,6 +26,7 @@ public class ItemDefinition {
         this.name = builder.name;
         this.material = builder.material;
         this.rarity = builder.rarity;
+        this.rarityKey = builder.rarityKey;
         this.itemType = builder.itemType;
         this.lore = builder.lore;
         this.loreTemplate = builder.loreTemplate;
@@ -38,7 +40,13 @@ public class ItemDefinition {
     public String getId() { return id; }
     public String getName() { return name; }
     public Material getMaterial() { return material; }
+    /**
+     * The legacy enum rarity. For a custom rarity defined only in {@code rarities.yml} this is
+     * {@link Rarity#COMMON}; prefer {@link #getRarityKey()} with {@link ItemRarities} for display.
+     */
     public Rarity getRarity() { return rarity; }
+    /** The rarity key as written in YAML and in {@code rarities.yml} (upper case, e.g. {@code "LEGENDARY"}). */
+    public String getRarityKey() { return rarityKey; }
     public ItemType getItemType() { return itemType; }
     public List<String> getLore() { return lore; }
     public List<String> getLoreTemplate() { return loreTemplate; }
@@ -54,6 +62,7 @@ public class ItemDefinition {
         private String name;
         private Material material;
         private Rarity rarity = Rarity.COMMON;
+        private String rarityKey = Rarity.COMMON.name();
         private ItemType itemType = ItemType.NONE;
         private List<String> lore = List.of();
         private List<String> loreTemplate = List.of();
@@ -69,7 +78,16 @@ public class ItemDefinition {
 
         public Builder name(String name) { this.name = name; return this; }
         public Builder material(Material material) { this.material = material; return this; }
-        public Builder rarity(Rarity rarity) { this.rarity = rarity; return this; }
+        public Builder rarity(Rarity rarity) { this.rarity = rarity; this.rarityKey = rarity.name(); return this; }
+        public Builder rarityKey(String key) {
+            this.rarityKey = key.toUpperCase();
+            try {
+                this.rarity = Rarity.valueOf(this.rarityKey);
+            } catch (IllegalArgumentException custom) {
+                this.rarity = Rarity.COMMON;
+            }
+            return this;
+        }
         public Builder itemType(ItemType itemType) { this.itemType = itemType; return this; }
         public Builder lore(List<String> lore) { this.lore = lore; return this; }
         public Builder loreTemplate(List<String> loreTemplate) { this.loreTemplate = loreTemplate; return this; }

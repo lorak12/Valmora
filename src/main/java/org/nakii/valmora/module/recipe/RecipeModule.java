@@ -63,6 +63,7 @@ public class RecipeModule implements ReloadableModule {
 
     @Override
     public void onDisable() {
+        RecipeDefinitionParser.unregisterSmithingRecipes(plugin.getServer());
         machineRecipes.clear();
         anvilTemplateRegistry.clear();
     }

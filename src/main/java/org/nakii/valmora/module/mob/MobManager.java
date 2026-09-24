@@ -23,6 +23,7 @@ public class MobManager implements ReloadableModule {
     private MobPipelineLoader pipelineLoader;
     private org.bukkit.scheduler.BukkitTask aiTask;
     private org.bukkit.scheduler.BukkitTask naturalSpawnTask;
+    private MobLifecycleListener lifecycleListener;
 
     public MobManager(Valmora plugin) {
         this.plugin = plugin;
@@ -64,6 +65,12 @@ public class MobManager implements ReloadableModule {
         aiTask = Bukkit.getScheduler().runTaskTimer(plugin, new MobAiTask(plugin, mobRegistry), aiIntervalTicks, aiIntervalTicks);
         if (naturalSpawnTask != null) naturalSpawnTask.cancel();
         naturalSpawnTask = Bukkit.getScheduler().runTaskTimer(plugin, new NaturalSpawnTask(plugin, this, mobRegistry), naturalSpawnIntervalTicks, naturalSpawnIntervalTicks);
+
+        // Live mobs follow template edits and bosses get their controllers back — for mobs already
+        // loaded now (startup, reload) and for every chunk that loads later.
+        lifecycleListener = new MobLifecycleListener(plugin, this);
+        Bukkit.getPluginManager().registerEvents(lifecycleListener, plugin);
+        lifecycleListener.reconcileLoaded();
     }
 
     @Override
@@ -73,6 +80,10 @@ public class MobManager implements ReloadableModule {
         org.bukkit.event.HandlerList.unregisterAll(targetListener);
         org.bukkit.event.HandlerList.unregisterAll(conversionListener);
         org.bukkit.event.HandlerList.unregisterAll(vanillaSpawnUpgradeListener);
+        if (lifecycleListener != null) {
+            org.bukkit.event.HandlerList.unregisterAll(lifecycleListener);
+            lifecycleListener = null;
+        }
         bossController.stop();
         if (aiTask != null) { aiTask.cancel(); aiTask = null; }
         if (naturalSpawnTask != null) { naturalSpawnTask.cancel(); naturalSpawnTask = null; }

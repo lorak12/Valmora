@@ -156,11 +156,20 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         ValmoraAPI.setProvider(apiImpl);
 
         saveDefaultConfig();
+        // Add settings introduced by plugin updates to the admin's config.yml (see ConfigUpdater).
+        try {
+            org.nakii.valmora.infrastructure.config.ConfigUpdater.update(
+                    new File(getDataFolder(), "config.yml"), () -> getResource("config.yml"), getLogger());
+            reloadConfig();
+        } catch (IOException e) {
+            getLogger().warning("Could not update config.yml with new default settings: " + e.getMessage());
+        }
         saveAllResources();
 
 
         // Initialize Keys
         Keys.init(this);
+        org.nakii.valmora.infrastructure.versioning.IdAliases.setLogger(getLogger());
 
         // 1. Initialize Database first
         this.dataStore = DatabaseFactory.createDataStore(this);
@@ -271,6 +280,12 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         // 4. Enable Modules
         moduleManager.enableModules();
 
+        // Leftover presentation entities (damage indicators, pets) from a crash: remove the loaded
+        // ones now, and the rest as their chunks load. Plugin-lifetime listener, not reloaded.
+        int swept = org.nakii.valmora.util.TransientEntities.sweepLoadedWorlds();
+        if (swept > 0) getLogger().info("Removed " + swept + " leftover temporary entities.");
+        getServer().getPluginManager().registerEvents(new org.nakii.valmora.util.TransientEntities.Sweeper(), this);
+
         // 5. Commands
         QuestCommand questCommand = new QuestCommand(this);
         getCommand("quest").setExecutor(questCommand);
@@ -337,6 +352,19 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
 
      @Override
     public void onDisable() {
+        // Server shutdown / plugin unload (not /valmora reload): strip Valmora's attribute values
+        // and passive effects from online players, so nothing Valmora-specific is written into
+        // vanilla player data. Re-applied on the next join.
+        if (statModule != null) {
+            for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
+                try {
+                    statModule.resetAttributes(online);
+                    org.nakii.valmora.module.item.PassiveEffects.clear(online);
+                } catch (RuntimeException e) {
+                    getLogger().warning("Failed to reset attributes of " + online.getName() + ": " + e.getMessage());
+                }
+            }
+        }
         if (moduleManager != null) {
             moduleManager.disableModules();
         }
@@ -627,99 +655,69 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
         }
     }
 
+    /**
+     * Installs and updates the default content files shipped in the jar through
+     * {@link org.nakii.valmora.infrastructure.versioning.ResourceManifest}. New default files
+     * appear on existing installs, unedited ones follow plugin updates
+     * ({@code resources.auto-update-unmodified-defaults}), edited ones get a {@code .new}
+     * alongside, and files an admin deleted stay deleted.
+     *
+     * <p>History: until 2026-08-07 this re-copied every missing file on every startup, so deleting a
+     * shipped default never stuck. It then became a one-shot pass behind a {@code .resources_seeded}
+     * marker, so plugin updates never delivered new or changed defaults (e.g. the whole
+     * {@code machines/} folder). The manifest replaces both behaviours; an existing marker switches
+     * the first manifest run into legacy mode (see ResourceManifest).
+     */
     private void saveAllResources() {
-        // Seeding is tracked per file (2026-09-24): `.resources_seeded` lists every default-content
-        // path that has already been offered to this install. A path on that list is never copied
-        // again, so deleting a shipped default stays deleted (the 2026-08-07 fix) — but a file that
-        // a plugin update adds to the jar isn't on the list yet, so it does get copied on the next
-        // startup. The 2026-08-07 version used an empty marker that stopped *all* seeding forever,
-        // which meant new defaults never reached existing installs (and machines/ + block_loot/,
-        // which it never listed at all, never reached any install).
-        File seededMarker = new File(getDataFolder(), ".resources_seeded");
-        java.util.Set<String> seeded = new java.util.LinkedHashSet<>();
-        boolean legacyMarker = false;
-        if (seededMarker.exists()) {
-            try {
-                for (String line : java.nio.file.Files.readAllLines(seededMarker.toPath())) {
-                    if (!line.isBlank()) seeded.add(line.trim());
-                }
-            } catch (IOException e) {
-                getLogger().warning("Failed to read " + seededMarker.getName() + ": " + e.getMessage());
-                return;
-            }
-            // An empty marker is the old once-per-install format: every folder it seeded was already
-            // offered, so only record those paths — except the folders that format never seeded.
-            legacyMarker = seeded.isEmpty();
-        }
-
-        java.util.List<String> resources = new java.util.ArrayList<>();
         try {
+            java.util.Map<String, byte[]> shipped = new java.util.TreeMap<>();
             File codeSource = new File(getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
 
             if (codeSource.isFile()) {
                 try (ZipInputStream zip = new ZipInputStream(new FileInputStream(codeSource))) {
                     ZipEntry entry;
                     while ((entry = zip.getNextEntry()) != null) {
-                        if (!entry.isDirectory()) resources.add(entry.getName());
+                        if (!entry.isDirectory() && isSeedableResource(entry.getName())) {
+                            shipped.put(entry.getName(), zip.readAllBytes());
+                        }
                     }
                 }
             } else if (codeSource.isDirectory()) {
-                // Dev/exploded-classpath runs (e.g. `./gradlew runServer`, or an IDE launch where the
-                // plugin's classes/resources sit as loose files rather than a packaged jar): a
-                // directory code source is a real filesystem directory, so walk it directly.
+                // Dev/exploded-classpath runs (e.g. `./gradlew runServer`, IDE launches): the
+                // resources sit as loose files, so walk the directory instead of zip-scanning.
                 try (var stream = java.nio.file.Files.walk(codeSource.toPath())) {
                     for (java.nio.file.Path path : (Iterable<java.nio.file.Path>) stream.filter(java.nio.file.Files::isRegularFile)::iterator) {
-                        resources.add(codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/'));
+                        String name = codeSource.toPath().relativize(path).toString().replace(File.separatorChar, '/');
+                        if (isSeedableResource(name)) shipped.put(name, java.nio.file.Files.readAllBytes(path));
                     }
                 }
             } else {
                 return;
             }
-        } catch (IOException | URISyntaxException e) {
-            getLogger().warning("Failed to auto-save resources: " + e.getMessage());
-            return;
-        }
 
-        boolean changed = legacyMarker || !seededMarker.exists();
-        for (String name : resources) {
-            if (!isSeedable(name) || seeded.contains(name)) continue;
-            if (!legacyMarker || isFolderMissingFromLegacySeeding(name)) {
-                // Only save if the file doesn't already exist — don't overwrite server edits
-                if (!new File(getDataFolder(), name).exists()) {
-                    saveResource(name, false);
-                }
-            }
-            seeded.add(name);
-            changed = true;
-        }
-
-        if (!changed) return;
-        try {
             getDataFolder().mkdirs();
-            java.nio.file.Files.write(seededMarker.toPath(), seeded);
-        } catch (IOException e) {
-            getLogger().warning("Failed to write " + seededMarker.getName() + ": " + e.getMessage());
+            File legacyMarker = new File(getDataFolder(), ".resources_seeded");
+            org.nakii.valmora.infrastructure.versioning.ResourceManifest.sync(getDataFolder(), shipped,
+                    legacyMarker.exists(),
+                    getConfig().getBoolean("resources.auto-update-unmodified-defaults", true),
+                    getLogger());
+        } catch (IOException | URISyntaxException e) {
+            getLogger().warning("Failed to install/update default content files: " + e.getMessage());
         }
     }
 
-    /** Folders the pre-2026-09-24 once-per-install seeding never copied, so a legacy install still needs them. */
-    private static boolean isFolderMissingFromLegacySeeding(String name) {
-        return name.startsWith("machines/") || name.startsWith("block_loot/") || name.equals("death_pipeline.yml");
-    }
-
-    /** Whether a jar/classpath resource entry is one of the default-content files copied into the data folder. */
-    static boolean isSeedable(String name) {
+    /** Whether a jar/classpath resource is a default content file managed by {@link #saveAllResources()}. */
+    private static boolean isSeedableResource(String name) {
         if (name.endsWith(".class") || name.equals("plugin.yml") || name.equals("config.yml")) {
             return false;
         }
-
         if (name.equals("mob_categories.yml") || name.equals("entity_categories.yml") || name.equals("item_types.yml")
                 || name.equals("combat_pipeline.yml") || name.equals("resource_pipeline.yml")
                 || name.equals("fishing_pipeline.yml") || name.equals("item_pipeline.yml")
-                || name.equals("mob_pipeline.yml") || name.equals("death_pipeline.yml") || name.equals("rarities.yml")) {
+                || name.equals("mob_pipeline.yml") || name.equals("death_pipeline.yml") || name.equals("rarities.yml")
+                || name.equals("ui.yml")) {
             return true;
         }
-
         return name.startsWith("items/") || name.startsWith("mobs/") || name.startsWith("guis/") ||
                 name.startsWith("recipes/") || name.startsWith("skills/") || name.startsWith("enchants/") ||
                 name.startsWith("enchant/") ||

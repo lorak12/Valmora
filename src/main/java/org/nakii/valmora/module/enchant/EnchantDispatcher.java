@@ -59,7 +59,7 @@ public class EnchantDispatcher {
         for (EnchantStateStore.EnchantInstance instance : instances.values()) {
             EnchantmentDefinition def = registry.get(instance.getId()).orElse(null);
             if (def == null) continue;
-            fireTrigger(def, instance, instance.getLevel(), trigger, context);
+            fireTrigger(def, instance, EnchantmentDefinition.effectiveLevel(def, instance.getLevel()), trigger, context);
         }
     }
 

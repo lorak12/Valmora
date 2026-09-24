@@ -33,13 +33,14 @@ public class ItemDefinitionParser {
 
         // Rarity
         if (section.contains("rarity")) {
-            String rarityStr = section.getString("rarity");
-            try {
-                builder.rarity(Rarity.valueOf(rarityStr.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Invalid rarity '" + rarityStr + "'. Valid options are: "
-                        + java.util.Arrays.stream(Rarity.values()).map(Enum::name).collect(java.util.stream.Collectors.joining(", ")) + ".");
+            String rarityStr = section.getString("rarity", "COMMON").toUpperCase();
+            // rarities.yml is the source of truth (so custom rarities work on items); the legacy
+            // Rarity enum is only a fallback when the rarity module has nothing loaded.
+            if (!ItemRarities.isKnown(rarityStr)) {
+                return LoadResult.failure("[" + fileName + "] In item '" + sectionId + "': Invalid rarity '" + rarityStr
+                        + "'. Valid options are the keys in rarities.yml: " + ItemRarities.knownKeys() + ".");
             }
+            builder.rarityKey(rarityStr);
         }
 
         // ItemType

@@ -16,7 +16,10 @@ public class ModifierGroupRegistry {
     }
 
     public Optional<ModifierGroupDefinition> get(String id) {
-        return id == null ? Optional.empty() : Optional.ofNullable(groups.get(id.toLowerCase(Locale.ROOT)));
+        if (id == null) return Optional.empty();
+        ModifierGroupDefinition group = groups.get(id.toLowerCase(Locale.ROOT));
+        if (group == null) group = groups.get(org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(org.nakii.valmora.infrastructure.versioning.IdAliases.MODIFIER_GROUPS, id));
+        return Optional.ofNullable(group);
     }
 
     public Collection<ModifierGroupDefinition> values() {

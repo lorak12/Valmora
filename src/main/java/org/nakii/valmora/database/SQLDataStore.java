@@ -75,7 +75,12 @@ public class SQLDataStore implements DataStore {
         this.hikari = hikari;
         this.isMySQL = isMySQL;
         this.logger = logger;
-        this.gson = new Gson();
+        // LONG_OR_DOUBLE: untyped JSON numbers (profile variables are Map<String, Object>) come
+        // back as Long when integral instead of Gson's default Double — so a stored 5 doesn't
+        // read back (and display) as "5.0" after a save/load cycle.
+        this.gson = new com.google.gson.GsonBuilder()
+                .setObjectToNumberStrategy(com.google.gson.ToNumberPolicy.LONG_OR_DOUBLE)
+                .create();
         this.recoveryDir = dataFolder != null ? new java.io.File(dataFolder, "recovery") : null;
         this.dbExecutor = Executors.newFixedThreadPool(Math.max(1, workerThreads));
         this.ledgerRetentionPerPlayer = ledgerRetentionPerPlayer > 0 ? ledgerRetentionPerPlayer : LEDGER_RETENTION_PER_PLAYER_DEFAULT;
@@ -98,7 +103,12 @@ public class SQLDataStore implements DataStore {
      * corresponding {@code migrateToVN} step in {@link #applyMigrations} whenever
      * the database layout changes.
      */
-    static final int LATEST_SCHEMA_VERSION = 8;
+    static final int LATEST_SCHEMA_VERSION = 9;
+
+    /** The JSON blob columns of valmora_profiles, fed through {@link ProfileMigrator} on load. */
+    private static final String[] PROFILE_JSON_COLUMNS = {
+            "stats", "skills", "player_state", "tags", "variables", "collections", "inventory", "cooldowns"
+    };
 
     private static final int LEDGER_RETENTION_PER_PLAYER_DEFAULT = 10;
 
@@ -168,6 +178,7 @@ public class SQLDataStore implements DataStore {
         if (from < 6) runMigrationStep(conn, 6, () -> migrateToV6(conn));
         if (from < 7) runMigrationStep(conn, 7, () -> migrateToV7(conn));
         if (from < 8) runMigrationStep(conn, 8, () -> migrateToV8(conn));
+        if (from < 9) runMigrationStep(conn, 9, () -> migrateToV9(conn));
     }
 
     @FunctionalInterface
@@ -194,6 +205,14 @@ public class SQLDataStore implements DataStore {
         } finally {
             conn.setAutoCommit(previousAutoCommit);
         }
+    }
+
+    /**
+     * v9 — adds {@code valmora_profiles.data_version}: the shape version of the row's JSON blobs,
+     * driving {@link ProfileMigrator}. Existing rows default to 0 (pre-versioning shapes).
+     */
+    private void migrateToV9(Connection conn) throws SQLException {
+        addColumnIfMissing(conn, "valmora_profiles", "data_version", "INTEGER NOT NULL DEFAULT 0");
     }
 
     /**
@@ -376,10 +395,8 @@ public class SQLDataStore implements DataStore {
                 ResultSet rsProfiles = psProfiles.executeQuery();
 
                 Type statsType = new TypeToken<Map<String, Double>>() {}.getType();
-                Type skillsType = new TypeToken<Map<String, Double>>() {}.getType();
                 Type tagsType = new TypeToken<Set<String>>() {}.getType();
                 Type variablesType = new TypeToken<Map<String, Object>>() {}.getType();
-                Type collectionsType = new TypeToken<Map<String, Long>>() {}.getType();
                 Type cooldownsType = new TypeToken<Map<String, Long>>() {}.getType();
 
                 while (rsProfiles.next()) {
@@ -392,67 +409,64 @@ public class SQLDataStore implements DataStore {
                             lastUsed
                     );
 
-                    Map<String, Double> stats = gson.fromJson(rsProfiles.getString("stats"), statsType);
+                    // Read every JSON blob, then bring them to the current shape before hydrating.
+                    Map<String, String> columns = new java.util.HashMap<>();
+                    for (String column : PROFILE_JSON_COLUMNS) {
+                        columns.put(column, rsProfiles.getString(column));
+                    }
+                    int dataVersion = rsProfiles.getInt("data_version");
+                    ProfileMigrator.migrate(columns, dataVersion);
+
+                    Map<String, Double> stats = gson.fromJson(columns.get("stats"), statsType);
                     if (stats != null) {
                         // Phase 5 (docs/REFACTOR/PROGRESS.md Task 21): stat ids no longer in the
                         // live StatRegistry are quarantined rather than dropped or silently applied.
-                        profile.getQuarantinedStats().putAll(
-                                profile.getStatManager().loadDataAndQuarantineUnrecognized(stats));
+                        // v3+ rows store allocations (offsets from each stat's current default);
+                        // older rows stored absolute values and load as-is, once.
+                        profile.getQuarantinedStats().putAll(dataVersion >= ProfileMigrator.STAT_ALLOCATIONS_VERSION
+                                ? profile.getStatManager().loadAllocationsAndQuarantineUnrecognized(stats)
+                                : profile.getStatManager().loadDataAndQuarantineUnrecognized(stats));
                     }
 
-                    Map<String, Double> skills = gson.fromJson(rsProfiles.getString("skills"), skillsType);
-                    if (skills != null) profile.getSkillManager().loadData(skills);
+                    String skillsJson = columns.get("skills");
+                    if (skillsJson != null) {
+                        profile.getSkillManager().loadFullData(
+                                gson.fromJson(skillsJson, org.nakii.valmora.module.skill.SkillManager.SaveData.class));
+                    }
 
-                    String stateJson = rsProfiles.getString("player_state");
+                    String stateJson = columns.get("player_state");
                     if (stateJson != null) {
-                        // Extended (2026-08-07) to an object shape carrying combat timer + zone id;
-                        // fall back to the pre-extension bare [health, mana] array for old saves.
-                        if (stateJson.trim().startsWith("[")) {
-                            profile.getPlayerState().loadData(gson.fromJson(stateJson, double[].class));
-                        } else {
-                            profile.getPlayerState().loadData(gson.fromJson(stateJson, org.nakii.valmora.module.profile.PlayerState.SaveData.class));
-                        }
+                        profile.getPlayerState().loadData(gson.fromJson(stateJson, org.nakii.valmora.module.profile.PlayerState.SaveData.class));
                     }
 
-                    String cooldownsJson = rsProfiles.getString("cooldowns");
+                    String cooldownsJson = columns.get("cooldowns");
                     if (cooldownsJson != null) {
                         Map<String, Long> cooldowns = gson.fromJson(cooldownsJson, cooldownsType);
                         if (cooldowns != null) profile.getCooldownManager().loadData(cooldowns);
                     }
 
-                    String tagsJson = rsProfiles.getString("tags");
+                    String tagsJson = columns.get("tags");
                     if (tagsJson != null) {
                         Set<String> tags = gson.fromJson(tagsJson, tagsType);
                         if (tags != null) profile.getTags().addAll(tags);
                     }
 
-                    String variablesJson = rsProfiles.getString("variables");
+                    String variablesJson = columns.get("variables");
                     if (variablesJson != null) {
                         Map<String, Object> variables = gson.fromJson(variablesJson, variablesType);
                         if (variables != null) profile.getVariables().putAll(variables);
                     }
 
-                    String collectionsJson = rsProfiles.getString("collections");
+                    String collectionsJson = columns.get("collections");
                     if (collectionsJson != null) {
-                        // Extended (2026-08-07) to also carry the reward-grant ledger; fall
-                        // back to the pre-extension bare counts-map shape for old saves —
-                        // detected by the presence of a top-level "counts" key, since both
-                        // shapes serialize as a JSON object (unlike player_state's array-vs-
-                        // object distinction, a shape check alone can't tell them apart here).
-                        com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(collectionsJson);
-                        if (parsed.isJsonObject() && parsed.getAsJsonObject().has("counts")) {
-                            profile.getCollectionManager().loadData(
-                                    gson.fromJson(collectionsJson, org.nakii.valmora.module.collection.CollectionManager.SaveData.class));
-                        } else {
-                            Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
-                            if (collections != null) profile.getCollectionManager().loadData(collections);
-                        }
+                        profile.getCollectionManager().loadData(
+                                gson.fromJson(collectionsJson, org.nakii.valmora.module.collection.CollectionManager.SaveData.class));
                     }
 
                     // Load failures here used to be swallowed, leaving the profile's inventory or
                     // storage empty in memory — which the next save then wrote back over the real
                     // data. Any failure now fails the whole load (see the catch below).
-                    String inventoryJson = rsProfiles.getString("inventory");
+                    String inventoryJson = columns.get("inventory");
                     if (inventoryJson != null) deserializeInventory(profile, inventoryJson,
                             "player " + uuid + " profile " + profile.getId() + " inventory");
 
@@ -469,6 +483,14 @@ public class SQLDataStore implements DataStore {
                                         "player " + uuid + " profile " + profile.getId() + " storage " + storageId));
                             }
                         }
+                    }
+
+                    // Follow content renames (previous-ids / pack namespacing) so progress saved
+                    // under an old id isn't orphaned.
+                    int moved = org.nakii.valmora.module.profile.ProfileReferences.resolveAliases(profile);
+                    if (moved > 0) {
+                        logger.info("Moved " + moved + " renamed content reference(s) in profile " + profile.getId()
+                                + " of " + uuid + " to their current ids.");
                     }
 
                     player.addProfile(profile);
@@ -507,13 +529,13 @@ public class SQLDataStore implements DataStore {
         for (ValmoraProfile profile : player.getProfiles().values()) {
             // Phase 5 Task 21: write quarantined (unrecognized) stat ids back unchanged
             // alongside the live ones, so they aren't lost across a save cycle.
-            Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getSaveData());
+            Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getAllocationSaveData());
             statsToSave.putAll(profile.getQuarantinedStats());
             rows.add(new ProfileRow(
                     profile.getId().toString(),
                     profile.getName(),
                     gson.toJson(statsToSave),
-                    gson.toJson(profile.getSkillManager().getSaveData()),
+                    gson.toJson(profile.getSkillManager().getFullSaveData()),
                     gson.toJson(profile.getPlayerState().getSaveData()),
                     gson.toJson(profile.getTags()),
                     gson.toJson(profile.getVariables()),
@@ -543,8 +565,8 @@ public class SQLDataStore implements DataStore {
 
                 // 2. Save Profiles (created_at is set on insert only, last_used is updated on every save)
                 String upsertProfile = isMySQL ?
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?" :
-                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?";
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used, data_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?, data_version = ?" :
+                        "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used, data_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?, data_version = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
                     for (ProfileRow row : rows) {
@@ -561,18 +583,20 @@ public class SQLDataStore implements DataStore {
                         ps.setString(11, row.cooldowns());
                         ps.setLong(12, row.createdAt());
                         ps.setLong(13, row.lastUsed());
+                        ps.setInt(14, ProfileMigrator.LATEST_VERSION);
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(14, row.name());
-                        ps.setString(15, row.stats());
-                        ps.setString(16, row.skills());
-                        ps.setString(17, row.state());
-                        ps.setString(18, row.tags());
-                        ps.setString(19, row.variables());
-                        ps.setString(20, row.collections());
-                        ps.setString(21, row.inventory());
-                        ps.setString(22, row.cooldowns());
-                        ps.setLong(23, row.lastUsed());
+                        ps.setString(15, row.name());
+                        ps.setString(16, row.stats());
+                        ps.setString(17, row.skills());
+                        ps.setString(18, row.state());
+                        ps.setString(19, row.tags());
+                        ps.setString(20, row.variables());
+                        ps.setString(21, row.collections());
+                        ps.setString(22, row.inventory());
+                        ps.setString(23, row.cooldowns());
+                        ps.setLong(24, row.lastUsed());
+                        ps.setInt(25, ProfileMigrator.LATEST_VERSION);
 
                         ps.addBatch();
                     }
@@ -712,12 +736,17 @@ public class SQLDataStore implements DataStore {
         return result;
     }
 
+    /**
+     * Padded to at least {@code size} but never truncated: slots beyond {@code size} (the storage
+     * shrank in its GUI YAML) are returned too, for the GUI to hand back to the player. They used to
+     * be cut off here and the next save made the loss permanent.
+     */
     private ItemStack[] deserializeItemArray(String json, int size, String context) {
-        ItemStack[] result = new ItemStack[size];
-        if (json == null) return result;
+        if (json == null) return new ItemStack[size];
         String[] encoded = gson.fromJson(json, String[].class);
-        if (encoded == null) return result;
-        for (int i = 0; i < Math.min(encoded.length, size); i++) {
+        if (encoded == null) return new ItemStack[size];
+        ItemStack[] result = new ItemStack[Math.max(size, encoded.length)];
+        for (int i = 0; i < encoded.length; i++) {
             if (encoded[i] == null) continue;
             result[i] = decodeItem(encoded[i], context + " slot " + i);
         }

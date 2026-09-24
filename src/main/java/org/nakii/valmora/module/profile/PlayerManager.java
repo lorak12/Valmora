@@ -229,6 +229,18 @@ public class PlayerManager implements ReloadableModule {
             savePlayerInventory(player, vp.getActiveProfile());
         }
         joinGeneration.remove(uuid);
+        // Temporary buffs belong to this session; they used to leak into the next one.
+        org.nakii.valmora.module.item.TemporaryStatService.clear(uuid);
+        if (player != null) {
+            // Leave no Valmora values in the vanilla player file (attributes, passive effects) —
+            // they're re-applied from the profile on the next join.
+            try {
+                plugin.getStatModule().resetAttributes(player);
+                org.nakii.valmora.module.item.PassiveEffects.clear(player);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to reset attributes of " + player.getName(), e);
+            }
+        }
         ValmoraPlayer stored = activeSession.remove(uuid);
         if (stored != null) {
             // The data store runs a player's saves and loads in order, so a quick rejoin's load
@@ -253,6 +265,8 @@ public class PlayerManager implements ReloadableModule {
         if (vp == null) return;
         ValmoraProfile current = vp.getActiveProfile();
         if (current != null) savePlayerInventory(player, current);
+        // Buffs from the previous profile must not carry over into this one.
+        org.nakii.valmora.module.item.TemporaryStatService.clear(player.getUniqueId());
         vp.setActiveProfile(profileId);
         ValmoraProfile next = vp.getActiveProfile();
         if (next != null) {
@@ -399,6 +413,20 @@ public class PlayerManager implements ReloadableModule {
     }
 
     private void savePlayerInventory(Player player, ValmoraProfile profile) {
+        // Snapshot the player's live alchemy effects into the profile too (same call sites: quit,
+        // autosave, switch, disable), so they survive restarts.
+        var alchemy = plugin.getAlchemyManager();
+        if (alchemy != null) {
+            java.util.List<PlayerState.SavedEffect> saved = new java.util.ArrayList<>();
+            for (var effect : alchemy.getActiveEffects(player.getUniqueId())) {
+                PlayerState.SavedEffect s = new PlayerState.SavedEffect();
+                s.effectId = effect.effectId();
+                s.level = effect.level();
+                s.expiresAtMs = effect.expiresAtMs();
+                saved.add(s);
+            }
+            profile.getPlayerState().setAlchemyEffects(saved);
+        }
         PlayerInventory inv = player.getInventory();
         profile.setSavedInventory(inv.getStorageContents().clone());
         profile.setSavedArmor(inv.getArmorContents().clone());
@@ -407,6 +435,14 @@ public class PlayerManager implements ReloadableModule {
     }
 
     private void applyPlayerInventory(Player player, ValmoraProfile profile) {
+        var alchemy = plugin.getAlchemyManager();
+        if (alchemy != null) {
+            java.util.List<org.nakii.valmora.module.alchemy.effect.ActiveEffect> restored = new java.util.ArrayList<>();
+            for (PlayerState.SavedEffect s : profile.getPlayerState().getAlchemyEffects()) {
+                if (s.effectId != null) restored.add(new org.nakii.valmora.module.alchemy.effect.ActiveEffect(s.effectId, s.level, s.expiresAtMs));
+            }
+            alchemy.restoreEffects(player.getUniqueId(), restored);
+        }
         PlayerInventory inv = player.getInventory();
         inv.clear();
         if (profile.getSavedInventory() != null) inv.setStorageContents(profile.getSavedInventory());

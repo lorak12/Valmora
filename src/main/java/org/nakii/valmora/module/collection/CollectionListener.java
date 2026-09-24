@@ -108,17 +108,22 @@ public class CollectionListener implements Listener {
             // a re-derived before/after stage comparison — the latter can re-fire a stage's
             // rewards forever if a config edit or reload ever causes getStageForCount() to
             // recompute differently. Once granted, a stage never fires again for this profile.
-            int grantedStage = manager.getGrantedStage(def.getId());
-            if (newStage > grantedStage) {
-                var ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
-                for (CollectionStage stage : def.getStages()) {
-                    if (stage.getNumber() > grantedStage && stage.getNumber() <= newStage
-                            && !stage.getRewards().isEmpty()) {
-                        plugin.getScriptModule().getEventParser()
-                                .parseList(stage.getRewards())
-                                .execute(ctx);
-                    }
-                }
+            //
+            // The ledger is keyed by each stage's stable key (its id, else its threshold), not its
+            // number, so inserting or renumbering stages in YAML neither skips nor repeats rewards.
+            long count = manager.getCount(def.getId());
+            java.util.Set<String> granted = manager.getGrantedKeys(def);
+            SimpleExecutionContext ctx = null;
+            for (CollectionStage stage : def.getStages()) {
+                if (count < stage.getRequired() || granted.contains(stage.getKey())) continue;
+                granted.add(stage.getKey());
+                if (stage.getRewards().isEmpty()) continue;
+                if (ctx == null) ctx = new SimpleExecutionContext(player, player.getLocation(), new YamlConfiguration());
+                plugin.getScriptModule().getEventParser()
+                        .parseList(stage.getRewards())
+                        .execute(ctx);
+            }
+            if (newStage > manager.getGrantedStage(def.getId())) {
                 manager.setGrantedStage(def.getId(), newStage);
             }
         }

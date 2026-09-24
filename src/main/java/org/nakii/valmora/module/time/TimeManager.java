@@ -86,7 +86,10 @@ public class TimeManager {
         // manipulation (another plugin/command fast-forwarding the world clock, or a
         // hand-edited time.yml) rather than something that fires on every restart.
         if (lastKnownWorldDay != null && lastKnownWorldDay < currentWorldDay) {
-            reconcileMissedTransitions(lastKnownWorldDay);
+            // Deferred one tick: the time module enables second, so firing now would reach none of
+            // the later modules' listeners (calendar, quests, ...) — they'd miss the catch-up.
+            final long fromDay = lastKnownWorldDay;
+            Bukkit.getScheduler().runTask(plugin, () -> reconcileMissedTransitions(fromDay));
         }
         lastWorldDay = currentWorldDay;
 

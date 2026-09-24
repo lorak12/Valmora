@@ -34,9 +34,10 @@ public class ItemFactory {
                  meta.getPersistentDataContainer().set(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING, definition.getItemType().name());
             }
 
-            // Set custom properties
-            Rarity rarity = definition.getRarity() != null ? definition.getRarity() : Rarity.COMMON;
-            meta.getPersistentDataContainer().set(Keys.RARITY_KEY, PersistentDataType.STRING, rarity.name());
+            // Set custom properties. The rarity/type/stats copies stored here are only a fallback
+            // for when the definition is gone — live reads go through ItemView.
+            meta.getPersistentDataContainer().set(Keys.RARITY_KEY, PersistentDataType.STRING, definition.getRarityKey());
+            ItemMigrator.stampCurrent(meta);
 
             // Custom model data
             if (definition.getCustomModelData() > 0) {
@@ -73,28 +74,33 @@ public class ItemFactory {
         // Try to get definition
         var definitionOpt = itemId != null ? plugin.getItemManager().getItemRegistry().getItem(itemId) : java.util.Optional.<ItemDefinition>empty();
 
-        Rarity rarity;
+        String rarityKey;
         String rarityColor;
         String name;
         List<String> baseLore = new ArrayList<>();
 
         if (definitionOpt.isPresent()) {
             ItemDefinition definition = definitionOpt.get();
-            rarity = definition.getRarity() != null ? definition.getRarity() : Rarity.COMMON;
-            rarityColor = rarity.getColor();
+            // Keep the stored copies in step with the live definition (see ItemView).
+            ItemView.syncStoredCopies(meta);
+            rarityKey = definition.getRarityKey();
             name = definition.getName();
             if (definition.getLore() != null) baseLore.addAll(definition.getLore());
         } else {
-            // Fallback for translated vanilla items
-            String rarityName = meta.getPersistentDataContainer().get(Keys.RARITY_KEY, PersistentDataType.STRING);
-            try {
-                rarity = rarityName != null ? Rarity.valueOf(rarityName) : Rarity.COMMON;
-            } catch (IllegalArgumentException e) {
-                rarity = Rarity.COMMON;
-            }
-            rarityColor = rarity.getColor();
+            // Fallback for translated vanilla items (and items whose definition was deleted)
+            String stored = meta.getPersistentDataContainer().get(Keys.RARITY_KEY, PersistentDataType.STRING);
+            rarityKey = stored != null ? stored : Rarity.COMMON.name();
             // Use capitalized material name if it's a translated vanilla item
             name = (itemId != null && itemId.startsWith("vanilla_")) ? Formatter.capitalize(item.getType().name().replace("_", " ")) : null;
+        }
+        // Colour/name from rarities.yml (falling back to the legacy enum) — see ItemRarities.
+        rarityColor = ItemRarities.color(rarityKey);
+
+        // A player/anvil-given name survives re-renders (it used to be overwritten here by the
+        // template name on the next enchant, reforge or content refresh).
+        String customName = meta.getPersistentDataContainer().get(Keys.CUSTOM_NAME_KEY, PersistentDataType.STRING);
+        if (customName != null && !customName.isEmpty()) {
+            name = customName;
         }
 
         // Prepend/append modifier display text (docs/Valmora_Modifier_Framework_Design.docx §19) —
@@ -149,6 +155,12 @@ public class ItemFactory {
         List<Component> baseLoreLines = new ArrayList<>();
         if (!baseLore.isEmpty()) {
             baseLoreLines.addAll(Formatter.formatList(baseLore));
+        }
+        // Per-instance extra lines (e.g. an anvil recipe's add_lore) follow the template's own lore,
+        // so they survive every re-render instead of being wiped by the next one.
+        String extraLore = meta.getPersistentDataContainer().get(Keys.EXTRA_LORE_KEY, PersistentDataType.STRING);
+        if (extraLore != null && !extraLore.isEmpty()) {
+            baseLoreLines.addAll(Formatter.formatList(List.of(extraLore.split("\n"))));
         }
         sections.put(ItemLoreLayout.Section.BASE_LORE, baseLoreLines);
 
@@ -252,7 +264,7 @@ public class ItemFactory {
         String typeName = meta.getPersistentDataContainer().get(Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
         String typeDisplay = (typeName != null && !typeName.equalsIgnoreCase("NONE")) ? " " + typeName.toUpperCase() : "";
         rarityLines.add(Formatter.format(layout.getRarityTagFormat()
-                .replace("{color}", rarityColor).replace("{rarity}", rarity.getName().toUpperCase()).replace("{type}", typeDisplay)));
+                .replace("{color}", rarityColor).replace("{rarity}", ItemRarities.displayName(rarityKey).toUpperCase()).replace("{type}", typeDisplay)));
         sections.put(ItemLoreLayout.Section.RARITY_TAG, rarityLines);
 
         // Stitch sections together in configured order, inserting a spacer line between any two
@@ -266,6 +278,12 @@ public class ItemFactory {
         }
 
         meta.lore(finalLore);
+
+        // Mark the item as rendered against the current content, so ItemRefresher skips it.
+        String epoch = ItemRefresher.currentEpoch();
+        if (!epoch.isEmpty()) {
+            meta.getPersistentDataContainer().set(Keys.ITEM_RENDER_EPOCH_KEY, PersistentDataType.STRING, epoch);
+        }
     }
 
     /** Strips trailing {@link Component#empty()} lines so a section never ends on a blank line —

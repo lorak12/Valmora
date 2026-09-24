@@ -60,6 +60,26 @@ public class Keys {
      *  through the unified anvil, driving the 2^n-1 XP penalty curve. Absent = 0. */
     public static NamespacedKey ANVIL_WORK_COUNT_KEY;
 
+    /** Item data-shape version (INTEGER), driving {@code module.item.ItemMigrator}. Absent = 0. */
+    public static NamespacedKey ITEM_DATA_VERSION_KEY;
+    /** Content fingerprint (STRING) the item's name/lore were last rendered against; a mismatch
+     *  means the templates changed and {@code module.item.ItemRefresher} re-renders it. */
+    public static NamespacedKey ITEM_RENDER_EPOCH_KEY;
+    /** Player/anvil-given display name (STRING, MiniMessage) that template re-renders must keep. */
+    public static NamespacedKey CUSTOM_NAME_KEY;
+    /** Extra lore lines (STRING, MiniMessage lines joined by newline) added to one item instance
+     *  (e.g. an anvil recipe's add_lore), appended after the template lore on every render. */
+    public static NamespacedKey EXTRA_LORE_KEY;
+    /** Marks a short-lived entity Valmora spawned (STRING = owning module), removed on sight if it
+     *  outlives its session (see {@code util.TransientEntities}). */
+    public static NamespacedKey TRANSIENT_ENTITY_KEY;
+    /** Fingerprint (STRING) of the mob definition a custom mob's attributes were applied from. */
+    public static NamespacedKey MOB_TEMPLATE_HASH_KEY;
+    /** Player: comma-separated potion effect keys Valmora applied as infinite passives. */
+    public static NamespacedKey PASSIVE_EFFECTS_KEY;
+    /** Player: comma-separated attribute keys whose base value/modifiers Valmora's stats set. */
+    public static NamespacedKey TOUCHED_ATTRIBUTES_KEY;
+
     public static void init(Valmora plugin) {
         ITEM_ID_KEY = new NamespacedKey(plugin, "valmora_item_id");
         RARITY_KEY = new NamespacedKey(plugin, "rarity");
@@ -103,5 +123,14 @@ public class Keys {
         DAMAGE_RESISTANCES_KEY = new NamespacedKey(plugin, "damage_resistances");
 
         ANVIL_WORK_COUNT_KEY = new NamespacedKey(plugin, "anvil_work_count");
+
+        ITEM_DATA_VERSION_KEY = new NamespacedKey(plugin, "item_data_version");
+        ITEM_RENDER_EPOCH_KEY = new NamespacedKey(plugin, "item_render_epoch");
+        CUSTOM_NAME_KEY = new NamespacedKey(plugin, "custom_name");
+        EXTRA_LORE_KEY = new NamespacedKey(plugin, "extra_lore");
+        TRANSIENT_ENTITY_KEY = new NamespacedKey(plugin, "transient_entity");
+        MOB_TEMPLATE_HASH_KEY = new NamespacedKey(plugin, "mob_template_hash");
+        PASSIVE_EFFECTS_KEY = new NamespacedKey(plugin, "passive_effects");
+        TOUCHED_ATTRIBUTES_KEY = new NamespacedKey(plugin, "touched_attributes");
     }
 }

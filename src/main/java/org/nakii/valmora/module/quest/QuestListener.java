@@ -72,6 +72,11 @@ public class QuestListener implements Listener {
         // one of these calls silently found no profile and did nothing.
         Player player = org.bukkit.Bukkit.getPlayer(event.getUuid());
         if (player == null) return;
+        var session = event.getValmoraPlayer();
+        if (session != null && session.getActiveProfile() != null) {
+            questManager.migrateLegacyProgressKeys(session.getActiveProfile());
+        }
+        questManager.resumeObjectives(player);
         questManager.startAutoOnceObjectivesForPlayer(player);
         questManager.trigger(player, QuestObjectiveTypes.LOGIN, "login", 1);
         checkStatReachObjectives(player);
@@ -84,6 +89,7 @@ public class QuestListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         questManager.trigger(event.getPlayer(), QuestObjectiveTypes.LOGOUT, "logout", 1);
+        questManager.onPlayerQuit(event.getPlayer());
     }
 
     // ── KILL ─────────────────────────────────────────────────────────────────

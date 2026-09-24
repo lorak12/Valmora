@@ -26,6 +26,7 @@ public class DamageTypeLoader {
     }
 
     public void load() {
+        DamageType.resetToBuiltins(); // types removed from YAML don't linger across reloads
         File dir = new File(plugin.getDataFolder(), "damage_types");
         if (!dir.exists()) {
             log.info("[DamageTypeLoader] damage_types/ folder not found — using built-in defaults.");

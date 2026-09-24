@@ -12,6 +12,19 @@ import java.util.Map;
 
 public class RecipeDefinitionParser {
 
+    /**
+     * Every smithing recipe this plugin registered with Bukkit. RecipeModule removes them all on
+     * disable, so a smithing recipe deleted from YAML is actually gone after a reload (it used to
+     * stay registered until restart, since removal only ran for ids that still existed).
+     */
+    static final java.util.Set<org.bukkit.NamespacedKey> REGISTERED_SMITHING_KEYS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Unregisters every smithing recipe registered through this parser. */
+    public static void unregisterSmithingRecipes(org.bukkit.Server server) {
+        for (org.bukkit.NamespacedKey key : REGISTERED_SMITHING_KEYS) server.removeRecipe(key);
+        REGISTERED_SMITHING_KEYS.clear();
+    }
+
     private final Valmora plugin;
 
     public RecipeDefinitionParser(Valmora plugin) {
@@ -223,11 +236,14 @@ public class RecipeDefinitionParser {
             result.setAmount(resultAmount);
         }
 
-        org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "smithing_" + id);
-        plugin.getServer().removeRecipe(key); // idempotent re-registration across /valmora reload
-        org.bukkit.inventory.SmithingTransformRecipe recipe =
-                new org.bukkit.inventory.SmithingTransformRecipe(key, result, template, base, addition);
-        plugin.getServer().addRecipe(recipe);
+        if (!org.nakii.valmora.infrastructure.config.YamlLoader.isValidating()) { // no side effects in a dry run
+            org.bukkit.NamespacedKey key = new org.bukkit.NamespacedKey(plugin, "smithing_" + id);
+            plugin.getServer().removeRecipe(key); // idempotent re-registration across /valmora reload
+            org.bukkit.inventory.SmithingTransformRecipe recipe =
+                    new org.bukkit.inventory.SmithingTransformRecipe(key, result, template, base, addition);
+            plugin.getServer().addRecipe(recipe);
+            REGISTERED_SMITHING_KEYS.add(key);
+        }
 
         // Machine-less marker, skipped rather than registered under a null machine key
         // — see RecipeModule.loadRecipes().

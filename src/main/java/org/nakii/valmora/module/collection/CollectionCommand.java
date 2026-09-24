@@ -148,7 +148,7 @@ public class CollectionCommand implements TabExecutor {
                 profile -> {
                     CollectionManager cm = profile.getCollectionManager();
                     cm.addCount(def.getId(), -cm.getCount(def.getId()));
-                    cm.setGrantedStage(def.getId(), 0);
+                    cm.resetGranted(def.getId());
                 },
                 ok -> {
                     if (ok) {

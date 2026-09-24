@@ -2,6 +2,19 @@
 #                    Valmora Configuration                   #
 # ========================================================== #
 
+# Managed by Valmora — used to upgrade this file between plugin versions. Don't edit.
+config-version: 1
+
+# ========================================================== #
+#                   Default Content Files                    #
+# ========================================================== #
+resources:
+  # Valmora ships default content (items/, mobs/, guis/, machines/, ...) and keeps track of which
+  # version of each file you have. When a plugin update changes a default file you have NOT
+  # edited, it is updated in place if this is true. Files you edited are never overwritten — the
+  # new version is written next to yours as <file>.new instead. Files you deleted stay deleted.
+  auto-update-unmodified-defaults: true
+
 database:
   # Which database engine should Valmora use?
   # Supported types: sqlite, mysql
@@ -708,6 +721,15 @@ modifiers:
     # HC-122: Expression evaluated with $rarity.rank$ for TierSource.RARITY_RANK groups (reforges).
     # Leave blank to keep the built-in "rank + 1" default.
     formula: ""
+
+# ========================================================== #
+#                       Mob Settings                         #
+# ========================================================== #
+mobs:
+  # What happens to a live custom mob whose mobs/*.yml definition was deleted (and isn't listed
+  # in another mob's previous-ids): "keep" leaves it in the world as a plain mob (no custom loot,
+  # abilities or boss bar), "remove" despawns it the next time it's loaded.
+  orphan-policy: keep
 
 # ========================================================== #
 #                     Alchemy Settings                       #

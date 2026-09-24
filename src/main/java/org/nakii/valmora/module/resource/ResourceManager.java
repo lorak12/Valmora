@@ -49,6 +49,9 @@ public class ResourceManager {
 
     private final Valmora plugin;
     private final Map<String, ResourceTracker> trackedBlocks = new HashMap<>();
+    /** Saved entries whose world isn't loaded yet — kept and written back until it is. */
+    private final List<Map<?, ?>> pendingStateEntries = new ArrayList<>();
+    private BukkitTask pendingSave;
 
     public ResourceManager(Valmora plugin) {
         this.plugin = plugin;
@@ -161,10 +164,12 @@ public class ResourceManager {
             ResourceTracker newTracker = new ResourceTracker(originalMaterial, config, block.getLocation(), nextStageIndex, regenTask);
             newTracker.regenAtMillis = regenAtMillis;
             trackedBlocks.put(key, newTracker);
+            requestSave();
         } else {
             tracker.stageIndex = nextStageIndex;
             tracker.regenTask = regenTask;
             tracker.regenAtMillis = regenAtMillis;
+            requestSave();
         }
 
         return BreakResult.HANDLED;
@@ -237,6 +242,18 @@ public class ResourceManager {
         return new File(plugin.getDataFolder(), "resource_state.yml");
     }
 
+    /**
+     * Saves soon (debounced ~2s) after a block is depleted. The 30s timer alone left up to 30s of
+     * depleted blocks unrecorded, so they stayed broken forever after a crash.
+     */
+    private void requestSave() {
+        if (pendingSave != null) return;
+        pendingSave = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            pendingSave = null;
+            saveState();
+        }, 40L);
+    }
+
     /** Snapshots {@link #trackedBlocks} to disk. Called on a periodic autosave timer by {@link ResourceModule}. */
     public void saveState() {
         YamlConfiguration yaml = new YamlConfiguration();
@@ -253,6 +270,7 @@ public class ResourceManager {
             entry.put("regen-at", tracker.regenAtMillis);
             entries.add(entry);
         }
+        entries.addAll((List) pendingStateEntries);
         yaml.set("tracked", entries);
         try {
             yaml.save(stateFile());
@@ -263,6 +281,7 @@ public class ResourceManager {
 
     /** Restores trackers (and reschedules their regen timers) from a prior unclean shutdown. Called once from {@code onEnable()}. */
     public void loadState() {
+        pendingStateEntries.clear();
         File file = stateFile();
         if (!file.exists()) return;
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
@@ -274,7 +293,11 @@ public class ResourceManager {
                 if (!(raw instanceof Map<?, ?> map)) continue;
                 try {
                     World world = plugin.getServer().getWorld(String.valueOf(map.get("world")));
-                    if (world == null) continue;
+                    if (world == null) {
+                        // World not loaded (yet): keep the entry instead of deleting it with the file.
+                        pendingStateEntries.add(map);
+                        continue;
+                    }
                     int x = ((Number) map.get("x")).intValue();
                     int y = ((Number) map.get("y")).intValue();
                     int z = ((Number) map.get("z")).intValue();
@@ -285,9 +308,14 @@ public class ResourceManager {
 
                     Location loc = new Location(world, x, y, z);
                     ZoneDefinition zone = plugin.getZoneManager().getZoneAt(loc).orElse(null);
-                    if (zone == null) continue;
-                    ZoneResourceConfig config = zone.getResourceBlocks().get(original);
-                    if (config == null) continue;
+                    ZoneResourceConfig config = zone != null ? zone.getResourceBlocks().get(original) : null;
+                    if (config == null) {
+                        // The zone or resource config was removed meanwhile — nothing will ever
+                        // regenerate this block, so put the original back now instead of leaving
+                        // it depleted forever.
+                        loc.getBlock().setType(original, false);
+                        continue;
+                    }
 
                     String key = locationKey(loc);
                     long remainingTicks = Math.max(1L, (regenAt - now) / 50L);
@@ -309,13 +337,20 @@ public class ResourceManager {
         if (restored > 0) {
             plugin.getLogger().info("[Resource] Restored " + restored + " mid-progress resource block(s) after an unclean shutdown.");
         }
-        // Consume the file — it's only meant to bridge a single unclean restart.
+        // Consume the file — it's only meant to bridge a single unclean restart. Entries for worlds
+        // that aren't loaded are written back so they survive until those worlds are.
         file.delete();
+        if (!pendingStateEntries.isEmpty()) saveState();
     }
 
     /** Deletes the persisted state file. Called on a clean {@code onDisable()} since {@link #cancelAll()} already restores the world. */
     public void clearStateFile() {
+        if (pendingSave != null) { pendingSave.cancel(); pendingSave = null; }
         File file = stateFile();
+        if (!pendingStateEntries.isEmpty()) {
+            saveState(); // trackedBlocks is empty after cancelAll(); only unloaded-world entries remain
+            return;
+        }
         if (file.exists()) file.delete();
     }
 

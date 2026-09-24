@@ -30,6 +30,8 @@ public class CollectionLoader {
             plugin.getLogger().warning("[Collections] collections/categories.yml not found.");
         }
 
+        org.nakii.valmora.infrastructure.versioning.IdAliases.clear(
+                org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS);
         loadCollectionsRecursive(folder);
 
         plugin.getLogger().info("[Collections] Loaded " + registry.getCategories().size() +
@@ -70,6 +72,9 @@ public class CollectionLoader {
             try {
                 CollectionDefinition def = CollectionDefinitionParser.parseCollection(key.toLowerCase(), section);
                 registry.registerCollection(def);
+                org.nakii.valmora.infrastructure.versioning.IdAliases.registerAll(
+                        org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS,
+                        section.getStringList("previous-ids"), def.getId());
             } catch (Exception e) {
                 plugin.getLogger().warning("[Collections] Failed to parse collection '" + key +
                         "' in " + file.getName() + ": " + e.getMessage());

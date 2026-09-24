@@ -51,6 +51,9 @@ public class ModuleManager {
                 lastFailures.add(module.getId());
             }
         }
+        // Only now is every module's script events registered — report names nobody provides.
+        var script = plugin.getScriptModule();
+        if (script != null && script.getEventParser() != null) script.getEventParser().reportUnresolved();
     }
 
     /**
@@ -75,9 +78,21 @@ public class ModuleManager {
     /**
      * Reloads all modules.
      */
-    public List<String> reloadModules() {
+    /**
+     * Outcome of a reload: modules whose enable/disable threw (possibly half-loaded), and content
+     * errors reported by the loaders. Content entries that failed kept their last working version
+     * where one existed (see YamlLoader), so a content error never removes live content.
+     */
+    public record ReloadResult(List<String> failedModules, List<String> contentErrors) {
+        public boolean clean() {
+            return failedModules.isEmpty() && contentErrors.isEmpty();
+        }
+    }
+
+    public ReloadResult reloadModules() {
         plugin.getLogger().info("Reloading all modules...");
         lastFailures.clear();
+        org.nakii.valmora.infrastructure.config.YamlLoader.beginReport();
         reloading = true;
         try {
             disableModules();
@@ -85,9 +100,13 @@ public class ModuleManager {
         } finally {
             reloading = false;
         }
-        afterReload();
-        plugin.getLogger().info(lastFailures.isEmpty() ? "Reload complete." : "Reload finished with failures in: " + lastFailures);
-        return List.copyOf(lastFailures);
+        afterReload(modules.values());
+        ReloadResult result = new ReloadResult(List.copyOf(lastFailures),
+                org.nakii.valmora.infrastructure.config.YamlLoader.drainReport());
+        plugin.getLogger().info(result.clean() ? "Reload complete."
+                : "Reload finished with " + result.failedModules().size() + " module failure(s) and "
+                + result.contentErrors().size() + " content error(s).");
+        return result;
     }
 
     /**
@@ -101,9 +120,25 @@ public class ModuleManager {
     }
 
     /** Runs once every reloaded module is back up: recompute state that spans modules. */
-    private void afterReload() {
+    private void afterReload(java.util.Collection<ReloadableModule> reloaded) {
+        // Content may have changed: re-fingerprint item content and bring every online player's
+        // items up to date now (other items refresh lazily as they're encountered).
+        if (plugin.getItemManager() != null) {
+            org.nakii.valmora.module.item.ItemRefresher.recomputeEpoch(plugin);
+            for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+                try {
+                    org.nakii.valmora.module.item.ItemRefresher.refresh(plugin, player);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to refresh items of " + player.getName() + " after reload", e);
+                }
+            }
+        }
+
         var playerManager = plugin.getPlayerManager();
-        if (playerManager == null) return;
+        if (playerManager == null) {
+            fireReloaded(reloaded);
+            return;
+        }
         for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
             var session = playerManager.getSession(player.getUniqueId());
             var profile = session != null ? session.getActiveProfile() : null;
@@ -114,6 +149,17 @@ public class ModuleManager {
             } catch (RuntimeException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to recalculate stats for " + player.getName() + " after reload", e);
             }
+        }
+        fireReloaded(reloaded);
+    }
+
+    private void fireReloaded(java.util.Collection<ReloadableModule> reloaded) {
+        Set<String> ids = new java.util.HashSet<>();
+        for (ReloadableModule module : reloaded) ids.add(module.getId().toLowerCase());
+        try {
+            new org.nakii.valmora.api.event.ValmoraReloadedEvent(ids).callEvent();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "A post-reload listener failed", e);
         }
     }
 
@@ -165,7 +211,7 @@ public class ModuleManager {
         } finally {
             reloading = false;
         }
-        afterReload();
+        afterReload(subset);
         plugin.getLogger().info("Reload of " + moduleIds + " complete.");
     }
 
@@ -204,7 +250,7 @@ public class ModuleManager {
             } finally {
                 reloading = false;
             }
-            afterReload();
+            afterReload(List.of(module));
         }
     }
 }
