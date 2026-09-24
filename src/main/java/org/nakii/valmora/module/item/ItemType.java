@@ -91,16 +91,9 @@ public final class ItemType {
      * vanilla items with no tag.
      */
     public static ItemType fromItemStack(ItemStack item) {
-        if (item == null) return NONE;
-        if (item.hasItemMeta()) {
-            String pdcType = item.getItemMeta().getPersistentDataContainer()
-                    .get(org.nakii.valmora.util.Keys.ITEM_TYPE_KEY, PersistentDataType.STRING);
-            if (pdcType != null) {
-                Optional<ItemType> found = find(pdcType);
-                if (found.isPresent()) return found.get();
-            }
-        }
-        return fromMaterial(item.getType());
+        // Live definition first (so a YAML item-type change applies to existing items), then the
+        // stored tag, then the material — see ItemView.
+        return ItemView.type(item);
     }
 
     public static ItemType fromMaterial(Material material) {

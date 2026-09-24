@@ -82,13 +82,26 @@ public class AlchemyManager {
 
     // ── Active Effect Application ─────────────────────────────────────────
 
-    public void applyEffect(LivingEntity entity, String effectId, int level, int durationSeconds) {
+    /**
+     * Applies an effect. Returns {@code false} (doing nothing) when the effect no longer exists,
+     * i.e. a potion brewed from an effect that was since deleted. The level is capped at the effect's
+     * CURRENT max level, since potions store the level they were brewed at.
+     */
+    public boolean applyEffect(LivingEntity entity, String effectId, int level, int durationSeconds) {
+        Optional<AlchemyEffect> definition = getEffect(effectId);
+        if (definition.isEmpty() && !hardcodedEffects.containsKey(effectId.toLowerCase())) {
+            DebugManager.log("alchemy", "ignored unknown effect '" + effectId + "' on " + entity.getName());
+            return false;
+        }
+        if (definition.isPresent() && definition.get().getMaxLevel() > 0) {
+            level = Math.min(level, definition.get().getMaxLevel());
+        }
         UUID uuid = entity.getUniqueId();
         List<ActiveEffect> effects = activeEffects.computeIfAbsent(uuid, k -> new ArrayList<>());
 
         effects.removeIf(e -> e.effectId().equalsIgnoreCase(effectId));
 
-        if (entity instanceof Player && effects.size() >= maxActiveEffects) return;
+        if (entity instanceof Player && effects.size() >= maxActiveEffects) return false;
 
         long expiresAt = System.currentTimeMillis() + (long) durationSeconds * 1000;
         effects.add(new ActiveEffect(effectId, level, expiresAt));
@@ -102,6 +115,7 @@ public class AlchemyManager {
         if (entity instanceof Player player) {
             recalculatePlayerStats(player);
         }
+        return true;
     }
 
     public void removeEffect(LivingEntity entity, String effectId) {

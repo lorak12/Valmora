@@ -5,6 +5,7 @@ import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
@@ -198,7 +199,36 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
             meta.getPersistentDataContainer().set(Keys.ALCHEMY_SPLASH_MULTIPLIER, PersistentDataType.DOUBLE, splashMultiplier);
         }
 
-        String rarityColor = getRarityColor(effect.getRarity());
+        renderPotionDisplay(meta, effect, level, durationSeconds, isSplash);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Re-renders a brewed potion's name and lore from its effect's CURRENT definition, using the
+     * level/duration stored on it (level capped at the effect's current max). Returns false if the
+     * effect no longer exists. Called by ItemRefresher so an edited effect's name, lore or stat
+     * lines reach potions brewed earlier.
+     */
+    public static boolean rerenderPotion(ItemMeta meta) {
+        var pdc = meta.getPersistentDataContainer();
+        String effectId = pdc.get(Keys.ALCHEMY_EFFECT_ID, PersistentDataType.STRING);
+        var alchemy = org.nakii.valmora.api.ValmoraAPI.getInstance().getAlchemyManager();
+        if (effectId == null || alchemy == null) return false;
+        AlchemyEffect effect = alchemy.getEffect(effectId).orElse(null);
+        if (effect == null) return false;
+        int level = pdc.getOrDefault(Keys.ALCHEMY_EFFECT_LEVEL, PersistentDataType.INTEGER, 1);
+        if (effect.getMaxLevel() > 0) level = Math.min(level, effect.getMaxLevel());
+        int duration = pdc.getOrDefault(Keys.ALCHEMY_DURATION, PersistentDataType.INTEGER, 60);
+        boolean splash = pdc.getOrDefault(Keys.ALCHEMY_IS_SPLASH, PersistentDataType.BYTE, (byte) 0) == 1;
+        if (meta instanceof PotionMeta potionMeta && effect.getColor() != null) potionMeta.setColor(effect.getColor());
+        renderPotionDisplay(meta, effect, level, duration, splash);
+        return true;
+    }
+
+    private static void renderPotionDisplay(ItemMeta meta, AlchemyEffect effect, int level, int durationSeconds, boolean isSplash) {
+        // Rarity colour from rarities.yml (it used to be a hardcoded switch here, separate from items').
+        String rarityColor = org.nakii.valmora.module.item.ItemRarities.color(effect.getRarity());
         meta.displayName(Formatter.format(effect.getName() + " " + toRoman(level)));
 
         List<Component> lore = new ArrayList<>();
@@ -225,8 +255,6 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         lore.add(Formatter.format(rarityColor + "<italic>" + effect.getRarity()));
 
         meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -293,7 +321,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         }
     }
 
-    private String formatDuration(int seconds) {
+    private static String formatDuration(int seconds) {
         if (seconds >= 60) {
             int m = seconds / 60;
             int s = seconds % 60;
@@ -302,17 +330,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         return seconds + "s";
     }
 
-    private String getRarityColor(String rarity) {
-        return switch (rarity.toUpperCase()) {
-            case "UNCOMMON" -> "<green>";
-            case "RARE"     -> "<blue>";
-            case "EPIC"     -> "<dark_purple>";
-            case "LEGENDARY"-> "<gold>";
-            default         -> "<gray>";
-        };
-    }
-
-    private String toRoman(int level) {
+    private static String toRoman(int level) {
         return Formatter.toRoman(level);
     }
 }

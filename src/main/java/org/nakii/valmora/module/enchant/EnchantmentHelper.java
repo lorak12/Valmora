@@ -206,6 +206,16 @@ public class EnchantmentHelper {
         item.setItemMeta(meta);
     }
 
+    /**
+     * Re-renders the enchant lore of an item WITHOUT a Valmora item id (e.g. an enchanted book or a
+     * plain vanilla sword), from its saved base lore plus live enchant names/descriptions. Does
+     * not call {@code setItemMeta}. Used by ItemRefresher after enchant YAML changes.
+     */
+    public static void rerenderGenericLore(ItemStack item, ItemMeta meta) {
+        Map<String, Integer> enchantMap = toLevelMap(EnchantStateStore.load(meta));
+        if (!enchantMap.isEmpty()) applyGlowAndLore(item, meta, enchantMap);
+    }
+
     private static void applyGlowAndLore(ItemStack item, ItemMeta meta, Map<String, Integer> enchantMap) {
         meta.addEnchant(Enchantment.UNBREAKING, 1, true);
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);

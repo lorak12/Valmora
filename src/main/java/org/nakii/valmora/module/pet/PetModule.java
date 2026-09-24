@@ -130,8 +130,32 @@ public class PetModule implements ReloadableModule {
     public int getActivePetLevel(Player player) {
         ItemStack item = findActivePetItem(player);
         if (item == null) return 1;
-        return item.getItemMeta().getPersistentDataContainer()
-                .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        ItemMeta meta = item.getItemMeta();
+        String petId = meta.getPersistentDataContainer().get(Keys.PET_ID_KEY, PersistentDataType.STRING);
+        return levelOf(meta, petId != null ? getDefinition(petId) : null);
+    }
+
+    /**
+     * A pet item's level, clamped to its definition's current {@code max-level} — lowering the cap
+     * in YAML applies to pets that already passed it instead of leaving them over-cap.
+     */
+    public int levelOf(ItemMeta meta, PetDefinition def) {
+        int level = meta.getPersistentDataContainer().getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        if (def != null) level = Math.min(level, def.getMaxLevel());
+        return Math.max(1, level);
+    }
+
+    /**
+     * Renders a pet item's display name from its CURRENT definition and level. The name used to
+     * be written once when the item was created, so it never showed level-ups or a renamed pet.
+     * Returns false (leaving the name alone) for items that aren't pets or whose pet no longer exists.
+     */
+    public boolean applyPetDisplay(ItemMeta meta) {
+        String petId = meta.getPersistentDataContainer().get(Keys.PET_ID_KEY, PersistentDataType.STRING);
+        PetDefinition def = petId != null ? getDefinition(petId) : null;
+        if (def == null) return false;
+        meta.displayName(Formatter.format("<gold>" + def.getName() + " <gray>[Lvl " + levelOf(meta, def) + "]"));
+        return true;
     }
 
     public double getActivePetXp(Player player) {
@@ -234,8 +258,7 @@ public class PetModule implements ReloadableModule {
         if (def == null) return;
 
         ItemMeta meta = petItem.getItemMeta();
-        int level = meta.getPersistentDataContainer()
-                .getOrDefault(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, 1);
+        int level = levelOf(meta, def);
         int initialLevel = level;
         double xp = meta.getPersistentDataContainer()
                 .getOrDefault(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, 0.0);
@@ -255,6 +278,7 @@ public class PetModule implements ReloadableModule {
 
         meta.getPersistentDataContainer().set(Keys.PET_LEVEL_KEY, PersistentDataType.INTEGER, level);
         meta.getPersistentDataContainer().set(Keys.PET_XP_KEY, PersistentDataType.DOUBLE, xp);
+        if (level != initialLevel) applyPetDisplay(meta);
         petItem.setItemMeta(meta);
 
         if (level > initialLevel) triggerStatRecalc(player);

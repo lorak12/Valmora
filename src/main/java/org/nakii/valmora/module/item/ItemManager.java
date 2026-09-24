@@ -16,6 +16,7 @@ public class ItemManager implements ReloadableModule {
     private SetBonusRegistry setBonusRegistry;
     private LootListener lootListener;
     private QuiverListener quiverListener;
+    private ItemRefreshListener refreshListener;
 
     public ItemManager(Valmora plugin){
         this.plugin = plugin;
@@ -39,6 +40,12 @@ public class ItemManager implements ReloadableModule {
         // Quiver auto-refill (added 2026-08-07) — see guis/quiver.yml / QuiverListener's own doc.
         this.quiverListener = new QuiverListener(plugin);
         plugin.getServer().getPluginManager().registerEvents(quiverListener, plugin);
+
+        // Existing items follow content edits: fingerprint what items render from, and refresh
+        // items lazily as players encounter them (see ItemRefresher).
+        ItemRefresher.recomputeEpoch(plugin);
+        this.refreshListener = new ItemRefreshListener(plugin);
+        plugin.getServer().getPluginManager().registerEvents(refreshListener, plugin);
     }
 
     @Override
@@ -50,6 +57,7 @@ public class ItemManager implements ReloadableModule {
         // §6.2 cleanup step that got missed), risking duplicate handling after /valmora reload.
         if (lootListener != null) { org.bukkit.event.HandlerList.unregisterAll(lootListener); lootListener = null; }
         if (quiverListener != null) { org.bukkit.event.HandlerList.unregisterAll(quiverListener); quiverListener = null; }
+        if (refreshListener != null) { org.bukkit.event.HandlerList.unregisterAll(refreshListener); refreshListener = null; }
     }
 
     public SetBonusRegistry getSetBonusRegistry() {

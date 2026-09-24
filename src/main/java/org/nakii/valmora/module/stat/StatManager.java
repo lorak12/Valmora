@@ -195,8 +195,10 @@ public class StatManager {
             for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
                 var enchantDef = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
                 if (enchantDef == null) continue;
+                int enchantLevel = enchantDef.effectiveLevel(entry.getValue());
+                if (enchantLevel <= 0) continue;
                 if (enchantDef.getLogic() != null) {
-                    enchantDef.getLogic().applyStats(player, entry.getValue(), this);
+                    enchantDef.getLogic().applyStats(player, enchantLevel, this);
                 }
                 // YAML-declared stats: block (Phase 4 of the enchant overhaul) — runs alongside the
                 // legacy Java hook above, not instead of it, matching every other tier's hybrid
@@ -204,7 +206,7 @@ public class StatManager {
                 if (!enchantDef.getStatBonuses().isEmpty()) {
                     var statCtx = new SimpleExecutionContext(player, null, null, null);
                     statCtx.set("enchant:id", enchantDef.getId());
-                    statCtx.set("enchant:level", entry.getValue());
+                    statCtx.set("enchant:level", enchantLevel);
                     for (Map.Entry<String, Expression> bonus : enchantDef.getStatBonuses().entrySet()) {
                         Object value = bonus.getValue().evaluate(statCtx);
                         if (value instanceof Number n) {

@@ -102,6 +102,19 @@ public class ModuleManager {
 
     /** Runs once every reloaded module is back up: recompute state that spans modules. */
     private void afterReload() {
+        // Content may have changed: re-fingerprint item content and bring every online player's
+        // items up to date now (other items refresh lazily as they're encountered).
+        if (plugin.getItemManager() != null) {
+            org.nakii.valmora.module.item.ItemRefresher.recomputeEpoch(plugin);
+            for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+                try {
+                    org.nakii.valmora.module.item.ItemRefresher.refresh(plugin, player);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to refresh items of " + player.getName() + " after reload", e);
+                }
+            }
+        }
+
         var playerManager = plugin.getPlayerManager();
         if (playerManager == null) return;
         for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {

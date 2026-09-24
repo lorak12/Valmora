@@ -139,6 +139,21 @@ public class StatModule implements ReloadableModule {
      */
     public Map<String, Double> loadStats(ItemMeta meta) {
         Map<String, Double> stats = new HashMap<>();
+
+        // An item made from a YAML definition takes its base stats from the CURRENT definition, so
+        // editing `stats:` applies to items that already exist. The copy stored on the item at
+        // creation is only used for items without a (surviving) definition — translated vanilla
+        // items, and items whose definition was deleted.
+        var definition = org.nakii.valmora.module.item.ItemView.definition(meta);
+        if (definition.isPresent()) {
+            for (Map.Entry<String, Double> entry : definition.get().getStats().entrySet()) {
+                if (statRegistry.get(entry.getKey()).isPresent()) {
+                    stats.put(entry.getKey().toLowerCase(), entry.getValue());
+                }
+            }
+            return stats;
+        }
+
         PersistentDataContainer mainPdc = meta.getPersistentDataContainer();
 
         if (!mainPdc.has(Keys.STATS_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER)) {
@@ -164,6 +179,10 @@ public class StatModule implements ReloadableModule {
      * Convenience: get a single stat value from an item.
      */
     public double getStat(ItemMeta meta, String statId) {
+        var definition = org.nakii.valmora.module.item.ItemView.definition(meta);
+        if (definition.isPresent()) {
+            return definition.get().getStats().getOrDefault(statId.toLowerCase(), 0.0);
+        }
         PersistentDataContainer mainPdc = meta.getPersistentDataContainer();
         if (!mainPdc.has(Keys.STATS_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER)) return 0.0;
 

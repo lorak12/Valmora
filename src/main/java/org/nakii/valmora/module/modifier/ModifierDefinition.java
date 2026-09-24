@@ -92,7 +92,9 @@ public class ModifierDefinition {
 
     public String getDisplayName(int tier) {
         if (!tiers.isEmpty()) {
-            ModifierTier t = tiers.get(tier);
+            // Clamped like getEffects, so an item whose stored tier exceeds a lowered max still
+            // shows the name of the tier it actually acts at.
+            ModifierTier t = tiers.get(Math.max(1, Math.min(tier, getMaxTier())));
             if (t != null && t.getDisplayNameOverride() != null) return t.getDisplayNameOverride();
         }
         return displayName;
