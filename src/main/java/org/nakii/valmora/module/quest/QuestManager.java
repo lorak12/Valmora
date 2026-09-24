@@ -108,7 +108,7 @@ public class QuestManager {
         List<QuestObjective> objectives = quest.getObjectives();
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
-            String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+            String key = objectiveKey(obj, i);
             vars.put("quest." + questId + ".obj." + key, 0);
             if (obj.getId() != null) {
                 vars.put("objective." + obj.getId() + ".active", true);
@@ -158,7 +158,7 @@ public class QuestManager {
         List<QuestObjective> objectives = quest.getObjectives();
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
-            String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+            String key = objectiveKey(obj, i);
             vars.remove("quest." + questId + ".obj." + key);
         }
         vars.put("quest." + questId + ".status", STATUS_NOT_STARTED);
@@ -254,7 +254,7 @@ public class QuestManager {
 
                 if (!evaluateConditions(obj.getConditions(), ctx)) continue;
 
-                String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+                String key = objectiveKey(obj, i);
                 int current = getProgressByKey(profile, quest.getId(), key);
                 if (current >= obj.getRequired()) continue;
 
@@ -294,12 +294,23 @@ public class QuestManager {
         ValmoraProfile profile = getProfile(player);
         if (profile == null) return;
         for (QuestDefinition quest : registry.values()) {
-            for (QuestObjective obj : quest.getObjectives()) {
+            List<QuestObjective> objectives = quest.getObjectives();
+            for (int i = 0; i < objectives.size(); i++) {
+                QuestObjective obj = objectives.get(i);
                 if (!obj.isAutoOnce()) continue;
-                String guardTag = quest.getId() + ".auto-once-" + (obj.getId() != null ? obj.getId() : obj.getType());
+                String key = objectiveKey(obj, i);
+                String guardTag = quest.getId() + ".auto-once-" + key;
                 if (profile.getTags().contains(guardTag)) continue;
+                // Id-less objectives used to be guarded by their *type*, so two of the same type
+                // collided. Honour an existing legacy tag for the first objective of that type
+                // (the one it actually guarded) so upgrading doesn't restart it.
+                if (obj.getId() == null && isFirstOfType(objectives, i)
+                        && profile.getTags().contains(quest.getId() + ".auto-once-" + obj.getType())) {
+                    profile.getTags().add(guardTag);
+                    continue;
+                }
                 profile.getTags().add(guardTag);
-                startObjectiveInQuest(player, profile, quest, obj);
+                startObjectiveInQuest(profile, quest, key, obj);
             }
         }
     }
@@ -308,8 +319,24 @@ public class QuestManager {
     // Internals
     // -------------------------------------------------------------------------
 
-    private void startObjectiveInQuest(Player player, ValmoraProfile profile, QuestDefinition quest, QuestObjective obj) {
-        String key = obj.getId() != null ? obj.getId() : obj.getType();
+    /**
+     * The variable key an objective's progress is stored under: its explicit {@code id}, else its
+     * list index. Every read and write must go through this — auto-once objectives used to be
+     * written under their type but read under their index, so id-less ones never progressed.
+     */
+    private static String objectiveKey(QuestObjective obj, int index) {
+        return obj.getId() != null ? obj.getId() : String.valueOf(index);
+    }
+
+    private static boolean isFirstOfType(List<QuestObjective> objectives, int index) {
+        String type = objectives.get(index).getType();
+        for (int i = 0; i < index; i++) {
+            if (objectives.get(i).getId() == null && objectives.get(i).getType().equalsIgnoreCase(type)) return false;
+        }
+        return true;
+    }
+
+    private void startObjectiveInQuest(ValmoraProfile profile, QuestDefinition quest, String key, QuestObjective obj) {
         profile.getVariables().put("quest." + quest.getId() + ".obj." + key, 0);
         if (obj.getId() != null) profile.getVariables().put("objective." + obj.getId() + ".active", true);
     }
@@ -319,7 +346,7 @@ public class QuestManager {
         for (int i = 0; i < objectives.size(); i++) {
             QuestObjective obj = objectives.get(i);
             if (obj.isPersistent()) continue;
-            String key = obj.getId() != null ? obj.getId() : String.valueOf(i);
+            String key = objectiveKey(obj, i);
             if (getProgressByKey(profile, quest.getId(), key) < obj.getRequired()) return;
         }
         finishQuest(player, profile, quest);

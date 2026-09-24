@@ -37,11 +37,45 @@ public class SQLDataStore implements DataStore {
     // Dedicated thread pool for database operations
     private final ExecutorService dbExecutor = Executors.newFixedThreadPool(4);
 
+    /**
+     * Per-player ordered lanes for everything that reads or writes a player's profile data
+     * (profiles, their GUI storage, their economy row). A player always maps to the same
+     * single-threaded lane, so a load queued after a save of the same player can never read the
+     * row before that save committed — previously a quick quit→rejoin could load stale data on
+     * one pool thread while the quit save was still running on another, and the stale session
+     * then overwrote the newer one. Different players still run in parallel across lanes.
+     */
+    private static final int PLAYER_LANES = 4;
+    private final ExecutorService[] playerLanes = new ExecutorService[PLAYER_LANES];
+
+    /** profile id → owning player uuid, so profile-keyed storage ops land on the owner's lane. */
+    private final Map<UUID, UUID> profileOwners = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Where undecodable items are written for manual recovery; {@code null} = log only. */
+    private final java.io.File recoveryDir;
+
     public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger) {
+        this(hikari, isMySQL, logger, null);
+    }
+
+    public SQLDataStore(HikariDataSource hikari, boolean isMySQL, Logger logger, java.io.File dataFolder) {
         this.hikari = hikari;
         this.isMySQL = isMySQL;
         this.logger = logger;
         this.gson = new Gson();
+        this.recoveryDir = dataFolder != null ? new java.io.File(dataFolder, "recovery") : null;
+        for (int i = 0; i < PLAYER_LANES; i++) {
+            playerLanes[i] = Executors.newSingleThreadExecutor();
+        }
+    }
+
+    private ExecutorService laneFor(UUID playerUuid) {
+        return playerLanes[Math.floorMod(playerUuid.hashCode(), PLAYER_LANES)];
+    }
+
+    private ExecutorService laneForProfile(UUID profileId) {
+        UUID owner = profileOwners.get(profileId);
+        return laneFor(owner != null ? owner : profileId);
     }
 
     /**
@@ -61,9 +95,12 @@ public class SQLDataStore implements DataStore {
             int current = getSchemaVersion(conn);
 
             if (current > LATEST_SCHEMA_VERSION) {
-                logger.warning("Valmora database schema version (" + current + ") is newer than this plugin "
-                        + "supports (" + LATEST_SCHEMA_VERSION + "). Update the plugin to avoid problems.");
-                return;
+                // A downgraded plugin would read (and then write back) data in a shape it doesn't
+                // understand. Refuse to start rather than risk corrupting it.
+                logger.severe("Valmora database schema version (" + current + ") is newer than this plugin "
+                        + "supports (" + LATEST_SCHEMA_VERSION + "). Install the newer plugin version (or restore "
+                        + "a matching backup) — refusing to run against it.");
+                throw new IllegalStateException("Database schema v" + current + " is newer than supported v" + LATEST_SCHEMA_VERSION);
             }
             if (current < LATEST_SCHEMA_VERSION) {
                 logger.info("Migrating Valmora database schema from v" + current + " to v" + LATEST_SCHEMA_VERSION + "...");
@@ -109,37 +146,39 @@ public class SQLDataStore implements DataStore {
 
     /** Applies every migration newer than {@code from} in order, recording progress as it goes. */
     private void applyMigrations(Connection conn, int from) throws SQLException {
-        if (from < 1) {
-            migrateToV1(conn);
-            setSchemaVersion(conn, 1);
-        }
-        if (from < 2) {
-            migrateToV2(conn);
-            setSchemaVersion(conn, 2);
-        }
-        if (from < 3) {
-            migrateToV3(conn);
-            setSchemaVersion(conn, 3);
-        }
-        if (from < 4) {
-            migrateToV4(conn);
-            setSchemaVersion(conn, 4);
-        }
-        if (from < 5) {
-            migrateToV5(conn);
-            setSchemaVersion(conn, 5);
-        }
-        if (from < 6) {
-            migrateToV6(conn);
-            setSchemaVersion(conn, 6);
-        }
-        if (from < 7) {
-            migrateToV7(conn);
-            setSchemaVersion(conn, 7);
-        }
-        if (from < 8) {
-            migrateToV8(conn);
-            setSchemaVersion(conn, 8);
+        if (from < 1) runMigrationStep(conn, 1, () -> migrateToV1(conn));
+        if (from < 2) runMigrationStep(conn, 2, () -> migrateToV2(conn));
+        if (from < 3) runMigrationStep(conn, 3, () -> migrateToV3(conn));
+        if (from < 4) runMigrationStep(conn, 4, () -> migrateToV4(conn));
+        if (from < 5) runMigrationStep(conn, 5, () -> migrateToV5(conn));
+        if (from < 6) runMigrationStep(conn, 6, () -> migrateToV6(conn));
+        if (from < 7) runMigrationStep(conn, 7, () -> migrateToV7(conn));
+        if (from < 8) runMigrationStep(conn, 8, () -> migrateToV8(conn));
+    }
+
+    @FunctionalInterface
+    private interface MigrationStep {
+        void run() throws SQLException;
+    }
+
+    /**
+     * Runs one migration step and stamps its version in a single transaction, so a failure
+     * leaves the database at the previous version instead of stamped-but-half-applied. (MySQL
+     * auto-commits DDL, so there the guarantee comes from every step being idempotent — a failed
+     * step is simply re-run from the start on the next boot.)
+     */
+    private void runMigrationStep(Connection conn, int version, MigrationStep step) throws SQLException {
+        boolean previousAutoCommit = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try {
+            step.run();
+            setSchemaVersion(conn, version);
+            conn.commit();
+        } catch (SQLException e) {
+            conn.rollback();
+            throw new SQLException("Database migration to v" + version + " failed", e);
+        } finally {
+            conn.setAutoCommit(previousAutoCommit);
         }
     }
 
@@ -216,14 +255,25 @@ public class SQLDataStore implements DataStore {
         dropColumnIfPresent(conn, "valmora_profiles", "accessory_slots");
     }
 
-    /** Drops a column, tolerating drivers/engines that don't support it (left orphaned, harmless). */
-    private void dropColumnIfPresent(Connection conn, String table, String column) {
+    /** Drops a column if present, tolerating engines that can't drop columns (left orphaned, harmless). */
+    private void dropColumnIfPresent(Connection conn, String table, String column) throws SQLException {
+        if (!columnExists(conn, table, column)) return;
         try (PreparedStatement ps = conn.prepareStatement(
                 "ALTER TABLE " + table + " DROP COLUMN " + column)) {
             ps.execute();
-        } catch (SQLException ignored) {
-            // Column already absent, or the engine/driver doesn't support DROP COLUMN — harmless.
+        } catch (SQLException e) {
+            logger.warning("Could not drop obsolete column " + table + "." + column + " (left in place, harmless): " + e.getMessage());
         }
+    }
+
+    /** Whether {@code table} has {@code column} (case-insensitive, portable across SQLite/MySQL). */
+    private boolean columnExists(Connection conn, String table, String column) throws SQLException {
+        try (ResultSet rs = conn.getMetaData().getColumns(conn.getCatalog(), null, table, null)) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("COLUMN_NAME"))) return true;
+            }
+        }
+        return false;
     }
 
     /** v2 — adds the quiver column (per-profile arrow storage). */
@@ -278,13 +328,16 @@ public class SQLDataStore implements DataStore {
         """).execute();
     }
 
-    /** Adds a column, tolerating the "already exists" error so it is safe on fresh and re-run databases. */
-    private void addColumnIfMissing(Connection conn, String table, String column, String type) {
+    /**
+     * Adds a column unless it already exists, so it's safe on fresh and re-run databases. Real
+     * failures propagate — previously every error was swallowed as "already exists", so a
+     * genuinely failed ALTER was still stamped as a completed migration.
+     */
+    private void addColumnIfMissing(Connection conn, String table, String column, String type) throws SQLException {
+        if (columnExists(conn, table, column)) return;
         try (PreparedStatement ps = conn.prepareStatement(
                 "ALTER TABLE " + table + " ADD COLUMN " + column + " " + type)) {
             ps.execute();
-        } catch (SQLException ignored) {
-            // Column already present — expected for fresh databases and idempotent re-runs.
         }
     }
 
@@ -347,13 +400,11 @@ public class SQLDataStore implements DataStore {
                         }
                     }
 
-                    try {
-                        String cooldownsJson = rsProfiles.getString("cooldowns");
-                        if (cooldownsJson != null) {
-                            Map<String, Long> cooldowns = gson.fromJson(cooldownsJson, cooldownsType);
-                            if (cooldowns != null) profile.getCooldownManager().loadData(cooldowns);
-                        }
-                    } catch (SQLException ignored) {}
+                    String cooldownsJson = rsProfiles.getString("cooldowns");
+                    if (cooldownsJson != null) {
+                        Map<String, Long> cooldowns = gson.fromJson(cooldownsJson, cooldownsType);
+                        if (cooldowns != null) profile.getCooldownManager().loadData(cooldowns);
+                    }
 
                     String tagsJson = rsProfiles.getString("tags");
                     if (tagsJson != null) {
@@ -367,29 +418,29 @@ public class SQLDataStore implements DataStore {
                         if (variables != null) profile.getVariables().putAll(variables);
                     }
 
-                    try {
-                        String collectionsJson = rsProfiles.getString("collections");
-                        if (collectionsJson != null) {
-                            // Extended (2026-08-07) to also carry the reward-grant ledger; fall
-                            // back to the pre-extension bare counts-map shape for old saves —
-                            // detected by the presence of a top-level "counts" key, since both
-                            // shapes serialize as a JSON object (unlike player_state's array-vs-
-                            // object distinction, a shape check alone can't tell them apart here).
-                            com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(collectionsJson);
-                            if (parsed.isJsonObject() && parsed.getAsJsonObject().has("counts")) {
-                                profile.getCollectionManager().loadData(
-                                        gson.fromJson(collectionsJson, org.nakii.valmora.module.collection.CollectionManager.SaveData.class));
-                            } else {
-                                Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
-                                if (collections != null) profile.getCollectionManager().loadData(collections);
-                            }
+                    String collectionsJson = rsProfiles.getString("collections");
+                    if (collectionsJson != null) {
+                        // Extended (2026-08-07) to also carry the reward-grant ledger; fall
+                        // back to the pre-extension bare counts-map shape for old saves —
+                        // detected by the presence of a top-level "counts" key, since both
+                        // shapes serialize as a JSON object (unlike player_state's array-vs-
+                        // object distinction, a shape check alone can't tell them apart here).
+                        com.google.gson.JsonElement parsed = com.google.gson.JsonParser.parseString(collectionsJson);
+                        if (parsed.isJsonObject() && parsed.getAsJsonObject().has("counts")) {
+                            profile.getCollectionManager().loadData(
+                                    gson.fromJson(collectionsJson, org.nakii.valmora.module.collection.CollectionManager.SaveData.class));
+                        } else {
+                            Map<String, Long> collections = gson.fromJson(collectionsJson, collectionsType);
+                            if (collections != null) profile.getCollectionManager().loadData(collections);
                         }
-                    } catch (SQLException ignored) {}
+                    }
 
-                    try {
-                        String inventoryJson = rsProfiles.getString("inventory");
-                        if (inventoryJson != null) deserializeInventory(profile, inventoryJson);
-                    } catch (SQLException ignored) {}
+                    // Load failures here used to be swallowed, leaving the profile's inventory or
+                    // storage empty in memory — which the next save then wrote back over the real
+                    // data. Any failure now fails the whole load (see the catch below).
+                    String inventoryJson = rsProfiles.getString("inventory");
+                    if (inventoryJson != null) deserializeInventory(profile, inventoryJson,
+                            "player " + uuid + " profile " + profile.getId() + " inventory");
 
                     // Eagerly mirror this profile's generic GUI storage (e.g. "accessories") into
                     // its in-memory cache so stat calculation has synchronous access without
@@ -399,13 +450,15 @@ public class SQLDataStore implements DataStore {
                         psStorage.setString(1, profile.getId().toString());
                         try (ResultSet rsStorage = psStorage.executeQuery()) {
                             while (rsStorage.next()) {
-                                profile.putStorage(rsStorage.getString("storage_id"),
-                                        deserializeItemArray(rsStorage.getString("contents")));
+                                String storageId = rsStorage.getString("storage_id");
+                                profile.putStorage(storageId, deserializeItemArray(rsStorage.getString("contents"),
+                                        "player " + uuid + " profile " + profile.getId() + " storage " + storageId));
                             }
                         }
-                    } catch (SQLException ignored) {}
+                    }
 
                     player.addProfile(profile);
+                    profileOwners.put(profile.getId(), uuid);
                 }
 
                 if (activeProfileId != null) {
@@ -414,14 +467,50 @@ public class SQLDataStore implements DataStore {
 
                 return player;
             } catch (Exception e) {
+                // Never report a failed load as "no data" (null): callers treat null as a first
+                // join and create a fresh profile, whose next save would hide the real one.
                 logger.log(Level.SEVERE, "Failed to load player data for " + uuid, e);
-                return null;
+                throw new java.util.concurrent.CompletionException(
+                        new DataLoadException("Failed to load player data for " + uuid, e));
             }
-        }, dbExecutor);
+        }, laneFor(uuid));
     }
+
+    /** One profile row, fully serialized — built on the calling (main) thread. */
+    private record ProfileRow(String id, String name, String stats, String skills, String state, String tags,
+                              String variables, String collections, String inventory, String cooldowns,
+                              long createdAt, long lastUsed) {}
 
     @Override
     public CompletableFuture<Void> savePlayer(ValmoraPlayer player) {
+        // Serialize everything NOW, on the caller's thread (the main thread for every live
+        // session). The profile's maps and ItemStacks are mutated by gameplay on the main thread;
+        // serializing them later on a DB thread risked ConcurrentModificationException or a
+        // half-updated snapshot. Only JDBC work is deferred.
+        UUID playerUuid = player.getUuid();
+        String activeId = player.getActiveProfile() != null ? player.getActiveProfile().getId().toString() : null;
+        List<ProfileRow> rows = new ArrayList<>();
+        for (ValmoraProfile profile : player.getProfiles().values()) {
+            // Phase 5 Task 21: write quarantined (unrecognized) stat ids back unchanged
+            // alongside the live ones, so they aren't lost across a save cycle.
+            Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getSaveData());
+            statsToSave.putAll(profile.getQuarantinedStats());
+            rows.add(new ProfileRow(
+                    profile.getId().toString(),
+                    profile.getName(),
+                    gson.toJson(statsToSave),
+                    gson.toJson(profile.getSkillManager().getSaveData()),
+                    gson.toJson(profile.getPlayerState().getSaveData()),
+                    gson.toJson(profile.getTags()),
+                    gson.toJson(profile.getVariables()),
+                    gson.toJson(profile.getCollectionManager().getSaveData()),
+                    serializeInventory(profile),
+                    gson.toJson(profile.getCooldownManager().getSaveData()),
+                    profile.getCreatedAt(),
+                    profile.getLastUsed()));
+            profileOwners.put(profile.getId(), playerUuid);
+        }
+
         return CompletableFuture.runAsync(() -> {
             try (Connection conn = hikari.getConnection()) {
                 conn.setAutoCommit(false); // Begin Transaction
@@ -430,10 +519,9 @@ public class SQLDataStore implements DataStore {
                 String upsertPlayer = isMySQL ?
                         "INSERT INTO valmora_players (uuid, active_profile) VALUES (?, ?) ON DUPLICATE KEY UPDATE active_profile = ?" :
                         "INSERT INTO valmora_players (uuid, active_profile) VALUES (?, ?) ON CONFLICT(uuid) DO UPDATE SET active_profile = ?";
-                
+
                 try (PreparedStatement ps = conn.prepareStatement(upsertPlayer)) {
-                    ps.setString(1, player.getUuid().toString());
-                    String activeId = player.getActiveProfile() != null ? player.getActiveProfile().getId().toString() : null;
+                    ps.setString(1, playerUuid.toString());
                     ps.setString(2, activeId);
                     ps.setString(3, activeId);
                     ps.executeUpdate();
@@ -445,46 +533,32 @@ public class SQLDataStore implements DataStore {
                         "INSERT INTO valmora_profiles (id, player_uuid, name, stats, skills, player_state, tags, variables, collections, inventory, cooldowns, created_at, last_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = ?, stats = ?, skills = ?, player_state = ?, tags = ?, variables = ?, collections = ?, inventory = ?, cooldowns = ?, last_used = ?";
 
                 try (PreparedStatement ps = conn.prepareStatement(upsertProfile)) {
-                    for (ValmoraProfile profile : player.getProfiles().values()) {
-                        ps.setString(1, profile.getId().toString());
-                        ps.setString(2, player.getUuid().toString());
-                        ps.setString(3, profile.getName());
-
-                        // Phase 5 Task 21: write quarantined (unrecognized) stat ids back unchanged
-                        // alongside the live ones, so they aren't lost across a save cycle.
-                        Map<String, Double> statsToSave = new java.util.HashMap<>(profile.getStatManager().getSaveData());
-                        statsToSave.putAll(profile.getQuarantinedStats());
-                        String statsJson = gson.toJson(statsToSave);
-                        String skillsJson = gson.toJson(profile.getSkillManager().getSaveData());
-                        String stateJson = gson.toJson(profile.getPlayerState().getSaveData());
-                        String tagsJson = gson.toJson(profile.getTags());
-                        String variablesJson = gson.toJson(profile.getVariables());
-                        String collectionsJson = gson.toJson(profile.getCollectionManager().getSaveData());
-                        String inventoryJson = serializeInventory(profile);
-                        String cooldownsJson = gson.toJson(profile.getCooldownManager().getSaveData());
-
-                        ps.setString(4, statsJson);
-                        ps.setString(5, skillsJson);
-                        ps.setString(6, stateJson);
-                        ps.setString(7, tagsJson);
-                        ps.setString(8, variablesJson);
-                        ps.setString(9, collectionsJson);
-                        ps.setString(10, inventoryJson);
-                        ps.setString(11, cooldownsJson);
-                        ps.setLong(12, profile.getCreatedAt());
-                        ps.setLong(13, profile.getLastUsed());
+                    for (ProfileRow row : rows) {
+                        ps.setString(1, row.id());
+                        ps.setString(2, playerUuid.toString());
+                        ps.setString(3, row.name());
+                        ps.setString(4, row.stats());
+                        ps.setString(5, row.skills());
+                        ps.setString(6, row.state());
+                        ps.setString(7, row.tags());
+                        ps.setString(8, row.variables());
+                        ps.setString(9, row.collections());
+                        ps.setString(10, row.inventory());
+                        ps.setString(11, row.cooldowns());
+                        ps.setLong(12, row.createdAt());
+                        ps.setLong(13, row.lastUsed());
 
                         // Update values (no created_at — preserves insertion order)
-                        ps.setString(14, profile.getName());
-                        ps.setString(15, statsJson);
-                        ps.setString(16, skillsJson);
-                        ps.setString(17, stateJson);
-                        ps.setString(18, tagsJson);
-                        ps.setString(19, variablesJson);
-                        ps.setString(20, collectionsJson);
-                        ps.setString(21, inventoryJson);
-                        ps.setString(22, cooldownsJson);
-                        ps.setLong(23, profile.getLastUsed());
+                        ps.setString(14, row.name());
+                        ps.setString(15, row.stats());
+                        ps.setString(16, row.skills());
+                        ps.setString(17, row.state());
+                        ps.setString(18, row.tags());
+                        ps.setString(19, row.variables());
+                        ps.setString(20, row.collections());
+                        ps.setString(21, row.inventory());
+                        ps.setString(22, row.cooldowns());
+                        ps.setLong(23, row.lastUsed());
 
                         ps.addBatch();
                     }
@@ -493,9 +567,11 @@ public class SQLDataStore implements DataStore {
 
                 conn.commit(); // Commit Transaction
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to save player data for " + player.getUuid(), e);
+                logger.log(Level.SEVERE, "Failed to save player data for " + playerUuid, e);
+                // Surface the failure to the caller instead of completing normally.
+                throw new java.util.concurrent.CompletionException(e);
             }
-        }, dbExecutor);
+        }, laneFor(playerUuid));
     }
 
     @Override
@@ -508,7 +584,7 @@ public class SQLDataStore implements DataStore {
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to delete profile " + profileId, e);
             }
-        }, dbExecutor);
+        }, laneForProfile(profileId));
     }
 
     @Override
@@ -521,24 +597,27 @@ public class SQLDataStore implements DataStore {
                 ps.setString(2, storageId);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (!rs.next()) return new ItemStack[expectedSize];
-                    return deserializeItemArray(rs.getString("contents"), expectedSize);
+                    return deserializeItemArray(rs.getString("contents"), expectedSize,
+                            "profile " + profileId + " storage " + storageId);
                 }
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to load storage '" + storageId + "' for profile " + profileId, e);
-                return new ItemStack[expectedSize];
+                throw new java.util.concurrent.CompletionException(
+                        new DataLoadException("Failed to load storage '" + storageId + "' for profile " + profileId, e));
             }
-        }, dbExecutor);
+        }, laneForProfile(profileId));
     }
 
     @Override
     public CompletableFuture<Void> saveStorage(UUID profileId, String storageId, ItemStack[] contents) {
+        // Serialize on the caller's thread: `contents` are typically live inventory mirrors.
+        String json = serializeItemArray(contents);
         return CompletableFuture.runAsync(() -> {
             String sql = isMySQL
                     ? "INSERT INTO valmora_storage (profile_id, storage_id, contents) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE contents = ?"
                     : "INSERT INTO valmora_storage (profile_id, storage_id, contents) VALUES (?, ?, ?) ON CONFLICT(profile_id, storage_id) DO UPDATE SET contents = ?";
             try (Connection conn = hikari.getConnection();
                  PreparedStatement ps = conn.prepareStatement(sql)) {
-                String json = serializeItemArray(contents);
                 ps.setString(1, profileId.toString());
                 ps.setString(2, storageId);
                 ps.setString(3, json);
@@ -547,7 +626,7 @@ public class SQLDataStore implements DataStore {
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to save storage '" + storageId + "' for profile " + profileId, e);
             }
-        }, dbExecutor);
+        }, laneForProfile(profileId));
     }
 
     // Serialize slots 0-35 (storage) + 36-39 (armor) + 40 (offhand) as a base64 JSON array
@@ -572,7 +651,7 @@ public class SQLDataStore implements DataStore {
         return gson.toJson(encoded);
     }
 
-    private void deserializeInventory(ValmoraProfile profile, String json) {
+    private void deserializeInventory(ValmoraProfile profile, String json, String context) {
         String[] encoded = gson.fromJson(json, String[].class);
         if (encoded == null) return;
 
@@ -582,7 +661,7 @@ public class SQLDataStore implements DataStore {
 
         for (int i = 0; i < Math.min(encoded.length, 41); i++) {
             if (encoded[i] == null) continue;
-            ItemStack item = decodeItem(encoded[i]);
+            ItemStack item = decodeItem(encoded[i], context + " slot " + i);
             if (item == null) continue;
             if (i < 36) storage[i] = item;
             else if (i < 40) armor[i - 36] = item;
@@ -607,26 +686,26 @@ public class SQLDataStore implements DataStore {
 
     // Variable-size variant — the array length is taken from the stored data itself rather
     // than a fixed constant, used by the accessory bag whose slot count can grow at runtime.
-    private ItemStack[] deserializeItemArray(String json) {
+    private ItemStack[] deserializeItemArray(String json, String context) {
         if (json == null) return new ItemStack[0];
         String[] encoded = gson.fromJson(json, String[].class);
         if (encoded == null) return new ItemStack[0];
         ItemStack[] result = new ItemStack[encoded.length];
         for (int i = 0; i < encoded.length; i++) {
             if (encoded[i] == null) continue;
-            result[i] = decodeItem(encoded[i]);
+            result[i] = decodeItem(encoded[i], context + " slot " + i);
         }
         return result;
     }
 
-    private ItemStack[] deserializeItemArray(String json, int size) {
+    private ItemStack[] deserializeItemArray(String json, int size, String context) {
         ItemStack[] result = new ItemStack[size];
         if (json == null) return result;
         String[] encoded = gson.fromJson(json, String[].class);
         if (encoded == null) return result;
         for (int i = 0; i < Math.min(encoded.length, size); i++) {
             if (encoded[i] == null) continue;
-            result[i] = decodeItem(encoded[i]);
+            result[i] = decodeItem(encoded[i], context + " slot " + i);
         }
         return result;
     }
@@ -636,15 +715,39 @@ public class SQLDataStore implements DataStore {
         try {
             return Base64.getEncoder().encodeToString(item.serializeAsBytes());
         } catch (Exception e) {
+            // Previously silent: the item simply vanished from the save.
+            logger.log(Level.SEVERE, "Failed to serialize item " + item.getType() + " — it will be missing from this save", e);
             return null;
         }
     }
 
-    private ItemStack decodeItem(String encoded) {
+    private ItemStack decodeItem(String encoded, String context) {
         try {
             return ItemStack.deserializeBytes(Base64.getDecoder().decode(encoded));
         } catch (Exception e) {
+            // An undecodable item (corrupt data, or data written by a newer server version) used
+            // to be dropped silently — and the next save made that permanent. The slot still
+            // loads empty (the player isn't locked out), but the raw bytes are preserved for
+            // manual recovery.
+            logger.log(Level.SEVERE, "Failed to decode item (" + context + "); raw data preserved in "
+                    + (recoveryDir != null ? recoveryDir.getPath() : "this log") + ": " + e.getMessage());
+            preserveUndecodable(context, encoded);
             return null;
+        }
+    }
+
+    private void preserveUndecodable(String context, String encoded) {
+        if (recoveryDir == null) {
+            logger.severe("Undecodable item data (" + context + "): " + encoded);
+            return;
+        }
+        try {
+            recoveryDir.mkdirs();
+            java.nio.file.Files.writeString(new java.io.File(recoveryDir, "undecodable_items.log").toPath(),
+                    java.time.Instant.now() + "\t" + context + "\t" + encoded + System.lineSeparator(),
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (java.io.IOException io) {
+            logger.severe("Could not write recovery file; undecodable item data (" + context + "): " + encoded);
         }
     }
 
@@ -659,10 +762,13 @@ public class SQLDataStore implements DataStore {
                 if (!rs.next()) return null;
                 return new double[]{rs.getDouble("purse"), rs.getDouble("bank")};
             } catch (SQLException e) {
+                // Must not look like "no row": the caller would cache 0/0 and the next flush
+                // would overwrite the real balance.
                 logger.log(Level.SEVERE, "Failed to load economy data for " + uuid, e);
-                return null;
+                throw new java.util.concurrent.CompletionException(
+                        new DataLoadException("Failed to load economy data for " + uuid, e));
             }
-        }, dbExecutor);
+        }, laneFor(uuid));
     }
 
     @Override
@@ -681,8 +787,9 @@ public class SQLDataStore implements DataStore {
                 ps.executeUpdate();
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to save economy data for " + uuid, e);
+                throw new java.util.concurrent.CompletionException(e);
             }
-        }, dbExecutor);
+        }, laneFor(uuid));
     }
 
     @Override
@@ -713,6 +820,7 @@ public class SQLDataStore implements DataStore {
                 conn.commit();
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to batch-save economy data for " + balances.size() + " players", e);
+                throw new java.util.concurrent.CompletionException(e);
             }
         }, dbExecutor);
     }
@@ -847,13 +955,17 @@ public class SQLDataStore implements DataStore {
 
     @Override
     public void close() {
-        dbExecutor.shutdown();
+        List<ExecutorService> executors = new ArrayList<>(List.of(playerLanes));
+        executors.add(dbExecutor);
+        for (ExecutorService executor : executors) executor.shutdown();
         try {
-            if (!dbExecutor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
-                dbExecutor.shutdownNow();
+            for (ExecutorService executor : executors) {
+                if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
             }
         } catch (InterruptedException e) {
-            dbExecutor.shutdownNow();
+            for (ExecutorService executor : executors) executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
 

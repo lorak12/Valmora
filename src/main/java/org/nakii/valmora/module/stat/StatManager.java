@@ -268,7 +268,11 @@ public class StatManager {
 
         ValmoraProfile profile = session.getActiveProfile();
         if (profile != null) {
-            if (!profile.getPlayerState().isInCombat()) {
+            // Skipped mid-reload: max values are understated until every module is back, and
+            // ModuleManager recalculates everyone once the reload completes.
+            var moduleManager = api.getModuleManager();
+            boolean reloading = moduleManager != null && moduleManager.isReloading();
+            if (!profile.getPlayerState().isInCombat() && !reloading) {
                 profile.getPlayerState().capToMax(this);
             }
             api.getPlayerManager().syncVisualHealth(player, profile.getPlayerState(), this);

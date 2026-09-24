@@ -343,7 +343,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             // this is the defensive fallback for any session that somehow wasn't covered by that.
             java.util.List<java.util.concurrent.CompletableFuture<Void>> saves = new java.util.ArrayList<>();
             for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
-                saves.add(dataStore.savePlayer(player));
+                saves.add(playerManager.save(player));
             }
             java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
             dataStore.close();
@@ -672,7 +672,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
                 name.startsWith("warps/") || name.startsWith("quests/") ||
                 name.startsWith("collections/") || name.startsWith("hud-items/") ||
                 name.startsWith("calendar/") ||
-                name.startsWith("modifiers/") ||
+                name.startsWith("modifiers/") || name.startsWith("machines/") ||
                 name.startsWith("pets/") ||
                 name.startsWith("set_bonuses/") || name.startsWith("progression/") ||
                 name.startsWith("quest_boards/")) {

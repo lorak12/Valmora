@@ -52,8 +52,13 @@ public class ValmoraCommand implements TabExecutor {
             // of use (no per-module caching), so without this a reload wouldn't pick up config.yml
             // edits (e.g. items.lore) at all, only YAML content under resources/*.
             plugin.reloadConfig();
-            plugin.getModuleManager().reloadModules();
-            sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
+            java.util.List<String> failed = plugin.getModuleManager().reloadModules();
+            if (failed.isEmpty()) {
+                sender.sendMessage(Formatter.format("<green>Valmora Engine reloaded successfully!"));
+            } else {
+                sender.sendMessage(Formatter.format("<red>Reload finished with errors in: <yellow>"
+                        + String.join(", ", failed) + "<red>. Check the console — those modules may be partially loaded."));
+            }
             return true;
         }
 

@@ -63,7 +63,9 @@ public class QuiverListener implements Listener {
                 // Inventory was (unexpectedly) full — put back only what didn't fit.
                 quiver[i] = leftover.values().iterator().next();
             }
-            profile.putStorage(STORAGE_ID, quiver);
+            // Persist, not just mirror in memory: otherwise the DB still holds the arrows just
+            // moved into the inventory, and they come back on the next join (a dupe).
+            plugin.getGuiModule().persistPlayerStorage(profile, STORAGE_ID, quiver);
             return;
         }
     }

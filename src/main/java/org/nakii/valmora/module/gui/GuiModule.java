@@ -107,7 +107,15 @@ public class GuiModule implements ReloadableModule {
         }
         for (UUID uuid : new HashSet<>(openSessions.keySet())) {
             Player player = plugin.getServer().getPlayer(uuid);
-            if (player != null) closeGuiSession(player);
+            if (player == null) continue;
+            GuiSession session = openSessions.get(uuid);
+            closeGuiSession(player);
+            // The listener is already gone, so an inventory left open here would behave as a
+            // plain chest after a reload (display items and already-persisted STORAGE contents
+            // could be taken out — a dupe). Close it for real.
+            if (session != null && player.getOpenInventory().getTopInventory() == session.getInventory()) {
+                player.closeInventory();
+            }
         }
         unregisterGuiCommands();
         if (plugin.getScriptModule() != null) {
@@ -221,9 +229,16 @@ public class GuiModule implements ReloadableModule {
             futures.add(dataStore.loadStorage(profile.getId(), storageId, size)
                     .thenAccept(items -> preloaded.put(storageId, items)));
         }
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).thenRun(() ->
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenComplete((ignored, error) ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!player.isOnline()) return;
+                    if (error != null) {
+                        // Never open with empty storage after a failed read: the close would
+                        // persist the empty contents over the real ones.
+                        player.sendMessage(org.nakii.valmora.util.Formatter.format(
+                                "<red>That storage could not be loaded right now. Please try again."));
+                        return;
+                    }
                     preloaded.forEach(profile::putStorage);
                     Map<String, ItemStack[]> merged = new HashMap<>(preloaded);
                     merged.putAll(loadItemOwnedStorage(def, boundHandle));
@@ -376,6 +391,16 @@ public class GuiModule implements ReloadableModule {
         } else if (session.getBoundItemHandle() != null) {
             writeItemStorage(session.getBoundItemHandle(), contents);
         }
+    }
+
+    /**
+     * Writes a PLAYER-owned storage's contents to both the profile's in-memory mirror and the
+     * database. For code that edits a storage outside of an open GUI (e.g. quiver auto-refill) —
+     * updating only the in-memory mirror would let the next join reload the stale DB copy.
+     */
+    public void persistPlayerStorage(ValmoraProfile profile, String storageId, ItemStack[] contents) {
+        profile.putStorage(storageId, contents);
+        dataStore.saveStorage(profile.getId(), storageId, contents);
     }
 
     private void persistAllStorage(GuiSession session) {

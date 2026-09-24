@@ -158,6 +158,19 @@ public class DialogueManager implements Listener {
         endSession(player, true);
     }
 
+    /**
+     * Aborts every active dialogue without running final actions. Called on module disable: the
+     * per-session freeze and action-bar tasks are plain scheduler tasks that outlive the
+     * listener, so a dropped manager used to keep teleporting its players back in place forever.
+     */
+    public void endAllSessions() {
+        for (UUID uuid : new java.util.ArrayList<>(activeSessions.keySet())) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) endSession(player, false);
+            else endSession(uuid, false);
+        }
+    }
+
     public void clearSession(UUID playerUuid) {
         Player player = Bukkit.getPlayer(playerUuid);
         if (player != null) endSession(player, true);

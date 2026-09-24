@@ -55,6 +55,10 @@ profiles:
   # Name given to the very first (default) profile created for new players
   default-name: Earth
 
+  # How often every online player's profile (including their inventory) is saved, so a crash
+  # loses at most this much progress. Minimum 30.
+  autosave-interval-seconds: 300
+
   # Pool of names randomly picked for new profiles (unused names only)
   planet-names:
     - Mars

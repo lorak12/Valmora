@@ -30,7 +30,7 @@ public class DatabaseFactory {
             hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
             hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
 
-            return new SQLDataStore(new HikariDataSource(hikariConfig), true, plugin.getLogger());
+            return new SQLDataStore(new HikariDataSource(hikariConfig), true, plugin.getLogger(), plugin.getDataFolder());
         } else {
             // Default to SQLite
             File dbFile = new File(plugin.getDataFolder(), "database.db");
@@ -40,7 +40,7 @@ public class DatabaseFactory {
             // instead of blocking each other under SQLite's default rollback-journal mode.
             hikariConfig.setConnectionInitSql("PRAGMA journal_mode=WAL");
 
-            return new SQLDataStore(new HikariDataSource(hikariConfig), false, plugin.getLogger());
+            return new SQLDataStore(new HikariDataSource(hikariConfig), false, plugin.getLogger(), plugin.getDataFolder());
         }
     }
 }

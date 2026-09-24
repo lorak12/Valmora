@@ -9,7 +9,6 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.util.DebugManager;
@@ -23,8 +22,11 @@ public class HudItemListener implements Listener {
     }
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        module.giveHudItems(event.getPlayer());
+    public void onProfileLoaded(org.nakii.valmora.module.profile.PlayerProfileLoadedEvent event) {
+        // Not PlayerJoinEvent: the profile's saved inventory is applied (inventory cleared first)
+        // only once the async load completes, which wiped anything given at join time.
+        Player player = org.bukkit.Bukkit.getPlayer(event.getUuid());
+        if (player != null) module.giveHudItems(player);
     }
 
     @EventHandler

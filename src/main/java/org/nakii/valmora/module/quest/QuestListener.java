@@ -35,7 +35,6 @@ import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLevelChangeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -68,12 +67,16 @@ public class QuestListener implements Listener {
     // ── Auto-once + LOGIN ────────────────────────────────────────────────────
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        questManager.startAutoOnceObjectivesForPlayer(event.getPlayer());
-        questManager.trigger(event.getPlayer(), QuestObjectiveTypes.LOGIN, "login", 1);
-        checkStatReachObjectives(event.getPlayer());
-        checkExperienceObjectives(event.getPlayer());
-        checkPointObjectives(event.getPlayer());
+    public void onProfileLoaded(org.nakii.valmora.module.profile.PlayerProfileLoadedEvent event) {
+        // Not PlayerJoinEvent: at join time the profile is still loading asynchronously, so every
+        // one of these calls silently found no profile and did nothing.
+        Player player = org.bukkit.Bukkit.getPlayer(event.getUuid());
+        if (player == null) return;
+        questManager.startAutoOnceObjectivesForPlayer(player);
+        questManager.trigger(player, QuestObjectiveTypes.LOGIN, "login", 1);
+        checkStatReachObjectives(player);
+        checkExperienceObjectives(player);
+        checkPointObjectives(player);
     }
 
     // ── LOGOUT ───────────────────────────────────────────────────────────────

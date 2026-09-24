@@ -76,7 +76,7 @@ public class QuestModule implements ReloadableModule {
         if (timerHandler != null) { timerHandler.cancelAll(); timerHandler = null; }
         if (playerHiderManager != null) { playerHiderManager.stop(); playerHiderManager = null; }
         if (listener != null) { HandlerList.unregisterAll(listener); listener = null; }
-        if (journalManager != null) { HandlerList.unregisterAll(journalManager); journalManager = null; }
+        if (journalManager != null) { journalManager.closeAll(); HandlerList.unregisterAll(journalManager); journalManager = null; }
         if (questManager != null) { questManager.getRegistry().clear(); questManager = null; }
         if (questBoardRegistry != null) { questBoardRegistry.clear(); questBoardRegistry = null; }
         questBoardManager = null;

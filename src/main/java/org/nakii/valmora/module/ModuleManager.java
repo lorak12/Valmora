@@ -20,6 +20,12 @@ public class ModuleManager {
     private final Valmora plugin;
     private final Map<String, ReloadableModule> modules = new LinkedHashMap<>();
 
+    /** Ids of modules whose last onEnable/onDisable threw — reported back to the reload caller. */
+    private final List<String> lastFailures = new java.util.ArrayList<>();
+
+    /** True while a reload is tearing modules down and bringing them back up. */
+    private boolean reloading;
+
     public ModuleManager(Valmora plugin) {
         this.plugin = plugin;
     }
@@ -42,6 +48,7 @@ public class ModuleManager {
                 module.onEnable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+                lastFailures.add(module.getId());
             }
         }
     }
@@ -60,6 +67,7 @@ public class ModuleManager {
                 module.onDisable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+                lastFailures.add(module.getId());
             }
         }
     }
@@ -67,12 +75,46 @@ public class ModuleManager {
     /**
      * Reloads all modules.
      */
-    public void reloadModules() {
+    public List<String> reloadModules() {
         plugin.getLogger().info("Reloading all modules...");
-        disableModules();
-        // Here we'd ideally re-initialize things if needed, but for now we just call enable again
-        enableModules();
-        plugin.getLogger().info("Reload complete.");
+        lastFailures.clear();
+        reloading = true;
+        try {
+            disableModules();
+            enableModules();
+        } finally {
+            reloading = false;
+        }
+        afterReload();
+        plugin.getLogger().info(lastFailures.isEmpty() ? "Reload complete." : "Reload finished with failures in: " + lastFailures);
+        return List.copyOf(lastFailures);
+    }
+
+    /**
+     * Whether a reload is in progress. Modules come back one at a time, so anything computed
+     * mid-reload (notably player stats, recalculated when profiles reload) sees an incomplete
+     * picture — e.g. with enchants/modifiers/set bonuses not yet re-enabled, max HP is lower
+     * than it really is, and capping current HP/mana to it would permanently cut them down.
+     */
+    public boolean isReloading() {
+        return reloading;
+    }
+
+    /** Runs once every reloaded module is back up: recompute state that spans modules. */
+    private void afterReload() {
+        var playerManager = plugin.getPlayerManager();
+        if (playerManager == null) return;
+        for (org.bukkit.entity.Player player : plugin.getServer().getOnlinePlayers()) {
+            var session = playerManager.getSession(player.getUniqueId());
+            var profile = session != null ? session.getActiveProfile() : null;
+            if (profile == null) continue;
+            try {
+                profile.getStatManager().recalculateAttributes(player);
+                profile.getStatManager().recalculateStats(player);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to recalculate stats for " + player.getName() + " after reload", e);
+            }
+        }
     }
 
     /**
@@ -104,20 +146,26 @@ public class ModuleManager {
         plugin.getLogger().info("Reloading modules: " + moduleIds);
         List<ReloadableModule> reversed = new java.util.ArrayList<>(subset);
         Collections.reverse(reversed);
-        for (ReloadableModule module : reversed) {
-            try {
-                module.onDisable();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+        reloading = true;
+        try {
+            for (ReloadableModule module : reversed) {
+                try {
+                    module.onDisable();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to disable module: " + module.getId(), e);
+                }
             }
-        }
-        for (ReloadableModule module : subset) {
-            try {
-                module.onEnable();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+            for (ReloadableModule module : subset) {
+                try {
+                    module.onEnable();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Failed to enable module: " + module.getId(), e);
+                }
             }
+        } finally {
+            reloading = false;
         }
+        afterReload();
         plugin.getLogger().info("Reload of " + moduleIds + " complete.");
     }
 
@@ -147,12 +195,16 @@ public class ModuleManager {
         ReloadableModule module = modules.get(id.toLowerCase());
         if (module != null) {
             plugin.getLogger().info("Reloading module: " + module.getName());
+            reloading = true;
             try {
                 module.onDisable();
                 module.onEnable();
             } catch (Exception e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to reload module: " + id, e);
+            } finally {
+                reloading = false;
             }
+            afterReload();
         }
     }
 }

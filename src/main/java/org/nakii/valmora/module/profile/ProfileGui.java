@@ -83,6 +83,13 @@ public final class ProfileGui {
             HandlerList.unregisterAll(listener);
             listener = null;
         }
+        // Without the listener an open profile menu is a plain chest — close them for real.
+        Set<UUID> open = new HashSet<>(mainGuiPlayers);
+        open.addAll(confirmGuiPlayers);
+        for (UUID uuid : open) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) player.closeInventory();
+        }
         mainGuiPlayers.clear();
         confirmGuiPlayers.clear();
         pendingDelete.clear();

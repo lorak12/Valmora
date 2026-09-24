@@ -47,6 +47,7 @@ public class EconomyModule implements ReloadableModule, EconomyService {
     private final Map<UUID, Deque<EconomyLedgerEntry>> recentTransactions = new ConcurrentHashMap<>();
     private EconomyListener listener;
     private BukkitTask flushTask;
+    private volatile java.util.concurrent.CompletableFuture<Void> inFlightFlush;
     private BukkitTask interestTask;
 
     private static final EconomyData EMPTY = new EconomyData(0, 0);
@@ -72,8 +73,8 @@ public class EconomyModule implements ReloadableModule, EconomyService {
 
         // Load economy data for players already online (handles hot-reload)
         for (Player player : Bukkit.getOnlinePlayers()) {
-            double[] row = dataStore.loadEconomy(player.getUniqueId()).join();
-            cache.put(player.getUniqueId(), row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0));
+            if (cache.containsKey(player.getUniqueId())) continue;
+            handleJoin(player.getUniqueId());
         }
 
         long intervalTicks = plugin.getConfig().getLong("economy.autosave-interval-seconds", 60) * 20L;
@@ -102,6 +103,10 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             flushTask.cancel();
             flushTask = null;
         }
+        // Cancelling the timer doesn't stop a flush that's already writing; wait for it so its
+        // older snapshot can't commit after (and overwrite) the final flush below.
+        java.util.concurrent.CompletableFuture<Void> pending = inFlightFlush;
+        if (pending != null) pending.join();
         if (interestTask != null) {
             interestTask.cancel();
             interestTask = null;
@@ -115,7 +120,11 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             snapshot.put(entry.getKey(), entry.getValue().snapshot());
         }
         dirty.clear();
-        dataStore.saveEconomyBatch(snapshot).join();
+        dataStore.saveEconomyBatch(snapshot).exceptionally(ex -> {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE,
+                    "Final economy save failed — balance changes since the last flush may be lost.", ex);
+            return null;
+        }).join();
         cache.clear();
         recentTransactions.clear();
     }
@@ -148,7 +157,21 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         // and it closes the previous race where a transaction landing between "join fires" and
         // "the async load completes" would seed a zero-balance cache entry that putIfAbsent then
         // refused to overwrite — silently eclipsing the real DB-loaded balance for the session.
-        double[] row = dataStore.loadEconomy(uuid).join();
+        double[] row;
+        try {
+            row = dataStore.loadEconomy(uuid).join();
+        } catch (java.util.concurrent.CompletionException e) {
+            // A failed read must never be cached as 0/0 — the first transaction would mark it
+            // dirty and the next flush would overwrite the real balance. Disconnect instead.
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Economy load failed for " + uuid
+                    + " — disconnecting instead of risking a zeroed balance.", e);
+            Player online = Bukkit.getPlayer(uuid);
+            if (online != null) {
+                Bukkit.getScheduler().runTask(plugin, () -> online.kick(org.nakii.valmora.util.Formatter.format(
+                        "<red>Your balance could not be loaded.\n<gray>Nothing was changed — please try rejoining in a moment.")));
+            }
+            return;
+        }
         EconomyData data = row != null ? new EconomyData(row[0], row[1]) : new EconomyData(0, 0);
         cache.putIfAbsent(uuid, data);
 
@@ -170,7 +193,8 @@ public class EconomyModule implements ReloadableModule, EconomyService {
         EconomyData data = cache.get(uuid);
         if (data != null) {
             dirty.remove(uuid);
-            dataStore.saveEconomy(uuid, data.getPurse(), data.getBank());
+            dataStore.saveEconomy(uuid, data.getPurse(), data.getBank())
+                    .exceptionally(ex -> { dirty.add(uuid); return null; }); // retried by the next flush
         }
     }
 
@@ -189,7 +213,12 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             EconomyData data = cache.get(id);
             if (data != null) snapshot.put(id, data.snapshot());
         }
-        if (!snapshot.isEmpty()) dataStore.saveEconomyBatch(snapshot);
+        if (snapshot.isEmpty()) return;
+        inFlightFlush = dataStore.saveEconomyBatch(snapshot).exceptionally(ex -> {
+            // Previously the keys were already cleared, so a failed batch was never retried.
+            dirty.addAll(snapshot.keySet());
+            return null;
+        });
     }
 
     // --- Read ---
@@ -215,7 +244,12 @@ public class EconomyModule implements ReloadableModule, EconomyService {
             callback.accept(new double[]{cached.getPurse(), cached.getBank()});
             return;
         }
-        dataStore.loadEconomy(uuid).thenAccept(row -> {
+        dataStore.loadEconomy(uuid).whenComplete((row, error) -> {
+            if (error != null) {
+                // Don't report 0/0 — a caller doing read-modify-write would persist it.
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Offline economy read for " + uuid + " failed.", error);
+                return;
+            }
             double[] result = row != null ? row : new double[]{0, 0};
             Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
         });

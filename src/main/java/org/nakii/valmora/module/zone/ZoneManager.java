@@ -134,6 +134,13 @@ public class ZoneManager {
                 World world = Bukkit.getWorld(zone.getWorldName());
                 if (world == null) continue;
 
+                // Only spawn where the whole area (count radius + spawn radius) is loaded with its
+                // entities. Otherwise countMobs can't see the mobs already there (counts 0), the
+                // spawn force-loads the chunk, and each interval adds another saved mob — an
+                // unbounded pile-up in areas no player is near.
+                double areaRadius = Math.max(spawner.getRadius(), spawner.getSpawnRadius());
+                if (!isAreaLoaded(world, spawner.getX(), spawner.getZ(), areaRadius)) continue;
+
                 Location center = new Location(world, spawner.getX() + 0.5, spawner.getY(), spawner.getZ() + 0.5);
                 int alive = countMobs(center, spawner.getMobId(), spawner.getRadius());
                 if (alive >= spawner.getMaxAlive()) continue;
@@ -153,6 +160,17 @@ public class ZoneManager {
                 }
             }
         }
+    }
+
+    private static boolean isAreaLoaded(World world, double x, double z, double radius) {
+        int minCx = (int) Math.floor((x - radius) / 16.0), maxCx = (int) Math.floor((x + radius) / 16.0);
+        int minCz = (int) Math.floor((z - radius) / 16.0), maxCz = (int) Math.floor((z + radius) / 16.0);
+        for (int cx = minCx; cx <= maxCx; cx++) {
+            for (int cz = minCz; cz <= maxCz; cz++) {
+                if (!world.isChunkLoaded(cx, cz) || !world.getChunkAt(cx, cz).isEntitiesLoaded()) return false;
+            }
+        }
+        return true;
     }
 
     private int countMobs(Location center, String mobId, double radius) {
