@@ -37,8 +37,11 @@ public final class ItemView {
         String id = itemId(meta);
         if (id == null) return Optional.empty();
         ValmoraAPI api = ValmoraAPI.getInstance();
-        if (api == null || api.getItemManager() == null) return Optional.empty();
-        return api.getItemManager().getItemRegistry().getItem(id);
+        var itemManager = api != null ? api.getItemManager() : null;
+        var registry = itemManager != null ? itemManager.getItemRegistry() : null;
+        if (registry == null) return Optional.empty();
+        Optional<ItemDefinition> def = registry.getItem(id);
+        return def != null ? def : Optional.empty();
     }
 
     public static Optional<ItemDefinition> definition(ItemStack item) {

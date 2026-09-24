@@ -111,7 +111,7 @@ public class SkillManager {
         SkillRegistry registry;
         try {
             registry = getSkillRegistry();
-        } catch (IllegalStateException moduleNotLoaded) {
+        } catch (RuntimeException moduleNotLoaded) { // not loaded (mid-reload) or no API (tests)
             return;
         }
         SkillDefinition skill = registry.getSkill(key).orElse(null);

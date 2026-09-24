@@ -233,7 +233,7 @@ public class StatManager {
             for (Map.Entry<String, Integer> entry : enchants.entrySet()) {
                 var enchantDef = api.getEnchantModule().getRegistry().get(entry.getKey()).orElse(null);
                 if (enchantDef == null) continue;
-                int enchantLevel = enchantDef.effectiveLevel(entry.getValue());
+                int enchantLevel = org.nakii.valmora.module.enchant.EnchantmentDefinition.effectiveLevel(enchantDef, entry.getValue());
                 if (enchantLevel <= 0) continue;
                 if (enchantDef.getLogic() != null) {
                     enchantDef.getLogic().applyStats(player, enchantLevel, this);

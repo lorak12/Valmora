@@ -23,7 +23,8 @@ public final class ItemRarities {
         if (key == null) return Optional.empty();
         ValmoraAPI api = ValmoraAPI.getInstance();
         RarityModule module = api != null ? api.getRarityModule() : null;
-        return module != null ? module.getRegistry().getByKey(key) : Optional.empty();
+        var registry = module != null ? module.getRegistry() : null;
+        return registry != null ? registry.getByKey(key) : Optional.empty();
     }
 
     private static Rarity legacy(String key) {
@@ -64,7 +65,7 @@ public final class ItemRarities {
         List<String> keys = new ArrayList<>();
         ValmoraAPI api = ValmoraAPI.getInstance();
         RarityModule module = api != null ? api.getRarityModule() : null;
-        if (module != null) {
+        if (module != null && module.getRegistry() != null) {
             for (RarityDefinition def : module.getRegistry().getOrdered()) keys.add(def.getKey());
         }
         for (Rarity r : Rarity.values()) {

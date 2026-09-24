@@ -123,6 +123,7 @@ public class StatModule implements ReloadableModule {
         // go back to vanilla; they'd otherwise keep the last value forever (it's saved with the
         // player). The set is kept in the player's PDC so this works across restarts.
         var pdc = player.getPersistentDataContainer();
+        if (pdc == null || Keys.TOUCHED_ATTRIBUTES_KEY == null) return;
         String previous = pdc.get(Keys.TOUCHED_ATTRIBUTES_KEY, org.bukkit.persistence.PersistentDataType.STRING);
         if (previous != null) {
             for (String key : previous.split(",")) {
@@ -139,6 +140,7 @@ public class StatModule implements ReloadableModule {
      */
     public void resetAttributes(Player player) {
         var pdc = player.getPersistentDataContainer();
+        if (pdc == null || Keys.TOUCHED_ATTRIBUTES_KEY == null) return;
         String previous = pdc.get(Keys.TOUCHED_ATTRIBUTES_KEY, org.bukkit.persistence.PersistentDataType.STRING);
         if (previous == null) return;
         for (String key : previous.split(",")) {

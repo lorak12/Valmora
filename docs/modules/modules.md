@@ -15,6 +15,7 @@
 [] modifier - generic modifier framework (docs/Valmora_Modifier_Framework_Design.docx); replaced the reforge module (see below)
 [] notify
 [] npc
+[*] versioning (cross-cutting, docs/modules/design/versioning.md + docs/modules/user/versioning.md — data/config/content version ladders, previous-ids aliases, live item templates, last-known-good reload, world-state reconciliation)
 [*] pipeline (cross-cutting, docs/modules/design/pipeline.md — no user doc, admin-facing surface is YAML `*_pipeline.yml` files + `/valmora pipeline list`, documented inline)
 [] pack - content pack manager: install/uninstall/roll back self-contained content bundles at runtime (see docs/modules/design/pack.md, docs/modules/user/pack.md)
 [] pet

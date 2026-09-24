@@ -25,7 +25,8 @@ public final class PassiveEffects {
     private PassiveEffects() {}
 
     public static void record(LivingEntity entity, PotionEffectType type) {
-        if (!(entity instanceof Player player)) return;
+        if (Keys.PASSIVE_EFFECTS_KEY == null) return; // keys not initialised (unit tests)
+        if (!(entity instanceof Player player) || player.getPersistentDataContainer() == null) return;
         Set<String> keys = read(player.getPersistentDataContainer());
         if (keys.add(type.getKey().toString())) write(player.getPersistentDataContainer(), keys);
     }
@@ -33,6 +34,7 @@ public final class PassiveEffects {
     /** Removes every recorded passive effect from {@code player} and forgets them. */
     public static void clear(Player player) {
         PersistentDataContainer pdc = player.getPersistentDataContainer();
+        if (pdc == null || Keys.PASSIVE_EFFECTS_KEY == null) return;
         if (!pdc.has(Keys.PASSIVE_EFFECTS_KEY, PersistentDataType.STRING)) {
             // Never tracked (player predates tracking): fall back once to the old rule so passives
             // applied before the upgrade don't stick forever.
