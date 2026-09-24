@@ -6,6 +6,10 @@ import java.util.Optional;
 
 public class ProgressionRegistry extends SimpleRegistry<ProgressionTreeDefinition> {
 
+    public ProgressionRegistry() {
+        super(org.nakii.valmora.infrastructure.versioning.IdAliases.PROGRESSION);
+    }
+
     public void registerTree(ProgressionTreeDefinition definition) {
         register(definition.getId(), definition);
     }

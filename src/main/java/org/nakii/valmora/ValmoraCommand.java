@@ -62,6 +62,11 @@ public class ValmoraCommand implements TabExecutor {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("orphans")) {
+            handleOrphans(sender, args);
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("variable") && args.length >= 3) {
             if (args[1].equalsIgnoreCase("get")) {
                 handleVariableGet(sender, args[2]);
@@ -331,7 +336,7 @@ public class ValmoraCommand implements TabExecutor {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (args.length == 1) {
-            return Stream.of("reload", "variable", "pipeline", "pack", "debug")
+            return Stream.of("reload", "variable", "pipeline", "pack", "debug", "orphans")
                     .filter(s -> s.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         }
@@ -387,6 +392,43 @@ public class ValmoraCommand implements TabExecutor {
         return new ArrayList<>();
     }
 
+    /**
+     * {@code /valmora orphans <player> [purge]} — lists (or deletes) the online player's saved
+     * progress that points at content which no longer exists. See OrphanReport.
+     */
+    private void handleOrphans(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(Formatter.format("<red>Usage: /valmora orphans <player> [purge]"));
+            return;
+        }
+        Player target = plugin.getServer().getPlayerExact(args[1]);
+        var session = target != null ? plugin.getPlayerManager().getSession(target.getUniqueId()) : null;
+        var profile = session != null ? session.getActiveProfile() : null;
+        if (profile == null) {
+            sender.sendMessage(Formatter.format("<red>That player isn't online or their profile isn't loaded."));
+            return;
+        }
+        if (args.length >= 3 && args[2].equalsIgnoreCase("purge")) {
+            int removed = org.nakii.valmora.module.profile.OrphanReport.purge(profile);
+            plugin.getPlayerManager().save(session);
+            sender.sendMessage(Formatter.format("<green>Removed " + removed + " orphaned entr" + (removed == 1 ? "y" : "ies")
+                    + " from " + target.getName() + "'s profile '" + profile.getName() + "'."));
+            return;
+        }
+        var orphans = org.nakii.valmora.module.profile.OrphanReport.find(profile);
+        if (orphans.isEmpty()) {
+            sender.sendMessage(Formatter.format("<green>" + target.getName() + "'s profile '" + profile.getName()
+                    + "' has no progress pointing at missing content."));
+            return;
+        }
+        sender.sendMessage(Formatter.format("<gold>Orphaned progress in " + target.getName() + "'s profile '" + profile.getName() + "':"));
+        orphans.forEach((category, ids) -> sender.sendMessage(Formatter.format(
+                "<yellow>" + category + ": <gray>" + String.join(", ", ids))));
+        sender.sendMessage(Formatter.format("<gray>Kept so restoring the content (or listing the old id under its "
+                + "<white>previous-ids:</white>) brings it back. <yellow>/valmora orphans " + target.getName()
+                + " purge <gray>deletes it."));
+    }
+
     private void sendHelp(CommandSender sender) {
         sender.sendMessage(Formatter.format("<gold>--- Valmora Engine ---"));
         sender.sendMessage(Formatter.format("<yellow>/valmora reload <gray>- Reload all modules"));
@@ -394,5 +436,6 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list [point] <gray>- Inspect registered pipeline stages"));
         sender.sendMessage(Formatter.format("<yellow>/valmora pack ... <gray>- Manage content packs (see /valmora pack)"));
         sender.sendMessage(Formatter.format("<yellow>/valmora debug <module|all> <gray>- Toggle verbose debug logging"));
+        sender.sendMessage(Formatter.format("<yellow>/valmora orphans <player> [purge] <gray>- Saved progress pointing at deleted content"));
     }
 }

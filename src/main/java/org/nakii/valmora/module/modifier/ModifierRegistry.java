@@ -16,7 +16,13 @@ public class ModifierRegistry {
     }
 
     public Optional<ModifierDefinition> get(String id) {
-        return id == null ? Optional.empty() : Optional.ofNullable(modifiers.get(id.toLowerCase(Locale.ROOT)));
+        if (id == null) return Optional.empty();
+        ModifierDefinition def = modifiers.get(id.toLowerCase(Locale.ROOT));
+        if (def == null) {
+            // Renamed modifier (previous-ids): gear still carrying the old id keeps working.
+            def = modifiers.get(org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(org.nakii.valmora.infrastructure.versioning.IdAliases.MODIFIERS, id));
+        }
+        return Optional.ofNullable(def);
     }
 
     public Collection<ModifierDefinition> values() {

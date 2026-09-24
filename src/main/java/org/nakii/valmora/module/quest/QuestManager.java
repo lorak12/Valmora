@@ -23,7 +23,7 @@ public class QuestManager {
     public static final String STATUS_FAILED       = "failed";
 
     private final Valmora plugin;
-    private final Registry<QuestDefinition> registry = new SimpleRegistry<>();
+    private final Registry<QuestDefinition> registry = new SimpleRegistry<>(org.nakii.valmora.infrastructure.versioning.IdAliases.QUESTS);
     private final Registry<ObjectiveHandler> handlerRegistry = new SimpleRegistry<>();
 
     public QuestManager(Valmora plugin) {

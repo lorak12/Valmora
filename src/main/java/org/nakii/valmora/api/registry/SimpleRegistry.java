@@ -19,6 +19,27 @@ public class SimpleRegistry<T> implements Registry<T> {
     // are base/vanilla content with no owning source.
     private final Map<String, String> sourceById = new HashMap<>();
 
+    /**
+     * Content type whose id aliases ({@code previous-ids}, pack namespacing — see
+     * {@link org.nakii.valmora.infrastructure.versioning.IdAliases}) {@link #get}/{@link #contains}
+     * fall back to on a miss, or {@code null} for no alias support.
+     */
+    private final String aliasType;
+
+    public SimpleRegistry() {
+        this(null);
+    }
+
+    public SimpleRegistry(String aliasType) {
+        this.aliasType = aliasType;
+    }
+
+    /** Resolves {@code key} (lowercased) to a registered key, following an id alias on a miss. */
+    private String lookupKey(String key) {
+        if (aliasType == null || entries.containsKey(key)) return key;
+        return org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(aliasType, key);
+    }
+
     @Override
     public synchronized void register(String id, T entry) {
         register(id, entry, null);
@@ -69,12 +90,12 @@ public class SimpleRegistry<T> implements Registry<T> {
 
     @Override
     public Optional<T> get(String id) {
-        return Optional.ofNullable(entries.get(id.toLowerCase()));
+        return Optional.ofNullable(entries.get(lookupKey(id.toLowerCase())));
     }
 
     @Override
     public boolean contains(String id) {
-        return entries.containsKey(id.toLowerCase());
+        return entries.containsKey(lookupKey(id.toLowerCase()));
     }
 
     @Override

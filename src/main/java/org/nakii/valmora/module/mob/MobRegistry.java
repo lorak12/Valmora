@@ -7,7 +7,9 @@ import java.util.Set;
 
 public class MobRegistry extends SimpleRegistry<MobDefinition> {
 
-    public MobRegistry() {}
+    public MobRegistry() {
+        super(org.nakii.valmora.infrastructure.versioning.IdAliases.MOBS);
+    }
 
     public void registerMob(MobDefinition definition) {
         register(definition.getId(), definition);

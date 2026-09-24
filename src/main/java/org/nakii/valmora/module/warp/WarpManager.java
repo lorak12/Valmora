@@ -17,7 +17,7 @@ import java.util.Optional;
 public class WarpManager {
 
     private final Valmora plugin;
-    private final Registry<WarpDefinition> registry = new SimpleRegistry<>();
+    private final Registry<WarpDefinition> registry = new SimpleRegistry<>(org.nakii.valmora.infrastructure.versioning.IdAliases.WARPS);
 
     public WarpManager(Valmora plugin) {
         this.plugin = plugin;

@@ -30,7 +30,9 @@ public class CollectionRegistry {
     }
 
     public Optional<CollectionDefinition> getCollection(String id) {
-        return Optional.ofNullable(collections.get(id.toLowerCase()));
+        CollectionDefinition def = collections.get(id.toLowerCase());
+        if (def == null) def = collections.get(org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(org.nakii.valmora.infrastructure.versioning.IdAliases.COLLECTIONS, id));
+        return Optional.ofNullable(def);
     }
 
     public Collection<CollectionCategory> getCategories() {

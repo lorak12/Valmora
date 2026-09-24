@@ -11,6 +11,7 @@ public class ItemRegistry extends SimpleRegistry<ItemDefinition> {
     private final ItemFactory factory;
 
     public ItemRegistry(ItemFactory factory) {
+        super(org.nakii.valmora.infrastructure.versioning.IdAliases.ITEMS);
         this.factory = factory;
     }
 

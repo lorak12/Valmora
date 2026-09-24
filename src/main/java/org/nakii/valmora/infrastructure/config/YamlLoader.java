@@ -63,6 +63,7 @@ public class YamlLoader<T> {
             folder.mkdirs();
         }
 
+        org.nakii.valmora.infrastructure.versioning.IdAliases.clear(folderName);
         List<File> files = new ArrayList<>();
         collectYamlFilesRecursive(folder, files);
         List<String> errors = new ArrayList<>();
@@ -75,9 +76,11 @@ public class YamlLoader<T> {
                 for (String key : config.getKeys(false)) {
                     ConfigurationSection section = config.getConfigurationSection(key);
                     if (section != null) {
-                        LoadResult<T, String> result = parser.parse(qualify(key, relativePath), section, relativePath);
+                        String id = qualify(key, relativePath);
+                        LoadResult<T, String> result = parser.parse(id, section, relativePath);
                         if (result.isSuccess()) {
                             registerAction.accept(result.getValue());
+                            registerAliases(key, id, section);
                             loadedCount++;
                         } else {
                             errors.add(result.getError());
@@ -114,6 +117,7 @@ public class YamlLoader<T> {
             folder.mkdirs();
         }
 
+        org.nakii.valmora.infrastructure.versioning.IdAliases.clear(folderName);
         File[] files = folder.listFiles();
         List<String> errors = new ArrayList<>();
         int loadedCount = 0;
@@ -126,9 +130,11 @@ public class YamlLoader<T> {
                         String id = file.getName().replace(".yml", "");
                         YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
 
-                        LoadResult<T, String> result = parser.parse(qualify(id, relativePath), (ConfigurationSection) config, relativePath);
+                        String qualifiedId = qualify(id, relativePath);
+                        LoadResult<T, String> result = parser.parse(qualifiedId, (ConfigurationSection) config, relativePath);
                         if (result.isSuccess()) {
                             registerAction.accept(result.getValue());
+                            registerAliases(id, qualifiedId, config);
                             loadedCount++;
                         } else {
                             errors.add(result.getError());
@@ -141,6 +147,18 @@ public class YamlLoader<T> {
         }
 
         reportErrors(errors, loadedCount);
+    }
+
+    /**
+     * Records the id aliases of one loaded definition (see {@code IdAliases}): every entry of its
+     * {@code previous-ids:} list, and — when pack namespacing rewrote the id — the bare id it was
+     * declared under, so data saved before namespacing still resolves.
+     */
+    private void registerAliases(String declaredId, String id, ConfigurationSection section) {
+        org.nakii.valmora.infrastructure.versioning.IdAliases.registerAll(folderName, section.getStringList("previous-ids"), id);
+        if (!declaredId.equalsIgnoreCase(id)) {
+            org.nakii.valmora.infrastructure.versioning.IdAliases.register(folderName, declaredId, id);
+        }
     }
 
     private void reportErrors(List<String> errors, int loadedCount) {

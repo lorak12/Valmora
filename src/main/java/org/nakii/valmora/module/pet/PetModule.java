@@ -84,7 +84,11 @@ public class PetModule implements ReloadableModule {
     @Override
     public String getName() { return "Pet System"; }
 
-    public PetDefinition getDefinition(String id) { return definitions.get(id.toLowerCase()); }
+    public PetDefinition getDefinition(String id) {
+        PetDefinition def = definitions.get(id.toLowerCase());
+        // Renamed pet (previous-ids): existing pet items still carry the old id.
+        return def != null ? def : definitions.get(org.nakii.valmora.infrastructure.versioning.IdAliases.resolve(org.nakii.valmora.infrastructure.versioning.IdAliases.PETS, id));
+    }
     public Collection<PetDefinition> getDefinitions() { return definitions.values(); }
     public Map<UUID, Entity> getActivePetEntities() { return activePetEntity; }
 
@@ -120,7 +124,7 @@ public class PetModule implements ReloadableModule {
         if (item == null) return null;
         String petId = item.getItemMeta().getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
-        return petId != null ? definitions.get(petId) : null;
+        return petId != null ? getDefinition(petId) : null;
     }
 
     public int getActivePetLevel(Player player) {
@@ -159,7 +163,7 @@ public class PetModule implements ReloadableModule {
         String petId = petMeta.getPersistentDataContainer()
                 .get(Keys.PET_ID_KEY, PersistentDataType.STRING);
         if (petId == null) return;
-        PetDefinition def = definitions.get(petId);
+        PetDefinition def = getDefinition(petId);
         if (def == null) return;
 
         // Stamp an instance id if this item predates the instance-tracking system (e.g. an
