@@ -1,6 +1,60 @@
 ---
-title: warps
-summary: TODO
+title: Warps
+summary: Named teleport destinations — coordinates, unlock conditions, pads, and /warp.
 ---
 
-TODO
+A **warp** is a named teleport destination with an optional unlock condition and optional
+pressure-pad locations. No pads means command/script-only. The shipped `hub.yml` defines five
+warps (`hub_spawn`, `coal_mine_warp`, `forest_warp`, `fishing_village_warp`, `graveyard_warp`),
+all open, each with a 2×2 pad.
+
+## Files
+
+`plugins/Valmora/warps/*.yml` — e.g. `hub.yml`. `/valmora reload` re-reads them.
+
+## A complete warp
+
+```yaml
+# plugins/Valmora/warps/hub.yml
+hub_spawn:
+  display-name: "<gold>Hub Spawn"
+  world: world
+  x: 0.5
+  y: 65.0
+  z: 0.5
+  yaw: 0
+  pitch: 0
+  unlock-condition: always
+  pad-locations:
+    - { x: 10, y: 64, z: 10 }
+    - { x: 11, y: 64, z: 10 }
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `display-name` | the id | MiniMessage name in menus. |
+| `world` / `x` / `y` / `z` / `yaw` / `pitch` | `world` / `0` / `64` / `0` / `0` / `0` | Destination (async teleport). |
+| `unlock-condition` | `always` | `always`, `tag:<tag>`, or `skill:<id>:<level>` ([conditions](/docs/conditions) syntax). |
+| `pad-locations[]` | none | `{ x, y, z }` pads in the warp's world that teleport on step. |
+
+## Using warps
+
+```text
+/warp
+/warp <id>
+```
+
+`/warp` alone opens the `fast_travel` [GUI](/docs/guis); `/warp <id>` is case-insensitive and
+ignores extra args. A locked warp replies `This warp is locked! Condition: …`. No permission
+needed. In scripts:
+
+```yaml
+- "warp_to hub_spawn"
+```
+
+| Variable | Meaning |
+|---|---|
+| `$warp.<id>.name$` | Display name |
+| `$warp.<id>.unlocked$` | Whether the player meets the condition |
+
+<SeeAlso slugs={["zones", "npcs", "guis", "conditions", "commands"]} />

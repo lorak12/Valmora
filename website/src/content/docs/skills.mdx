@@ -1,6 +1,71 @@
 ---
-title: skills
-summary: TODO
+title: Skills
+summary: XP skills — sources, the shared XP curve, per-level and milestone rewards.
 ---
 
-TODO
+A **skill** is an XP track up to a max level. Breaking blocks, killing mobs, fishing, crafting
+and similar actions grant XP; each level and each milestone can fire
+[script events](/docs/events) as rewards. There are 9 shipped skills, all capped at 60 on the
+shared curve.
+
+## Files
+
+`plugins/Valmora/skills/*.yml` — the filename is the skill id (`mining.yml` → `mining`).
+The `/skills` [GUI](/docs/guis) lists them; see [Shipped files](/docs/default-files#skills).
+
+## A complete skill
+
+```yaml
+# plugins/Valmora/skills/mining.yml
+id: mining
+name: "<gray>Mining"
+description:
+  - "<gray>Break ores for XP."
+material: DIAMOND_PICKAXE
+max-level: 60
+xp-curve: "default"
+sources:
+  BLOCK_BREAK:
+    STONE: 1.0
+    COAL_ORE: 10.0
+    DIAMOND_ORE: 150.0
+    ANCIENT_DEBRIS: 500.0
+rewards:
+  per-level:
+    - "variable add player.var.defense 0.5"
+    - "variable add player.var.coins $param.level$*15"
+  milestones:
+    "10":
+      - "give IRON_PICKAXE:1 notify"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `id` / `name` | filename / id | Display name (MiniMessage). |
+| `description` | none | Lore lines in the skills menu. |
+| `material` | none | Icon in the menu. |
+| `max-level` | `60` (`skills.defaults.max-level`) | Level cap. |
+| `xp-curve` | `"default"` | Which curve from `skills.curves` in [config.yml](/docs/config-yml#skills). |
+| `sources.<TYPE>.<IDENT>` | none | XP per action (below). |
+| `rewards.per-level[]` | none | [Events](/docs/events) fired every level, with `$param.level$`. |
+| `rewards.milestones."<level>"[]` | none | [Events](/docs/events) fired once at that level. |
+
+Source types: `BLOCK_BREAK`, `CROP_HARVEST`, `MOB_KILL`, `FISHING`, `CRAFT_ITEM`,
+`BREW_POTION`, `TAME_MOB`, `ENCHANT_ITEM`. Identifiers can be exact (`ZOMBIE`), `#tag`, a glob
+(`DEEP*`), `ANY`, or `DEFAULT` as fallback. Lookup order is exact → pattern → tag → default.
+
+## Commands
+
+```text
+/skills
+/skill list
+/skill get <player> <skill>
+/skill give <player> <skill> <xp>
+/skill set <player> <skill> xp|level <value>
+/skill reset <player> <skill>
+```
+
+`/skills` needs no permission; `give` / `set` / `reset` need `valmora.admin`
+(`permissions.skill` in [config.yml](/docs/config-yml#commands)).
+
+<SeeAlso slugs={["collections", "progression-trees", "commands", "events", "guis"]} />

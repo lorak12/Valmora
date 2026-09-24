@@ -1,6 +1,96 @@
 ---
-title: quests
-summary: TODO
+title: Quests
+summary: Quest states, the two quest formats, objectives, rewards, and the /quest command.
 ---
 
-TODO
+A **quest** is a tracked task with objectives and reward events. Every quest has a status per
+player — `not_started`, `in_progress`, `completed` or `failed` — stored as
+`quest.<id>.status`. Quest logic (starting, completing, objectives) runs through
+[script events](/docs/events); quest definitions just declare the objectives and rewards.
+
+Walkthrough: [your first quest](/docs/tutorial-first-quest).
+
+## Files
+
+Two formats share the same quest registry:
+
+- `plugins/Valmora/quests/*.yml` — **flat format**, one quest per top-level key. The shipped
+  `shardworks_quests.yml` uses this.
+- `plugins/Valmora/quests/<package>/` — **packages** with `quest.yml`, `quests.yml`,
+  `events.yml`, `conversations.yml`, `notifications.yml`. See
+  [Quest packages](/docs/quest-packages). Packages load after flat files and win on id collisions.
+
+## A complete quest
+
+```yaml
+# plugins/Valmora/quests/my_quests.yml
+shardworks_mine_ferrite:
+  name: "<gray>Ferrite Quota"
+  objectives:
+    - id: mine_ferrite
+      type: collect
+      target: raw_ferrite
+      amount: 150
+      notify: 25
+  reward-events:
+    - "point ferrite_powder add 40"
+    - "point geomancy_tokens add 1"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `name` | the id | Display name (MiniMessage), shown in the journal and boards. |
+| `objectives` | — **required** | List of objectives (below). In packages, an `objectives:` map instead. |
+| `objectives[].id` | none | Stable id for variables and scripting. |
+| `objectives[].type` | `kill` | Lowercase [objective type](/docs/objective-types) (`kill`, `collect`, `block_break`…). |
+| `objectives[].target` | `""` | What counts: item id, mob id, category (`UNDEAD`), material, or `any`. Case-insensitive. |
+| `objectives[].amount` | `1` | How many. |
+| `objectives[].conditions` | none | Named `conditions:` ref or inline [condition](/docs/conditions) (e.g. `zone mine`). |
+| `objectives[].events` | none | [Events](/docs/events) fired when **that objective** completes. |
+| `objectives[].persistent` | `false` | `true` never completes the quest — a repeatable bonus objective. |
+| `objectives[].auto-once` | `false` | `true` activates on join via a profile tag. |
+| `objectives[].notify` | none | Action-bar progress every `N` steps (`notify: 5`). Always notifies on completion. |
+| `reward-events` | none | [Events](/docs/events) fired when the whole quest completes (points, coins, items). |
+
+`type` is case-insensitive; `target` matches case-insensitively or `any`. A `delay` objective
+matches by objective id and takes `delay:` / `ticks:` / `interval:` instead of a target.
+
+## Doing quests in scripts
+
+Quests are driven by four [events](/docs/events):
+
+```yaml
+# start, complete, cancel, fail a quest
+- "quest_start forgotten_mine"
+- "quest_complete bounty_wolves"
+- "quest_cancel tutorial_quest"
+- "quest_fail timed_heist"
+- "objective_start bonus_mining"
+- "journal open"
+```
+
+| Check | Syntax |
+|---|---|
+| Quest status | `quest <id> <not_started\|in_progress\|completed\|failed>` (prefix `!` to negate) |
+| Objective active | `objective <id>` |
+| Points balance | `point <category> <amount>` (true when ≥ amount) |
+
+| Variable | Meaning |
+|---|---|
+| `$quest.<id>.status$` | `not_started`, `in_progress`, `completed`, `failed` |
+| `$quest.<id>.progress.<i>$` | Progress of the i-th objective |
+| `$quest.<id>.objective.<obj>.progress$` / `.required$` | Current / required count |
+| `$quest.objective.<obj>.active$` | Whether the objective is active |
+
+## /quest
+
+`/quest` (or `/quest journal`) opens your journal. Admin commands need `valmora.admin`:
+
+```text
+/quest journal
+/quest complete <player> [questId]
+/quest reset <player> [questId]
+/quest inspect <player> [questId]
+```
+
+<SeeAlso slugs={["quest-packages", "objective-types", "conversations", "quest-boards-points", "tutorial-first-quest"]} />

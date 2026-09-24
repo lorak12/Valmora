@@ -1,6 +1,62 @@
 ---
-title: content-packs
-summary: TODO
+title: Content packs
+summary: Installable content bundles — pack.yml, namespacing, shared merges, and pack commands.
 ---
 
-TODO
+A **content pack** is an installable bundle of Valmora data files (items, mobs, quests, GUIs…)
+plus a `pack.yml` manifest. Packs install into `plugins/Valmora/<folder>/<pack_id>/…` with
+automatic id namespacing (`frost_blade` in pack `frostspire` registers `frostspire:frost_blade`).
+The `pack` module loads last and orchestrates install/uninstall/reload.
+
+## pack.yml
+
+The manifest's **single top-level key is the pack id** (no wrapper — zero or multiple keys
+fail):
+
+```yaml
+# frostspire/pack.yml
+frostspire:
+  name: "Frostspire"
+  version: "1.2.0"
+  author: "Nakii"
+  description: "A frozen quest hub."
+  engine_version_min: "0.1.0"
+  engine_version_max: "0.9.9"
+  depends:
+    plugins: []
+    packs:
+      - { id: shardworks, version: ">=1.0.0" }
+  soft_depends:
+    packs: []
+  provides:
+    content: [items, mobs, quests]
+    shared: [rarities.yml]
+```
+
+`depends.packs` versions accept `>=`, `<=`, `>`, `<`, `==` or bare; `soft_depends` warns only.
+`provides.content` / `provides.shared` are validated — unknown entries fail the install.
+Already-`:` ids pass through namespacing; cross-refs must today spell `pack:id` fully.
+
+Shared fragments (merged by shape, collisions skipped with a warning, uninstall reverts the
+exact diff): `rarities.yml`, `item_types.yml`, `mob_categories.yml`, `entity_categories.yml`,
+`combat_pipeline.yml`, `resource_pipeline.yml`, `fishing_pipeline.yml`, `item_pipeline.yml`,
+`mob_pipeline.yml`, `ui.yml`. Content folders (~24: `items/`, `mobs/`, `quests/`, `recipes/`,
+`guis/`, `modifiers/groups|definitions`, …) install per-pack and reload only their modules.
+
+## Commands
+
+```text
+/valmora pack install <dir|url|github:owner/repo@tag> [--sha256]
+/valmora pack inspect <dir>
+/valmora pack uninstall <pack-id>
+/valmora pack list
+/valmora pack rollback <pack-id> [timestamp]
+```
+
+All need `valmora.admin`. Re-install is a clean upgrade-in-place (uninstall + install).
+Safety: `--sha256` verification, zip-slip/zip-bomb guards (`pack.max-entries: 5000`,
+`pack.max-extracted-size-mb: 200`), pre-write dependency checks, auto-rollback on mid-install
+failure, snapshots, and the `valmora_installed_packs` ledger. `pack.index-url` is reserved —
+no index, `/pack export`, or in-place diff yet.
+
+<SeeAlso slugs={["default-files", "file-layout", "config-yml", "developer-extending"]} />

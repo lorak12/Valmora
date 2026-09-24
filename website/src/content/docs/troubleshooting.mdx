@@ -1,6 +1,39 @@
 ---
-title: troubleshooting
-summary: TODO
+title: Troubleshooting
+summary: Console errors decoded, reload triage, and the most common config mistakes.
 ---
 
-TODO
+Most Valmora problems announce themselves in the console on load or `/valmora reload`. Match the
+message below, fix the file, and reload — only `database:` changes and jar swaps need a restart.
+
+## Console errors
+
+| Message | Meaning | Fix |
+|---|---|---|
+| `Failed to load some <type>. Please check your configuration files.` + `- [<file>] Failed to parse YAML: <msg>` | Malformed YAML or a bad value (unknown material, rarity, stat, trigger, mechanic) | Fix the named file; one bad item/mob/skips that entry, an unknown drop id fails the whole mob |
+| `Failed to enable module: <id>` / `Failed to disable` / `Failed to reload` + `Reload finished with failures in: […]` | One module's `onEnable` threw; the rest still load | Read the stack above the line for the module and file |
+| `Database initialization failed — disabling Valmora to avoid data loss.` | Bad `database:` block | Fix `database:` in [config.yml](/docs/config-yml#database) and **restart** |
+| `[HookBus] Stage '<id>' at '<point>' threw an exception, skipping it` | One pipeline hook broken; the pipeline continues | Fix the stage; list points with `/valmora pipeline list [point]` |
+| `[PipelineYamlLoader] …` skip on missing `id`/`when`/unknown point | Pipeline stage misconfigured | Add the missing key or correct the point name |
+| `[BlockLoot] Unknown item id '…' … skipped.` / `[spawn_mob] Unknown mob id` / `[DSL] Unknown event '…'` / `[Enchants] Unknown trigger '…'` | Dangling reference | Check the id spelling and that the target file loads |
+| `[Zones] Unknown material` / `[EntityCategoryRegistry] Unknown 'instanceof' class` / `[WorldRules] Unknown weather-lock value` / `[items.lore.sections] Unknown lore section` | Bad enum/material/key | Use a valid Bukkit name or registry key |
+| `[GUI] Could not register command /<name> … name already taken.` | GUI `command:` collides with `plugin.yml` | Rename the GUI command; the plugin command wins |
+| `[Collections] collections/categories.yml not found.` / `[UI] Failed to load ui.yml … falling back to defaults.` / `Failed to read time.yml …` | Missing/corrupt data file | Restore the file from [defaults](/docs/default-files); server runs on fallbacks meanwhile |
+| `Failed to prime content pack namespacing …` / `Failed to load/initialize PacketEvents …` | Pack ledger or NPC interception unavailable (non-fatal) | Check the pack ledger and PacketEvents install |
+
+## Reload triage
+
+| Changed | Run |
+|---|---|
+| Content (`items/`, `mobs/`, `zones/`, `quests/`, `ui.yml`, `rarities.yml`, most of `config.yml`) | `/valmora reload` (`valmora.admin`) |
+| Items or mobs only | `/item reload` / `/mob reload` |
+| `database:` or the jar | Full restart |
+| Dev-server wiring | `./gradlew runServer` rebuilds from `src/main/resources` |
+
+<Callout type="warning" title="Double events after reload">
+Listeners firing twice after `/valmora reload` means a module registered without
+`HandlerList.unregisterAll(listener)` in `onDisable()`. Report it with the module id and the
+duplicated behavior — see [Extending Valmora](/docs/developer-extending).
+</Callout>
+
+<SeeAlso slugs={["config-yml", "file-layout", "default-files", "commands"]} />

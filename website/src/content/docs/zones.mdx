@@ -1,6 +1,90 @@
 ---
-title: zones
-summary: TODO
+title: Zones
+summary: Protected regions — flags, boxes, mob spawners, resource nodes, and the /zone command.
 ---
 
-TODO
+A **zone** is a cuboid region with rules: PvP, block breaking, hunger, entry and more. Zones
+also host mob spawners, regenerating [resource nodes](/docs/resource-nodes) and custom
+[fishing tables](/docs/fishing). One file holds many zones; ids are case-insensitive.
+
+Walkthrough: [your first zone](/docs/tutorial-first-zone).
+
+## Files
+
+`plugins/Valmora/zones/*.yml` — e.g. `shardworks.yml` (hub plus ores and spawners),
+`test_zones.yml` (multi-stage demo). `/valmora reload` re-reads them.
+
+## A complete zone
+
+```yaml
+# plugins/Valmora/zones/shardworks.yml
+shardworks:
+  display-name: "<gray><bold>Shardworks"
+  world: world
+  min: [-200, 0, -100]
+  max: [-100, 60, -100]
+  allow:
+    pvp: false
+    natural-mob-spawning: false
+    block-breaking: true
+    block-placing: false
+    hunger: true
+    entry: true
+    teleportation: true
+    leaf-decay: true
+  extra-boxes:
+    - { min: [-190, 0, -90], max: [-180, 30, -80] }
+  fishing-loot-table: hub_fishing
+  enter-actions:
+    - "notify <red>Entering the Shardworks io:title"
+  exit-actions: []
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `display-name` | the id | MiniMessage name (`$zone.current$`, scoreboard). |
+| `world` / `min` / `max` | none | Two corners of the box. |
+| `allow.*` | see below | `pvp`, `natural-mob-spawning`, `block-breaking`, `block-placing`, `hunger`, `entry`, `teleportation`, `leaf-decay`, `sleeping`, `natural-block-changes`, `keep-inventory-on-death`, `keep-experience-on-death`. |
+| `extra-boxes[]` | none | Additional boxes belonging to the same zone. |
+| `fishing-loot-table` | none | [Fishing](/docs/fishing) table id used inside the zone. |
+| `enter-actions` / `exit-actions` | none | [Events](/docs/events) fired on crossing the border. |
+| `mob-spawners` | none | Below. |
+| `resource-blocks` | none | [Resource nodes](/docs/resource-nodes). |
+
+`teleportation: false` blocks only script `teleport`, not `/warp` or `warp_to`.
+
+## Mob spawners
+
+```yaml
+# plugins/Valmora/zones/shardworks.yml
+  mob-spawners:
+    cave_guardian_1:
+      mob: shardworks_cave_guardian
+      x: -150
+      y: 20
+      z: -150
+      spawn-interval: 400
+      max-alive: 3
+      radius: 40.0
+      spawn-radius: 5
+```
+
+`ticks` (20 = 1 s). `max-alive` counts within `radius`; new spawns scatter by `spawn-radius`.
+
+## /zone
+
+```text
+/zone wand | pos1 | pos2 | clear
+/zone create <id> [display-name] | delete <id> | info <id> | list
+/zone flag <id> <flag> <true|false|default>
+/zone spawner add <zoneId> <mobId> [spawnRadius=3] [maxAlive=5] [interval=400] [radius=20.0]
+/zone spawner list|remove <zoneId> [spawnerId]
+/zone box add|list|remove <zoneId> [index]
+/zone visualize
+```
+
+Player-only, needs `valmora.admin`. The wand is a `GOLDEN_AXE` (`zones.wand` in
+[config.yml](/docs/config-yml#zones)). Script variables: `$zone.id$`, `$zone.current$`
+(`$zone.name$`), `$zone.pvp$`.
+
+<SeeAlso slugs={["tutorial-first-zone", "mobs", "resource-nodes", "fishing", "warps"]} />

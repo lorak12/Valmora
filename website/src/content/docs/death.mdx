@@ -1,6 +1,59 @@
 ---
-title: death
-summary: TODO
+title: Death & respawn
+summary: Death messages, keep-inventory flags, zone respawns, phantoms, and death pipelines.
 ---
 
-TODO
+**Death** handling covers messages, keep-inventory/experience, respawn points, phantoms and
+script hooks. Defaults live in the `death:` section of [config.yml](/docs/config-yml#death);
+per-zone overrides use `/zone flag`.
+
+## Config
+
+```yaml
+# plugins/Valmora/config.yml
+death:
+  keep-inventory-default: false
+  keep-experience-default: false
+  broadcast-enabled: true
+  phantoms-enabled: true
+  messages:
+    default: "<gray>%victim% died."
+    MELEE: "<gray>%victim% was slain by %attacker%."
+    FALL: "<gray>%victim% hit the ground too hard."
+  zone-respawn-overrides:
+    # dungeon_arena: "world,100.5,64,200.5,180"
+```
+
+Message keys are [damage type](/docs/combat) ids with `%victim%`, `%attacker%`, `%weapon%` and
+`%cause%` placeholders; anything unmatched falls back to `default`. Respawn overrides are
+`"world,x,y,z[,yaw]"` per zone id. Totems of undying work (virtual-health fix). The purse halves
+on death via `economy.death-loss-percent` — see [Economy](/docs/economy).
+
+Per-zone flags (each `true`, `false` or `default`):
+
+```text
+/zone flag <id> keep-inventory-on-death <true|false|default>
+/zone flag <id> keep-experience-on-death <true|false|default>
+/zone flag <id> sleeping false
+/zone flag <id> natural-mob-spawning false
+```
+
+Disabling `natural-mob-spawning` also blocks phantoms locally; there are no death commands.
+
+## Pipelines
+
+`plugins/Valmora/death_pipeline.yml` ships empty (`stages: []`). Hook `on_death` and
+`on_respawn` with `conditions` / `on-pass` / `on-fail`:
+
+```yaml
+# plugins/Valmora/death_pipeline.yml
+stages:
+  - id: death_tax_notice
+    when: on_death
+    on-pass:
+      - "notify <gray>The void takes its cut. io:actionbar"
+```
+
+See [Pipelines](/docs/pipelines).
+
+<SeeAlso slugs={["combat", "zones", "economy", "pipelines", "config-yml"]} />

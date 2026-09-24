@@ -1,6 +1,54 @@
 ---
-title: resource-nodes
-summary: TODO
+title: Resource nodes
+summary: Regenerating zone ores — stages, Breaking Power gates, fortune/spread scaling, pipelines.
 ---
 
-TODO
+A **resource node** is a regenerating block inside a [zone](/docs/zones): mined for custom drops,
+morphing through stages (ore → stone → air), then regrowing after a delay. There is no
+`resources/` folder — nodes live under `resource-blocks:` in zone files.
+
+## Files
+
+- `plugins/Valmora/zones/*.yml` — nodes under each zone key. Demos: `shardworks.yml` (3 ores),
+  `test_zones.yml` (multi-stage `COAL_ORE → COBBLESTONE → BEDROCK`).
+- `plugins/Valmora/resource_pipeline.yml` — optional `pre_break` (post-power-gate; `interrupt`
+  cancels) / `post_break` hooks with `$resource.material$`, `$resource.stage$`.
+  See [Pipelines](/docs/pipelines).
+
+## A complete node
+
+```yaml
+# plugins/Valmora/zones/shardworks.yml
+shardworks:
+  resource-blocks:
+    DEEPSLATE_IRON_ORE:
+      regen-delay: 400
+      required-power: 7
+      stages:
+        - drops:
+            - { item: raw_ferrite, min: 2, max: 4, chance: 1.0 }
+          next: DEEPSLATE
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| material (key) | — **required** | Uppercase vanilla material, e.g. `AMETHYST_CLUSTER`. |
+| `regen-delay` | `600` (30 s) | Ticks until regrow; floored by `resource.limits.min-regen-delay-ticks` (20). |
+| `required-power` | `0.0` | [Breaking Power](/docs/stats) gate — failure cancels with "This ore requires a more powerful tool." |
+| `stages[].drops[]` | none | `{ item, min, max, chance }` — custom id (lowercase) else vanilla material; unresolvable entries are skipped. |
+| `stages[].next` | air | Material after this stage; the final stage is the depleted look. |
+
+Omit `stages:` for legacy single-stage (top-level `drops:`, then air). The Shardworks chain:
+Ferrite (power 7) → Lumicite (8) → Aetherium (10), each pickaxe raising `breaking_power`,
+`mining_speed`, `mining_fortune` and `mining_spread` (`items/shardworks_pickaxes.yml`).
+
+Behavior: drops go to the inventory with overflow at the feet; amounts scale with
+`mining_fortune`; `mining_spread` breaks extra matching neighbors. Node breaks bypass
+`block-breaking: false`, count for mining [skill](/docs/skills) XP, [collections](/docs/collections)
+and `block_break` [objectives](/docs/objective-types). Reload restores tracked blocks and cancels
+timers. Silk-touch handling and stat mapping are in [config.yml](/docs/config-yml#resources).
+
+There is no `resource` subcommand — manage nodes with `/zone …` and `/valmora reload`
+(`valmora.admin`).
+
+<SeeAlso slugs={["zones", "block-loot", "stats", "skills", "pipelines"]} />

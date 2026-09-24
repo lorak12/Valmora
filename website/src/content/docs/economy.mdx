@@ -1,6 +1,71 @@
 ---
-title: economy
-summary: TODO
+title: Economy
+summary: Purse and bank, death loss and interest, formatting, script events, and /eco.
 ---
 
-TODO
+The **economy** is two balances per player: a spendable **purse** and a safe **bank**. Mob
+`gold-reward`, quest rewards and `economy_add` fill the purse; the bank earns interest and
+survives death. There is no content folder — balances are database-backed, tuned in
+[config.yml](/docs/config-yml#economy).
+
+## How money moves
+
+| Source | Direction |
+|---|---|
+| Mob `gold-reward` in `mobs/*.yml` | → purse on kill |
+| `economy_add <n>` in quests, slayers, item abilities | → purse |
+| `economy_remove` / `TAKE_COINS` (reforge, slayer menu) | purse → spent |
+| `economy_deposit <n\|all\|half>` / `economy_withdraw <n\|all\|half\|X%>` | purse ↔ bank |
+
+Death halves the purse (`death-loss-percent: 50.0`); the bank gains `bank-interest-percent`
+(0.5%) every `bank-interest-interval-seconds` (60). Amounts accept shorthand and maths:
+`2.5k`, `1m`, `1k+500` (`coin-suffixes: k/m/b`).
+
+```yaml
+# quest and shop scripting
+- "economy_add 500"
+- "economy_remove 250"
+- "economy_deposit half"
+- "economy_withdraw 10%"
+- "economy_deposit_all"
+```
+
+| Variable | Meaning |
+|---|---|
+| `$economy.purse$` / `$economy.purse.formatted$` | Raw / formatted purse |
+| `$economy.bank$` | Bank balance |
+| `$economy.total$` | Purse + bank |
+
+## Config
+
+```yaml
+# plugins/Valmora/config.yml
+economy:
+  autosave-interval-seconds: 60
+  death-loss-percent: 50.0
+  bank-interest-percent: 0.5
+  bank-interest-interval-seconds: 60
+  ledger-retention-per-player: 10
+  ledger-display-limit: 5
+```
+
+Formatting (`thousand: "%.1fk"`, `coin-symbol`, `thousands-separator`) and messages live in the
+same section.
+
+<Callout type="warning" title="Two coin systems">
+`/eco` manages purse/bank. The legacy `player.var.coins` variable is separate and untouched by
+`/eco` — use one system per server to avoid confusion.
+</Callout>
+
+## /eco
+
+```text
+/eco get <player> [purse|bank]
+/eco set <player> [purse|bank] <amount>
+/eco add <player> [purse|bank] <amount>
+/eco remove <player> [purse|bank] <amount>
+```
+
+All need `valmora.admin` (`permissions.eco`); the target must be online.
+
+<SeeAlso slugs={["mobs", "quests", "config-yml", "variables", "commands"]} />

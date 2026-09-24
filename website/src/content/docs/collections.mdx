@@ -1,6 +1,67 @@
 ---
-title: collections
-summary: TODO
+title: Collections
+summary: Item-collection tracks — categories, tracked events, cumulative stages, instant rewards.
 ---
 
-TODO
+A **collection** tracks how much of something a player has gathered and grants rewards at
+cumulative stages. Unlike [skills](/docs/skills), there is no XP or levels — just totals, with
+rewards firing instantly (nothing to claim). Progress is per [profile](/docs/profiles).
+
+## Files
+
+- `plugins/Valmora/collections/categories.yml` — the 5 categories: `farming`, `mining`,
+  `combat`, `fishing`, `foraging`. Each has a `name`, `icon` and `description`.
+- `plugins/Valmora/collections/<category>/*.yml` — one or more collections per file, e.g.
+  `mining/coal.yml`. Opened via the collections [GUI](/docs/guis).
+
+## A complete collection
+
+```yaml
+# plugins/Valmora/collections/mining/coal.yml
+coal:
+  category: mining
+  name: "<dark_gray>Coal"
+  icon: COAL
+  track:
+    - "BLOCK_BREAK:COAL_ORE"
+    - "BLOCK_BREAK:DEEPSLATE_COAL_ORE"
+    - "ITEM_PICKUP:COAL"
+  stages:
+    1: { required: 50, rewards: ["notify <gray>Novice Miner title io:chat"] }
+    2: { required: 250, rewards: ["economy_add 100"] }
+    5: { required: 100000, rewards: ["give coal_crown"] }
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `category` | — **required** | Key from `categories.yml`. |
+| `name` / `icon` | id / none | Display name (MiniMessage) and menu icon. |
+| `track[]` | none | `EVENT:IDENT` lines that add to the total (below). |
+| `stages.<n>.required` | — **required** | Cumulative total for the stage. |
+| `stages.<n>.rewards[]` | none | [Events](/docs/events) fired instantly when reached. |
+
+Tracked events: `BLOCK_BREAK`, `MOB_KILL`, `FISHING`, `ITEM_PICKUP` (plus `custom:<item_id>`
+for [custom items](/docs/items)), and `CRAFT`. Combat example:
+
+```yaml
+# plugins/Valmora/collections/combat/zombie.yml
+zombie:
+  category: combat
+  track: ["MOB_KILL:ZOMBIE", "MOB_KILL:HUSK", "MOB_KILL:DROWNED"]
+  stages:
+    1: { required: 10, rewards: ["notify <gray>Zombie Hunter io:chat"] }
+```
+
+## Commands
+
+```text
+/collections
+/collections view <player> <collectionId> [count]
+/collections force <player> <collectionId> [count]
+/collections reset <player> <collectionId>
+```
+
+`/collections` needs no permission; the rest need `valmora.admin`
+(`permissions.collection`).
+
+<SeeAlso slugs={["skills", "progression-trees", "items", "mobs", "guis"]} />

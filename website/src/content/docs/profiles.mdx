@@ -1,6 +1,42 @@
 ---
-title: profiles
-summary: TODO
+title: Profiles
+summary: Per-player save slots — what each profile stores, planet names, and /profile.
 ---
 
-TODO
+A **profile** is a save slot: stats, [skills](/docs/skills), health/mana, tags,
+`player.var.*`, [collections](/docs/collections) and the inventory snapshot each live per
+profile. [Economy](/docs/economy) purse and bank are shared across all profiles. There are no
+profile YAML files — everything is database-backed (`valmora_players`, `valmora_profiles`,
+`valmora_storage`; SQLite by default, MySQL via `database:` in
+[config.yml](/docs/config-yml#database)).
+
+## Config
+
+```yaml
+# plugins/Valmora/config.yml
+profiles:
+  max-profiles: 4
+  default-name: Earth
+  autosave-interval-seconds: 300
+  planet-names: [Mars, Venus, Jupiter, Saturn, Mercury, Neptune, Uranus, Pluto]
+```
+
+New profiles after `Earth` take random unused names from `planet-names`. Profiles autosave on
+the interval above.
+
+## /profile
+
+```text
+/profile create
+/profile delete
+/profile switch <name>
+/profile list
+/profile info
+/profile gui
+```
+
+No permission needed. The 36-slot GUI is the safest way: left-click switches, shift-click
+deletes (blocked for the active or only profile), lime dye creates. Prefer the GUI over
+`/profile delete`, which does not block deleting the active profile.
+
+<SeeAlso slugs={["skills", "collections", "economy", "stats", "commands"]} />

@@ -1,6 +1,63 @@
 ---
-title: notifications
-summary: TODO
+title: Notifications
+summary: The notify event — message routing, io types, categories, and per-quest overrides.
 ---
 
-TODO
+**Notifications** are how scripts talk to players: the `notify` event (one player) and
+`notifyall` (broadcast). Every message picks an `io:` output — chat, action bar, title and
+more. There is no notifications folder; routing defaults live in
+[config.yml](/docs/config-yml#notify) and quest packages can add categories.
+
+## The notify grammar
+
+```yaml
+- "notify <gold>Quest complete!"
+- "notify <gray>(3/10) io:actionbar"
+- "notify Harvest Festival! category:quest_complete"
+- "notifyall io:title <gold>Server restart in 5 minutes"
+```
+
+Priority: explicit `io:` wins, then the `category:`'s `io`, then plain `chat`. Avoid `:` in the
+message text — it parses as `key:value`. `notify chat …` is wrong (sends the word "chat"); use
+`io:chat`.
+
+| `io:` type | Settings |
+|---|---|
+| `chat`, `actionbar` | none |
+| `title` / `subtitle` | `fadeIn`, `stay`, `fadeOut` (ticks; `\n` splits title/subtitle) |
+| `bossbar` | `barColor`, `style`, `progress`, `stay` |
+| `sound` | `sound` (**required**, e.g. `block.anvil.use`), `soundvolume`, `soundpitch`, `soundcategory` |
+| `advancement` | stub — shows `✦ <msg>` as an action bar |
+| unknown `io:` | falls back to `chat` |
+
+## Categories
+
+```yaml
+# plugins/Valmora/config.yml
+notify:
+  categories:
+    info: { io: "chat" }
+    error: { io: "actionbar" }
+```
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/notifications.yml
+notifications:
+  quest_complete: { io: title, fadeIn: "10", stay: "60", fadeOut: "20" }
+  quest_progress: { io: actionbar }
+  info: { io: actionbar }
+```
+
+Quest packages declare `notifications:` to theme their messages; the shipped slayers package
+adds `slayer_complete` as a title.
+
+<Callout type="warning" title="Package categories may fall back to chat">
+Package categories are parsed but not always registered at runtime (load order), so `category:`
+can silently fall back to `chat`. Prefer an explicit `io:` when the output matters.
+</Callout>
+
+Objective progress uses a different `notify` — the `notify: 5` flag on
+[objectives](/docs/objective-types) sends `<yellow><target> <gray>(<cur>/<req>)` through `info`
+every 5 steps.
+
+<SeeAlso slugs={["events", "quests", "quest-packages", "ui", "variables"]} />

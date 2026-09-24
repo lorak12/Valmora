@@ -1,6 +1,76 @@
 ---
-title: quest-packages
-summary: TODO
+title: Quest packages
+summary: Multi-file quest packs — quest.yml manifests, templates, conversations, and named events.
 ---
 
-TODO
+A **quest package** is a folder of quests, dialogue, events and notifications that load together.
+Packages are how story hubs ship: the `blacksmith_hub`, `forgotten_mine` and `slayers` examples
+each bundle several quests plus the NPC conversations that start them. For single quests, see
+[Quests](/docs/quests).
+
+## Files
+
+`plugins/Valmora/quests/<package>/` — a folder is a package when it contains `quest.yml`.
+A subfolder **without** `quest.yml` belongs to its parent. `plugins/Valmora/templates/` holds
+shared fragments: every direct subfolder is a template a package can include.
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/quest.yml
+package:
+  enabled: true
+  templates:
+    - shared_rewards
+npc_conversations:
+  thorin: thorin_main
+  bjorn: bjorn_main
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `package.enabled` | `true` | `false` skips the whole package. |
+| `package.templates` | none | Template names from `templates/` merged in first (package files win). |
+| `npc_conversations.<npc>` | none | Attaches an existing conversation to an [NPC](/docs/npcs), overriding its click behavior. |
+
+The remaining files in the folder:
+
+| File | Holds |
+|---|---|
+| `quests.yml` / `quest.yml` | `quests:` map — same objectives as [flat quests](/docs/quests), keyed by objective id. |
+| `events.yml` | `events:` named [script events](/docs/events) the package's quests and dialogue can call. |
+| `conditions.yml` / `conditions:` | `conditions:` named [conditions](/docs/conditions). |
+| `conversations.yml` | `conversations:` dialogue trees. See [Conversations](/docs/conversations). |
+| `notifications.yml` | `notifications:` message categories. See [Notifications](/docs/notifications). |
+| `player_hider:` | Player-visibility rules for cutscenes. |
+
+Loading runs in two passes: named `events:` and `conditions:` first, then objectives, quests and
+notifications, then `conversations:` — so dialogue can reference everything above it.
+
+## Named events and conditions
+
+Inside a package, quests and dialogue call shared logic by name instead of repeating script lines:
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/events.yml
+events:
+  start_forgotten_mine: "quest_start forgotten_mine"
+  reward_coins_large: "economy_add 500"
+
+# plugins/Valmora/quests/forgotten_mine/conversations.yml
+conditions:
+  mine_not_started: "!quest forgotten_mine in_progress"
+  mine_completed: "quest forgotten_mine completed"
+```
+
+An `events:` value can be a single string, a list, or a `folder <ref>` expansion (one level).
+A missing name warns in the console and is passed through as inline script — check the spelling.
+Templates merge with `putIfAbsent`: the package wins, and the first listed template wins.
+
+## The shipped packages
+
+| Package | Contents |
+|---|---|
+| `blacksmith_hub` | 1 quest plus the `blacksmith` conversation that starts it. |
+| `forgotten_mine` | 3 quests plus `thorin_main` and `bjorn_main` conversations, chained by quest status. |
+| `slayers` | 7 tiered kill quests that repeat via `quest_cancel` + `quest_start`. |
+
+<SeeAlso slugs={["quests", "conversations", "objective-types", "npcs", "notifications"]} />

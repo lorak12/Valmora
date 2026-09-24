@@ -1,6 +1,53 @@
 ---
-title: hud-items
-summary: TODO
+title: HUD items
+summary: Hotbar buttons — slots, click events, glow, and reload behavior.
 ---
 
-TODO
+A **HUD item** is a locked hotbar/inventory button that runs [script events](/docs/events) on
+click — e.g. a menu star in slot 8. HUD items are visual only; there is no command to give or
+open them individually.
+
+## Files
+
+`plugins/Valmora/hud-items/*.yml` — every `*.yml` loads, several definitions per file allowed.
+`/valmora reload` re-parses and re-issues them.
+
+## A complete HUD item
+
+```yaml
+# plugins/Valmora/hud-items/default.yml
+menu_button:
+  slot: 8
+  prevent-move: true
+  glow: true
+  item:
+    material: NETHER_STAR
+    name: "<gold><bold>✦ Menu"
+    lore:
+      - "<gray>Right-click to open the menu"
+  on-right-click:
+    - "notifyall io:actionbar <yellow>Menu coming soon!"
+  on-left-click:
+    - "open_gui stats"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `slot` | `8` | `0`–`8` hotbar, `9`–`35` inventory. |
+| `prevent-move` | `true` | Parsed but not enforced — all HUD items are currently locked. |
+| `glow` | `false` | Enchant glint with the enchant line hidden. |
+| `item.material` | `STONE` | Vanilla material; an invalid name fails the definition with a console error. |
+| `item.name` / `item.lore` | material name / none | MiniMessage; italics stripped. |
+| `item.custom-model-data` | `0` | Applied only when `> 0`. |
+| `on-right-click` / `on-left-click` | none | [Event](/docs/events) lists. Right covers right/shift-right; left is everything else. |
+
+The shipped file defines `menu_button` (slot 8, glowing nether star) and `profile_button`
+(slot 7, player head). Only `respawn-restore-delay-ticks` (1) is tunable, in
+[config.yml](/docs/config-yml#hud).
+
+<Callout type="warning" title="Deleted buttons linger until relog">
+Removing a definition does not clear it from players already online — they keep the item until
+they relog. Re-adding or reloading re-issues to everyone.
+</Callout>
+
+<SeeAlso slugs={["ui", "guis", "notifications", "events", "config-yml"]} />

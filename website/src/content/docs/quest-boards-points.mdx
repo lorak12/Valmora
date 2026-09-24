@@ -1,6 +1,80 @@
 ---
-title: quest-boards-points
-summary: TODO
+title: Quest boards & points
+summary: Rotating quest boards with collectible rewards, and the points currencies behind them.
 ---
 
-TODO
+A **quest board** offers a rotating pool of quests with collectible rewards; **points** are the
+per-player currencies those rewards (and [progression trees](/docs/progression-trees)) run on.
+Boards are how daily-style quest hubs work — the shipped `shardworks` board feeds the geomancy
+tree.
+
+## Quest boards
+
+`plugins/Valmora/quest_boards/*.yml` — each top-level key is a board:
+
+```yaml
+# plugins/Valmora/quest_boards/shardworks.yml
+shardworks:
+  slots: 2
+  pool:
+    - shardworks_mine_ferrite
+    - shardworks_mine_lumicite
+    - shardworks_mine_aetherium
+    - shardworks_guardian_hunt
+    - shardworks_wraith_cores
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `slots` | `2` | How many quests are offered at once (1-based slots). |
+| `pool` | — **required** | Quest ids to draw from; must not be empty. |
+
+Empty slots fill randomly without duplicates (falling back to the full pool). `collect` requires
+the quest to be `completed`: it fires the quest's `reward-events`, resets that quest, clears the
+slot, messages `<gold>Collected rewards for: …`, and rerolls the slot. Slot state lives in
+profile variables as `questboard.<board>.slot.<n>`.
+
+```yaml
+# board scripting
+- "quest_board_assign shardworks"
+- "quest_board_collect shardworks 1"
+```
+
+| Variable | Meaning |
+|---|---|
+| `$questboard.<board>.slot.<n>.quest_id$` | Quest currently in that slot |
+| `$questboard.<board>.slot.<n>.name$` | Its display name |
+| `$questboard.<board>.slot.<n>.status$` | Its status for the player |
+
+Boards are usually opened from an [NPC](/docs/npcs) or [GUI](/docs/guis) — e.g. the prospector
+runs `quest_board_assign shardworks` then `open_gui shardworks_quest_board`.
+
+## Points
+
+Points are named counters stored as `point.<category>` profile variables — no tables to create.
+The shipped categories are `ferrite_powder` and `geomancy_tokens` (shardworks rewards) plus
+`currency` (quest rewards).
+
+```yaml
+# give, set, or take points
+- "point ferrite_powder add 40"
+- "point geomancy_tokens add 1"
+- "point currency add 250"
+```
+
+| Script | Syntax |
+|---|---|
+| Change | `point <category> <add\|set\|take> <amount>` (`take` floors at 0; `set` rechecks `point` objectives) |
+| Condition | `point <category> <amount>` (true when balance ≥ amount) |
+| Variable | `$point.<category>$` |
+
+Per-package [notification](/docs/notifications) categories map point gains to screens:
+
+```yaml
+# plugins/Valmora/quests/forgotten_mine/notifications.yml
+notifications:
+  quest_complete: { io: title, fadeIn: "10", stay: "60", fadeOut: "20" }
+  quest_progress: { io: actionbar }
+```
+
+<SeeAlso slugs={["quests", "quest-packages", "progression-trees", "npcs", "notifications"]} />

@@ -1,6 +1,59 @@
 ---
-title: fishing
-summary: TODO
+title: Fishing
+summary: Zone-based fishing tables — weights, sea creatures, XP, and the fishing pipeline.
 ---
 
-TODO
+**Fishing** replaces the vanilla catch with a roll on a zone's loot table: weighted items plus
+an optional sea-creature mob spawn. Which table applies comes from the [zone](/docs/zones) the
+player fishes in; outside zones the `default` table applies. Custom catches never grant vanilla
+XP — [skill](/docs/skills) XP comes only from vanilla fish ids.
+
+## Files
+
+- `plugins/Valmora/fishing/*.yml` — each top-level key is a table; the shipped
+  `hub_fishing.yml` defines `hub_fishing`.
+- `plugins/Valmora/fishing_pipeline.yml` — optional `pre_catch` / `post_catch` hooks with
+  `$fishing.table$`, `$fishing.item$` / `$fishing.amount$`, `$fishing.sea_creature$`.
+  See [Pipelines](/docs/pipelines).
+
+## A complete table
+
+```yaml
+# plugins/Valmora/fishing/hub_fishing.yml
+hub_fishing:
+  sea-creature-chance: 0.05
+  sea-creature-mob: squid
+  entries:
+    - { item: COD, weight: 40, min: 1, max: 2 }
+    - { item: SALMON, weight: 25, min: 1, max: 1 }
+    - { item: TROPICAL_FISH, weight: 15, min: 1, max: 1 }
+    - { item: PUFFERFISH, weight: 10, min: 1, max: 1 }
+    - { item: NAUTILUS_SHELL, weight: 5, min: 1, max: 1 }
+    - { item: HEART_OF_THE_SEA, weight: 1, min: 1, max: 1 }
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `sea-creature-chance` | `0.0` | 0–1 chance to spawn the mob **instead of** loot. |
+| `sea-creature-mob` | none | [Mob](/docs/mobs) id; a missing id consumes the catch and spawns nothing. |
+| `entries[].item` | `COD` | Custom [item](/docs/items) id tried first, then vanilla material; neither means no reward. |
+| `entries[].weight` | `10` | Relative chance — higher is more common. |
+| `entries[].min` / `.max` | `1` / `1` | Inclusive amount; `min ≥ max` gives a fixed `min`. |
+
+Linked from the zone:
+
+```yaml
+# a zone that fishes this table
+fishing_village:
+  display-name: "<aqua>Fishing Village"
+  world: world
+  min: [100, 50, 100]
+  max: [200, 100, 200]
+  fishing-loot-table: hub_fishing
+```
+
+Fishing skill XP (`skills/fishing.yml`: `COD: 50.0`, `SALMON: 70.0`, `PUFFERFISH`/`TROPICAL_FISH:
+150.0`) applies to vanilla catches only. No fishing command — check with `/skill info fishing`,
+grant with `/skill add fishing <amount>`, apply edits with `/valmora reload`.
+
+<SeeAlso slugs={["zones", "mobs", "skills", "items", "pipelines"]} />

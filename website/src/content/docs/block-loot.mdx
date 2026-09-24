@@ -1,6 +1,42 @@
 ---
-title: block-loot
-summary: TODO
+title: Block loot
+summary: Global block-drop overrides — replacing vanilla loot per material, with silk-touch rules.
 ---
 
-TODO
+**Block loot** replaces vanilla drops for a material, everywhere. Each override names a vanilla
+material and rolls its own drop list per break. For regenerating, zone-scoped ores, use
+[resource nodes](/docs/resource-nodes) instead — those always win inside their zone.
+
+## Files
+
+`plugins/Valmora/block_loot/*.yml` — any filenames, any number of entries. The shipped
+`example.yml` is fully commented out, so zero overrides are active by default. Pure config plus
+`/valmora reload`; there is no command and no pipeline.
+
+## An override
+
+```yaml
+# plugins/Valmora/block_loot/example.yml
+dirt_gold_chance:
+  material: DIRT
+  drops:
+    - { item: GOLD_NUGGET, min: 1, max: 2, chance: 0.2 }
+```
+
+| Field | Required | Default | What it does |
+|---|---|---|---|
+| id (top key) | yes | — | Arbitrary label, **not** the material name. |
+| `material` | yes | — | Vanilla material, case-insensitive. A duplicate material warns and the first loaded wins. |
+| `drops[].item` | yes | — | Valmora [item](/docs/items) id or vanilla material. |
+| `drops[].min` / `.max` | no | `1` / `1` | Amount range per entry. |
+| `drops[].chance` | no | `1.0` | 0–1, rolled independently per entry. |
+
+Behavior notes:
+
+- The override **replaces** vanilla loot entirely — if nothing rolls, the block drops nothing.
+- Silk Touch drops 1× the block's own material and ignores the table (disable with
+  `block-loot.silk-touch.enabled: false` in [config.yml](/docs/config-yml#block-loot)).
+- Fortune is ignored; other amounts scale with the miner's `mining_fortune`
+  [stat](/docs/stats).
+
+<SeeAlso slugs={["resource-nodes", "items", "stats", "zones", "config-yml"]} />

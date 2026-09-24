@@ -1,6 +1,70 @@
 ---
-title: guis
-summary: TODO
+title: GUIs & menus
+summary: Inventory menus — layout strings, component types, per-GUI commands, and click handling.
 ---
 
-TODO
+A **GUI** is an inventory menu defined in YAML: a `layout:` of 9-character rows plus a
+`components:` map for what each letter does. GUIs power shops, crafting [machines](/docs/machines),
+skill lists, banks, quest boards and storage bags. Around 27 ship in `guis/`.
+
+## Files
+
+`plugins/Valmora/guis/*.yml` — each top-level key is a GUI (case-sensitive). `/valmora reload`
+re-reads them; nothing here is ever overwritten.
+
+## A complete GUI
+
+```yaml
+# plugins/Valmora/guis/crafting.yml
+crafting_table:
+  title: "<yellow>⚒ Crafting Table"
+  rows: 6
+  machine: crafting_table
+  layout:
+    - "BBBBBBBBB"
+    - "BIIIBBBBB"
+    - "BIIIBHBOB"
+    - "BIIIBBBBB"
+    - "BBBBBBBBB"
+    - "BBBRCBBBB"
+  components:
+    I: { type: INPUT, id: ingredient }
+    O: { type: OUTPUT, id: result }
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `title` | `Inventory` (`gui.defaults.title`) | MiniMessage inventory title. |
+| `rows` | `layout` length | Pads blank rows if larger. |
+| `layout` | — **required** | One 9-character string per row; each letter is a component key. |
+| `update-interval` | `0` (`gui.update-interval-ticks`) | Ticks between refreshes (`40` on the bank). |
+| `machine` | none | Machine id enabling [recipe](/docs/recipes) `OUTPUT` matching. |
+| `command` / `command-permission` | none / open | Registers a runtime command opening this GUI for the player. |
+| `on-open` / `on-close` / `on-slot-update` / `on-update` | none | Event blocks with `conditions:`, `actions:`, `fail-actions:`. |
+
+Component types: `DISPLAY` (default) and `INPUT` (`id:`), `OUTPUT` (`id:`), `PAGINATED`
+(`list:`, `iterator: loop_item`, `sort:`, `sort-key:`, `path:`, `states:`), `PREVIOUS_PAGE` /
+`NEXT_PAGE` (`display-item:`, `fallback:`), `STORAGE` (`id:`, `owner: PLAYER|ITEM`,
+`storage-id`, `condition`, `open-container`). Item keys: `material:` / `item:` (`AIR`
+disables), `name:`, `lore: []`, `amount: 1`, `custom-model-data: 0`.
+
+Commands registered by shipped GUIs include `/skills`, `/geomancy`, `/alchemy`,
+`/enchanting`, `/accessories`, `/baitbag` and `/quiver`. A name colliding with
+`plugin.yml` loses to the plugin command. `/warp` with no argument opens `fast_travel`;
+`/effects` and `/collections` open their menus.
+
+## Commands
+
+```text
+/gui open <player> <id>
+```
+
+Needs `valmora.admin.gui`; tab-completes players and GUI ids (lowercased lookup).
+
+<Callout type="warning" title="Identify clicks with PDC, never names">
+Inside `InventoryClickEvent`, never check display names to identify buttons — players can forge
+them with anvils. Tag buttons with a `PersistentDataContainer` key (e.g. `gui_action`) and read
+that instead.
+</Callout>
+
+<SeeAlso slugs={["machines", "recipes", "tutorial-first-menu", "ui", "events"]} />

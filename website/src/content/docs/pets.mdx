@@ -1,6 +1,61 @@
 ---
-title: pets
-summary: TODO
+title: Pets
+summary: Leveling companions — pet files, XP rules, abilities, milestones, and the /pet command.
 ---
 
-TODO
+A **pet** is a leveling companion item: right-click with it in hand to summon, gaining its stats
+while active. Pets earn 10 XP per kill plus 10% of the owner's [skill](/docs/skills) XP. Only one
+pet is active at a time; it despawns on quit. XP lives on the item itself (no database table).
+
+## Files
+
+`plugins/Valmora/pets/*.yml` — several pets per file. The shipped `baby_wolf.yml` holds
+`baby_wolf`, `baby_sheep` and `ender_dragon_pet`; `defaults.yml` sets the shared formula.
+
+## A complete pet
+
+```yaml
+# plugins/Valmora/pets/baby_wolf.yml
+baby_wolf:
+  name: "Baby Wolf"
+  entity-type: WOLF
+  base-stats: { strength: 5, crit_chance: 2 }
+  stats-per-level: { strength: 0.5, crit_chance: 0.1 }
+  abilities:
+    - trigger: ON_KILL
+      events: ["notify <green>+5 HP from Baby Wolf! io:chat"]
+  milestones:
+    "25":
+      - "stat_modify add crit_chance 5"
+```
+
+| Field | Default | What it does |
+|---|---|---|
+| `name` | the id | Display name (MiniMessage). |
+| `entity-type` | `WOLF` | Vanilla entity; an invalid type falls back to `WOLF`. |
+| `base-stats` | none | [Stat](/docs/stats) ids → value at level 1. |
+| `stats-per-level` | none | Bonus per level: `base + perLevel × level`. Stat ids must exist in `stats/`. |
+| `abilities[].trigger` | none | `ON_KILL`, `ON_HIT`, `ON_DEFEND`. |
+| `abilities[].events` | none | [Events](/docs/events) fired on trigger. |
+| `milestones."<level>"[]` | none | [Events](/docs/events) fired once at that level. |
+| `xp-formula` / `max-level` | `100 * $curve.level$ * $curve.level$` / `200` | Per-pet override of `pet_defaults` in `defaults.yml`. |
+
+The pet entity spawns 1 block east of the player. Follow behavior (`follow-distance`,
+`teleport-distance`, tick interval) is in [config.yml](/docs/config-yml#pets).
+
+## Variables and commands
+
+| Variable | Meaning |
+|---|---|
+| `$pet.id$` / `$pet.name$` | Active pet's id and name |
+| `$pet.level$` / `$pet.xp$` / `$pet.max_xp$` | Level, current XP, XP for next level |
+| `$pet.active$` | Whether a pet is summoned |
+
+```text
+/pet list
+/pet give <player> <petId> [level]
+```
+
+Summoning needs no permission; `give` needs `valmora.admin` (`permissions.pet`).
+
+<SeeAlso slugs={["skills", "stats", "mobs", "items", "commands"]} />

@@ -1,6 +1,72 @@
 ---
-title: time-calendar
-summary: TODO
+title: Time & calendar
+summary: The 360-day calendar — seasons, phases, /time, variables, and seasonal events.
 ---
 
-TODO
+Valmora runs a **360-day year**: 4 seasons (`SPRING` → `SUMMER` → `AUTUMN` → `WINTER`, 90 days
+each), each split into 3 phases (`EARLY` → `MID` → `LATE`, 30 days), each phase into days 1–30.
+The **calendar** fires seasonal server events (festivals, blessings) on top of that clock.
+
+## Config and state
+
+```yaml
+# plugins/Valmora/config.yml
+time:
+  world: world
+  start-year: 1
+  start-season: SPRING
+  start-phase: EARLY
+  start-day: 1
+  season-names: [Spring, Summer, Autumn, Winter]
+  phase-names: [Early, Mid, Late]
+  calendar:
+    days-per-phase: 30
+```
+
+The current date persists in `plugins/Valmora/time.yml` (`day-offset`). `/time` and
+`/time info` are public; `/time reset` (needs `valmora.admin`) re-aligns today to the
+`start-*` above.
+
+| Variable | Meaning |
+|---|---|
+| `$time.day$` / `$time.phase$` / `$time.season$` / `$time.year$` | Calendar date |
+| `$time.formatted_time$` / `$time.hour$` / `$time.minute$` | Clock time |
+| `$time.is_day$` / `$time.time_of_day$` | Day check / raw time |
+| `$time.emote$` / `$time.color$` | Icon and color for the clock line |
+| `$time.total_days$` | Days since start |
+
+These power the shipped [UI](/docs/ui) scoreboard clock and `conditions: "is_day"` gates on
+[fishing](/docs/fishing) and [objectives](/docs/objective-types).
+
+## Calendar events
+
+`plugins/Valmora/calendar/*.yml` — the shipped `seasonal.yml` defines three events. Omit
+`trigger:` for a daily event; an invalid season/phase skips the event with a warning.
+
+```yaml
+# plugins/Valmora/calendar/seasonal.yml
+harvest_festival:
+  trigger: { season: AUTUMN, phase: EARLY, day-start: 1, day-end: 30 }
+  on-start:
+    - "notifyall io:title Harvest Festival!"
+    - "foreach @all stat_modify add farming_fortune 25"
+  recurring-daily:
+    - "notifyall io:actionbar <gold>✦ Harvest Festival active!"
+  on-end:
+    - "notifyall io:chat <gold><bold>[Event] Harvest Festival ends."
+    - "foreach @all stat_modify add farming_fortune -25"
+```
+
+| Field | What it does |
+|---|---|
+| `trigger.season` / `.phase` | `SPRING`, `SUMMER`, `AUTUMN`, `WINTER` / `EARLY`, `MID`, `LATE` |
+| `trigger.day-start` / `.day-end` | Day range within the phase (1–30) |
+| `on-start` / `on-end` | [Events](/docs/events) fired once at the boundaries |
+| `recurring-daily` | [Events](/docs/events) fired every in-game day while active |
+
+Shipped: `harvest_festival` (AUTUMN/EARLY, +25 farming fortune), `winter_blessing`
+(WINTER/MID, +10 magic find), `spring_renewal` (SPRING/EARLY, +5 health regen). `on-end` must
+manually subtract what `on-start` added. No calendar command — edit the files and
+`/valmora reload`.
+
+<SeeAlso slugs={["ui", "zones", "fishing", "objective-types", "events"]} />
