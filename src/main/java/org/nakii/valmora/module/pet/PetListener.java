@@ -11,7 +11,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
-import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.module.skill.SkillXpGainEvent;
 import org.nakii.valmora.util.Keys;

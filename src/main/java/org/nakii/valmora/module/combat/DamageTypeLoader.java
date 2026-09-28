@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.combat;
 
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.infrastructure.config.diag.LoadScope;
 import org.nakii.valmora.infrastructure.config.diag.LoadSession;
 import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;

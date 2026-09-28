@@ -28,14 +28,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 1. Project Identity
 
-| Property             | Value                                           |
-| -------------------- | ----------------------------------------------- |
-| Plugin name          | **Valmora**                                     |
-| Group / package root | `org.nakii.valmora`                             |
+| Property             | Value                                                                             |
+| -------------------- | --------------------------------------------------------------------------------- |
+| Plugin name          | **Valmora**                                                                       |
+| Group / package root | `org.nakii.valmora`                                                               |
 | Version              | `1.0.0-beta1` (per `build.gradle`; verified 2026-08-26 — was stale at `0.1` here) |
-| Target server        | **Paper 1.21.11** (not Spigot, not CraftBukkit) |
-| Java version         | **21** (required)                               |
-| Build tool           | Gradle with Shadow + run-paper plugins          |
+| Target server        | **Paper 26.2** (not Spigot, not CraftBukkit)                                      |
+| Java version         | **25** (required)                                                                 |
+| Build tool           | Gradle with Shadow + run-paper plugins                                            |
 
 This is a **modular RPG plugin**. Every major feature lives in its own `ReloadableModule`. The plugin is not a monolith — treat it like a collection of mini-plugins wired together through a shared API.
 
@@ -112,12 +112,12 @@ The `module/` sub-packages follow a consistent internal structure: `XModule.java
 # Run unit tests
 ./gradlew test
 
-# Start a Paper 1.21.11 dev server with the plugin auto-loaded
+# Start a Paper 26.2 dev server with the plugin auto-loaded
 ./gradlew runServer
 ```
 
 - `build` depends on `shadowJar` — the output is always the fat JAR.
-- Java 21 is required. The build will fail on earlier JDKs.
+- Java 25 is required (Paper 26.x needs it). The build will fail on earlier JDKs.
 - The dev server from `runServer` uses run-paper to download Paper automatically on first run.
 
 **Hot reload** (while server is running): `/valmora reload` — requires the `valmora.admin` permission. This calls `ModuleManager.reloadModules()`, which disables all modules in reverse order and re-enables them in forward order.
@@ -213,6 +213,7 @@ Commands are registered **after** all modules are enabled, directly in `Valmora.
 
 Read `docs/modules/design/versioning.md` before touching persistence, item/mob templates or reload
 code. The short version:
+
 - Items and mobs read template values (stats, rarity, type, attributes) **live** from their
   definition via `ItemView`/`MobLifecycleListener`. Only instance data is stored on them.
 - Every persisted shape has a version ladder: DB (`SQLDataStore`), profile JSON (`ProfileMigrator`),
@@ -320,24 +321,24 @@ The GUI module (`module/gui/`) implements a data-driven inventory UI system driv
 
 ### 8.1 Component Types
 
-| Type | Behavior |
-|------|----------|
-| `INPUT` | Accepts player items; protected from accidental removal; snapshot captured before re-render |
-| `OUTPUT` | Displays matched recipe result; players can take items; re-populated after render |
-| `DISPLAY` | Static/read-only item; can have click `actions` keyed by `ClickType` enum name |
-| `PAGINATED` | Iterates a list variable; renders one item per page element; used with `PREVIOUS_PAGE`/`NEXT_PAGE` |
-| `PREVIOUS_PAGE` / `NEXT_PAGE` | Modifies `GuiSession.currentPage` and triggers a re-render |
+| Type                          | Behavior                                                                                           |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `INPUT`                       | Accepts player items; protected from accidental removal; snapshot captured before re-render        |
+| `OUTPUT`                      | Displays matched recipe result; players can take items; re-populated after render                  |
+| `DISPLAY`                     | Static/read-only item; can have click `actions` keyed by `ClickType` enum name                     |
+| `PAGINATED`                   | Iterates a list variable; renders one item per page element; used with `PREVIOUS_PAGE`/`NEXT_PAGE` |
+| `PREVIOUS_PAGE` / `NEXT_PAGE` | Modifies `GuiSession.currentPage` and triggers a re-render                                         |
 
 ### 8.2 Event Blocks
 
 Each GUI definition supports four event blocks:
 
-| Block | Trigger |
-|-------|---------|
-| `on-open` | Fires once when the player opens the GUI |
-| `on-close` | Fires once when the player closes the GUI |
+| Block            | Trigger                                                   |
+| ---------------- | --------------------------------------------------------- |
+| `on-open`        | Fires once when the player opens the GUI                  |
+| `on-close`       | Fires once when the player closes the GUI                 |
 | `on-slot-update` | Fires when an INPUT slot changes (item placed or removed) |
-| `on-update` | Fires every `update-interval` ticks on a repeating timer |
+| `on-update`      | Fires every `update-interval` ticks on a repeating timer  |
 
 Event blocks contain `actions` and optional `fail-actions`. The first `condition` action short-circuits the remaining actions if the condition is false and jumps to `fail-actions`.
 
@@ -346,6 +347,7 @@ Event blocks contain `actions` and optional `fail-actions`. The first `condition
 Before re-rendering, `GuiSession.snapshotInputs()` copies INPUT slot contents into a map. This snapshot is available to variable resolvers during the render pass so that `$gui.input.<id>$` variables still resolve to the items even after the inventory slots are cleared for re-population.
 
 **Variable access to GUI slots:**
+
 - `$gui.input.<componentId>.id$` — item ID (Valmora item ID or vanilla material name)
 - `$gui.input.<componentId>.amount$` — stack size
 - `$gui.input.<componentId>.material$` — Bukkit material name
@@ -389,10 +391,10 @@ Every YAML recipe is one of two types — there is no more named-slot `EXACT_SLO
 forge's 2) is just a SHAPED recipe with a narrow pattern, the same mechanism a 3×3 crafting grid or
 a 1×3 press uses.
 
-| Type | Ingredient format | Matching |
-|------|--------------------|----------|
-| `SHAPED` | `ingredients:` (letter → `{material, amount}`) + `pattern:` (rows of those letters, `' '` = must be empty) | Position matters; pattern can be narrower/shorter than the machine's full grid and slides to fit (recipe-yaml rework note) |
-| `SHAPELESS` | `ingredients:` — a plain list of `{item, amount}` | Bag matching; any slot/order. `pattern:` has no effect here and logs a load-time warning if present |
+| Type        | Ingredient format                                                                                          | Matching                                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `SHAPED`    | `ingredients:` (letter → `{material, amount}`) + `pattern:` (rows of those letters, `' '` = must be empty) | Position matters; pattern can be narrower/shorter than the machine's full grid and slides to fit (recipe-yaml rework note) |
+| `SHAPELESS` | `ingredients:` — a plain list of `{item, amount}`                                                          | Bag matching; any slot/order. `pattern:` has no effect here and logs a load-time warning if present                        |
 
 `RecipeType.EXACT_SLOT` still exists as an internal marker (dynamic recipes — the anvil, alchemy,
 enchanting table — and the vanilla-crafting-passthrough fallback), just not as something a YAML
@@ -402,7 +404,7 @@ recipe can request via `type:`.
 
 ```yaml
 my_recipe_id:
-  machine: alchemy          # must match GUI's machine: field
+  machine: alchemy # must match GUI's machine: field
   type: SHAPELESS
   ingredients:
     - item: NETHER_WART
@@ -410,7 +412,7 @@ my_recipe_id:
     - item: GLASS_BOTTLE
       amount: 1
   outputs:
-    - item: custom_item_id  # Valmora item ID or vanilla material
+    - item: custom_item_id # Valmora item ID or vanilla material
       amount: 1
   on-craft:
     - "sound player block.brewing_stand.brew"
@@ -426,7 +428,7 @@ my_forge_recipe:
     i: { material: IRON_INGOT, amount: 2 }
     d: { material: DIAMOND, amount: 1 }
   pattern:
-    - "id"                  # left slot = 2x iron ingot, right slot = 1x diamond
+    - "id" # left slot = 2x iron ingot, right slot = 1x diamond
   outputs:
     - item: reinforced_ingot
       amount: 1
@@ -455,6 +457,7 @@ item directly to the player instead of being silently dropped (`GuiForceCraftEve
 ### 9.3 Recipe Folder Structure
 
 Recipes live in `resources/recipes/`. Sub-folders are supported for organisation:
+
 - `recipes/crafting/` — crafting table recipes
 - `recipes/alchemy/` — alchemy machine recipes
 - `recipes/anvil/` — explicit `type: UPGRADE`/`TRANSMUTE` anvil recipes (`AnvilRecipeDefinition`,
@@ -516,13 +519,13 @@ The scripting system (`module/script/`) provides a mini-language for YAML config
 
 **Built-in events:**
 
-| Event | Syntax | Effect |
-|-------|--------|--------|
-| `give` | `give <Material>:<amount>` | Gives item to player |
-| `variable` | `variable set\|add\|remove <path> <value>` | Reads/writes a variable |
-| `tag` | `tag add\|remove <tagName>` | Adds/removes a profile tag |
-| `sound` | `sound <player\|world> <sound.key>` | Plays a sound |
-| `gui_force_craft` | `gui_force_craft` | Triggers craft pipeline in current GUI |
+| Event             | Syntax                                     | Effect                                 |
+| ----------------- | ------------------------------------------ | -------------------------------------- |
+| `give`            | `give <Material>:<amount>`                 | Gives item to player                   |
+| `variable`        | `variable set\|add\|remove <path> <value>` | Reads/writes a variable                |
+| `tag`             | `tag add\|remove <tagName>`                | Adds/removes a profile tag             |
+| `sound`           | `sound <player\|world> <sound.key>`        | Plays a sound                          |
+| `gui_force_craft` | `gui_force_craft`                          | Triggers craft pipeline in current GUI |
 
 ### 10.2 Condition Syntax
 
@@ -572,6 +575,7 @@ variables are reported once every module is up (`ScriptChecks`).
 ### 10.4 Adding New Events or Variables
 
 **New event factory:**
+
 ```java
 public class MyEvent implements EventFactory {
     @Override public String getName() { return "my_event"; }
@@ -584,6 +588,7 @@ registerEvent(new MyEvent());
 ```
 
 **New variable provider:**
+
 ```java
 public class MyProvider implements VariableProvider {
     @Override public String getNamespace() { return "mynamespace"; }
@@ -621,18 +626,18 @@ Run tests: `./gradlew test`
 
 ## 13. Common Mistakes to Avoid
 
-| Mistake | Correct Approach |
-|---------|-----------------|
-| Registering listeners without unregistering in `onDisable()` | Always call `HandlerList.unregisterAll(listener)` |
-| Registering commands inside a module's `onEnable()` | Register commands only in `Valmora.onEnable()` after modules are enabled |
-| Calling Bukkit API from async threads | Schedule back to main thread via `runTask()` |
-| Using `ChatColor` or `§` for text formatting | Use `Formatter.format()` or raw MiniMessage |
-| Storing `ExecutionContext` as a field | Use it only within the current invocation scope |
-| Accessing a module that loads after the current one at enable-time | Check module load order; restructure if needed |
-| Writing raw JDBC outside the infrastructure layer | Use the existing DAO/executor pattern |
-| Putting mutable state in the constructor instead of `onEnable()` | Always init state in `onEnable()`, reset in `onDisable()` |
-| Using `Registry.get(key)` with mixed case | Always lowercase keys, or use the Registry's own case-insensitive helpers |
-| Checking item display name in `InventoryClickEvent` to identify a GUI button | Store button identity in PDC — players can forge item names via anvil |
+| Mistake                                                                      | Correct Approach                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Registering listeners without unregistering in `onDisable()`                 | Always call `HandlerList.unregisterAll(listener)`                         |
+| Registering commands inside a module's `onEnable()`                          | Register commands only in `Valmora.onEnable()` after modules are enabled  |
+| Calling Bukkit API from async threads                                        | Schedule back to main thread via `runTask()`                              |
+| Using `ChatColor` or `§` for text formatting                                 | Use `Formatter.format()` or raw MiniMessage                               |
+| Storing `ExecutionContext` as a field                                        | Use it only within the current invocation scope                           |
+| Accessing a module that loads after the current one at enable-time           | Check module load order; restructure if needed                            |
+| Writing raw JDBC outside the infrastructure layer                            | Use the existing DAO/executor pattern                                     |
+| Putting mutable state in the constructor instead of `onEnable()`             | Always init state in `onEnable()`, reset in `onDisable()`                 |
+| Using `Registry.get(key)` with mixed case                                    | Always lowercase keys, or use the Registry's own case-insensitive helpers |
+| Checking item display name in `InventoryClickEvent` to identify a GUI button | Store button identity in PDC — players can forge item names via anvil     |
 
 ---
 
@@ -745,11 +750,11 @@ Zombie zombie = world.spawn(location, Zombie.class, entity -> {
 
 ### 14.8 Events Agents Commonly Get Wrong in 1.21
 
-| Incorrect / Old Usage | Correct 1.21 Pattern |
-|-----------------------|----------------------|
+| Incorrect / Old Usage                             | Correct 1.21 Pattern                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
 | `PlayerInteractEvent` → check `getItem() != null` | Also check `event.getHand() == EquipmentSlot.HAND` to avoid double-firing |
-| `EntityDamageByEntityEvent` to get attacker | Use `event.getDamageSource()` for full context including projectiles |
-| `AsyncChatEvent` for chat handling | Use `io.papermc.paper.event.player.AsyncChatEvent` (Paper-specific) |
+| `EntityDamageByEntityEvent` to get attacker       | Use `event.getDamageSource()` for full context including projectiles      |
+| `AsyncChatEvent` for chat handling                | Use `io.papermc.paper.event.player.AsyncChatEvent` (Paper-specific)       |
 
 ---
 

@@ -45,7 +45,7 @@ public class AdvancementIO implements NotifyIO {
 
         Advancement advancement;
         try {
-            advancement = Bukkit.getUnsafe().loadAdvancement(key, json);
+            advancement = unsafe().loadAdvancement(key, json);
         } catch (Exception e) {
             // Fall back to action bar if the server rejects the generated JSON for any reason.
             player.sendActionBar(Formatter.format("✦ " + message));
@@ -62,7 +62,7 @@ public class AdvancementIO implements NotifyIO {
         }
 
         // Remove the throwaway advancement shortly after — long enough for the toast to render.
-        Bukkit.getScheduler().runTaskLater(plugin, () -> Bukkit.getUnsafe().removeAdvancement(key), 40L);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> unsafe().removeAdvancement(key), 40L);
     }
 
     private String buildAdvancementJson(Material icon, String title, String frame) {
@@ -83,5 +83,12 @@ public class AdvancementIO implements NotifyIO {
 
     private String escapeJson(String s) {
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /** Runtime advancement (un)loading has no stable API — {@code UnsafeValues} is the only way in,
+     *  and Bukkit deprecates {@code getUnsafe()} purely as a "may change between versions" marker. */
+    @SuppressWarnings("deprecation")
+    private static org.bukkit.UnsafeValues unsafe() {
+        return Bukkit.getUnsafe();
     }
 }

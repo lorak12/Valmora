@@ -1,29 +1,95 @@
-# Resource (mining) pipeline — optional hook points around breaking a tracked/zone-configured
-# resource block. See docs/COMBAT_PIPELINE_ANALYSIS.md for the full design rationale.
+# Resource (mining) pipeline — every step of breaking a zone-configured resource block, in order.
+# Only blocks listed in a zone's `resource-blocks` section (docs/modules/design/resource.md) go
+# through this; ordinary block breaking never does. Design: docs/PIPELINE_FLOWS_PLAN.md.
 #
-# This only fires for resource blocks configured in a zone's `resource-blocks` section (see
-# docs/modules/design/resource.md) — ordinary vanilla block breaking never touches this pipeline.
-# Leave `stages` empty (or delete this file) and mining behaves exactly as if this feature didn't
-# exist — ResourceManager skips the pipeline entirely when no stage is registered.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` below whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (unique in the flow), `enabled: false` (skip it) and `conditions:`
+# (skip the step when false; the flow carries on). `interrupt` in a script step stops the flow —
+# for `break` that cancels the break (no drops, block untouched) unless drops were already given.
+# Deleting a flow (or this whole file) uses the built-in default. `/valmora pipeline flows resource`
+# shows what's loaded.
 #
-# Insertion points ("when"):
-#   pre_break   - after the Breaking Power gate passes, before drops are rolled.
-#                 `interrupt` here cancels the break the same way insufficient power would
-#                 (no drops, block untouched) — the stage should message the player itself.
-#   post_break  - after drops are granted and the block has progressed/regenerated.
-#
-# Variables: $resource.material$ (original block material), $resource.stage$ (0-based stage
-# index), plus the usual $player.*$, $prop.*$, etc.
-#
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Variables: $resource.material$ (the block's original material), $resource.stage$ (0-based
+# stage), $resource.required_power$, $resource.drops$ (stacks rolled so far) — plus $player.*$ etc.
+
+version: 2
+
+flows:
+  # A player broke a resource block.
+  break:
+    # Finds the block's resource config (and its current stage). Required. Stops the flow for
+    # blocks that aren't resource blocks (vanilla handling) or are depleted and waiting to regrow.
+    - builtin: resolve_resource
+    # Refuses the break when the player's Breaking Power is below the block's required power.
+    - builtin: breaking_power_gate
+    # `interrupt` from a stage here cancels the break. The stage should message the player itself.
+    - anchor: pre_break
+    # A Silk Touch tool yields exactly 1 of the block instead of its drops (like vanilla).
+    # params: enabled (default: config.yml resource.silk-touch.enabled, else true)
+    - builtin: silk_touch
+    # Rolls the current stage's drops, scaled by Mining Fortune. Skipped after silk_touch.
+    - builtin: roll_drops
+    # Gives the rolled drops. params: overflow: discard | drop (what happens when the inventory is full)
+    - builtin: give_drops
+      params:
+        overflow: discard
+    - anchor: post_break
+    # Replaces the block with the stage's next material and moves to the next stage. Required.
+    - builtin: advance_stage
+    # Schedules the block to grow back. Required. params: min-delay-ticks (floor for a zone's
+    # regen-delay; default: config.yml resource.limits.min-regen-delay-ticks, else 20)
+    - builtin: schedule_regen
+
+  # A neighbour block mined by Mining Spread (no vanilla break cue plays for those).
+  mine_feedback:
+    - builtin: play_sound
+      params:
+        sound: block.stone.break
+        volume: 1.0
+        pitch: 1.0
+    - builtin: spawn_particle
+      params:
+        particle: BLOCK
+        block-data: true
+        count: 12
+        offset: [0.5, 0.5, 0.5]
+        spread: [0.25, 0.25, 0.25]
+
+  # Mining Spread skipped a neighbour the player lacks Breaking Power for.
+  denied_feedback:
+    - builtin: play_sound
+      params:
+        sound: entity.villager.no
+        volume: 0.5
+        pitch: 1.0
+
+  # A depleted resource block grew back.
+  regen_feedback:
+    - builtin: play_sound
+      params:
+        sound: block.amethyst_block.resonate
+        volume: 0.6
+        pitch: 1.4
+    - builtin: spawn_particle
+      params:
+        particle: BLOCK
+        block-data: true
+        count: 16
+        offset: [0.5, 0.5, 0.5]
+        spread: [0.3, 0.3, 0.3]
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:`
+# (pre_break, post_break). Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
-#   - id: fortune_zone_bonus
+#   - id: crystal_resonance
 #     when: pre_break
 #     conditions:
 #       - "zone crystal_hollows"
 #     on-pass:
 #       - "notify <light_purple>Crystal resonance!</light_purple>"
-#     on-fail: []
 
 stages: []

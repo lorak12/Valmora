@@ -8,7 +8,6 @@ import org.nakii.valmora.module.modifier.effect.ModifierEffect;
 import org.nakii.valmora.module.modifier.effect.ModifierEffectParser;
 import org.nakii.valmora.module.script.condition.ConditionGroup;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;

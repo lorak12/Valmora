@@ -60,7 +60,7 @@ public final class ItemMigrator {
     private static void toV1(ItemMeta meta) {
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         if (pdc.has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING)
-                && !pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY)) {
+                && !pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers())) {
             // load() reads the CSV fallback; save() writes the structured format and drops the CSV.
             EnchantStateStore.save(meta, EnchantStateStore.load(pdc));
         }

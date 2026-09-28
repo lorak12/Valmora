@@ -25,9 +25,13 @@ public final class DeathPolicyResolver {
 
     public static Policy resolve(Player player) {
         Valmora plugin = Valmora.getInstance();
-        boolean defaultKeepInventory = plugin.getConfig().getBoolean("death.keep-inventory-default", false);
-        boolean defaultKeepExperience = plugin.getConfig().getBoolean("death.keep-experience-default", false);
+        return resolve(player,
+                plugin.getConfig().getBoolean("death.keep-inventory-default", false),
+                plugin.getConfig().getBoolean("death.keep-experience-default", false));
+    }
 
+    /** {@link #resolve(Player)} with explicit server-wide defaults (the {@code resolve_keep_policy} step's params). */
+    public static Policy resolve(Player player, boolean defaultKeepInventory, boolean defaultKeepExperience) {
         ZoneDefinition zone = deathZone(player);
         if (zone == null) return new Policy(defaultKeepInventory, defaultKeepExperience);
 

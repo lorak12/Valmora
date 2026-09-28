@@ -20,12 +20,10 @@ import java.util.stream.Collectors;
 
 public class PotionCommand implements CommandExecutor, TabCompleter {
 
-    private final Valmora plugin;
     private final AlchemyManager alchemyManager;
     private final AlchemyMachineHandler handler;
 
     public PotionCommand(Valmora plugin, AlchemyManager alchemyManager) {
-        this.plugin = plugin;
         this.alchemyManager = alchemyManager;
         this.handler = new AlchemyMachineHandler(plugin, alchemyManager);
     }

@@ -120,7 +120,7 @@ public final class ItemRefresher {
         ItemMeta meta = item.getItemMeta();
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         String itemId = pdc.get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
-        boolean hasEnchants = pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY)
+        boolean hasEnchants = pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers())
                 || pdc.has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING);
         boolean isPet = pdc.has(Keys.PET_ID_KEY, PersistentDataType.STRING);
         if (itemId == null && !hasEnchants && !isPet) return false;

@@ -42,7 +42,11 @@ run_script:
 interrupt:
   group: core
   syntax: "interrupt"
-  description: "Stops everything after it at the current pipeline point, including later stages. At an interruptible point it also cancels the underlying action (the hit, the break, the ability)."
+  description: "Stops everything after it at the current pipeline point, including later stages. At an interruptible point it also cancels the underlying action (the hit, the break, the ability). In a script step of a pipeline flow it stops the flow there."
+pipeline_set:
+  group: core
+  syntax: "pipeline_set <key> <value>"
+  description: "Only inside a pipeline flow: changes a value the next steps use, e.g. `pipeline_set dmg.final_damage \"$dmg.final_damage$ * 0.5\"`. Each pipeline file's comments list its writable keys (`dmg.final_damage`, `item.mana_cost`, `mob.gold`, `fishing.amount`, `death.keep_inventory`, ...)."
 counter:
   group: core
   syntax: "counter <increment|decrement|add|reset> player.var.<name> [amount]"

@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.modifier;
 
-import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.infrastructure.config.YamlLoader;

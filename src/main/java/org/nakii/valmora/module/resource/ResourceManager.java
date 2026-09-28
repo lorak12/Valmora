@@ -2,12 +2,9 @@ package org.nakii.valmora.module.resource;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
@@ -15,12 +12,10 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
-import org.nakii.valmora.api.pipeline.HookBus;
+import org.nakii.valmora.api.pipeline.flow.FlowResult;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
-import org.nakii.valmora.module.zone.ResourceStage;
 import org.nakii.valmora.module.zone.ZoneDefinition;
 import org.nakii.valmora.module.zone.ZoneResourceConfig;
-import org.nakii.valmora.module.zone.ZoneResourceDrop;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +43,7 @@ public class ResourceManager {
     }
 
     private final Valmora plugin;
-    private final Map<String, ResourceTracker> trackedBlocks = new HashMap<>();
+    final Map<String, ResourceTracker> trackedBlocks = new HashMap<>();
     /** Saved entries whose world isn't loaded yet — kept and written back until it is. */
     private final List<Map<?, ?>> pendingStateEntries = new ArrayList<>();
     private BukkitTask pendingSave;
@@ -62,148 +57,47 @@ public class ResourceManager {
     }
 
     /**
-     * Handles a resource-block break attempt. Applies Breaking Power gating, Mining Fortune-scaled
-     * drops, multi-stage progression, and (on success) triggers Mining Spread AOE mining on
-     * adjacent matching blocks.
+     * Handles a resource-block break attempt by running {@code resource_pipeline.yml}'s
+     * {@code break} flow ({@link ResourceFlows#BREAK}): Breaking Power gating, Silk Touch, Mining
+     * Fortune-scaled drops, multi-stage progression and regeneration.
      */
     public BreakResult handleBlockBreak(Player player, Block block) {
-        String key = locationKey(block.getLocation());
-        ResourceTracker tracker = trackedBlocks.get(key);
-
-        ZoneResourceConfig config;
-        int stageIndex;
-        Material originalMaterial;
-
-        if (tracker != null) {
-            if (tracker.stageIndex >= tracker.config.getStageCount()) return BreakResult.DEPLETED; // awaiting regen
-            config = tracker.config;
-            stageIndex = tracker.stageIndex;
-            originalMaterial = tracker.originalMaterial;
-        } else {
-            ZoneDefinition zone = plugin.getZoneManager().getZoneAt(block.getLocation()).orElse(null);
-            if (zone == null) return BreakResult.NOT_TRACKED;
-            config = zone.getResourceBlocks().get(block.getType());
-            if (config == null) return BreakResult.NOT_TRACKED;
-            stageIndex = 0;
-            originalMaterial = block.getType();
-        }
-
-        if (getPlayerBreakingPower(player) < config.getRequiredPower()) {
-            return BreakResult.INSUFFICIENT_POWER;
-        }
-
-        // Resource pipeline (docs/COMBAT_PIPELINE_ANALYSIS.md §6 "grouped block breaking") — only
-        // engaged for tracked/configured resource blocks, so ordinary block breaking never touches
-        // the HookBus at all. Zero-cost when no stage/hook is registered at either point.
-        HookBus bus = ValmoraAPI.getInstance().getHookBus();
-        boolean pipelineActive = bus != null
-                && bus.hasAnyStages(ResourcePipelineLoader.PRE_BREAK, ResourcePipelineLoader.POST_BREAK);
-        ExecutionContext pipelineCtx = null;
-        if (pipelineActive) {
-            pipelineCtx = new SimpleExecutionContext(player, null, block.getLocation(), null);
-            pipelineCtx.set("resource:material", originalMaterial.name());
-            pipelineCtx.set("resource:stage", stageIndex);
-            if (!bus.runPoint(ResourcePipelineLoader.PRE_BREAK, pipelineCtx)) {
-                return BreakResult.INTERRUPTED;
-            }
-        }
-
-        ResourceStage stage = config.getStage(stageIndex);
-
-        // Vanilla Silk Touch (VANILLA_CONTROL_AUDIT.md §1 "Silk Touch / Fortune interaction") — this
-        // resource system replaces vanilla's own drop calculation entirely (event.setDropItems(false)
-        // in ResourceListener), so a Silk Touch tool would otherwise still yield the configured loot
-        // table instead of the block itself. Mirrors vanilla: exactly 1 of the current-stage block,
-        // ignoring the loot table and Mining Fortune (vanilla Silk Touch ignores Fortune too).
-        // `resource.silk-touch.enabled` (default true) lets a server opt out entirely.
-        boolean silkTouch = plugin.getConfig().getBoolean("resource.silk-touch.enabled", true)
-                && player.getInventory().getItemInMainHand().containsEnchantment(Enchantment.SILK_TOUCH);
-
-        if (silkTouch) {
-            ItemStack item = createItem(originalMaterial.name(), 1);
-            if (item != null) player.getInventory().addItem(item);
-        } else {
-            double miningFortune = getPlayerMiningFortune(player);
-            for (ZoneResourceDrop drop : stage.getDrops()) {
-                if (Math.random() < drop.getChance()) {
-                    int amount = applyFortune(drop.rollAmount(), miningFortune);
-                    ItemStack item = createItem(drop.getItemId(), amount);
-                    if (item != null) player.getInventory().addItem(item);
-                }
-            }
-        }
-
-        if (pipelineActive) {
-            bus.runPoint(ResourcePipelineLoader.POST_BREAK, pipelineCtx);
-        }
-
-        boolean isLastStage = (stageIndex == config.getStageCount() - 1);
-        Material nextMaterial = stage.getNextMaterial() != null ? stage.getNextMaterial() : Material.AIR;
-
-        // Cancel any existing regen timer before scheduling a new one
-        if (tracker != null && tracker.regenTask != null) tracker.regenTask.cancel();
-
-        final Material nextMat = nextMaterial;
-        final Material finalOriginal = originalMaterial;
-        plugin.getServer().getScheduler().runTask(plugin, () -> block.setType(nextMat, false));
-
-        // HC-241: guards a malformed resource config (e.g. `regen-delay: 1`) from scheduling a
-        // near-per-tick task storm on every mined block of that type.
-        long regenDelayTicks = clampRegenDelay(config.getRegenDelayTicks());
-        long regenAtMillis = System.currentTimeMillis() + regenDelayTicks * 50L;
-        BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            block.setType(finalOriginal, false);
-            trackedBlocks.remove(key);
-            playRegenFeedback(block.getLocation(), finalOriginal);
-        }, regenDelayTicks);
-
-        int depletedIndex = config.getStageCount(); // past end = depleted sentinel
-        int nextStageIndex = isLastStage ? depletedIndex : stageIndex + 1;
-
-        if (tracker == null) {
-            ResourceTracker newTracker = new ResourceTracker(originalMaterial, config, block.getLocation(), nextStageIndex, regenTask);
-            newTracker.regenAtMillis = regenAtMillis;
-            trackedBlocks.put(key, newTracker);
-            requestSave();
-        } else {
-            tracker.stageIndex = nextStageIndex;
-            tracker.regenTask = regenTask;
-            tracker.regenAtMillis = regenAtMillis;
-            requestSave();
-        }
-
-        return BreakResult.HANDLED;
+        if (block.getLocation().getWorld() == null) return BreakResult.NOT_TRACKED;
+        BreakState state = new BreakState(this, player, block, locationKey(block.getLocation()));
+        ExecutionContext ctx = new SimpleExecutionContext(player, null, block.getLocation(), null);
+        FlowResult result = ResourceFlows.BREAK.run(ctx, state);
+        if (state.result != null) return state.result;
+        if (result.skipped()) return BreakResult.NOT_TRACKED; // flow never loaded — vanilla handling
+        return result.stopped() ? BreakResult.INTERRUPTED : BreakResult.HANDLED;
     }
 
-    /** Plays break feedback for a resource block mined via Mining Spread AOE (no real {@code BlockBreakEvent}, so no vanilla sound/particle fires on its own). */
+    /** Plays break feedback for a resource block mined via Mining Spread AOE (no real {@code BlockBreakEvent}, so no vanilla sound/particle fires on its own) — the {@code mine_feedback} flow. */
     public void playMineFeedback(Location loc, Material material) {
-        World world = loc.getWorld();
-        if (world == null) return;
-        world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1.0f, 1.0f);
-        world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 12, 0.25, 0.25, 0.25, material.createBlockData());
+        playFeedback(ResourceFlows.MINE_FEEDBACK, loc, material);
     }
 
-    /** Plays a denial cue when Mining Spread skips a neighbor the player lacks Breaking Power for. */
+    /** Plays a denial cue when Mining Spread skips a neighbor the player lacks Breaking Power for — the {@code denied_feedback} flow. */
     public void playDeniedFeedback(Location loc) {
-        World world = loc.getWorld();
-        if (world == null) return;
-        world.playSound(loc, Sound.ENTITY_VILLAGER_NO, 0.5f, 1.0f);
-    }
-
-    /** HC-241: floors a configured regen delay to {@code resource.limits.min-regen-delay-ticks}. */
-    private long clampRegenDelay(long configuredTicks) {
-        long minTicks = plugin.getConfig().getLong("resource.limits.min-regen-delay-ticks", 20L);
-        return Math.max(minTicks, configuredTicks);
+        playFeedback(ResourceFlows.DENIED_FEEDBACK, loc, null);
     }
 
     private void playRegenFeedback(Location loc, Material restoredMaterial) {
-        World world = loc.getWorld();
-        if (world == null) return;
-        world.playSound(loc, Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.6f, 1.4f);
-        world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 16, 0.3, 0.3, 0.3, restoredMaterial.createBlockData());
+        playFeedback(ResourceFlows.REGEN_FEEDBACK, loc, restoredMaterial);
     }
 
-    private double getPlayerBreakingPower(Player player) {
+    private static void playFeedback(org.nakii.valmora.api.pipeline.flow.FlowSpec<ResourceFeedbackState> flow, Location loc, Material material) {
+        if (loc.getWorld() == null) return;
+        flow.run(new SimpleExecutionContext(null, null, loc, null), new ResourceFeedbackState(loc, material));
+    }
+
+    /** Restores a depleted block (the scheduled end of {@code schedule_regen}). */
+    void regenerate(String key, Block block, Material original) {
+        block.setType(original, false);
+        trackedBlocks.remove(key);
+        playRegenFeedback(block.getLocation(), original);
+    }
+
+    double getPlayerBreakingPower(Player player) {
         ValmoraPlayer session = ValmoraAPI.getInstance().getPlayerManager().getSession(player.getUniqueId());
         if (session == null) return 0.0;
         var profile = session.getActiveProfile();
@@ -246,7 +140,7 @@ public class ResourceManager {
      * Saves soon (debounced ~2s) after a block is depleted. The 30s timer alone left up to 30s of
      * depleted blocks unrecorded, so they stayed broken forever after a crash.
      */
-    private void requestSave() {
+    void requestSave() {
         if (pendingSave != null) return;
         pendingSave = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             pendingSave = null;
@@ -257,7 +151,7 @@ public class ResourceManager {
     /** Snapshots {@link #trackedBlocks} to disk. Called on a periodic autosave timer by {@link ResourceModule}. */
     public void saveState() {
         YamlConfiguration yaml = new YamlConfiguration();
-        List<Map<String, Object>> entries = new ArrayList<>();
+        List<Map<?, ?>> entries = new ArrayList<>();
         for (ResourceTracker tracker : trackedBlocks.values()) {
             if (tracker.location.getWorld() == null) continue;
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -270,7 +164,7 @@ public class ResourceManager {
             entry.put("regen-at", tracker.regenAtMillis);
             entries.add(entry);
         }
-        entries.addAll((List) pendingStateEntries);
+        entries.addAll(pendingStateEntries);
         yaml.set("tracked", entries);
         try {
             yaml.save(stateFile());
@@ -319,11 +213,9 @@ public class ResourceManager {
 
                     String key = locationKey(loc);
                     long remainingTicks = Math.max(1L, (regenAt - now) / 50L);
-                    BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                        loc.getBlock().setType(original, false);
-                        trackedBlocks.remove(key);
-                        playRegenFeedback(loc, original);
-                    }, remainingTicks);
+                    Block restoredBlock = loc.getBlock();
+                    BukkitTask regenTask = plugin.getServer().getScheduler().runTaskLater(plugin,
+                            () -> regenerate(key, restoredBlock, original), remainingTicks);
 
                     ResourceTracker tracker = new ResourceTracker(original, config, loc, stageIndex, regenTask);
                     tracker.regenAtMillis = regenAt;
@@ -354,15 +246,7 @@ public class ResourceManager {
         if (file.exists()) file.delete();
     }
 
-    private double getPlayerMiningFortune(Player player) {
-        return org.nakii.valmora.util.MiningFortune.getPlayerMiningFortune(player);
-    }
-
-    private int applyFortune(int baseAmount, double miningFortune) {
-        return org.nakii.valmora.util.MiningFortune.applyFortune(baseAmount, miningFortune);
-    }
-
-    private ItemStack createItem(String itemId, int amount) {
+    ItemStack createItem(String itemId, int amount) {
         try {
             var stack = plugin.getItemManager().getItemRegistry().createItemStack(itemId.toLowerCase());
             if (stack.isPresent()) {
@@ -382,7 +266,7 @@ public class ResourceManager {
                 + ":" + loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
     }
 
-    private static class ResourceTracker {
+    static class ResourceTracker {
         final Material originalMaterial;
         final ZoneResourceConfig config;
         final Location location;

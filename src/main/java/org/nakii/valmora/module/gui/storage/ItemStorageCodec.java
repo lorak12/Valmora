@@ -2,10 +2,8 @@ package org.nakii.valmora.module.gui.storage;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
-import org.bukkit.util.io.BukkitObjectOutputStream;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.logging.Logger;
 
@@ -14,20 +12,25 @@ import java.util.logging.Logger;
  * item-bound {@link org.nakii.valmora.module.gui.components.StorageComponent}'s contents
  * directly on the physical item's PersistentDataContainer (extracted from the old
  * BackpackModule's serialize/deserialize logic).
+ *
+ * <p>Writes Paper's NBT item format ({@link ItemStack#serializeItemsAsBytes(ItemStack[])}), which
+ * carries a data version so the server can upgrade items across Minecraft versions. Data written
+ * before that switch used Java object serialization ({@code BukkitObjectOutputStream}); it is still
+ * read, recognised by the Java serialization stream header, and rewritten in the new format on the
+ * next save.
  */
 public final class ItemStorageCodec {
+
+    /** {@code ObjectStreamConstants.STREAM_MAGIC} — the first two bytes of any Java serialization stream. */
+    private static final int JAVA_STREAM_MAGIC = 0xACED;
 
     private ItemStorageCodec() {}
 
     public static byte[] serialize(ItemStack[] contents, Logger logger) {
-        try (ByteArrayOutputStream stream = new ByteArrayOutputStream();
-             BukkitObjectOutputStream out = new BukkitObjectOutputStream(stream)) {
-            out.writeInt(contents.length);
-            for (ItemStack item : contents) {
-                out.writeObject(item);
-            }
-            return stream.toByteArray();
-        } catch (IOException e) {
+        try {
+            // Null slots are written as empty items and read back as null by deserialize().
+            return ItemStack.serializeItemsAsBytes(contents);
+        } catch (RuntimeException e) {
             if (logger != null) logger.warning("Failed to serialize storage contents: " + e.getMessage());
             return null;
         }
@@ -41,6 +44,29 @@ public final class ItemStorageCodec {
      */
     public static ItemStack[] deserialize(byte[] bytes, int expectedSize, Logger logger) {
         if (bytes == null) return new ItemStack[expectedSize];
+        ItemStack[] contents;
+        try {
+            contents = isLegacyFormat(bytes) ? deserializeLegacy(bytes) : ItemStack.deserializeItemsFromBytes(bytes);
+        } catch (IOException | ClassNotFoundException | RuntimeException e) {
+            if (logger != null) logger.warning("Failed to deserialize storage contents: " + e.getMessage());
+            return null;
+        }
+        for (int i = 0; i < contents.length; i++) {
+            if (contents[i] != null && contents[i].isEmpty()) contents[i] = null;
+        }
+        if (contents.length >= expectedSize) return contents;
+        ItemStack[] result = new ItemStack[expectedSize];
+        System.arraycopy(contents, 0, result, 0, contents.length);
+        return result;
+    }
+
+    private static boolean isLegacyFormat(byte[] bytes) {
+        return bytes.length >= 2 && ((bytes[0] & 0xFF) << 8 | (bytes[1] & 0xFF)) == JAVA_STREAM_MAGIC;
+    }
+
+    /** Reads the pre-NBT format. Only kept so existing items can still be opened (and so migrated). */
+    @SuppressWarnings("deprecation") // BukkitObjectInputStream: the only reader for the legacy format
+    private static ItemStack[] deserializeLegacy(byte[] bytes) throws IOException, ClassNotFoundException {
         try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
              BukkitObjectInputStream in = new BukkitObjectInputStream(stream)) {
             int size = in.readInt();
@@ -48,13 +74,7 @@ public final class ItemStorageCodec {
             for (int i = 0; i < size; i++) {
                 contents[i] = (ItemStack) in.readObject();
             }
-            if (size >= expectedSize) return contents;
-            ItemStack[] result = new ItemStack[expectedSize];
-            System.arraycopy(contents, 0, result, 0, size);
-            return result;
-        } catch (IOException | ClassNotFoundException | ClassCastException e) {
-            if (logger != null) logger.warning("Failed to deserialize storage contents: " + e.getMessage());
-            return null;
+            return contents;
         }
     }
 }

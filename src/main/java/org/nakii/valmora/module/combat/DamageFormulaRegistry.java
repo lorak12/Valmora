@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.combat;
 
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.scripting.Expression;
 import org.nakii.valmora.module.script.expression.ExpressionParser;

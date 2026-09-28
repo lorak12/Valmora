@@ -10,7 +10,6 @@ import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.quest.points.PointsManager;
 
 import java.util.Map;
-import java.util.UUID;
 
 public class ProgressionModule implements ReloadableModule {
 

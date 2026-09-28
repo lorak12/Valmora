@@ -3,7 +3,6 @@ package org.nakii.valmora.module.enchant.logic;
 import org.bukkit.entity.LivingEntity;
 import org.nakii.valmora.module.combat.DamageModifierContext;
 import org.nakii.valmora.module.enchant.EnchantmentLogic;
-import org.nakii.valmora.module.stat.StatManager;
 
 public class DefenseReductionLogic implements EnchantmentLogic {
 

@@ -145,7 +145,7 @@ public class ConversationPacketManager extends PacketListenerAbstract {
     // -------------------------------------------------------------------------
 
     private void sendMount(Player player) {
-        int entityId = Bukkit.getUnsafe().nextEntityId();
+        int entityId = nextEntityId(player);
         mountEntityIds.put(player.getUniqueId(), entityId);
 
         Location loc = player.getLocation();
@@ -323,5 +323,13 @@ public class ConversationPacketManager extends PacketListenerAbstract {
 
     private record InputState(boolean jump, boolean sneak, boolean forward, boolean backward) {
         static final InputState NONE = new InputState(false, false, false, false);
+    }
+
+    /** Reserves a server-unique entity id for the client-only mount, so it can never collide with a
+     *  real entity. {@code UnsafeValues} is the only API for this; Bukkit deprecates
+     *  {@code getUnsafe()} purely as a "may change between versions" marker. */
+    @SuppressWarnings("deprecation")
+    private static int nextEntityId(Player player) {
+        return Bukkit.getUnsafe().nextEntityId(player.getWorld());
     }
 }

@@ -24,11 +24,9 @@ public class PetFollowTask implements Runnable {
     private final double teleportDistance;
     private final double step;
 
-    private final Valmora plugin;
     private final Map<UUID, Entity> activePets;
 
     public PetFollowTask(Valmora plugin, Map<UUID, Entity> activePets) {
-        this.plugin = plugin;
         this.activePets = activePets;
         this.followDistance = plugin.getConfig().getDouble("pets.follow.follow-distance", 2.5);
         this.teleportDistance = plugin.getConfig().getDouble("pets.follow.teleport-distance", 12.0);

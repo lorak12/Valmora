@@ -11,8 +11,10 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
 import org.nakii.valmora.module.enchant.EnchantmentHelper;
 import org.nakii.valmora.module.item.ItemType;
+import org.nakii.valmora.util.CustomModelData;
 import org.nakii.valmora.util.Formatter;
-import org.nakii.valmora.util.Keys;
+import org.nakii.valmora.util.Keys;
+import org.nakii.valmora.util.CustomModelData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -168,7 +170,7 @@ public class AnvilMachineHandler implements DynamicMachineHandler {
             ItemMeta meta = output.getItemMeta();
             for (Map.Entry<String, Object> entry : spec.addNbt().entrySet()) {
                 if ("CustomModelData".equalsIgnoreCase(entry.getKey()) && entry.getValue() instanceof Number n) {
-                    meta.setCustomModelData(n.intValue());
+                    CustomModelData.set(meta, n.intValue());
                 } else {
                     var key = new org.bukkit.NamespacedKey(plugin, "anvil_nbt_" + entry.getKey().toLowerCase());
                     Object value = entry.getValue();

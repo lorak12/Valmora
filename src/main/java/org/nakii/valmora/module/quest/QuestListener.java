@@ -10,7 +10,6 @@ import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -29,7 +28,6 @@ import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
-import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -38,7 +36,6 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerLevelChangeEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -411,7 +408,7 @@ public class QuestListener implements Listener {
         ItemStack newItem = event.getNewItem();
         if (newItem == null || newItem.getType() == Material.AIR) return;
 
-        String slotStr = event.getSlotType().name(); // HEAD, CHEST, LEGS, FEET
+        String slotStr = event.getSlot().name(); // HEAD, CHEST, LEGS, FEET
         String itemId  = newItem.getPersistentDataContainer().get(Keys.ITEM_ID_KEY, PersistentDataType.STRING);
         String itemStr = itemId != null ? itemId : newItem.getType().name();
 

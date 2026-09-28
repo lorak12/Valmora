@@ -54,24 +54,23 @@ database:
 # VANILLA_CONTROL_AUDIT.md §8: none of these were ever touched by Valmora — vanilla defaults applied
 # everywhere. `world.gamerules` is a pure pass-through: only keys you uncomment/add here are ever
 # changed, applied to every currently-loaded world on enable/reload and to any world that loads
-# afterward (WorldRulesModule). Use the exact vanilla GameRule name (case-sensitive, camelCase).
-# The list below is commented-out common RPG-server defaults, not anything Valmora enables for you.
+# afterward (WorldRulesModule). Use the vanilla game-rule registry key (snake_case, e.g.
+# keep_inventory — Minecraft 1.21.11 renamed them; old camelCase names that map 1:1 still work with a
+# warning). The list below is commented-out common RPG-server defaults, not anything Valmora enables for you.
 world:
   gamerules:
-    # keepInventory: false
-    # naturalRegeneration: true
-    # doFireTick: true
-    # doWeatherCycle: true
-    # doDaylightCycle: true
-    # doMobSpawning: true
-    # doMobLoot: true
-    # doImmediateRespawn: false
-    # fallDamage: true
-    # fireDamage: true
-    # drowningDamage: true
-    # playersSleepingPercentage: 100
-    # randomTickSpeed: 3
-    # spawnChunkRadius: 2
+    # keep_inventory: false
+    # natural_health_regeneration: true
+    # advance_weather: true
+    # advance_time: true
+    # spawn_mobs: true
+    # mob_drops: true
+    # immediate_respawn: false
+    # fall_damage: true
+    # fire_damage: true
+    # drowning_damage: true
+    # players_sleeping_percentage: 100
+    # random_tick_speed: 3
 
   # VANILLA_CONTROL_AUDIT.md §8: locks a world's weather to a fixed state, re-enforced against any
   # WeatherChangeEvent/ThunderChangeEvent that would move it away — the natural cycle, a /weather

@@ -1,5 +1,7 @@
 package org.nakii.valmora.module.alchemy.brewing;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -14,7 +16,6 @@ import org.nakii.valmora.module.alchemy.AlchemyManager;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffect;
 import org.nakii.valmora.module.alchemy.effect.AlchemyEffectType;
 import org.nakii.valmora.module.alchemy.modifier.AlchemyModifier;
-import org.nakii.valmora.module.alchemy.modifier.AlchemyModifierType;
 import org.nakii.valmora.module.recipe.DynamicMachineHandler;
 import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.util.Formatter;
@@ -159,7 +160,6 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         PotionMeta meta = (PotionMeta) item.getItemMeta();
         meta.setBasePotionType(org.bukkit.potion.PotionType.MUNDANE);
         meta.setColor(Color.fromRGB(100, 80, 150));
-        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
         meta.getPersistentDataContainer().set(Keys.ITEM_ID_KEY, PersistentDataType.STRING, AWKWARD_POTION_ID);
         meta.getPersistentDataContainer().set(Keys.RARITY_KEY, PersistentDataType.STRING, "COMMON");
         meta.displayName(Formatter.format("<white>Awkward Potion"));
@@ -169,6 +169,7 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
         lore.add(Formatter.format("<white>COMMON"));
         meta.lore(lore);
         item.setItemMeta(meta);
+        hidePotionContents(item);
         return item;
     }
 
@@ -186,7 +187,6 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
 
         if (effect.getColor() != null) meta.setColor(effect.getColor());
         meta.setBasePotionType(org.bukkit.potion.PotionType.MUNDANE);
-        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ADDITIONAL_TOOLTIP);
 
         meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_ID,        PersistentDataType.STRING,  effect.getId());
         meta.getPersistentDataContainer().set(Keys.ALCHEMY_EFFECT_LEVEL,      PersistentDataType.INTEGER, level);
@@ -201,7 +201,15 @@ public class AlchemyMachineHandler implements DynamicMachineHandler {
 
         renderPotionDisplay(meta, effect, level, durationSeconds, isSplash);
         item.setItemMeta(meta);
+        hidePotionContents(item);
         return item;
+    }
+
+    /** Hides the vanilla "No Effects" line — Valmora renders its own effect lore. Must run after
+     *  the last {@code setItemMeta}, which would otherwise replace the tooltip_display component. */
+    private static void hidePotionContents(ItemStack item) {
+        item.setData(DataComponentTypes.TOOLTIP_DISPLAY,
+                TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.POTION_CONTENTS));
     }
 
     /**

@@ -12,7 +12,6 @@ import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 

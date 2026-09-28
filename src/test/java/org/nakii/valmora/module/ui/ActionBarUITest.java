@@ -15,7 +15,6 @@ import org.nakii.valmora.module.npc.dialogue.DialogueDefinition;
 import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.module.npc.dialogue.DialogueNode;
 import org.nakii.valmora.module.profile.PlayerManager;
-import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.ScriptModule;
@@ -25,7 +24,6 @@ import org.nakii.valmora.module.stat.SystemStats;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 

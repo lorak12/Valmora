@@ -3,7 +3,6 @@ package org.nakii.valmora.module.script.event.impl;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.api.ValmoraAPI;
-import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.item.TargetResolver;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
@@ -12,7 +11,6 @@ import org.nakii.valmora.module.script.event.EventArgs;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
 
-import java.util.List;
 
 /**
  * Generic entity-heal event, added alongside {@code damage}/{@code strike_lightning} for the

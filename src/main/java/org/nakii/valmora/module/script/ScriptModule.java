@@ -38,6 +38,12 @@ public class ScriptModule implements ReloadableModule {
      */
     private final HookBus hookBus;
 
+    /**
+     * Every loaded flow domain ({@code *_pipeline.yml} flows — docs/PIPELINE_FLOWS_PLAN.md). Held
+     * here next to {@link #hookBus} and, like it, survives reloads: domains re-register on load.
+     */
+    private final org.nakii.valmora.api.pipeline.flow.FlowRegistry flowRegistry = new org.nakii.valmora.api.pipeline.flow.FlowRegistry();
+
     private VariableResolver variableResolver;
     private ExpressionParser expressionParser;
     private ExpressionEvaluator expressionEvaluator;
@@ -95,6 +101,7 @@ public class ScriptModule implements ReloadableModule {
         registerProvider(new MobVariableProvider());
         registerProvider(new ResourceVariableProvider());
         registerProvider(new FishingVariableProvider());
+        registerProvider(new org.nakii.valmora.module.script.variable.providers.DeathVariableProvider());
         registerProvider(new ItemAbilityVariableProvider());
         registerProvider(new MathVariableProvider());
 
@@ -109,6 +116,7 @@ public class ScriptModule implements ReloadableModule {
         registerEvent(new ForeachEventFactory(this));
         registerEvent(new RunScriptEventFactory(this));
         registerEvent(new InterruptEventFactory());
+        registerEvent(new org.nakii.valmora.module.script.event.impl.PipelineSetEventFactory(this));
         registerEvent(new NotifyEventFactory());
         registerEvent(new CounterEventFactory());
         registerEvent(new EntityEventFactory(this));
@@ -257,6 +265,11 @@ public class ScriptModule implements ReloadableModule {
     public void runDeferredChecks(org.nakii.valmora.infrastructure.config.diag.DiagnosticSink sink) {
         if (eventParser != null) eventParser.runDeferred(sink);
         scriptChecks.report(variableProviderRegistry.getKeys(), sink);
+    }
+
+    /** @return every loaded pipeline flow domain (see {@link org.nakii.valmora.api.pipeline.flow.FlowRegistry}). */
+    public org.nakii.valmora.api.pipeline.flow.FlowRegistry getFlowRegistry() {
+        return flowRegistry;
     }
 
     /** @return the shared pipeline dispatch bus (see {@link HookBus}'s class doc). */

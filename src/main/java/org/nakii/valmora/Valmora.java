@@ -388,7 +388,7 @@ public final class Valmora extends JavaPlugin implements ValmoraAPI {
             for (org.nakii.valmora.module.profile.ValmoraPlayer player : playerManager.getAllSessions()) {
                 saves.add(playerManager.save(player));
             }
-            java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
+            java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture<?>[0])).join();
             dataStore.close();
         }
     }

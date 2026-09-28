@@ -6,7 +6,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.stat.SystemStats;
-import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
 import java.util.HashMap;

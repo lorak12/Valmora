@@ -114,7 +114,7 @@ alchemy:
 item:
   where: "Item ability pipelines and modifier formulas."
   paths:
-    - "`$item.ability_id$`, `$item.ability_trigger$` — in `item_pipeline.yml`"
+    - "`$item.ability_id$`, `$item.ability_trigger$`, `$item.mana_cost$`, `$item.cooldown$` — in `item_pipeline.yml`"
     - "`$item.id$`, `$item.type$`, `$item.rarity.id$` / `.name` / `.color` / `.rank` / `.power`, `$item.stats.<id>$` — in modifier formulas"
 enchant:
   where: "Inside an enchant definition."
@@ -133,22 +133,28 @@ hit:
   paths:
     - "`$hit.damage$`, `$hit.is_crit$`, `$hit.damage_type$`"
 dmg:
-  where: "`combat_pipeline.yml` from `post_calculation` on."
+  where: "`combat_pipeline.yml`."
   paths:
-    - "`$dmg.final_damage$`, `$dmg.is_critical$`, `$dmg.damage_type$`, `$dmg.is_immune$`"
+    - "`$dmg.raw_damage$` (vanilla's damage), `$dmg.damage_type$` — throughout"
+    - "`$dmg.final_damage$`, `$dmg.is_critical$`, `$dmg.is_immune$` — once `calculate_damage` has run"
 mob:
   where: "`combat:on_death` (mob kill) and `mob:pre_ability` / `post_ability`."
   paths:
-    - "`$mob.id$`, `$mob.level$` — at `combat:on_death`"
+    - "`$mob.id$`, `$mob.level$`, `$mob.has_killer$`, `$mob.luck$`, `$mob.xp$`, `$mob.gold$` — in `mob_pipeline.yml`'s `death` flow and at `combat:on_death`"
     - "`$mob.id$`, `$mob.level$`, `$mob.health$`, `$mob.max_health$`, `$mob.health_percent$`, `$mob.ability_id$`, `$mob.ability_trigger$` — at the mob ability points (the boss itself, not its target)"
 resource:
   where: "`resource_pipeline.yml`."
   paths:
-    - "`$resource.material$`, `$resource.stage$`"
+    - "`$resource.material$`, `$resource.stage$`, `$resource.required_power$`, `$resource.drops$` (stacks rolled so far)"
 fishing:
   where: "`fishing_pipeline.yml`."
   paths:
-    - "`$fishing.table$`, `$fishing.sea_creature$`, and after the roll `$fishing.item$`, `$fishing.amount$`"
+    - "`$fishing.table$`, `$fishing.sea_creature_chance$`, `$fishing.sea_creature$`, and after the roll `$fishing.item$`, `$fishing.amount$`, `$fishing.caught$`"
+death:
+  where: "`death_pipeline.yml`."
+  paths:
+    - "`$death.keep_inventory$`, `$death.keep_experience$`, `$death.zone$` — in the `death` flow"
+    - "`$death.is_bed_spawn$`, `$death.is_anchor_spawn$` — in the `respawn` flow"
 curve:
   where: "XP-curve formulas (`skills/xp_curves.yml`, `pets/defaults.yml`)."
   paths:

@@ -5,6 +5,7 @@ import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -156,7 +157,21 @@ public class StatModule implements ReloadableModule {
         if (inst == null) return;
         inst.removeModifier(MINING_SPEED_MOD_KEY);
         inst.removeModifier(ATTACK_SPEED_MOD_KEY);
-        inst.setBaseValue(inst.getDefaultValue());
+        inst.setBaseValue(defaultBaseValue(player, attr));
+    }
+
+    /**
+     * The vanilla base value of {@code attr} for this entity's type (e.g. 0.1 movement speed for a
+     * player), falling back to the attribute's server-wide default. Paper 26.1 deprecated
+     * {@code AttributeInstance#getDefaultValue()} because it only ever returned the latter.
+     */
+    private static double defaultBaseValue(Player player, Attribute attr) {
+        EntityType type = player.getType();
+        if (type.hasDefaultAttributes()) {
+            AttributeInstance defaults = type.getDefaultAttributes().getAttribute(attr);
+            if (defaults != null) return defaults.getBaseValue();
+        }
+        return attr.getDefaultValue();
     }
 
     /**

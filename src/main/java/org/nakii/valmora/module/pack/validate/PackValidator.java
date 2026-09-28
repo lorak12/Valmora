@@ -5,7 +5,6 @@ import org.nakii.valmora.module.pack.SemVer;
 import org.nakii.valmora.module.pack.manifest.PackDependency;
 import org.nakii.valmora.module.pack.manifest.PackManifest;
 
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 

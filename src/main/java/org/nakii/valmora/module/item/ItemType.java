@@ -2,7 +2,6 @@ package org.nakii.valmora.module.item;
 
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.Collection;
 import java.util.List;

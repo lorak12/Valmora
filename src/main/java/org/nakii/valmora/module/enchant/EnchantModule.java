@@ -1,13 +1,11 @@
 package org.nakii.valmora.module.enchant;
 
-import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.module.enchant.event.EnchantStateEventFactory;
@@ -38,7 +36,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class EnchantModule implements ReloadableModule {

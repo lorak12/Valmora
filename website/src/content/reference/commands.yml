@@ -7,6 +7,7 @@ valmora:
   subcommands:
     - "/valmora reload — reload config.yml and every module"
     - "/valmora pipeline list [point] — list every registered pipeline stage/hook"
+    - "/valmora pipeline flows [domain] — show the loaded pipeline flows, step by step"
     - "/valmora variable get <$path$> — resolve a variable for yourself"
     - "/valmora debug — toggle debug logging"
     - "/valmora pack install|inspect|uninstall|list|rollback … — content packs"

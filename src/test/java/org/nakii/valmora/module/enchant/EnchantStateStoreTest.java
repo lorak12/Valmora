@@ -105,7 +105,7 @@ class EnchantStateStoreTest {
         item.setItemMeta(meta);
         assertTrue(EnchantStateStore.load(item).isEmpty());
         assertFalse(item.getItemMeta().getPersistentDataContainer()
-                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY));
+                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers()));
     }
 
     @Test
@@ -124,7 +124,7 @@ class EnchantStateStoreTest {
         assertTrue(item.getItemMeta().getPersistentDataContainer()
                 .has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING));
         assertFalse(item.getItemMeta().getPersistentDataContainer()
-                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY));
+                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers()));
     }
 
     @Test
@@ -143,7 +143,7 @@ class EnchantStateStoreTest {
         assertFalse(item.getItemMeta().getPersistentDataContainer()
                 .has(Keys.ENCHANTS_CONTAINER_KEY, PersistentDataType.STRING));
         assertTrue(item.getItemMeta().getPersistentDataContainer()
-                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY));
+                .has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers()));
         assertEquals(4, EnchantStateStore.load(item).get("sharpness").getLevel());
     }
 }

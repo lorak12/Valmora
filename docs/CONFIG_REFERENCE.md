@@ -617,7 +617,7 @@ default — every entry ships commented out.
 
 | Field | Default | What it does |
 |---|---|---|
-| `gamerules.<GameRuleName>` | none | Pure pass-through of vanilla gamerules (exact camelCase name, e.g. `keepInventory`, `doFireTick`, `randomTickSpeed`), applied to every loaded world on enable/reload and to worlds that load later. Only keys you set are touched. |
+| `gamerules.<GameRuleName>` | none | Pure pass-through of vanilla gamerules by registry key (snake_case since Minecraft 1.21.11, e.g. `keep_inventory`, `advance_weather`, `random_tick_speed`; pre-1.21.11 camelCase names that were renamed 1:1 are still accepted with a warning), applied to every loaded world on enable/reload and to worlds that load later. Only keys you set are touched. |
 | `weather-lock.<world>` | none | Locks that world's weather to `CLEAR`, `RAIN` or `THUNDER`, re-enforced against the natural cycle, `/weather` and other plugins. Unlisted worlds are untouched. |
 
 ## `block-loot`

@@ -2,8 +2,6 @@ package org.nakii.valmora.module.gui;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.enchant.EnchantmentDefinition;
@@ -15,7 +13,6 @@ import org.nakii.valmora.module.script.variable.VariableProvider;
 import org.nakii.valmora.module.skill.SkillDefinition;
 import org.nakii.valmora.module.skill.SkillRegistry;
 import org.nakii.valmora.util.Formatter;
-import org.nakii.valmora.util.Keys;
 
 import java.util.*;
 import java.util.stream.Collectors;

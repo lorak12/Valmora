@@ -228,9 +228,8 @@ public class QuestManager {
         if (quest == null) return;
         clearObjectiveFlags(profile, questId);
         Map<String, Object> vars = profile.getVariables();
-        List<QuestObjective> objectives = quest.getObjectives();
-        for (int i = 0; i < objectives.size(); i++) {
-            QuestObjective obj = objectives.get(i);
+        int objectiveCount = quest.getObjectives().size();
+        for (int i = 0; i < objectiveCount; i++) {
             String key = quest.progressKey(i);
             vars.remove("quest." + questId + ".obj." + key);
             vars.remove("quest." + questId + ".obj." + key + ".started");
@@ -458,12 +457,6 @@ public class QuestManager {
             if (!obj.isPersistent()) return false;
         }
         return true;
-    }
-
-    private boolean evaluateConditions(List<String> conditionStrings, SimpleExecutionContext ctx) {
-        if (conditionStrings == null || conditionStrings.isEmpty()) return true;
-        var group = plugin.getScriptModule().getConditionParser().parseList(conditionStrings);
-        return group.evaluate(ctx);
     }
 
     private void sendProgressNotification(Player player, QuestObjective obj, int current) {

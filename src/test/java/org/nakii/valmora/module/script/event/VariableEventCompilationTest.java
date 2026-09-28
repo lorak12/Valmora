@@ -13,7 +13,6 @@ import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.module.script.event.impl.VariableEvent;
 import org.nakii.valmora.module.stat.StatRegistry;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;

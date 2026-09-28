@@ -211,7 +211,7 @@ public class PlayerManager implements ReloadableModule {
         for (ValmoraPlayer player : activeSession.values()) {
             saves.add(save(player));
         }
-        java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture[0])).join();
+        java.util.concurrent.CompletableFuture.allOf(saves.toArray(new java.util.concurrent.CompletableFuture<?>[0])).join();
         activeSession.clear();
         joinGeneration.clear();
     }

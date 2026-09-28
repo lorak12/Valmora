@@ -1,20 +1,51 @@
-# Item ability pipeline — optional hook points around firing an item ability's mechanics. See
-# docs/VALMORA_DOCUMENTATION.md §39 for the full design.
+# Item ability pipeline — every step of firing an item ability once its trigger matched, in order.
+# Design: docs/PIPELINE_FLOWS_PLAN.md.
 #
-# Leave `stages` empty (or delete this file) and item abilities behave exactly as if this feature
-# didn't exist — AbilityExecutor skips the pipeline entirely when no stage is registered. This does
-# NOT replace the ability's own trigger/condition/cooldown/mana gating (still fully native); it's a
-# supplementary hook around the mechanics themselves.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` below whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (unique in the flow), `enabled: false` (skip it) and `conditions:`
+# (skip the step when false; the flow carries on). `interrupt` in a script step stops this firing
+# right there. Deleting a flow (or this whole file) uses the built-in default.
+# `/valmora pipeline flows item` shows what's loaded.
 #
-# Insertion points ("when"):
-#   pre_ability   - after the ability's own conditions/cooldown/mana check passes, before its
-#                   mechanics run. `interrupt` here cancels just this firing (mechanics don't run;
-#                   the cooldown/mana already consumed stays consumed).
-#   post_ability  - after the ability's mechanics have run.
-#
-# Variables: $item.ability_id$ / $item.ability_trigger$, plus the usual $player.*$, $target.*$, etc.
-#
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Messages are MiniMessage and only shown for player-activated triggers (clicks etc.), never for
+# passive ones like ON_HIT. Variables: $item.ability_id$, $item.ability_trigger$,
+# $item.mana_cost$, $item.cooldown$, $target.*$ (the resolved target) — plus $player.*$ etc.
+# Writable with `pipeline_set <key> <value>`: item.mana_cost, item.cooldown (e.g. a zone discount
+# placed before mana_gate).
+
+version: 2
+
+flows:
+  # An item ability's trigger fired.
+  cast:
+    # Abilities with a target-range aim at the entity the player is looking at.
+    # params: message (shown when nothing is in range)
+    - builtin: resolve_target
+      params:
+        message: "<red>No target in range!"
+    # The ability's own `conditions:`.
+    - builtin: ability_conditions
+    # params: message (%remaining% = seconds left)
+    - builtin: cooldown_gate
+      params:
+        message: "<red>Ability on cooldown: %remaining%s"
+    # params: message
+    - builtin: mana_gate
+      params:
+        message: "<aqua>Not enough Mana!"
+    - builtin: consume_mana
+    - builtin: start_cooldown
+    # `interrupt` from a stage here cancels just this firing — mana/cooldown stay spent.
+    - anchor: pre_ability
+    # Runs the ability's mechanics. Required.
+    - builtin: run_mechanics
+    - anchor: post_ability
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:`
+# (pre_ability, post_ability). Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
 #   - id: no_abilities_in_arena
@@ -24,6 +55,5 @@
 #     on-pass:
 #       - "notify <red>Abilities are disabled here!</red>"
 #       - "interrupt"
-#     on-fail: []
 
 stages: []

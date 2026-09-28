@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.economy.event;
 
-import org.bukkit.entity.Player;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.economy.EconomyModule;
 import org.nakii.valmora.module.script.event.EventFactory;

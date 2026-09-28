@@ -1,27 +1,62 @@
-# Mob (boss) ability pipeline — optional hook points around firing a boss ability's mechanics. See
-# docs/VALMORA_DOCUMENTATION.md §39 for the full design.
+# Mob pipeline — every step of a boss ability firing, and of a custom (Valmora) mob dying, in order.
+# Design: docs/PIPELINE_FLOWS_PLAN.md.
 #
-# Leave `stages` empty (or delete this file) and boss abilities behave exactly as if this feature
-# didn't exist — BossController skips the pipeline entirely when no stage is registered. This does
-# NOT replace the ability's own timer/interval/chance/cooldown/announce machinery (still fully
-# native); it's a supplementary hook around the mechanics themselves.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (unique in the flow), `enabled: false` (skip it) and `conditions:`
+# (skip the step when false; the flow carries on). `interrupt` in a script step stops the flow.
+# Deleting a flow (or this whole file) uses the built-in default. `/valmora pipeline flows mob`
+# shows what's loaded.
 #
-# Insertion points ("when"):
-#   pre_ability   - after the ability's own cooldown/interval/chance check passes, before its
-#                   mechanics run. `interrupt` here cancels just this firing (e.g. a "silence" debuff
-#                   on the boss) — the cooldown already consumed stays consumed.
-#   post_ability  - after the ability's mechanics have run.
-#
-# Variables: $mob.ability_id$ / $mob.ability_trigger$, and the boss's own $mob.id$, $mob.level$,
-# $mob.health$, $mob.max_health$ and $mob.health_percent$. $target.*$ is the ability's resolved
-# target (usually a player), if any — not the boss.
-#
-# Note: most built-in events (`notify`, `variable set player.var.*`, `tag`, `give`) act on the
-# caster, and a boss ability's caster is the boss entity, not a player — they're no-ops here.
-# `interrupt` and `$target.*$` (the ability's resolved target, if any) are what's actually useful
-# in this context today.
-#
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Note: in `cast`, the caster is the boss, not a player — most player-facing events (`notify`,
+# `give`, `tag`) do nothing there. $target.*$ is the ability's target (usually a player).
+
+version: 2
+
+flows:
+  # A boss ability's trigger or timer fired.
+  # Variables: $mob.ability_id$, $mob.ability_trigger$, $mob.id$, $mob.level$, $mob.health$,
+  # $mob.max_health$, $mob.health_percent$, $target.*$.
+  cast:
+    # The ability's own cooldown. Required (boss timers rely on it).
+    - builtin: cooldown_gate
+    # Abilities with a target-range aim at the nearest player in range.
+    - builtin: resolve_target
+    # Broadcasts the ability's `announce:` text. params: radius (default: config.yml
+    # mobs.boss.announce-radius, else 40)
+    - builtin: announce
+    # `interrupt` from a stage here cancels just this firing (e.g. a "silence" debuff) — the
+    # cooldown stays spent.
+    - anchor: pre_ability
+    # Runs the ability's mechanics with the boss as caster. Required.
+    - builtin: run_mechanics
+    - anchor: post_ability
+
+  # A custom mob died.
+  # Variables: $mob.id$, $mob.level$, $mob.has_killer$, $mob.luck$, $mob.xp$, $mob.gold$ — plus
+  # $player.*$ (the killer) and $target.*$ (the mob).
+  # Writable with `pipeline_set <key> <value>`: mob.xp, mob.gold, mob.luck (before the step that uses them).
+  death:
+    # Fires the boss's ON_DEATH abilities and removes its boss bar.
+    - builtin: boss_on_death
+    # The killer's loot luck. params: stats (list of stat ids to add up; default: the luck stat + pet_luck)
+    - builtin: resolve_luck
+    # Skill XP for the killer (the mob's xp-reward). params: skill (default: config.yml
+    # mobs.combat-skill-id, else combat)
+    - builtin: grant_skill_xp
+    # Coins for the killer (the mob's gold-reward).
+    - builtin: grant_gold
+    # Rolls the mob's loot table (luck raises luck-affected chances).
+    - builtin: roll_loot
+    # Runs combat_pipeline.yml's `when: on_death` stages — only when a player got the kill.
+    - anchor: combat:on_death
+      conditions:
+        - "$mob.has_killer$ == true"
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:`
+# (pre_ability, post_ability). Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
 #   - id: block_enrage_below_10_percent
@@ -31,6 +66,5 @@
 #       - "$mob.health_percent$ <= 10"
 #     on-pass:
 #       - "interrupt"
-#     on-fail: []
 
 stages: []

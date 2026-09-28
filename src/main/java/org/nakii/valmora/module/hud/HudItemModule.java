@@ -14,12 +14,13 @@ import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
+import org.nakii.valmora.util.CustomModelData;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
 
+
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class HudItemModule implements ReloadableModule {
@@ -144,7 +145,7 @@ public class HudItemModule implements ReloadableModule {
                     meta.lore(Formatter.formatList(itemSec.getStringList("lore")));
                 }
                 if (itemSec.getInt("custom-model-data", 0) > 0) {
-                    meta.setCustomModelData(itemSec.getInt("custom-model-data"));
+                    CustomModelData.set(meta, itemSec.getInt("custom-model-data"));
                 }
                 if (glow) {
                     meta.addEnchant(Enchantment.UNBREAKING, 1, true);

@@ -7,7 +7,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.profile.PlayerManager;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 import org.nakii.valmora.util.Formatter;
