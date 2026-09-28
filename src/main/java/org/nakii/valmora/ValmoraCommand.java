@@ -248,7 +248,7 @@ public class ValmoraCommand implements TabExecutor {
                     return;
                 }
                 var report = org.nakii.valmora.module.pack.validate.PackValidator.validateManifest(
-                        manifestResult.getValue(), plugin.getDescription().getVersion(),
+                        manifestResult.getValue(), plugin.getPluginMeta().getVersion(),
                         name -> plugin.getServer().getPluginManager().getPlugin(name) != null);
                 sendValidationReport(sender, report, "Inspection of '" + manifestResult.getValue().id() + "'");
             }
@@ -343,8 +343,14 @@ public class ValmoraCommand implements TabExecutor {
             return;
         }
 
+        if (args.length >= 2 && args[1].equalsIgnoreCase("flows")) {
+            handlePipelineFlows(sender, args.length >= 3 ? args[2] : null);
+            return;
+        }
+
         if (args.length < 2 || !args[1].equalsIgnoreCase("list")) {
             sender.sendMessage(Formatter.format("<yellow>/valmora pipeline list <gray>[point] <gray>- Inspect registered pipeline stages"));
+            sender.sendMessage(Formatter.format("<yellow>/valmora pipeline flows <gray>[domain] <gray>- Show the loaded *_pipeline.yml flows, step by step"));
             return;
         }
 
@@ -375,6 +381,52 @@ public class ValmoraCommand implements TabExecutor {
         sender.sendMessage(Formatter.format("<gold>--- " + point + " (runs in this order) ---"));
         for (String id : javaIds) sender.sendMessage(Formatter.format("  <aqua>[java] <white>" + id));
         for (String id : yamlIds) sender.sendMessage(Formatter.format("  <light_purple>[yaml] <white>" + id));
+    }
+
+    /**
+     * {@code /valmora pipeline flows [domain]} — the flows each {@code *_pipeline.yml} file compiled
+     * to (docs/PIPELINE_FLOWS_PLAN.md): step order, kind, conditions, and whether the flow came
+     * from the file or the built-in default.
+     */
+    private void handlePipelineFlows(CommandSender sender, String domainId) {
+        var registry = plugin.getScriptModule() != null ? plugin.getScriptModule().getFlowRegistry() : null;
+        if (registry == null || registry.all().isEmpty()) {
+            sender.sendMessage(Formatter.format("<gray>No pipeline flows are loaded."));
+            return;
+        }
+        if (domainId == null) {
+            sender.sendMessage(Formatter.format("<gold>--- Pipeline flows ---"));
+            for (var domain : registry.all()) {
+                StringBuilder line = new StringBuilder("<yellow>" + domain.id() + " <gray>(" + domain.fileName() + "): ");
+                for (var spec : domain.flows()) {
+                    var flow = spec.current();
+                    line.append("<white>").append(spec.id()).append(flow == null ? " <red>[not loaded]" : " <dark_gray>[" + flow.source() + ", "
+                            + flow.steps().size() + " steps]").append(" ");
+                }
+                sender.sendMessage(Formatter.format(line.toString().trim()));
+            }
+            sender.sendMessage(Formatter.format("<gray>Use <yellow>/valmora pipeline flows <domain> <gray>for the steps."));
+            return;
+        }
+        var domain = registry.get(domainId).orElse(null);
+        if (domain == null) {
+            sender.sendMessage(Formatter.format("<red>Unknown pipeline domain '" + domainId + "'."));
+            return;
+        }
+        for (var spec : domain.flows()) {
+            var flow = spec.current();
+            if (flow == null) {
+                sender.sendMessage(Formatter.format("<gold>" + spec.key() + " <red>— not loaded (vanilla behaviour applies)"));
+                continue;
+            }
+            sender.sendMessage(Formatter.format("<gold>--- " + spec.key() + " <gray>(" + flow.source() + ") ---"));
+            int i = 1;
+            for (var step : flow.steps()) {
+                String color = step.kind().startsWith("anchor:") ? "<aqua>" : step.kind().equals("script") ? "<light_purple>" : "<white>";
+                sender.sendMessage(Formatter.format("  <gray>" + i++ + ". " + color + step.id() + " <dark_gray>" + step.kind()
+                        + (step.hasConditions() ? " <yellow>[conditions]" : "")));
+            }
+        }
     }
 
     private void handleVariableGet(CommandSender sender, String path) {
@@ -481,8 +533,16 @@ public class ValmoraCommand implements TabExecutor {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("pipeline")) {
-            return List.of("list").stream()
+            return List.of("list", "flows").stream()
                     .filter(s -> s.startsWith(args[1].toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("pipeline") && args[1].equalsIgnoreCase("flows")
+                && plugin.getScriptModule() != null) {
+            return plugin.getScriptModule().getFlowRegistry().all().stream()
+                    .map(org.nakii.valmora.api.pipeline.flow.FlowDomain::id)
+                    .filter(s -> s.startsWith(args[2].toLowerCase()))
                     .collect(Collectors.toList());
         }
 

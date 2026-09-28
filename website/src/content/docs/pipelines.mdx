@@ -1,6 +1,6 @@
 ---
 title: Pipelines
-summary: Server-wide rules that react to — or cancel — hits, deaths, item and boss abilities, mining and fishing, written as YAML stages.
+summary: The step-by-step logic of hits, deaths, item and boss abilities, mining and fishing, written out in YAML you can reorder, tune, disable and extend.
 ---
 
 A **pipeline** lets you add a rule that applies everywhere, without editing every item or mob:
@@ -8,9 +8,79 @@ A **pipeline** lets you add a rule that applies everywhere, without editing ever
 has a rare bonus drop", "bosses switch attacks at half health". Each rule is a **stage**: some
 conditions, and events to run when they pass.
 
-A server that never touches its pipeline files runs exactly as if pipelines didn't exist.
+Each pipeline file also holds that system's **flows**: the full list of steps Valmora runs, in
+order. The shipped files reproduce the built-in behaviour exactly, so you only edit what you want
+to change.
 
-## Files and points
+## Flows
+
+A flow is a list of steps. Here is the shipped fishing `catch` flow:
+
+```yaml
+# plugins/Valmora/fishing_pipeline.yml
+version: 2
+flows:
+  catch:
+    - builtin: resolve_table
+      params:
+        fallback-table: default
+    - anchor: pre_catch
+    - builtin: roll_sea_creature
+    - builtin: spawn_sea_creature
+      params:
+        at: hook
+    - builtin: roll_loot
+    - builtin: give_catch
+      params:
+        overflow: discard
+    - anchor: post_catch
+```
+
+A step is one of:
+
+| Step | Meaning |
+|---|---|
+| `builtin: <name>` | A step Valmora provides, such as `roll_loot` or `apply_damage`. Each file's comments list its built-ins and their `params:`. |
+| `anchor: <point>` | Runs the `stages:` whose `when:` is this point (see below), plus addon plugins' hooks. |
+| `id:` + `on-pass:` | A script step: `conditions`, `on-pass`, `on-fail`, like a stage but run right here. `interrupt` stops the flow. |
+
+Every step also takes:
+
+| Key | Meaning |
+|---|---|
+| `id` | A name, unique in the flow. Built-ins and anchors default to their own name. |
+| `enabled: false` | Skip the step and keep it in the file. |
+| `conditions` | Skip the step when a condition is false. The flow carries on. |
+
+What you can do with that:
+
+- **Tune** a step through its `params:`, such as the ability "not enough mana" message, the
+  environment damage multiplier or a boss's announce radius. When a param isn't set, the older
+  `config.yml` setting still applies.
+- **Turn off** a step, such as mob-kill gold (`grant_gold`) or Silk Touch handling (`silk_touch`).
+- **Reorder** steps, for example shield blocking before attack-cooldown scaling.
+- **Insert** a script step anywhere. `pipeline_set` changes the value the next steps use:
+
+  ```yaml
+  # half-price abilities in the hub, before mana_gate
+  - id: hub_discount
+    conditions:
+      - "zone hub"
+    on-pass:
+      - "pipeline_set item.mana_cost $item.mana_cost$ * 0.5"
+  ```
+
+Some steps are required, such as `apply_damage` after vanilla damage was zeroed. A flow that removes
+or disables one, names an unknown step, or repeats a step `id` is rejected with an error in
+`/valmora report`. Valmora then keeps the previous version of that flow (or the built-in default, on
+first load), so a typo can't break combat. A flow missing from the file, or a deleted file, uses the
+built-in default.
+
+Upgrading from a version without flows: an unedited pipeline file is replaced with the new one
+automatically. If you edited it, yours is kept, its flows use the built-in defaults, its `stages:`
+keep working, and the new file is saved next to it as `<file>.new`.
+
+## Stages and points
 
 Each file hooks one system. A stage says **when** it runs with one of that file's points:
 
@@ -20,7 +90,9 @@ Each file hooks one system. A stage says **when** it runs with one of that file'
 | | `post_calculation` | damage is known, health not yet reduced | the hit doesn't land |
 | | `post_application` | health reduced, damage number shown | no effect |
 | | `on_dmg_dealt` | after `ON_HIT` abilities and boss triggers | no effect |
-| | `on_death` | a custom mob was killed by a player | no effect |
+| | `on_death` | a custom mob was killed by a player (runs in `mob_pipeline.yml`'s `death` flow) | no effect |
+| | `pre_environment_damage` | fall/fire/drowning/... damage, before it's calculated | cancels it |
+| | `post_environment_damage` | after that damage landed | no effect |
 | `item_pipeline.yml` | `pre_ability` | an item ability passed its cooldown/mana check | cancels that use (cooldown and mana stay spent) |
 | | `post_ability` | after its mechanics ran | no effect |
 | `mob_pipeline.yml` | `pre_ability` | a boss ability is about to fire | cancels that firing |
@@ -58,8 +130,10 @@ stages:
 | `on-pass` | no | Events to run. `interrupt` here stops the stages after it and, at an interruptible point, cancels the action. |
 | `on-fail` | no | Events to run when a condition is false. |
 
-Addon plugins' Java hooks run first, then stages in the order they appear in the file. A mistake (missing `id`/`when`, or an unknown
-point) skips that stage with a `[PipelineYamlLoader]` warning in the console.
+Stages run where their point's `anchor:` sits in the flow. Addon plugins' Java hooks run first,
+then stages in the order they appear in the file. A mistake (missing `id`/`when`, or an unknown
+point) skips that stage and is listed by `/valmora report`. A stage whose point's anchor you
+removed from the flow never runs, and the load report warns about it.
 
 ## What each point knows
 
@@ -75,7 +149,9 @@ variables:
 | `mob:pre_ability`, `post_ability` | `$mob.id$`, `$mob.level$`, `$mob.health$`, `$mob.max_health$`, `$mob.health_percent$`, `$mob.ability_id$`, `$mob.ability_trigger$` — the **boss**, not its target |
 | `resource:pre_break`, `post_break` | `$resource.material$`, `$resource.stage$` |
 | `fishing:pre_catch` | `$fishing.table$`, `$fishing.sea_creature$` |
-| `fishing:post_catch` | as above, plus `$fishing.item$`, `$fishing.amount$` |
+| `fishing:post_catch` | as above, plus `$fishing.item$`, `$fishing.amount$`, `$fishing.caught$` |
+| `player:on_death` | `$death.keep_inventory$`, `$death.keep_experience$`, `$death.zone$` |
+| `player:on_respawn` | `$death.is_bed_spawn$`, `$death.is_anchor_spawn$` |
 
 <Callout type="warning">
 In `mob_pipeline.yml` the one running the stage is the boss, so `notify`, `give` and other
@@ -168,10 +244,13 @@ Boss phases with `mob_pipeline.yml` are walked through in
 ## Checking what's loaded
 
 ```text
+/valmora pipeline flows
+/valmora pipeline flows combat
 /valmora pipeline list
 /valmora pipeline list combat:pre_damage
 ```
 
-lists every stage (and Java hook from addon plugins), optionally for one point.
+`flows` shows each flow's steps in order, and whether it came from your file or the built-in
+default. `list` shows every stage (and addon plugins' Java hooks), optionally for one point.
 
 <SeeAlso slugs={["scripting", "combat", "developer-hookbus", "tutorial-boss-fight"]} />

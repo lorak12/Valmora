@@ -4,7 +4,6 @@ import org.bukkit.event.HandlerList;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 import org.nakii.valmora.api.registry.SimpleRegistry;
-import org.nakii.valmora.module.npc.dialogue.DialogueDefinition;
 import org.nakii.valmora.module.npc.dialogue.DialogueManager;
 import org.nakii.valmora.module.npc.dialogue.intercept.ConversationPacketManager;
 import org.nakii.valmora.module.npc.event.DialogueEventFactory;

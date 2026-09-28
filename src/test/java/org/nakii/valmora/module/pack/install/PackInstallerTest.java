@@ -3,7 +3,6 @@ package org.nakii.valmora.module.pack.install;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.nakii.valmora.module.pack.PackFileIndex;
-import org.nakii.valmora.module.pack.PackRecord;
 import org.nakii.valmora.module.pack.manifest.PackDependency;
 import org.nakii.valmora.module.pack.manifest.PackManifest;
 

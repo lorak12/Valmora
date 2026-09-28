@@ -16,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Generic PDC-backed component store for active modifier instances (docs/
  * Valmora_Modifier_Framework_Design.docx §3 core model: "modifiers:&lt;group_id&gt;" components).
- * One {@link NamespacedKey} per group, holding a {@code TAG_CONTAINER_ARRAY} — one nested container
+ * One {@link NamespacedKey} per group, holding a {@code LIST.dataContainers()} (same NBT shape as the
+ * deprecated {@code TAG_CONTAINER_ARRAY} it replaced) — one nested container
  * per {@link ModifierInstance}, so {@code StorageMode.INSTANCES} groups (e.g. gemstones) keep each
  * application's tier/state independent, while {@code STACKED}/{@code SINGLE} groups simply store a
  * single-element or single-entry-per-id array.
@@ -49,9 +50,9 @@ public class ModifierComponentStore {
         if (meta == null) return result;
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         NamespacedKey key = keyFor(groupId);
-        if (!pdc.has(key, PersistentDataType.TAG_CONTAINER_ARRAY)) return result;
+        if (!pdc.has(key, PersistentDataType.LIST.dataContainers())) return result;
 
-        PersistentDataContainer[] entries = pdc.get(key, PersistentDataType.TAG_CONTAINER_ARRAY);
+        List<PersistentDataContainer> entries = pdc.get(key, PersistentDataType.LIST.dataContainers());
         if (entries == null) return result;
 
         for (PersistentDataContainer entry : entries) {
@@ -111,7 +112,7 @@ public class ModifierComponentStore {
             }
             entries[i] = entry;
         }
-        pdc.set(key, PersistentDataType.TAG_CONTAINER_ARRAY, entries);
+        pdc.set(key, PersistentDataType.LIST.dataContainers(), List.of(entries));
     }
 
     public void clear(ItemMeta meta, String groupId) {

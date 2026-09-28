@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id("xyz.jpenilla.run-paper") version "2.3.1"
+    id("xyz.jpenilla.run-paper") version "3.1.0"
     id("com.gradleup.shadow") version "9.3.0"
 }
 
@@ -24,17 +24,33 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.+")
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.xerial:sqlite-jdbc:3.46.0.0")
     implementation("com.mysql:mysql-connector-j:8.3.0")
     implementation("com.google.code.gson:gson:2.10.1")
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.0")
-    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // Tests run against the 26.2 API on purpose: MockBukkit has no v26.2 artifact yet, and its
+    // bundled registry data must match the API version (26.2 data + 26.2 API fails with "Null JSON
+    // element while retrieving `minecraft:decorated_pot_pattern`"). Bump both together once a
+    // mockbukkit-v26.2 is published.
+    testImplementation("io.papermc.paper:paper-api:26.2.build.+")
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
-    testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
-    testImplementation('org.mockbukkit.mockbukkit:mockbukkit-v1.21:4.110.0')
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.24.0'
+    testImplementation('org.mockbukkit.mockbukkit:mockbukkit-v26.2:4.116.1')
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(Test).configureEach {
+    // Java 22+ (JEP 472) warns — and a future release will refuse — when a library in the unnamed
+    // module loads native code without this; sqlite-jdbc does so via System.load.
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    // Byte Buddy (under Mockito/MockBukkit) still uses sun.misc.Unsafe memory access, which JDK 24+
+    // (JEP 498) warns about on first use.
+    jvmArgs '--sun-misc-unsafe-memory-access=allow'
+    // Mockito's inline mock maker appends to the bootstrap class path, which disables class data
+    // sharing for app classes and makes the JVM print a notice per test fork; turn CDS off up front.
+    jvmArgs '-Xshare:off'
 }
 
 test {
@@ -97,7 +113,7 @@ tasks.register('syncResources') {
 
 tasks {
     runServer {
-        minecraftVersion("1.21.11")
+        minecraftVersion("26.2")
         dependsOn('syncResources')
     }
     shadowJar {
@@ -116,23 +132,26 @@ tasks {
     }
 }
 
-def targetJavaVersion = 21
+def targetJavaVersion = 25
 java {
-    // Always build against a Java 21 toolchain so the output class files are
-    // major version 65, regardless of the JDK running Gradle. Paper 1.21.x's
-    // plugin remapper (ASM) cannot read newer class file versions.
+    // Always build against a Java 25 toolchain (class file major version 69), regardless of the
+    // JDK running Gradle — Paper 26.x requires Java 25, and its plugin remapper (ASM) cannot read
+    // class files newer than the Java version it was built for.
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release.set(targetJavaVersion)
+    // Surface deprecation/unchecked warnings instead of javac's one-line "Note:" summary.
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked', '-Xlint:rawtypes', '-Xlint:removal']
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked', '-Xlint:rawtypes', '-Xlint:removal']
 }
 
 processResources {
     def props = [version: version]
     inputs.properties props
-    filteringCharset 'UTF-8'
+    filteringCharset = 'UTF-8'
     filesMatching('plugin.yml') {
         expand props
     }

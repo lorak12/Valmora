@@ -82,7 +82,7 @@
 | HC-043 | **DO** | Weapon damage per tier — same block. |
 | HC-044 | **DO** | Bow/crossbow/armor numbers — same block; all five (040-044) are one coherent `items.vanilla-stats` + `items.breaking-power` + `items.vanilla-rarity-mapping` config addition in `ItemFactory`/`ItemTranslator`. |
 | HC-045 | BACKLOG | Rarity colors: real "data-driven rarity" work belongs with HC-284 (`Rarity.java` enum deprecation) as one project, not a quick key add — tracked there instead of duplicated here. |
-| HC-046 | BACKLOG | Ability messages — genuine localization need eventually, but no current non-English server; bundle into a future i18n pass across all modules at once rather than piecemeal. |
+| HC-046 | **DONE** (2026-09) | Ability messages are now `params: message` of `item_pipeline.yml`'s `resolve_target`/`cooldown_gate`/`mana_gate` steps (`%remaining%` placeholder) — see docs/PIPELINE_FLOWS_PLAN.md. Duration/priority (10 ticks, 2) still fixed. |
 | HC-047 | BACKLOG | AoE default radii are content-author choices per-ability already (params can override); global defaults are low value. |
 | HC-048 | **CODE-FIX** | Should use `Tag.ITEMS_ARROWS` instead of an enum literal list — this is a one-line correctness/future-proofing fix (spectral/tipped arrow variants added by data packs would otherwise be missed), do it regardless of config. |
 | HC-049 | BACKLOG | Loot-full title/timings — presentation polish, part of the same future i18n/visual pass as HC-046. |

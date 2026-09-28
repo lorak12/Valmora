@@ -7,6 +7,19 @@ All notable changes to Valmora are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Pipeline flows.** The six `*_pipeline.yml` files now ship with the full default logic of their
+  system written out as ordered steps (`flows:`), instead of an empty `stages:` list: combat hits and
+  environment damage, player death/respawn, fishing catches and bite cues, resource mining and its
+  cues, item ability casting, boss ability casting and custom mob death rewards. Steps can be
+  reordered, disabled (`enabled: false`), gated (`conditions:`), tuned (`params:` — e.g. ability
+  messages, environment damage multiplier, boss announce radius, mob-kill skill id) or replaced and
+  extended with script steps. New `pipeline_set <key> <value>` event changes values mid-flow
+  (`dmg.final_damage`, `item.mana_cost`, `mob.gold`, `fishing.amount`, `death.keep_inventory`, ...).
+  Existing `stages:` keep working (they run at the matching `anchor:`), `config.yml` settings still
+  apply when a param isn't set, and a broken flow keeps its last good version (or the built-in
+  default). New `/valmora pipeline flows [domain]`, `$death.*$` variables, and
+  `combat:pre_environment_damage`/`post_environment_damage` points. Design:
+  `docs/PIPELINE_FLOWS_PLAN.md`, `docs/modules/design/pipeline.md` §8.
 - **Content diagnostics.** Every content problem is now a structured diagnostic (severity, file,
   entry, key path, message, "did you mean" hint) collected into one load report:
   - one summary line per content type on every load (`[Mobs] 57 loaded from 4 files in 21 ms — 1 error,
@@ -61,6 +74,9 @@ All notable changes to Valmora are documented here. The format is based on
   `xp_curves.yml` as a skill.
 
 ### Fixed
+- Fishing rolled the catch amount twice: the amount given and `$fishing.amount$` could differ.
+- An `interrupt` at one combat pipeline point stayed set for the rest of the hit and could stop
+  stages at later points.
 - `npc_conversations` in `npcs/` was reported as a load error named "skip".
 - Registering the same script event twice now warns (the double `notify` registration is explicit).
 - `/valmora validate` had no permission check.

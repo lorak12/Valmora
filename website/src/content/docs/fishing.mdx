@@ -12,9 +12,11 @@ XP — [skill](/docs/skills) XP comes only from vanilla fish ids.
 
 - `plugins/Valmora/fishing/*.yml` — each top-level key is a table; the shipped
   `hub_fishing.yml` defines `hub_fishing`.
-- `plugins/Valmora/fishing_pipeline.yml` — optional `pre_catch` / `post_catch` hooks with
-  `$fishing.table$`, `$fishing.item$` / `$fishing.amount$`, `$fishing.sea_creature$`.
-  See [Pipelines](/docs/pipelines).
+- `plugins/Valmora/fishing_pipeline.yml` — the catch itself, step by step (`catch` flow: table,
+  sea-creature roll, loot roll, giving the item — e.g. `overflow: drop` for full inventories, or a
+  `chance:` expression for the sea-creature roll), the bite sound/particles (`bite` flow), and
+  `pre_catch` / `post_catch` stages with `$fishing.table$`, `$fishing.item$` / `$fishing.amount$`,
+  `$fishing.sea_creature$`. See [Pipelines](/docs/pipelines).
 
 ## A complete table
 

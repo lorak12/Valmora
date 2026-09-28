@@ -1,9 +1,11 @@
 package org.nakii.valmora.module.ui;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Score;
@@ -35,11 +37,11 @@ public class ScoreboardUI {
         // that reliably renders invisible in the sidebar, so this can't be replaced with a plain
         // unique string (e.g. "line_0") without the raw entry text becoming visible. This used to
         // build that code with a raw "§" literal, violating CLAUDE.md §7.5's "never use ChatColor
-        // or § codes" rule; it now goes through org.bukkit.ChatColor's own (non-deprecated)
-        // COLOR_CHAR constant instead of a magic-character literal in this file.
-        org.bukkit.ChatColor[] codes = org.bukkit.ChatColor.values();
+        // or § codes" rule; it now goes through Adventure's LegacyComponentSerializer.SECTION_CHAR
+        // constant (org.bukkit.ChatColor is deprecated) instead of a magic-character literal in this
+        // file. Codes 0-f, one per line.
         for (int i = 0; i < MAX_LINES; i++) {
-            LINE_ENTRIES[i] = org.bukkit.ChatColor.COLOR_CHAR + String.valueOf(codes[i].getChar());
+            LINE_ENTRIES[i] = LegacyComponentSerializer.SECTION_CHAR + Integer.toHexString(i);
         }
     }
 
@@ -113,7 +115,7 @@ public class ScoreboardUI {
 
         Scoreboard board = playerBoards.computeIfAbsent(uuid, k -> {
             Scoreboard b = Bukkit.getScoreboardManager().getNewScoreboard();
-            Objective obj = b.registerNewObjective("valmora_hud", "dummy", "unused");
+            Objective obj = b.registerNewObjective("valmora_hud", Criteria.DUMMY, Component.text("unused"));
             obj.setDisplaySlot(DisplaySlot.SIDEBAR);
             playerObjectives.put(uuid, obj);
 

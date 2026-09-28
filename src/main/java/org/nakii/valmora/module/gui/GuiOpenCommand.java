@@ -12,6 +12,8 @@ import java.util.List;
 
 public class GuiOpenCommand extends Command {
 
+    private static final String NO_PERMISSION = "<red>You don't have permission to use this command.";
+
     private final GuiModule guiModule;
     private final String guiId;
 
@@ -21,7 +23,6 @@ public class GuiOpenCommand extends Command {
         this.guiModule = guiModule;
         if (permission != null) {
             setPermission(permission);
-            setPermissionMessage("<red>You don't have permission to use this command.");
         }
     }
 
@@ -37,7 +38,7 @@ public class GuiOpenCommand extends Command {
             return true;
         }
         if (getPermission() != null && !player.hasPermission(getPermission())) {
-            player.sendMessage(Formatter.format(getPermissionMessage()));
+            player.sendMessage(Formatter.format(NO_PERMISSION));
             return true;
         }
         guiModule.openGui(player, guiId);

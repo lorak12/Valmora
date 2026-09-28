@@ -13,8 +13,8 @@ import org.nakii.valmora.module.recipe.RecipeDefinition;
 import org.nakii.valmora.module.recipe.RecipeEngine;
 import org.nakii.valmora.module.recipe.RecipeIngredient;
 import org.nakii.valmora.module.recipe.RecipeOutput;
+import org.nakii.valmora.util.CustomModelData;
 import org.nakii.valmora.util.Formatter;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -392,7 +392,7 @@ public class GuiRenderer {
             meta.lore(Formatter.formatList(lore));
 
             if (def.customModelData() != null) {
-                meta.setCustomModelData(def.customModelData());
+                CustomModelData.set(meta, def.customModelData());
             }
             item.setItemMeta(meta);
         }

@@ -18,7 +18,6 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.registry.Registry;
 import org.nakii.valmora.api.registry.SimpleRegistry;
-import org.nakii.valmora.api.scripting.Condition;
 import org.nakii.valmora.module.npc.dialogue.intercept.ConversationPacketManager;
 import org.nakii.valmora.util.Formatter;
 

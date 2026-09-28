@@ -1,27 +1,18 @@
 package org.nakii.valmora.module.fishing;
 
 import org.nakii.valmora.Valmora;
+import org.nakii.valmora.module.fishing.flow.FishingFlows;
 import org.nakii.valmora.module.script.ScriptModule;
-import org.nakii.valmora.module.script.pipeline.PipelineYamlLoader;
-
-import java.util.List;
+import org.nakii.valmora.module.script.pipeline.FlowYamlLoader;
 
 /**
- * Loads {@code fishing_pipeline.yml} onto the shared {@link org.nakii.valmora.api.pipeline.HookBus}
- * under the {@code "fishing:<when>"} insertion points: {@code pre_catch} (before the sea-creature
- * roll / loot table roll — an {@code interrupt} here cancels the catch, granting nothing) and
- * {@code post_catch} (after the reward is resolved).
- *
- * <p>Fishing is a low-frequency event (one {@code PlayerFishEvent.State.CAUGHT_FISH} per
- * successful bite, not per tick), so unlike block-breaking or combat there's no meaningful
- * hot-path risk here — see docs/COMBAT_PIPELINE_ANALYSIS.md's per-domain frequency discussion.
+ * Loads {@code fishing_pipeline.yml}'s flows ({@link FishingFlows}: {@code catch}, {@code bite})
+ * and its legacy {@code stages:} (run at the {@code pre_catch}/{@code post_catch} anchors). See
+ * {@link FlowYamlLoader} for the format and fallback rules.
  */
 public class FishingPipelineLoader {
 
-    static final String POINT_PREFIX = "fishing:";
-    static final String PRE_CATCH = POINT_PREFIX + "pre_catch";
-    static final String POST_CATCH = POINT_PREFIX + "post_catch";
-    private static final List<String> VALID_POINTS = List.of("pre_catch", "post_catch");
+    static final String POINT_PREFIX = FishingFlows.POINT_PREFIX;
 
     private final Valmora plugin;
     private final ScriptModule scriptModule;
@@ -32,6 +23,6 @@ public class FishingPipelineLoader {
     }
 
     public void load() {
-        PipelineYamlLoader.loadFile(plugin, scriptModule, "fishing_pipeline.yml", POINT_PREFIX, VALID_POINTS);
+        FlowYamlLoader.load(plugin, scriptModule, FishingFlows.DOMAIN);
     }
 }

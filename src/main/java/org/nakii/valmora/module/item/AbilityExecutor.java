@@ -8,11 +8,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
-import org.nakii.valmora.api.pipeline.HookBus;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.profile.PlayerState;
 import org.nakii.valmora.module.profile.ValmoraProfile;
-import org.nakii.valmora.util.DebugManager;
 import org.nakii.valmora.util.Keys;
 
 /**
@@ -115,89 +113,13 @@ public final class AbilityExecutor {
         return session != null ? session.getActiveProfile() : null;
     }
 
+    /**
+     * Fires one ability through {@code item_pipeline.yml}'s {@code cast} flow ({@link AbilityFlows#CAST}):
+     * target, conditions, cooldown/mana gating, the {@code item:pre_ability}/{@code post_ability}
+     * anchors, and the mechanics.
+     */
     private static void fireOne(Player player, ValmoraProfile profile, PlayerState state,
                                  AbilityDefinition ability, AbilityTrigger trigger, LivingEntity target, boolean silent) {
-        ValmoraAPI api = ValmoraAPI.getInstance();
-
-        LivingEntity resolvedTarget = target;
-        if (resolvedTarget == null && ability.getTargetRange() > 0) {
-            // instanceof, not a cast: aiming at an item frame, boat or painting used to throw.
-            resolvedTarget = player.getTargetEntity((int) ability.getTargetRange(), false) instanceof LivingEntity living
-                    ? living : null;
-            if (resolvedTarget == null) {
-                if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<red>No target in range!", 10, 2);
-                return;
-            }
-        }
-
-        ExecutionContext context = new SimpleExecutionContext(player, resolvedTarget,
-                player.getLocation(), new MemoryConfiguration());
-
-        if (!conditionsPass(ability, context)) {
-            DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
-                    + ") REJECTED by conditions for player=" + player.getName());
-            return;
-        }
-
-        if (profile.getCooldownManager().isOnCooldown(ability.getId())) {
-            if (!silent) {
-                double remaining = profile.getCooldownManager().getRemainingCooldown(ability.getId());
-                api.getUIManager().getActionBar().showTemporary(player, "<red>Ability on cooldown: " + remaining + "s", 10, 2);
-            }
-            DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
-                    + ") REJECTED — on cooldown for player=" + player.getName());
-            return;
-        }
-
-        if (ability.getManaCost() > 0) {
-            if (state.getCurrentMana() < ability.getManaCost()) {
-                if (!silent) api.getUIManager().getActionBar().showTemporary(player, "<aqua>Not enough Mana!", 10, 2);
-                DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
-                        + ") REJECTED — not enough mana (have=" + state.getCurrentMana()
-                        + " need=" + ability.getManaCost() + ") for player=" + player.getName());
-                return;
-            }
-            state.reduceMana(ability.getManaCost());
-        }
-
-        if (ability.getCooldown() > 0) {
-            profile.getCooldownManager().setCooldown(ability.getId(), ability.getCooldown());
-        }
-
-        // Item ability pipeline hooks — see docs/VALMORA_DOCUMENTATION.md §39. Supplementary to
-        // the native cooldown/mana gating above (unchanged): a stage/addon can veto this
-        // specific ability firing (`interrupt` on item:pre_ability, e.g. "no abilities in this
-        // zone") or react after it resolves (item:post_ability). Zero-cost when nothing is
-        // registered at either point, same as every other domain.
-        HookBus bus = api.getHookBus();
-        boolean pipelineActive = bus != null && bus.hasAnyStages("item:pre_ability", "item:post_ability");
-        if (pipelineActive) {
-            context.set("item:ability_id", ability.getId());
-            context.set("item:ability_trigger", trigger.name());
-            if (!bus.runPoint("item:pre_ability", context)) {
-                DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger
-                        + ") INTERRUPTED at item:pre_ability for player=" + player.getName());
-                return; // cooldown/mana already consumed above — the attempt happened, effects didn't
-            }
-        }
-
-        DebugManager.log("abilities", "ability '" + ability.getId() + "' (trigger=" + trigger + ") FIRING for player="
-                + player.getName() + " target=" + (resolvedTarget != null ? resolvedTarget.getName() : "none")
-                + " mechanics=" + ability.getMechanics().size());
-
-        for (ConfiguredMechanic mechanic : ability.getMechanics()) {
-            mechanic.execute(player, resolvedTarget);
-        }
-
-        if (pipelineActive) {
-            bus.runPoint("item:post_ability", context);
-        }
-    }
-
-    private static boolean conditionsPass(AbilityDefinition ability, ExecutionContext context) {
-        // Phase 5 (docs/REFACTOR/PROGRESS.md Task 20): conditions are pre-compiled once at item
-        // load time (see AbilityDefinition/ItemDefinitionParser) — evaluating an already-built
-        // ConditionGroup here, not re-parsing raw strings on every ON_HIT/etc. trigger.
-        return ability.getConditions() == null || ability.getConditions().evaluate(context);
+        AbilityFlows.cast(player, profile, ability, trigger, target, silent);
     }
 }

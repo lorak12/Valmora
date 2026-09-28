@@ -44,7 +44,7 @@ class PackBackupManagerTest {
         PackBackupManager manager = new PackBackupManager(dataFolder.toFile());
         assertTrue(manager.mostRecentSnapshot("frostspire").isEmpty());
 
-        File first = manager.snapshot("frostspire", List.of(rarities));
+        manager.snapshot("frostspire", List.of(rarities));
         Thread.sleep(5);
         File second = manager.snapshot("frostspire", List.of(rarities));
 

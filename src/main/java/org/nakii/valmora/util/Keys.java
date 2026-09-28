@@ -11,7 +11,7 @@ public class Keys {
     public static NamespacedKey MOB_ID_KEY;
     public static NamespacedKey ENCHANTS_CONTAINER_KEY;
     /** Structured successor to {@link #ENCHANTS_CONTAINER_KEY}'s flat CSV string — one
-     *  TAG_CONTAINER_ARRAY entry per enchant instance (id/level/optional nested state container).
+     *  LIST.dataContainers() entry per enchant instance (id/level/optional nested state container).
      *  See {@code module.enchant.EnchantStateStore} for the read (legacy-CSV-fallback) and write
      *  (migrate-on-save) logic. */
     public static NamespacedKey ENCHANTS_STATE_CONTAINER_KEY;

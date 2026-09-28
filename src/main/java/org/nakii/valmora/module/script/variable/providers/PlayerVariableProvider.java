@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.module.profile.ValmoraPlayer;

@@ -2,7 +2,7 @@ package org.nakii.valmora.module.pack;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import org.bukkit.plugin.PluginDescriptionFile;
+import io.papermc.paper.plugin.configuration.PluginMeta;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -67,9 +67,9 @@ class PackManagerTest {
         when(plugin.getDataFolder()).thenReturn(dataFolder.toFile());
         when(plugin.getLogger()).thenReturn(LOGGER);
         when(plugin.getModuleManager()).thenReturn(moduleManager);
-        PluginDescriptionFile description = mock(PluginDescriptionFile.class);
+        PluginMeta description = mock(PluginMeta.class);
         when(description.getVersion()).thenReturn("1.0.0");
-        when(plugin.getDescription()).thenReturn(description);
+        when(plugin.getPluginMeta()).thenReturn(description);
         return plugin;
     }
 

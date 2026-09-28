@@ -61,7 +61,9 @@ public final class LoadScope implements AutoCloseable {
 
     /** Opens a scope reporting into {@code sink}. Close it (try-with-resources) when the entry is done. */
     public static LoadScope enter(String category, String file, String entryId, DiagnosticSink sink) {
-        return new LoadScope(category, file, entryId, null, sink, new Counters()).push();
+        LoadScope scope = new LoadScope(category, file, entryId, null, sink, new Counters());
+        scope.push();
+        return scope;
     }
 
     public static Optional<LoadScope> current() {

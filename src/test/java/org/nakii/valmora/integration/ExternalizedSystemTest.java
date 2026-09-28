@@ -38,8 +38,8 @@ import static org.mockito.Mockito.*;
  */
 public class ExternalizedSystemTest {
 
-    private static final String FORMULA = "1 + $dmg.strength$ / 100";
-    // Deliberately variable-free and more token-heavy than FORMULA: isolates raw parse cost from
+    // Deliberately variable-free and more token-heavy than a real damage formula (e.g.
+    // "1 + $dmg.strength$ / 100"): isolates raw parse cost from
     // evaluate() cost. A variable-bearing formula's evaluate() step (going through
     // ValmoraAPI -> ScriptModule -> VariableResolver) dominates the timing either way, which
     // drowns out the parse-time difference the comparison test below is trying to measure.

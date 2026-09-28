@@ -11,7 +11,6 @@ import org.nakii.valmora.api.execution.ExecutionContext;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.script.ScriptModule;
-import org.nakii.valmora.module.script.event.EventParser;
 import org.nakii.valmora.module.script.event.impl.ForeachEventFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,8 +58,8 @@ class ForeachEventFactoryTest {
 
     @Test
     void atAll_executesInnerEventForEveryOnlinePlayer() {
-        PlayerMock p1 = server.addPlayer();
-        PlayerMock p2 = server.addPlayer();
+        server.addPlayer();
+        server.addPlayer();
 
         CompiledEvent event = factory.compile(new String[]{"@all", "give", "STONE:1"}, EventOptions.DEFAULT);
         SimpleExecutionContext outer = new SimpleExecutionContext(null, null, null);

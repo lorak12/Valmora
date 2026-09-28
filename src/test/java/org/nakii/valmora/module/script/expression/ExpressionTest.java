@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.script.expression;
 
 import org.junit.jupiter.api.Test;
-import org.nakii.valmora.api.scripting.Expression;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.api.scripting.VariableResolver;

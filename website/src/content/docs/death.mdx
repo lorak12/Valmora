@@ -42,8 +42,11 @@ Disabling `natural-mob-spawning` also blocks phantoms locally; there are no deat
 
 ## Pipelines
 
-`plugins/Valmora/death_pipeline.yml` ships empty (`stages: []`). Hook `on_death` and
-`on_respawn` with `conditions` / `on-pass` / `on-fail`:
+`plugins/Valmora/death_pipeline.yml` lists what happens on death (`death` flow: death message,
+keep-inventory decision, applying it) and respawn (`respawn` flow: zone respawn override). Between
+`resolve_keep_policy` and `apply_keep_policy` a script step can change the decision, e.g.
+`pipeline_set death.keep_inventory true` for VIPs. Stages hook `on_death` and `on_respawn` with
+`conditions` / `on-pass` / `on-fail`:
 
 ```yaml
 # plugins/Valmora/death_pipeline.yml

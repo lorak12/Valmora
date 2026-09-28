@@ -1,23 +1,97 @@
-# Combat Pipeline — optional hook points into the combat hit lifecycle.
-# See docs/COMBAT_PIPELINE_ANALYSIS.md for full design rationale and examples.
+# Combat pipeline — every step of a hit, in order: from vanilla's damage event to health, damage
+# indicator, on-hit abilities and boss triggers. Design: docs/PIPELINE_FLOWS_PLAN.md,
+# docs/modules/design/pipeline.md.
 #
-# This file is entirely optional. Leave `stages` empty (or delete this file) and combat behaves
-# exactly as if this feature didn't exist — CombatListener/MobDeathListener skip the pipeline
-# entirely when no stage is registered (HookBus#hasStages), so there is zero cost to not using it.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` below whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (unique in the flow), `enabled: false` (skip it) and `conditions:`
+# (skip the step when false; the flow carries on). `interrupt` in a script step stops the flow
+# right there. Deleting a flow (or this whole file) uses the built-in default.
+# `/valmora pipeline flows combat` shows what's loaded.
 #
-# Each stage runs at one named insertion point ("when"):
-#   pre_damage        - before DamageCalculator runs. `interrupt` here cancels the hit entirely.
-#   post_calculation  - after damage/crit/type are known, before it's applied to health.
-#                        `interrupt` here cancels application (the hit is "rolled" but doesn't land).
-#   post_application  - after health has been reduced and the indicator has spawned.
-#   on_dmg_dealt      - same timing as post_application, fires once per attacker (mirrors ON_HIT).
-#   on_death          - after MobDeathListener resolves XP/gold/loot for a custom mob's death.
+# This runs on every hit — keep conditions cheap, and prefer params over script steps.
 #
-# Available variables (in addition to the usual $player.*$, $target.*$, $prop.*$, etc. —
-# see docs/VALMORA_DOCUMENTATION.md): $dmg.final_damage$, $dmg.is_critical$, $dmg.damage_type$,
-# $dmg.is_immune$ (set from post_calculation onward).
-#
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Variables: $dmg.raw_damage$ (vanilla's damage), $dmg.damage_type$, and once calculated
+# $dmg.final_damage$, $dmg.is_critical$, $dmg.is_immune$ — plus $player.*$ (the attacker, in
+# entity_hit), $target.*$ (the victim), etc.
+# Writable with `pipeline_set <key> <value>`: dmg.damage_type (before the calculation step),
+# dmg.final_damage (after it) — e.g. `pipeline_set dmg.final_damage "$dmg.final_damage$ * 0.5"`.
+# `multiply_damage <factor>` before calculate_damage stacks a multiplier the calculation applies
+# after strength/crit/enchants and before defense.
+# The damage math itself is in damage_formula.yml.
+
+version: 2
+
+flows:
+  # A living entity (or a projectile it shot) hit a living entity.
+  entity_hit:
+    # Cancels a repeat hit during the victim's invulnerability frames. params: threshold-factor
+    # (fraction of max no-damage ticks; default: config.yml combat.iframe-threshold-factor, else 0.5)
+    - builtin: iframe_gate
+    # The damager or the projectile's shooter. Required. Anything else stays vanilla.
+    - builtin: resolve_attacker
+    # Valmora deals its own damage, so vanilla's is set to 0. Required.
+    - builtin: zero_vanilla_damage
+    # params: melee, projectile (damage type ids for each kind of hit)
+    - builtin: classify_damage_type
+      params:
+        melee: MELEE
+        projectile: PROJECTILE
+    # `interrupt` from a stage here cancels the hit (vanilla's damage is already 0).
+    - anchor: pre_damage
+    # Stats, crit, enchants, defense, resistances (damage_formula.yml). Required.
+    - builtin: calculate_damage
+    # Weaker melee hits when the attack isn't charged, like vanilla. params: enabled
+    # (default: config.yml combat.attack-cooldown.enabled, else true)
+    - builtin: attack_cooldown_scaling
+    # Shield blocking for player victims (settings in config.yml).
+    - builtin: shield_block
+    # `interrupt` from a stage here stops the hit landing.
+    - anchor: post_calculation
+    # Remembers attacker/type for the death message.
+    - builtin: record_death_context
+    # Lowers the victim's health. Required.
+    - builtin: apply_damage
+    # Passes enchant knockback changes on to the knockback that follows.
+    - builtin: set_knockback
+    - builtin: spawn_indicator
+    - anchor: post_application
+    # ON_HIT abilities on the attacker's weapon (and their $player.last_damage$).
+    - builtin: fire_on_hit_abilities
+    # ON_DAMAGE_TAKEN abilities on the victim's weapon and armor.
+    - builtin: fire_on_damage_taken_abilities
+    # ON_ATTACK / ON_DAMAGED boss abilities.
+    - builtin: boss_triggers
+    - anchor: on_dmg_dealt
+
+  # Damage with no attacking entity: falling, fire, lava, drowning, explosions, ...
+  environment_damage:
+    - builtin: iframe_gate
+    # Required. Ignores events that deal no damage.
+    - builtin: zero_vanilla_damage
+    # Vanilla damage cause -> Valmora damage type. params: mapping (CAUSE: TYPE, checked first),
+    # fallback (for unmapped causes). config.yml combat.cause-mapping / combat.environment.fallback-damage-type
+    # still apply when these are not set.
+    - builtin: map_cause
+    - anchor: pre_environment_damage
+    # Vanilla damage × multiplier, then defense and resistances. Required. params: multiplier
+    # (default: config.yml combat.environment-damage-multiplier, else 5)
+    - builtin: calculate_environment_damage
+    - builtin: record_death_context
+    # Required.
+    - builtin: apply_damage
+    # Stops fully fire/freeze-immune entities from burning/freezing forever.
+    - builtin: clear_immune_burn
+    - builtin: spawn_indicator
+    - builtin: fire_on_damage_taken_abilities
+    - anchor: post_environment_damage
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:` — pre_damage,
+# post_calculation, post_application, on_dmg_dealt, pre_environment_damage, post_environment_damage,
+# and on_death (runs in mob_pipeline.yml's `death` flow, after a custom mob dies to a player).
+# Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
 #   - id: berserker_rage
@@ -25,7 +99,7 @@
 #     conditions:
 #       - "$player.hp$ < $player.max_hp$ * 0.25"
 #     on-pass:
-#       - "notify <red>Berserker Rage! Fighting below 25% HP!</red>"
-#     on-fail: []
+#       - "multiply_damage 1.5"
+#       - "notify <red>Berserker Rage!</red>"
 
 stages: []

@@ -301,11 +301,20 @@ public class DamageCalculator {
     }
 
     public static DamageResult calculateDamage(LivingEntity victim, DamageType damageType, double baseVanillaDamage) {
-        ValmoraAPI api = ValmoraAPI.getInstance();
         org.nakii.valmora.Valmora plugin = org.nakii.valmora.Valmora.getInstance();
         double multiplier = plugin != null
                 ? plugin.getConfig().getDouble("combat.environment-damage-multiplier", 5.0)
                 : 5.0;
+        return calculateDamage(victim, damageType, baseVanillaDamage, multiplier);
+    }
+
+    /**
+     * Environmental (attacker-less) damage: {@code baseVanillaDamage × multiplier}, then defense,
+     * resistances and rounding — the {@code calculate_environment_damage} step, whose
+     * {@code multiplier} param defaults to {@code combat.environment-damage-multiplier}.
+     */
+    public static DamageResult calculateDamage(LivingEntity victim, DamageType damageType, double baseVanillaDamage, double multiplier) {
+        ValmoraAPI api = ValmoraAPI.getInstance();
         double fullDamage = baseVanillaDamage * multiplier;
 
         MobDefinition victimMob = mobOf(victim);

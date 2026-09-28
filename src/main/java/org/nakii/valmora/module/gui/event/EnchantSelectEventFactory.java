@@ -34,8 +34,8 @@ public class EnchantSelectEventFactory implements EventFactory {
     @Override
     public CompiledEvent compile(String[] args, EventOptions options) {
         if (args.length < 2) return context -> {};
-        // Syntax: enchant_select <inputSlotId> <enchantId>
-        String inputSlotId = args[0];
+        // Syntax: enchant_select <inputSlotId> <enchantId> — the input slot id is only part of the
+        // documented syntax; the selection itself is keyed purely by enchant id.
         String enchantId = args[1];
 
         return context -> {

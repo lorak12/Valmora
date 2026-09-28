@@ -2,24 +2,17 @@ package org.nakii.valmora.module.mob;
 
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.script.ScriptModule;
-import org.nakii.valmora.module.script.pipeline.PipelineYamlLoader;
-
-import java.util.List;
+import org.nakii.valmora.module.script.pipeline.FlowYamlLoader;
 
 /**
- * Loads {@code mob_pipeline.yml} onto the shared {@link org.nakii.valmora.api.pipeline.HookBus}
- * under the {@code "mob:<when>"} insertion points: {@code pre_ability} (after a boss ability's own
- * cooldown/interval/chance gate passes, before its mechanics run — an {@code interrupt} here
- * cancels just that firing, e.g. a "silence" debuff) and {@code post_ability} (after mechanics run).
- *
- * <p>Supplementary to — not a replacement for — {@link BossController}'s native
- * timer/cooldown/announce machinery, which stays exactly as it was. See
- * docs/VALMORA_DOCUMENTATION.md §39.
+ * Loads {@code mob_pipeline.yml}'s flows ({@link MobFlows}: boss {@code cast}, mob {@code death})
+ * and its legacy {@code stages:} (run at the {@code pre_ability}/{@code post_ability} anchors).
+ * The {@code death} flow's {@code combat:on_death} anchor runs stages from
+ * {@code combat_pipeline.yml}. See {@link FlowYamlLoader} for the format and fallback rules.
  */
 public class MobPipelineLoader {
 
-    static final String POINT_PREFIX = "mob:";
-    private static final List<String> VALID_POINTS = List.of("pre_ability", "post_ability");
+    static final String POINT_PREFIX = MobFlows.POINT_PREFIX;
 
     private final Valmora plugin;
     private final ScriptModule scriptModule;
@@ -30,6 +23,6 @@ public class MobPipelineLoader {
     }
 
     public void load() {
-        PipelineYamlLoader.loadFile(plugin, scriptModule, "mob_pipeline.yml", POINT_PREFIX, VALID_POINTS);
+        FlowYamlLoader.load(plugin, scriptModule, MobFlows.DOMAIN);
     }
 }

@@ -3,7 +3,6 @@ package org.nakii.valmora.module.stat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.potion.PotionEffect;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
 import org.nakii.valmora.api.scripting.Expression;

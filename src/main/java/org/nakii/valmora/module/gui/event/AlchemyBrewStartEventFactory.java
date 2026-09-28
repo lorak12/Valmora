@@ -17,7 +17,6 @@ import org.nakii.valmora.module.script.event.ConditionAbortException;
 import org.nakii.valmora.module.script.event.EventFactory;
 import org.nakii.valmora.module.script.event.EventOptions;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

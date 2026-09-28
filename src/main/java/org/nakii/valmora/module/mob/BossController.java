@@ -9,11 +9,8 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.api.ValmoraAPI;
-import org.nakii.valmora.api.execution.ExecutionContext;
-import org.nakii.valmora.api.execution.SimpleExecutionContext;
-import org.nakii.valmora.api.pipeline.HookBus;
-import org.nakii.valmora.module.item.ConfiguredMechanic;
+import org.nakii.valmora.api.pipeline.flow.FlowContext;
+import org.nakii.valmora.api.pipeline.flow.FlowResult;
 import org.nakii.valmora.module.mob.ability.MobAbility;
 import org.nakii.valmora.module.mob.ability.MobAbilityTrigger;
 import org.nakii.valmora.util.Formatter;
@@ -186,63 +183,22 @@ public class BossController {
     }
 
     /**
-     * Executes an ability: respects the per-ability cooldown, resolves a target, announces, and
-     * runs each mechanic with the boss as caster. Returns false if it was on cooldown.
+     * Executes an ability through {@code mob_pipeline.yml}'s {@code cast} flow
+     * ({@link MobFlows#CAST}): per-ability cooldown, target, announcement, the
+     * {@code mob:pre_ability}/{@code post_ability} anchors, and the mechanics with the boss as
+     * caster. Returns false if it was on cooldown (or the flow isn't loaded), so timers don't
+     * count it as fired.
      */
     private boolean fire(BossInstance instance, MobAbility ability, LivingEntity providedTarget) {
-        long now = System.currentTimeMillis();
-        Long expiry = instance.cooldownExpiry.get(ability.getId());
-        if (expiry != null && now < expiry) {
-            return false;
-        }
-        if (ability.getCooldownSeconds() > 0) {
-            instance.cooldownExpiry.put(ability.getId(), now + (long) (ability.getCooldownSeconds() * 1000));
-        }
+        FlowContext ctx = new FlowContext(instance.entity, providedTarget, instance.entity.getLocation());
+        MobFlows.CastState state = new MobFlows.CastState(this, instance, ability, ctx);
+        FlowResult result = MobFlows.CAST.run(ctx, state);
+        return !result.skipped() && !state.onCooldown;
+    }
 
-        LivingEntity target = providedTarget;
-        if (target == null && ability.getTargetRange() > 0) {
-            target = findNearestPlayer(instance.entity, ability.getTargetRange());
-        }
-
-        if (ability.getAnnounce() != null && !ability.getAnnounce().isEmpty()) {
-            for (Player p : nearbyPlayers(instance.entity, announceRadius)) {
-                p.sendMessage(Formatter.format(ability.getAnnounce()));
-            }
-        }
-
-        // Mob ability pipeline hooks — see docs/VALMORA_DOCUMENTATION.md §39. Unlike combat's
-        // pre_damage/post_calculation, this does NOT replace the native cooldown/interval/announce
-        // machinery above (that stays boss-controller-owned); it's a supplementary extension point
-        // so a stage/addon can veto a specific ability firing (`interrupt` on mob:pre_ability, e.g.
-        // a "silence" debuff) or react after it resolves (mob:post_ability), same zero-cost-when-
-        // unused guard as every other domain.
-        HookBus bus = ValmoraAPI.getInstance().getHookBus();
-        boolean pipelineActive = bus != null && bus.hasAnyStages("mob:pre_ability", "mob:post_ability");
-        ExecutionContext pipelineCtx = null;
-        if (pipelineActive) {
-            pipelineCtx = new SimpleExecutionContext(instance.entity, target, instance.entity.getLocation(), null);
-            pipelineCtx.set("mob:ability_id", ability.getId());
-            pipelineCtx.set("mob:ability_trigger", ability.getTrigger().name());
-            // The boss's own identity and health — $target.*$ is whoever the ability is aimed at
-            // (usually a player), so without these a stage had no way to gate on the boss's phase.
-            pipelineCtx.set("mob:id", instance.definition.getId());
-            pipelineCtx.set("mob:level", instance.definition.getLevel());
-            pipelineCtx.set("mob:health", instance.entity.getHealth());
-            pipelineCtx.set("mob:max_health", maxHealth(instance.entity));
-            pipelineCtx.set("mob:health_percent", healthPercent(instance.entity));
-            if (!bus.runPoint("mob:pre_ability", pipelineCtx)) {
-                return true; // cooldown/interval already consumed above — the attempt happened, effects didn't
-            }
-        }
-
-        for (ConfiguredMechanic mechanic : ability.getMechanics()) {
-            mechanic.execute(instance.entity, target);
-        }
-
-        if (pipelineActive) {
-            bus.runPoint("mob:post_ability", pipelineCtx);
-        }
-        return true;
+    /** {@code mobs.boss.announce-radius} — the {@code announce} step's default radius. */
+    double announceRadius() {
+        return announceRadius;
     }
 
     private void updateBar(BossInstance instance) {
@@ -278,18 +234,18 @@ public class BossController {
         instance.barViewers.clear();
     }
 
-    private double healthPercent(LivingEntity entity) {
+    double healthPercent(LivingEntity entity) {
         double max = maxHealth(entity);
         if (max <= 0) return 100.0;
         return (entity.getHealth() / max) * 100.0;
     }
 
-    private double maxHealth(LivingEntity entity) {
+    double maxHealth(LivingEntity entity) {
         AttributeInstance attr = entity.getAttribute(Attribute.MAX_HEALTH);
         return attr != null ? attr.getValue() : entity.getHealth();
     }
 
-    private Player findNearestPlayer(LivingEntity entity, double range) {
+    Player findNearestPlayer(LivingEntity entity, double range) {
         Player nearest = null;
         double best = Double.MAX_VALUE;
         double rangeSq = range * range;
@@ -304,7 +260,7 @@ public class BossController {
         return nearest;
     }
 
-    private List<Player> nearbyPlayers(LivingEntity entity, double range) {
+    List<Player> nearbyPlayers(LivingEntity entity, double range) {
         List<Player> result = new ArrayList<>();
         double rangeSq = range * range;
         for (Player p : entity.getWorld().getPlayers()) {
@@ -316,7 +272,7 @@ public class BossController {
     }
 
     /** Per-entity runtime state for a tracked boss. */
-    private static class BossInstance {
+    static class BossInstance {
         final LivingEntity entity;
         final MobDefinition definition;
         BossBar bossBar;

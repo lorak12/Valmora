@@ -3,7 +3,6 @@ package org.nakii.valmora.module.gui.sign;
 import org.bukkit.block.sign.Side;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
-import org.nakii.valmora.Valmora;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,12 +10,7 @@ import java.util.UUID;
 
 public class SignInputManager {
 
-    private final Valmora plugin;
     private final Map<UUID, String> pendingPropKeys = new HashMap<>();
-
-    public SignInputManager(Valmora plugin) {
-        this.plugin = plugin;
-    }
 
     public void init() {}
 

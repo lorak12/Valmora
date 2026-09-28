@@ -1,22 +1,50 @@
-# Player death/respawn pipeline — optional hook points that run when a player dies or respawns.
+# Player death/respawn pipeline — every step Valmora runs when a player dies or respawns, in order.
+# Design: docs/PIPELINE_FLOWS_PLAN.md.
 #
-# Leave `stages` empty (or delete this file) and deaths behave exactly as if this feature didn't
-# exist. Each stage runs its on-pass events when all of its conditions are true (on-fail otherwise),
-# for the player who died/respawned.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` below whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (unique in the flow), `enabled: false` (skip it) and `conditions:`
+# (skip the step when false; the flow carries on). Nothing here can prevent the death itself.
+# Deleting a flow (or this whole file) uses the built-in default. `/valmora pipeline flows death`
+# shows what's loaded.
 #
-# Insertion points ("when"):
-#   on_death    - the player has just died. Informational: `interrupt` doesn't prevent the death.
-#   on_respawn  - the player has just respawned.
+# Variables: $death.keep_inventory$, $death.keep_experience$, $death.zone$ (while dying),
+# $death.is_bed_spawn$, $death.is_anchor_spawn$ (while respawning) — plus $player.*$ etc.
+# Writable with `pipeline_set <key> <value>` (between resolve_keep_policy and apply_keep_policy):
+# death.keep_inventory, death.keep_experience.
 #
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Not part of these flows (yet): the purse-loss penalty (economy module) and ON_DEATH item
+# abilities — they run later on the same event, after this policy is decided.
+
+version: 2
+
+flows:
+  # A player died.
+  death:
+    # The death message. params: broadcast (default: config.yml death.broadcast-enabled, else true).
+    # Templates live in config.yml under death.messages.
+    - builtin: death_message
+    # Decides keepInventory/keepExperience: the death zone's flags win, else these defaults.
+    # params: keep-inventory-default, keep-experience-default
+    #   (default: config.yml death.keep-inventory-default / death.keep-experience-default, else false)
+    - builtin: resolve_keep_policy
+    # Applies the decision to the death (clears drops/dropped XP when kept).
+    - builtin: apply_keep_policy
+    - anchor: on_death
+
+  # A player respawned.
+  respawn:
+    # Moves the respawn to the death zone's override (config.yml death.zone-respawn-overrides),
+    # if it declares one; otherwise vanilla's bed/anchor/world spawn is used.
+    - builtin: zone_respawn_override
+    - anchor: on_respawn
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:`
+# (on_death, on_respawn). Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
-#   - id: death_tax_warning
-#     when: on_death
-#     conditions:
-#       - "$economy.purse$ > 0"
-#     on-pass:
-#       - "notify <red>You lost part of your purse. Coins in the bank are safe."
 #   - id: respawn_protection
 #     when: on_respawn
 #     on-pass:

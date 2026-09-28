@@ -50,7 +50,6 @@ public class PackManager {
 
     private final Valmora plugin;
     private final DataStore dataStore;
-    private final PackFileIndex fileIndex;
     private final PackBackupManager backupManager;
     private final PackInstaller installer;
     private final PackDownloader downloader;
@@ -62,7 +61,6 @@ public class PackManager {
     public PackManager(Valmora plugin, DataStore dataStore, PackFileIndex fileIndex) {
         this.plugin = plugin;
         this.dataStore = dataStore;
-        this.fileIndex = fileIndex;
         this.backupManager = new PackBackupManager(plugin.getDataFolder());
         this.installer = new PackInstaller(plugin.getDataFolder(), fileIndex, backupManager, plugin.getLogger());
         this.downloader = new PackDownloader();
@@ -116,7 +114,7 @@ public class PackManager {
         }
         PackManifest manifest = manifestResult.getValue();
 
-        PackValidationReport report = PackValidator.validateManifest(manifest, plugin.getDescription().getVersion(),
+        PackValidationReport report = PackValidator.validateManifest(manifest, plugin.getPluginMeta().getVersion(),
                 name -> plugin.getServer().getPluginManager().getPlugin(name) != null);
 
         Map<String, PackManifest> alreadyInstalledManifests = installedByPackId.values().stream()

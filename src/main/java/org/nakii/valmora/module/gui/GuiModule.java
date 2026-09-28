@@ -88,7 +88,7 @@ public class GuiModule implements ReloadableModule {
 
         // Virtual sign input (added 2026-08-07 — the classes existed but were never wired up
         // anywhere, so `open_sign_input` was a silently-dead DSL event).
-        this.signInputManager = new org.nakii.valmora.module.gui.sign.SignInputManager(plugin);
+        this.signInputManager = new org.nakii.valmora.module.gui.sign.SignInputManager();
         signInputManager.init();
         this.signInputListener = new org.nakii.valmora.module.gui.sign.SignInputListener(plugin, signInputManager, this);
         plugin.getServer().getPluginManager().registerEvents(signInputListener, plugin);
@@ -236,7 +236,7 @@ public class GuiModule implements ReloadableModule {
             futures.add(dataStore.loadStorage(profile.getId(), storageId, size)
                     .thenAccept(items -> preloaded.put(storageId, items)));
         }
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).whenComplete((ignored, error) ->
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).whenComplete((ignored, error) ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!player.isOnline()) return;
                     if (error != null) {

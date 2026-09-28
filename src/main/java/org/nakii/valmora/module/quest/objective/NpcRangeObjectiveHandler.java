@@ -15,7 +15,6 @@ import org.nakii.valmora.module.quest.QuestObjectiveTypes;
 import org.nakii.valmora.module.profile.ValmoraPlayer;
 import org.nakii.valmora.module.profile.ValmoraProfile;
 
-import java.util.Map;
 
 /**
  * Handles npcrange objectives by polling every second.

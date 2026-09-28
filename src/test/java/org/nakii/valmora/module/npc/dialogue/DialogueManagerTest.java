@@ -9,7 +9,6 @@ import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.api.scripting.CompiledEvent;
 import org.nakii.valmora.module.script.ScriptModule;
 import org.nakii.valmora.module.script.condition.ConditionParser;
 import org.nakii.valmora.module.script.event.EventParser;

@@ -1,19 +1,62 @@
-# Fishing pipeline — optional hook points around resolving a catch. See
-# docs/COMBAT_PIPELINE_ANALYSIS.md for the full design rationale.
+# Fishing pipeline — every step of catching a fish, in order. Edit, reorder, disable or extend it.
+# Design: docs/PIPELINE_FLOWS_PLAN.md, docs/modules/design/pipeline.md.
 #
-# Leave `stages` empty (or delete this file) and fishing behaves exactly as if this feature didn't
-# exist — FishingManager skips the pipeline entirely when no stage is registered.
+# Each flow is a list of steps. A step is one of:
+#   - builtin: <name>          a built-in step (listed below), optionally with `params:`
+#   - anchor: <point>          runs the `stages:` below whose `when:` matches, plus plugin hooks
+#   - id: <id> + on-pass: [..] a script step (conditions / on-pass / on-fail — same DSL as everywhere)
+# Every step also accepts `id:` (must be unique in the flow), `enabled: false` (skip it) and
+# `conditions:` (skip the step when false; the flow carries on). `interrupt` in a script step stops
+# the flow right there. Deleting a flow (or this whole file) uses the built-in default.
+# `/valmora pipeline flows fishing` shows what's loaded.
 #
-# Insertion points ("when"):
-#   pre_catch   - before the sea-creature roll / loot table roll. `interrupt` here cancels the
-#                 catch entirely (nothing granted) — the stage should message the player itself.
-#   post_catch  - after the reward (item or sea creature) is resolved.
-#
-# Variables: $fishing.table$ (loot table id for the player's current zone), and after the roll:
-# $fishing.item$ / $fishing.amount$, or $fishing.sea_creature$ (mob id) — plus the usual
-# $player.*$, $prop.*$, etc.
-#
-# Example (disabled — remove the leading `#` on every line below to enable):
+# Variables: $fishing.table$, $fishing.sea_creature_chance$ (the table's), $fishing.sea_creature$,
+# $fishing.item$, $fishing.amount$, $fishing.caught$ — plus $player.*$ etc.
+# Writable with `pipeline_set <key> <value>`: fishing.sea_creature, fishing.item, fishing.amount.
+
+version: 2
+
+flows:
+  # A fish was reeled in.
+  catch:
+    # Picks the loot table of the zone you're fishing in (fallback-table if the zone has none).
+    # Required. Stops the flow (nothing caught) if no table exists.
+    - builtin: resolve_table
+      params:
+        fallback-table: default
+    # `interrupt` from a stage here cancels the catch — nothing is granted.
+    - anchor: pre_catch
+    # Rolls the table's sea creature. params: chance (number or expression; default: the table's
+    # own sea-creature-chance), e.g. chance: "$fishing.sea_creature_chance$ * 2"
+    - builtin: roll_sea_creature
+    # Spawns the rolled sea creature. params: at: hook | player
+    - builtin: spawn_sea_creature
+      params:
+        at: hook
+    # Rolls one loot entry (item + amount) — skipped when a sea creature was rolled.
+    - builtin: roll_loot
+    # Gives the rolled item. params: overflow: discard | drop (what happens when the inventory is full)
+    - builtin: give_catch
+      params:
+        overflow: discard
+    - anchor: post_catch
+
+  # A fish bit — the cue at the bobber.
+  bite:
+    - builtin: play_sound
+      params:
+        sound: entity.fishing_bobber.splash
+        volume: 0.6
+        pitch: 1.2
+    - builtin: spawn_particle
+      params:
+        particle: FISHING
+        count: 10
+        spread: [0.2, 0.1, 0.2]
+        speed: 0.02
+
+# Legacy format, still supported: each stage runs at the anchor matching its `when:`
+# (pre_catch, post_catch). Example (disabled — remove the leading `#` on every line to enable):
 #
 # stages:
 #   - id: announce_sea_creature
@@ -22,6 +65,5 @@
 #       - "$fishing.sea_creature$ != null"
 #     on-pass:
 #       - "notify <aqua>Something is emerging from the depths...</aqua>"
-#     on-fail: []
 
 stages: []

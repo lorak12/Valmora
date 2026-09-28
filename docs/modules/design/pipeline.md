@@ -1,8 +1,13 @@
 # Extensible Pipeline System (HookBus) — Design & Code
 
-> **Version:** 0.1 | **API:** Paper 1.21.x | **Java:** 21
-> **Class:** `org.nakii.valmora.api.pipeline.HookBus` | **Cross-cutting** — not owned by a single
-> module; consumed by combat, resource, fishing, item, mob, and gui.
+> **Version:** 0.2 (flows) | **API:** Paper 1.21.x | **Java:** 21
+> **Classes:** `org.nakii.valmora.api.pipeline.HookBus`, `org.nakii.valmora.api.pipeline.flow.*`,
+> `module/script/pipeline/FlowYamlLoader` | **Cross-cutting** — not owned by a single module;
+> consumed by combat, death, resource, fishing, item, mob, and gui.
+>
+> **0.2:** the hardcoded sequences themselves now live in the `*_pipeline.yml` files as **flows**
+> (§8). The insertion points below are still there — as `anchor:` steps inside those flows.
+> Implementation plan and decisions: `docs/PIPELINE_FLOWS_PLAN.md`.
 >
 > Full original design rationale: `docs/COMBAT_PIPELINE_ANALYSIS.md` (kept for historical context —
 > this document describes what actually shipped and is the authoritative reference going forward).
@@ -26,7 +31,9 @@ compile `id`/`when`/`conditions`/`on-pass`/`on-fail`, register" implementation e
 pre-existing `on-open`/`on-close`/`on-slot-update`/`on-update` blocks, which now run through the
 same bus instead of GUI's own separate inline dispatch code.
 
-**Zero cost when unused:** every call site checks `HookBus.hasStages()`/`hasAnyStages()` before
+**Zero cost when unused (pre-flows wording, still true for the bus itself):** every anchor checks
+`HookBus.hasStages()` before touching the bus; the flows that now carry the domain logic are
+covered in §8.4. Originally every call site checked `hasStages()`/`hasAnyStages()` before
 building an `ExecutionContext` or touching the bus (GUI's points are the one exception — see §6 for
 why they always dispatch through the bus, and why that's still zero-cost). An install with no
 `*_pipeline.yml` stages and no registered Java hooks runs the exact same code path as before this
@@ -40,7 +47,10 @@ system existed.
 | `combat:post_calculation` | After the `DamageResult` is known, before it's applied to health. | The hit was "rolled" but does not land (no health change, no indicator). |
 | `combat:post_application` | After health is reduced and the damage indicator has spawned. | No effect (too late to matter) — informational only. |
 | `combat:on_dmg_dealt` | Same timing as `post_application`, after `ON_HIT` item abilities / boss triggers fire. | No effect — informational only. |
-| `combat:on_death` | In `MobDeathListener`, after XP/gold/loot are resolved for a custom mob's death. Only fires if there's a killer. | No effect — informational only. |
+| `combat:on_death` | Anchor of `mob_pipeline.yml`'s `death` flow, after XP/gold/loot are resolved for a custom mob's death. Only fires if there's a killer (a default `conditions:` on the anchor). Stages still live in `combat_pipeline.yml`. | No effect — informational only. |
+| `combat:pre_environment_damage` | *(new with flows)* `environment_damage` flow — cause mapped, damage not yet calculated. | Cancels it (vanilla's damage is already zeroed). |
+| `combat:post_environment_damage` | *(new with flows)* after environmental damage landed. | No effect — informational only. |
+| `player:on_death` / `player:on_respawn` | `death_pipeline.yml`'s `death`/`respawn` flows. | No effect — informational only. |
 | `resource:pre_break` | After the Breaking Power gate passes, before drops are rolled — **only for zone-configured resource blocks**, not ordinary block breaking. | Cancels the break (same as insufficient power, but silent — the stage should `notify` the player itself). |
 | `resource:post_break` | After drops are granted and the block has progressed/regenerated. | No effect — informational only. |
 | `fishing:pre_catch` | Before the sea-creature roll / loot table roll. | Cancels the catch — nothing is granted. |
@@ -54,15 +64,19 @@ system existed.
 | `gui:<guiId>:on_slot_update` | A GUI's `on-slot-update` block. | No effect — the GUI always re-renders after, regardless of outcome. |
 | `gui:<guiId>:on_update` | A GUI's `on-update` (repeating timer) block. | No effect — the GUI always re-renders after, regardless of outcome. |
 
-`item:*`/`mob:*` are **supplementary** to their domain's native gating (trigger matching, cooldown,
-mana, boss timers/announcements) — none of that native machinery was replaced, only extended.
+Since 0.2 each non-GUI point is an **anchor step** in its domain's flow (§8), so the "Fires" column
+describes where the default flow puts it — an admin can move it. "No effect" points are anchors
+with `stopsOnInterrupt = false`: an `interrupt` there never cuts the rest of the flow short
+(overridable per anchor with `stop-on-interrupt:`). Trigger matching and boss timers stay native;
+cooldown/mana/announce gating is now built-in flow steps.
 `gui:*` **is** the actual dispatch now (§6), not a supplement — see there for why that's safe.
 
 ## 3. YAML Stage Format
 
-One file per domain, loaded from the plugin data folder (auto-copied on first run, never
-overwritten): `combat_pipeline.yml`, `resource_pipeline.yml`, `fishing_pipeline.yml`,
-`item_pipeline.yml`, `mob_pipeline.yml`. All optional — ship with `stages: []`. (GUI has no
+One file per domain, loaded from the plugin data folder (default files follow updates through
+`ResourceManifest` — see `versioning.md` §3): `combat_pipeline.yml`, `death_pipeline.yml`,
+`resource_pipeline.yml`, `fishing_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`. Each
+ships its full default `flows:` (§8) and an empty legacy `stages:` list, described here. (GUI has no
 separate pipeline file — its stages are the `on-open`/etc. blocks already defined per-GUI in
 `guis/*.yml`, see `docs/modules/design/gui.md`.)
 
@@ -173,3 +187,68 @@ inconsistency with the other three blocks. `GuiEventBlockStage` fixes this; `on-
 
 `/valmora pipeline list [point]` — lists every registered stage/hook, optionally filtered to one
 insertion point.
+
+`/valmora pipeline flows [domain]` — lists every loaded flow (and whether it came from the file or
+the bundled default), or one domain's flows step by step (kind, `[conditions]` marker).
+
+## 8. Flows — the Domain Logic in YAML
+
+Before 0.2 the files could only add stages at fixed points; the sequences themselves were Java
+methods (`CombatListener.onEntityDamageByEntity`, `ResourceManager.handleBlockBreak`, ...). Now
+each such method is a **flow**: a list of steps compiled from the file, and the method just builds
+the flow's state and runs it.
+
+### 8.1 Model (`api/pipeline/flow/`)
+
+| Type | Role |
+|---|---|
+| `FlowDomain` | One file: id, file name, HookBus point prefix, its `FlowSpec`s, and the point names legacy `stages:` may use as `when:`. |
+| `FlowSpec<S>` | One flow: id (key under `flows:`), the `BuiltinStepFactory`s and `AnchorSpec`s it may contain, the keys `pipeline_set` may write, and the current `CompiledFlow` in an `AtomicReference`. `static final` in each domain's `XFlows` class, so the last good flow survives a failed reload. |
+| `BuiltinStepFactory<S>` | A built-in step type: id, `required()`, accepted `paramKeys()`, `compile(StepParams)` → `BuiltinStep<S>`. |
+| `FlowState` | Per-run mutable state (`CatchState`, `BreakState`, `HitState`, ...). `publish(ctx)` copies its script-visible values onto the context; `write(key, value)` applies `pipeline_set`. |
+| `CompiledFlow` | Immutable `FlowStep[]`; `run(ctx, state)` → `FlowResult` (`COMPLETED`, `stopped(stepId)`, or `SKIPPED` when the flow never loaded — callers then fall back to vanilla). |
+| `BuiltinFlowStep` / `AnchorFlowStep` / `ScriptFlowStep` | The three step kinds. A false `conditions:` skips a built-in/anchor; a script step keeps `CompiledPipelineStage` semantics (on-fail) and `interrupt` → STOP. |
+| `StepParams` / `NumberParam` | Param access with load-time reporting; numeric params may be expressions (compiled once); `NumberParam.config(path, def)` / `StepParams.configBool/configString` are the live `config.yml` fallbacks. |
+| `FlowContext` | A context whose target a step can set (abilities resolve their target mid-flow). |
+| `FlowRegistry` | Held by `ScriptModule` next to the bus; backs the command. |
+
+Domains: `FishingFlows` (`catch`, `bite`), `ResourceFlows` (`break`, `mine_feedback`,
+`denied_feedback`, `regen_feedback`), `DeathFlows` (`death`, `respawn`), `AbilityFlows` (`cast`),
+`MobFlows` (`cast`, `death`), `CombatFlows` (`entity_hit`, `environment_damage`). Generic
+`play_sound`/`spawn_particle` built-ins for feedback flows: `module/script/pipeline/FeedbackSteps`.
+Each shipped file's comments document its built-ins and params; `BundledPipelinesTest` fails if a
+shipped file doesn't load cleanly or leaves out a built-in.
+
+### 8.2 Loading (`FlowYamlLoader`)
+
+- The jar's copy of the file is the only source of defaults: a flow missing from the data-folder
+  file — or the whole file missing, or in the old stages-only format — compiles from the bundled
+  copy. There's no separate Java default to drift.
+- A flow with an ERROR (unknown `builtin:`/`anchor:`, a `required()` built-in missing or
+  disabled, duplicate step id, a broken required param) keeps its previous compiled version, or
+  the bundled one on first load. `version:` newer than `SUPPORTED_VERSION` (2) is refused.
+- Legacy `stages:` still compile onto the bus (`PipelineYamlLoader.registerStages`) and run at the
+  matching anchor. A stage whose anchor no flow contains, and Java hooks sitting on a removed
+  anchor, are reported as warnings.
+- `pipeline_set` keys are checked at load time against the compiling domain's writable keys
+  (`FlowYamlLoader.compilingDomain()`); elsewhere they're checked when they run.
+- Content packs keep merging into `stages:` only (`SharedConfigMerger` appends list entries), which
+  still works; packs can't replace flows.
+
+### 8.3 Params and `config.yml`
+
+A param set in the file wins; otherwise the pre-flow `config.yml` key (read live, as before)
+applies, then the literal default. The shipped files leave those params out and name the
+`config.yml` key in a comment, so existing tuning keeps working.
+
+### 8.4 Cost
+
+- A flow always runs now (it *is* the logic). Measured on the `entity_hit` shape (17 built-ins,
+  4 empty anchors, one context allocation): ~36 ns per run vs ~20 ns for the same 17 calls made
+  directly — ~16 ns per hit.
+- State is published to the context **lazily** — only before conditions, script steps,
+  anchors with registered stages, and expression params. A default flow with no script content
+  writes no attachments. `calculate_damage` only passes the context to `DamageCalculator` (for
+  the `multiply_damage` lookup) when something script-side has seen the hit.
+- The `pipeline:interrupted` flag is cleared around every anchor and script step; before flows it
+  stayed set on the shared combat context and could stop stages at a later point.

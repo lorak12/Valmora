@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
-import org.mockbukkit.mockbukkit.ServerMock;
 import org.mockbukkit.mockbukkit.plugin.PluginMock;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.execution.SimpleExecutionContext;
@@ -31,7 +30,6 @@ import static org.mockito.Mockito.*;
 @Tag("mockbukkit")
 class EnchantStateEngineTest {
 
-    private ServerMock server;
     private ValmoraAPI api;
     private EnchantModule enchantModule;
     private EnchantmentRegistry registry;
@@ -39,7 +37,7 @@ class EnchantStateEngineTest {
 
     @BeforeEach
     void setUp() {
-        server = MockBukkit.mock();
+        MockBukkit.mock();
         // Keys.init(Valmora) can't be called here — a Mockito mock of the concrete Valmora class
         // doesn't satisfy whatever NamespacedKey's real constructor needs internally (see
         // EnchantStateStoreTest) — so the fields are assigned directly off a real PluginMock.

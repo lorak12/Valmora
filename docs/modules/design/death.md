@@ -2,7 +2,7 @@
 
 > **Module ID:** `death` | **Module Name:** "Death & Respawn" | **Package:** `org.nakii.valmora.module.death`
 > **Files:** `DeathModule.java`, `DeathListener.java`, `DeathMessageService.java`, `DeathPolicyResolver.java`,
-> `BedListener.java`, `RespawnAnchorListener.java`, `PhantomInsomniaListener.java`, `DeathPipelineLoader.java`
+> `BedListener.java`, `RespawnAnchorListener.java`, `PhantomInsomniaListener.java`, `DeathPipelineLoader.java`, `DeathFlows.java`
 > **Related:** `TotemProtectionService.java`/`DeathContextCache.java` (live in `module/combat/`, not here — see §3.5)
 > **Audit source:** `docs/VANILLA_CONTROL_AUDIT.md` §9 (Death, Respawn & Persistence)
 
@@ -66,7 +66,8 @@ src/main/java/org/nakii/valmora/module/death/
 ├── BedListener.java             # PlayerBedEnterEvent gated by ZoneFlags.sleeping
 ├── RespawnAnchorListener.java   # BlockExplodeEvent (respawn anchor / bed) zone block-protection filtering
 ├── PhantomInsomniaListener.java # PhantomPreSpawnEvent gated by config + ZoneFlags.naturalMobSpawning
-└── DeathPipelineLoader.java     # Loads death_pipeline.yml onto the shared HookBus ("player:*" points)
+├── DeathPipelineLoader.java     # Loads death_pipeline.yml (flows + legacy "player:*" stages)
+└── DeathFlows.java              # The `death`/`respawn` flows: built-in steps + state (docs/modules/design/pipeline.md §8)
 
 src/main/java/org/nakii/valmora/module/combat/           (existing module — new files added here)
 ├── TotemProtectionService.java  # The actual totem fix — must run inside DamageApplier (see §3.5)
@@ -140,10 +141,20 @@ Pure resolution logic, no listener of its own:
 - `resolveRespawnOverride(zoneId)` — parses `death.zone-respawn-overrides.<zoneId>: "world,x,y,z[,yaw]"`
   into a `Location`, logging a warning and returning `null` on any malformed/unknown-world entry.
 
-### 3.4 `DeathPipelineLoader`
+### 3.4 `DeathPipelineLoader` / `DeathFlows`
 
-Mirrors `combat`'s `CombatPipelineLoader`/`PipelineYamlLoader` pattern: loads `death_pipeline.yml`
-onto the shared `HookBus` under `player:on_death`/`player:on_respawn`. Kept **separate** from
+`DeathListener` no longer hardcodes its sequence: it runs `death_pipeline.yml`'s flows
+(`DeathFlows`, see `pipeline.md` §8). `death`: `death_message` (param `broadcast`) →
+`resolve_keep_policy` (params `keep-inventory-default`/`keep-experience-default`, falling back to
+the `death.*` config keys) → `apply_keep_policy` → anchor `player:on_death`. `respawn`:
+`zone_respawn_override` → anchor `player:on_respawn`. `$death.*$` (`DeathVariableProvider`) exposes
+`keep_inventory`, `keep_experience`, `zone`, `is_bed_spawn`, `is_anchor_spawn`; `pipeline_set` can
+write `death.keep_inventory`/`death.keep_experience` between the two policy steps. After the flow
+the listener always consumes the cached death context, so disabling `death_message` can't leak it
+into the next death. The purse-loss penalty and ON_DEATH abilities are not in the flow (they run
+later on the same event on purpose).
+
+`DeathPipelineLoader` loads the flows plus legacy stages under `player:on_death`/`player:on_respawn`. Kept **separate** from
 `combat:on_death` (which `MobVariableProvider`'s docs tie specifically to mob deaths with a
 `mob:level` context) — this is the player-death/respawn equivalent, not a reuse of that point.
 

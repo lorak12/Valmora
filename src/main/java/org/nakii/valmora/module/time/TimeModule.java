@@ -5,11 +5,9 @@ import org.nakii.valmora.api.ReloadableModule;
 
 public class TimeModule implements ReloadableModule {
 
-    private final Valmora plugin;
     private final TimeManager timeManager;
 
     public TimeModule(Valmora plugin) {
-        this.plugin = plugin;
         this.timeManager = new TimeManager(plugin);
     }
 

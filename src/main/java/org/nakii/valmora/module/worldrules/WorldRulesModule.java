@@ -2,6 +2,8 @@ package org.nakii.valmora.module.worldrules;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameRule;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.HandlerList;
@@ -9,6 +11,7 @@ import org.nakii.valmora.Valmora;
 import org.nakii.valmora.api.ReloadableModule;
 
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 
@@ -85,11 +88,8 @@ public class WorldRulesModule implements ReloadableModule {
         if (section == null) return;
         Logger log = plugin.getLogger();
         for (String key : section.getKeys(false)) {
-            GameRule<?> rule = GameRule.getByName(key);
-            if (rule == null) {
-                log.warning("[WorldRules] Unknown game rule '" + key + "' in config.yml world.gamerules — skipping.");
-                continue;
-            }
+            GameRule<?> rule = resolveGameRule(key, log);
+            if (rule == null) continue;
             Class<?> type = rule.getType();
             Object value;
             if (type == Boolean.class) {
@@ -105,6 +105,75 @@ public class WorldRulesModule implements ReloadableModule {
             GameRule<Object> objectRule = (GameRule<Object>) rule;
             world.setGameRule(objectRule, value);
         }
+    }
+
+    /**
+     * Minecraft 1.21.11 turned game rules into registry entries with snake_case keys and renamed
+     * several of them; Paper 26.x resolves them only by that key. Pre-1.21.11 camelCase names that
+     * map 1:1 onto a renamed rule (same type, same meaning) are still accepted with a warning so old
+     * configs keep working. Legacy names whose rule was inverted or changed type are not translated.
+     */
+    private static final Map<String, String> RENAMED_LEGACY_RULES = Map.ofEntries(
+            Map.entry("announceAdvancements", "show_advancement_messages"),
+            Map.entry("doDaylightCycle", "advance_time"),
+            Map.entry("doEntityDrops", "entity_drops"),
+            Map.entry("doLimitedCrafting", "limited_crafting"),
+            Map.entry("doMobLoot", "mob_drops"),
+            Map.entry("doMobSpawning", "spawn_mobs"),
+            Map.entry("doTileDrops", "block_drops"),
+            Map.entry("doWeatherCycle", "advance_weather"),
+            Map.entry("naturalRegeneration", "natural_health_regeneration"),
+            Map.entry("doInsomnia", "spawn_phantoms"),
+            Map.entry("doImmediateRespawn", "immediate_respawn"),
+            Map.entry("doPatrolSpawning", "spawn_patrols"),
+            Map.entry("doTraderSpawning", "spawn_wandering_traders"),
+            Map.entry("doWardenSpawning", "spawn_wardens"),
+            Map.entry("doVinesSpread", "spread_vines"),
+            Map.entry("commandBlocksEnabled", "command_blocks_work"),
+            Map.entry("spawnerBlocksEnabled", "spawner_blocks_work"),
+            Map.entry("spawnRadius", "respawn_radius"),
+            Map.entry("maxCommandChainLength", "max_command_sequence_length"),
+            Map.entry("maxCommandForkCount", "max_command_forks"),
+            Map.entry("commandModificationBlockLimit", "max_block_modifications"),
+            Map.entry("snowAccumulationHeight", "max_snow_accumulation_height"),
+            Map.entry("minecartMaxSpeed", "max_minecart_speed"));
+
+    /** Legacy names with no 1:1 replacement — the value's meaning changed, so it must be rewritten by hand. */
+    private static final Map<String, String> CHANGED_LEGACY_RULES = Map.of(
+            "disableRaids", "raids (inverted: true now means raids happen)",
+            "disablePlayerMovementCheck", "player_movement_check (inverted)",
+            "disableElytraMovementCheck", "elytra_movement_check (inverted)",
+            "doFireTick", "fire_spread_radius_around_player (now an integer radius)",
+            "allowFireTicksAwayFromPlayer", "fire_spread_radius_around_player (now an integer radius)");
+
+    private static GameRule<?> resolveGameRule(String key, Logger log) {
+        GameRule<?> rule = lookupGameRule(key);
+        if (rule != null) return rule;
+
+        String changed = CHANGED_LEGACY_RULES.get(key);
+        if (changed != null) {
+            log.warning("[WorldRules] Game rule '" + key + "' in config.yml world.gamerules no longer exists; "
+                    + "its replacement is " + changed + " — rewrite the entry. Skipping.");
+            return null;
+        }
+        String modern = RENAMED_LEGACY_RULES.getOrDefault(key, camelToSnake(key));
+        rule = lookupGameRule(modern);
+        if (rule != null) {
+            log.warning("[WorldRules] Game rule '" + key + "' in config.yml world.gamerules uses its pre-1.21.11 "
+                    + "name — applying it as '" + modern + "'. Rename the key to silence this warning.");
+            return rule;
+        }
+        log.warning("[WorldRules] Unknown game rule '" + key + "' in config.yml world.gamerules — skipping.");
+        return null;
+    }
+
+    private static GameRule<?> lookupGameRule(String key) {
+        NamespacedKey namespaced = NamespacedKey.fromString(key);
+        return namespaced != null ? Registry.GAME_RULE.get(namespaced) : null;
+    }
+
+    private static String camelToSnake(String key) {
+        return key.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT);
     }
 
     private void applyWeatherLock(World world) {

@@ -1,7 +1,6 @@
 package org.nakii.valmora.module.item.set;
 
 import org.nakii.valmora.Valmora;
-import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.YamlLoader;
 
 import java.util.HashMap;

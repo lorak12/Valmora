@@ -8,6 +8,7 @@ import org.nakii.valmora.util.Keys;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -17,7 +18,8 @@ import java.util.Map;
  *
  * <p>Storage shape mirrors (independently — no shared code, per the enchant/modifier separation
  * decision) {@code module.modifier.ModifierComponentStore}: one {@link Keys#ENCHANTS_STATE_CONTAINER_KEY}
- * holding a {@code TAG_CONTAINER_ARRAY}, one nested container per enchant instance with fields
+ * holding a {@code LIST.dataContainers()} (same NBT shape as the deprecated {@code TAG_CONTAINER_ARRAY}
+ * it replaced), one nested container per enchant instance with fields
  * {@code id} (STRING), {@code level} (INTEGER), and an optional {@code state} field — a single
  * delimited STRING blob of persistent counters (e.g. {@code "kills=1542,combo=3"}), one entry per
  * declared {@code state.persistent} key (see {@code EnchantModule}'s YAML schema). Unlike
@@ -91,8 +93,8 @@ public class EnchantStateStore {
         Map<String, EnchantInstance> result = new LinkedHashMap<>();
         if (pdc == null) return result;
 
-        if (pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY)) {
-            PersistentDataContainer[] entries = pdc.get(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY);
+        if (pdc.has(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers())) {
+            List<PersistentDataContainer> entries = pdc.get(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers());
             if (entries != null) {
                 for (PersistentDataContainer entry : entries) {
                     String id = entry.get(Keys.ENCHANT_INSTANCE_ID_KEY, PersistentDataType.STRING);
@@ -153,7 +155,7 @@ public class EnchantStateStore {
             }
             entries[i++] = entry;
         }
-        pdc.set(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.TAG_CONTAINER_ARRAY, entries);
+        pdc.set(Keys.ENCHANTS_STATE_CONTAINER_KEY, PersistentDataType.LIST.dataContainers(), List.of(entries));
     }
 
     public static int getPersistentState(EnchantInstance instance, String key, int def) {

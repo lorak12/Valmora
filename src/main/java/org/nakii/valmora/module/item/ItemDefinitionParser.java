@@ -1,11 +1,8 @@
 package org.nakii.valmora.module.item;
 
-import java.util.Map;
-import java.util.Optional;
 
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.MemoryConfiguration;
 import org.nakii.valmora.api.ValmoraAPI;
 import org.nakii.valmora.api.config.LoadResult;
 import org.nakii.valmora.infrastructure.config.diag.ScriptCompile;

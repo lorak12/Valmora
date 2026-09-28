@@ -11,9 +11,10 @@ morphing through stages (ore → stone → air), then regrowing after a delay. T
 
 - `plugins/Valmora/zones/*.yml` — nodes under each zone key. Demos: `shardworks.yml` (3 ores),
   `test_zones.yml` (multi-stage `COAL_ORE → COBBLESTONE → BEDROCK`).
-- `plugins/Valmora/resource_pipeline.yml` — optional `pre_break` (post-power-gate; `interrupt`
-  cancels) / `post_break` hooks with `$resource.material$`, `$resource.stage$`.
-  See [Pipelines](/docs/pipelines).
+- `plugins/Valmora/resource_pipeline.yml` — the break itself, step by step (`break` flow: power
+  gate, Silk Touch, drops, stage advance, regrowth), the mine/deny/regrow sounds and particles, and
+  `pre_break` (post-power-gate; `interrupt` cancels) / `post_break` stages with
+  `$resource.material$`, `$resource.stage$`. See [Pipelines](/docs/pipelines).
 
 ## A complete node
 

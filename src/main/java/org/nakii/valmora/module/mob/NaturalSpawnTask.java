@@ -42,7 +42,6 @@ public class NaturalSpawnTask implements Runnable {
     @Override
     public void run() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            World world = player.getWorld();
             for (String mobId : mobRegistry.getAllMobIds()) {
                 MobDefinition def = mobRegistry.getMob(mobId).orElse(null);
                 if (def == null || !def.isNaturalSpawn()) continue;

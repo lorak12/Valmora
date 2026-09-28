@@ -13,10 +13,12 @@ reached via `ValmoraAPI.getInstance().getHookBus()`. For YAML authoring, see
 
 Real points: `combat:pre_damage`, `post_calculation`, `post_application`, `on_dmg_dealt`,
 `on_death`; `item:pre_ability`, `post_ability`; `mob:pre_ability`, `post_ability`;
-`resource:pre_break`, `post_break`; `fishing:pre_catch`, `post_catch`; `death:on_death`,
-`on_respawn`; plus `gui:<id>:on_open` and `enchant:<id>:<TRIGGER>`. YAML counterparts ship as
-`combat_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`, `resource_pipeline.yml`,
-`fishing_pipeline.yml`, `death_pipeline.yml` (empty/default).
+`resource:pre_break`, `post_break`; `fishing:pre_catch`, `post_catch`; `player:on_death`,
+`on_respawn`; `combat:pre_environment_damage`, `post_environment_damage`; plus
+`gui:<id>:on_open` and `enchant:<id>:<TRIGGER>`. Each non-GUI point is an `anchor:` step in the
+flows of `combat_pipeline.yml`, `item_pipeline.yml`, `mob_pipeline.yml`, `resource_pipeline.yml`,
+`fishing_pipeline.yml` and `death_pipeline.yml` — if an admin removes an anchor, hooks registered
+there stop running and the load report warns about it.
 
 ## API
 

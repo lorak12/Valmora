@@ -3,8 +3,6 @@ package org.nakii.valmora.module.skill;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
-import org.bukkit.entity.EntityType;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.bukkit.Bukkit;
@@ -13,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.*;
 
 public class SkillDefinitionTest {
@@ -49,7 +46,7 @@ public class SkillDefinitionTest {
 
         // 3. Tag match (Mocking Tag/Bukkit)
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
-            Tag<Material> logsTag = mock(Tag.class);
+            Tag<Material> logsTag = mock(); // type-inferring overload: no raw Tag.class
             when(logsTag.isTagged(Material.SPRUCE_LOG)).thenReturn(true);
             
             NamespacedKey logsKey = NamespacedKey.minecraft("logs");

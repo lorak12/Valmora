@@ -255,8 +255,10 @@ public class ItemCommand implements TabExecutor {
                 }
             }
 
-            if (meta.hasCustomModelData()) {
-                player.sendMessage(Formatter.format(" <gray>Custom Model Data: <white>" + meta.getCustomModelData()));
+            if (meta.hasCustomModelDataComponent()) {
+                var customModelData = meta.getCustomModelDataComponent();
+                player.sendMessage(Formatter.format(" <gray>Custom Model Data: <white>floats=" + customModelData.getFloats()
+                        + " strings=" + customModelData.getStrings()));
             }
 
             if (meta.isUnbreakable()) {

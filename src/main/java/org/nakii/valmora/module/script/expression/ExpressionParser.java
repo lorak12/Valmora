@@ -276,7 +276,8 @@ public class ExpressionParser {
         }
 
         private void enter() {
-            if (++depth > maxDepth) throw new DepthExceeded();
+            depth++;
+            if (depth > maxDepth) throw new DepthExceeded();
         }
 
         private Token peek() {

@@ -1,6 +1,5 @@
 package org.nakii.valmora.module.combat;
 
-import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;

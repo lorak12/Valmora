@@ -6,7 +6,6 @@ import org.nakii.valmora.Valmora;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.util.Objects;
 import java.util.logging.Logger;
 
 public class StatLoader {

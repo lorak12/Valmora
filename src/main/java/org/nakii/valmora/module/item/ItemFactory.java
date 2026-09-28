@@ -7,8 +7,10 @@ import org.bukkit.persistence.PersistentDataType;
 import org.nakii.valmora.Valmora;
 import org.nakii.valmora.module.stat.StatDefinition;
 import org.nakii.valmora.module.stat.StatRegistry;
+import org.nakii.valmora.util.CustomModelData;
 import org.nakii.valmora.util.Formatter;
 import org.nakii.valmora.util.Keys;
+
 import net.kyori.adventure.text.Component;
 
 import java.util.ArrayList;
@@ -41,7 +43,7 @@ public class ItemFactory {
 
             // Custom model data
             if (definition.getCustomModelData() > 0) {
-                meta.setCustomModelData(definition.getCustomModelData());
+                CustomModelData.set(meta, definition.getCustomModelData());
             }
 
             // Container GUI (e.g. a backpack opens its own storage GUI instead of stacking)
